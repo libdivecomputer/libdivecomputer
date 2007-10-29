@@ -355,10 +355,13 @@ serial_flush (serial* device, int queue)
 	switch (queue) {
 	case SERIAL_QUEUE_INPUT:
 		flags = PURGE_RXABORT | PURGE_RXCLEAR;
+		break;
 	case SERIAL_QUEUE_OUTPUT:
 		flags = PURGE_TXABORT | PURGE_TXCLEAR;
+		break;
 	default:
 		flags = PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR;
+		break;
 	}
 
 	if (!PurgeComm (device->hFile, flags)) {

@@ -511,10 +511,13 @@ serial_flush (serial *device, int queue)
 	switch (queue) {
 	case SERIAL_QUEUE_INPUT:
 		flags = TCIFLUSH;
+		break;
 	case SERIAL_QUEUE_OUTPUT:
 		flags = TCOFLUSH;
+		break;
 	default:
 		flags = TCIOFLUSH;
+		break;
 	}
 
 	if (tcflush (device->fd, flags) != 0) {
