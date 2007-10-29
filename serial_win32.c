@@ -105,14 +105,6 @@ serial_open (serial** out, const char* name)
 		return -1;
 	}
 
-	// Set the event mask for the drain function.
-	if (!SetCommMask (device->hFile, EV_TXEMPTY)) {
-		TRACE ("SetCommMask");
-		CloseHandle (device->hFile);
-		free (device);
-		return -1;
-	}
-
 	*out = device;
 
 	return 0;
@@ -384,14 +376,8 @@ serial_drain (serial* device)
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
-	BOOL rc = 0;
-	DWORD mask = 0;
-	do {
-		rc = WaitCommEvent (device->hFile, &mask, NULL);
-	} while ( rc && !(mask & EV_TXEMPTY) );
-
-	if (!rc) {
-		TRACE ("WaitCommEvent");
+	if (!FlushFileBuffers (device->hFile)) {
+		TRACE ("FlushFileBuffers");
 		return -1;
 	}
 
