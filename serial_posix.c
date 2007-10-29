@@ -80,16 +80,6 @@ serial_open (serial** out, const char* name)
 		return -1; // Error during open call.
 	}
 
-	// Restore blocking mode after opening the device. The CLOCAL bit
-	// of the termios struct will be set to ignore modem control lines.
-	int flags = fcntl (device->fd, F_GETFL, 0);
-	if (fcntl (device->fd, F_SETFL, flags & ~O_NONBLOCK) != 0) {
-		TRACE ("fcntl");
-		close (device->fd);
-		free (device);
-		return -1; // Failed to restore blocking mode.
-	}
-
 	// Retrieve the current terminal attributes, to 
 	// be able to restore them when closing the device.
 	// It is also used to check if the obtained
@@ -166,8 +156,12 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
     // and VTIME is the timeout in deciseconds for non-canonical read.
     // Setting both of these parameters to zero implies that a read
     // will return immediately, only giving the currently available
-    // characters (non-blocking read behaviour).
-	tty.c_cc[VMIN] = 0;
+    // characters (non-blocking read behaviour). However, a non-blocking
+    // read (or write) can also be achieved by using O_NONBLOCK.
+    // But together with VMIN = 1, it becomes possible to recognize
+    // the difference between a timeout and modem disconnect (EOF)
+    // when read() returns zero.
+	tty.c_cc[VMIN] = 1;
 	tty.c_cc[VTIME] = 0;
 
 	// Set the baud rate.
@@ -473,6 +467,7 @@ serial_read (serial* device, void* data, unsigned int size)
 		// Attempt to read data from the file descriptor.
 		int n = posix_read (device->fd, data + nbytes, size - nbytes);
 		if (n < 0) {
+			if (errno == EAGAIN) continue; // Retry.
 			TRACE ("posix_read");
 			return -1; // Error during read call.
 		} else if (n == 0) {
@@ -492,16 +487,29 @@ serial_write (serial* device, const void* data, unsigned int size)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	// Initialize the timeout calculation.
+	struct timeouts_t timeouts = {0};
+	timeouts_init_write (device, &timeouts, size);
+
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
+		// Wait until the file descriptor is ready for writing, or the timeout expires.
+		int rc = posix_wait (device->fd, &timeouts, 0, nbytes);
+		if (rc < 0) {
+			TRACE ("posix_wait");
+			return -1; // Error during select/poll call.
+		} else if (rc == 0)
+			break; // Timeout.
+
 		// Attempt to write data to the file descriptor.
 		int n = posix_write (device->fd, data + nbytes, size - nbytes);
 		if (n < 0) {
+			if (errno == EAGAIN) continue; // Retry.
 			TRACE ("posix_write");
 			return -1; // Error during write call.
+		} else {
+			nbytes += n; // Success.
 		}
-		
-		nbytes += n;
 	}
 
 	return nbytes;
