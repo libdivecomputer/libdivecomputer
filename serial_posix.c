@@ -564,18 +564,9 @@ serial_send_break (serial *device)
 static int
 serial_set_status (int fd, int value, int level)
 {
-	int bits;
-	if (ioctl (fd, TIOCMGET, &bits)) {
-		TRACE ("ioctl");
-		return -1;
-	}
+	int action = (level ? TIOCMBIS : TIOCMBIC);
 
-	if (level)
-		bits |= value;
-	else
-		bits &= value;
-
-	if (ioctl (fd, TIOCMSET, &bits)) {
+	if (ioctl (fd, action, &value) != 0) {
 		TRACE ("ioctl");
 		return -1;
 	}
