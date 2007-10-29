@@ -420,31 +420,7 @@ posix_wait (int fd, const struct timeouts_t* timeouts, int input, unsigned int a
 }
 
 
-static int 
-posix_read (int fd, void* buffer, unsigned int count)
-{
-	int rc = 0;
-	do {
-		rc = read (fd, buffer, count);
-	} while (rc == -1 && errno == EINTR);
-	
-	return rc;
-}
-
-
-static int 
-posix_write (int fd, const void* buffer, unsigned int count)
-{
-	int rc = 0;
-	do {
-		rc = write (fd, buffer, count);
-	} while (rc == -1 && errno == EINTR);
-	
-	return rc;
-}
-
-
-int 
+int
 serial_read (serial* device, void* data, unsigned int size)
 {
 	if (device == NULL)
@@ -455,7 +431,22 @@ serial_read (serial* device, void* data, unsigned int size)
 	timeouts_init_read (device, &timeouts, size);
 
 	unsigned int nbytes = 0;
-	while (nbytes < size) {
+	for (;;) {
+		// Attempt to read data from the file descriptor.
+		int n = read (device->fd, data + nbytes, size - nbytes);
+		if (n < 0) {
+			if (errno == EINTR)
+				continue; // Retry.
+			if (errno != EAGAIN) {
+				TRACE ("read");
+				return -1; // Error during read call.
+			}
+		} else {
+			nbytes += n;
+			if (!n || nbytes == size)
+				break; // Success or EOF.
+		}
+		
 		// Wait until the file descriptor is ready for reading, or the timeout expires.
 		int rc = posix_wait (device->fd, &timeouts, 1, nbytes);
 		if (rc < 0) {
@@ -463,18 +454,6 @@ serial_read (serial* device, void* data, unsigned int size)
 			return -1; // Error during select/poll call.
 		} else if (rc == 0)
 			break; // Timeout.
-
-		// Attempt to read data from the file descriptor.
-		int n = posix_read (device->fd, data + nbytes, size - nbytes);
-		if (n < 0) {
-			if (errno == EAGAIN) continue; // Retry.
-			TRACE ("posix_read");
-			return -1; // Error during read call.
-		} else if (n == 0) {
-			break; // EOF reached.
-		} else {
-			nbytes += n; // Success.
-		}
 	}
 
 	return nbytes;
@@ -492,7 +471,22 @@ serial_write (serial* device, const void* data, unsigned int size)
 	timeouts_init_write (device, &timeouts, size);
 
 	unsigned int nbytes = 0;
-	while (nbytes < size) {
+	for (;;) {
+		// Attempt to write data to the file descriptor.
+		int n = write (device->fd, data + nbytes, size - nbytes);
+		if (n < 0) {
+			if (errno == EINTR)
+				continue; // Retry.
+			if (errno != EAGAIN) {
+				TRACE ("write");
+				return -1; // Error during write call.
+			}
+		} else {
+			nbytes += n;
+			if (nbytes == size)
+				break; // Success.
+		}
+		
 		// Wait until the file descriptor is ready for writing, or the timeout expires.
 		int rc = posix_wait (device->fd, &timeouts, 0, nbytes);
 		if (rc < 0) {
@@ -500,16 +494,6 @@ serial_write (serial* device, const void* data, unsigned int size)
 			return -1; // Error during select/poll call.
 		} else if (rc == 0)
 			break; // Timeout.
-
-		// Attempt to write data to the file descriptor.
-		int n = posix_write (device->fd, data + nbytes, size - nbytes);
-		if (n < 0) {
-			if (errno == EAGAIN) continue; // Retry.
-			TRACE ("posix_write");
-			return -1; // Error during write call.
-		} else {
-			nbytes += n; // Success.
-		}
 	}
 
 	return nbytes;
