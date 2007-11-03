@@ -474,10 +474,16 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 		unsigned char reply = 0;
 		int rc = serial_read (device->port, &reply, 1);
 		if (rc != 1 || memcmp (command, &reply, 1) != 0) {
-			// If no data is received at this point (timeout), 
-			// we assume the last package was already received
-			// and the transmission can be finished.
-			if (rc == 0)
+			// If no data is received at this point (a timeout occured), 
+			// we assume the last package was already received and the 
+			// transmission should be finished. This is not 100% reliable, 
+			// because there is always a small chance that more data will 
+			// arrive later (especially with a short timeout). But I'm not 
+			// aware of a better method to detect the end of the transmission. 
+			// Only for the very first package, we can be sure there was
+			// an error, because it makes no sense to end the transmission 
+			// if no data was received so far.
+			if (rc == 0 && nbytes != 0)
 				break;
 			fprintf (stderr, "%s:%d: Unexpected answer start byte (%d).\n", __FILE__, __LINE__, reply);
 			return -1;
