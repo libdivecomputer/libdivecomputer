@@ -528,6 +528,14 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			return -1;
 		}
 
+		// A null package (length zero) indicates the DC reached the end of 
+		// its internal ring buffer and the transmission should be aborted. 
+		// The remaining data of the current dive is overwritten with newer 
+		// data and thus not transmitted by the DC. Therefore, the data that 
+		// was already received is discarded.
+		if (len == 0)
+			return 0;
+
 		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
 		// we assume it's the last packet and the transmission can be 
 		// finished early. However, this approach does not work if the 
