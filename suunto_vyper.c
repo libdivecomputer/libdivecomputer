@@ -198,30 +198,30 @@ suunto_vyper_detect_interface (vyper *device)
 static int
 suunto_vyper_send_command (vyper *device, const unsigned char* data, unsigned int size)
 {
-	// Send the command to the dive computer.
 	serial_sleep (500);
+
+	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);
+
+	// Send the command to the dive computer and 
+	// wait until all data has been transmitted.
 	serial_write (device->port, data, size);
 	serial_drain (device->port);
-	serial_sleep (200);
-	serial_set_rts (device->port, 0);
 
 	// If the interface sends an echo back (which is the case for many clone 
-	// interfaces), those echos should be removed from the input queue before 
-	// reading the real reply from the dive computer. Otherwise, the data 
-	// transfer will fail.
-	if (device->ifacealwaysechos) {
-		// Echos should be there instantly.
-		unsigned char echo[37] = {0}; // An echo is maximum 37 bytes long.
-		int rc = serial_read (device->port, echo, size);
-		if (rc != size || memcmp (data, echo, size) != 0) {
-			if (rc == 0) 
-				fprintf (stderr, "%s:%d: Timeout waiting for echos.\n", __FILE__, __LINE__);
-			else
-				fprintf (stderr, "%s:%d: Echo incorrect.\nMaybe another device is listening on this port?\n", __FILE__, __LINE__);
-			return -1;
-		}
-	}
+	// interfaces), this echo should be removed from the input queue before 
+	// attempting to read the real reply from the dive computer. Otherwise, 
+	// the data transfer will fail. Timing is also critical here! We have to 
+	// wait at least until the echo appears (100ms), but not until the reply 
+	// from the dive computer appears (600ms).
+	// The original suunto interface does not have this problem, because it
+	// does not send an echo and the RTS switching makes it impossible to
+	// receive the reply too early here.
+	serial_sleep (200);
+	serial_flush (device->port, SERIAL_QUEUE_INPUT);
+
+	// Clear RTS to receive the reply.
+	serial_set_rts (device->port, 0);
 
 	return 0;
 }
