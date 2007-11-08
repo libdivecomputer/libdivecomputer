@@ -67,7 +67,7 @@ int test_dump_sdm16 (const char* name, const char* filename)
 	} while (rc > 0);
 
 	printf ("Dumping data\n");
-	FILE *fp = fopen (filename, "w");
+	FILE *fp = fopen (filename, "wb");
 	if (fp != NULL) {
 		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
 		fclose (fp);
@@ -112,7 +112,7 @@ int test_dump_memory (const char* name, const char* filename)
 	}
 
 	printf ("Dumping data\n");
-	FILE* fp = fopen (filename, "w");
+	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
 		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
 		fclose (fp);
