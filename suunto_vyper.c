@@ -66,11 +66,9 @@ suunto_vyper_open (vyper **out, const char* name)
 		return -1;
 	}
 
-	// Set the DTR line (power supply for the interface) and clear
-	// the RTS line (toggle for the direction of the half-duplex interface).
-	if (serial_set_dtr (device->port, 1) == -1 ||
-		serial_set_rts (device->port, 0) == -1) {
-		WARNING ("Failed to set the RTS/DTR state.");
+	// Set the DTR line (power supply for the interface).
+	if (serial_set_dtr (device->port, 1) == -1) {
+		WARNING ("Failed to set the DTR line.");
 		serial_close (device->port);
 		free (device);
 		return -1;
