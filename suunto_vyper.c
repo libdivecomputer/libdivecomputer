@@ -214,7 +214,7 @@ suunto_vyper_send_command (vyper *device, const unsigned char* data, unsigned in
 	// interfaces), this echo should be removed from the input queue before 
 	// attempting to read the real reply from the dive computer. Otherwise, 
 	// the data transfer will fail. Timing is also critical here! We have to 
-	// wait at least until the echo appears (100ms), but not until the reply 
+	// wait at least until the echo appears (40ms), but not until the reply 
 	// from the dive computer appears (600ms).
 	// The original suunto interface does not have this problem, because it
 	// does not send an echo and the RTS switching makes it impossible to
