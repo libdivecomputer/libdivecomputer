@@ -8,6 +8,11 @@
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
+#define WARNING(expr) \
+{ \
+	fprintf (stderr, "%s:%d: %s\n", __FILE__, __LINE__, expr); \
+}
+
 
 struct vyper {
 	struct serial *port;
@@ -26,7 +31,7 @@ suunto_vyper_open (vyper **out, const char* name)
 	// Allocate memory.
 	struct vyper *device = malloc (sizeof (struct vyper));
 	if (device == NULL) {
-		fprintf (stderr, "%s:%d: Out of memory.\n", __FILE__, __LINE__);
+		WARNING ("Failed to allocate memory.");
 		return -1;
 	}
 
@@ -39,7 +44,7 @@ suunto_vyper_open (vyper **out, const char* name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		fprintf (stderr, "%s:%d: Can't open serial port %s.\n", __FILE__, __LINE__, name);
+		WARNING ("Failed to open the serial port.");
 		free (device);
 		return -1;
 	}
@@ -47,7 +52,7 @@ suunto_vyper_open (vyper **out, const char* name)
 	// Set the serial communication protocol (2400 8O1).
 	rc = serial_configure (device->port, 2400, 8, SERIAL_PARITY_ODD, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		fprintf (stderr, "%s:%d: Failed to set terminal attributes on %s.\n", __FILE__, __LINE__, name);
+		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return -1;
@@ -55,7 +60,7 @@ suunto_vyper_open (vyper **out, const char* name)
 
 	// Set the timeout for receiving data (500 ms).
 	if (serial_set_timeout (device->port, 500) == -1) {
-		fprintf (stderr, "%s:%d: Failed to set timeout on %s.\n", __FILE__, __LINE__, name);
+		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return -1;
@@ -65,7 +70,7 @@ suunto_vyper_open (vyper **out, const char* name)
 	// the RTS line (toggle for the direction of the half-duplex interface).
 	if (serial_set_dtr (device->port, 1) == -1 ||
 		serial_set_rts (device->port, 0) == -1) {
-		fprintf (stderr, "%s:%d: Error setting RTS/DTR state on %s.\n", __FILE__, __LINE__, name);
+		WARNING ("Failed to set the RTS/DTR state.");
 		serial_close (device->port);
 		free (device);
 		return -1;
@@ -128,7 +133,7 @@ static int
 suunto_vyper_send_testcmd (vyper *device, const unsigned char* data, unsigned int size)
 {
 	if (serial_write (device->port, data, size) != size) {
-		fprintf (stderr, "%s:%d: Trouble sending test sequence to interface.\n", __FILE__, __LINE__);
+		WARNING ("Failed to send the test sequence.");
 		return -1;
 	}
 	serial_drain (device->port);
@@ -156,40 +161,39 @@ suunto_vyper_detect_interface (vyper *device)
 
 	serial_set_rts (device->port, 0);
 	if (suunto_vyper_send_testcmd (device, command, 3) == -1)
-		return -1;	// Failed to send? Huh?
+		return -1;
 	rc = serial_read (device->port, reply, 3);
 	if (rc != 3 || memcmp (command, reply, 3) != 0) {
-    	fprintf (stderr, "%s:%d: Interface not responding in probe mode.\n", __FILE__, __LINE__);
+		WARNING ("Interface not responding in probe mode.");
     	detectmode_worked = 0;
 	}
 	if (serial_read (device->port, &extra, 1) == 1) {
-		fprintf (stderr, "%s:%d: Got extraneous character %02x in detection phase - maybe line is connected to a modem?\n", __FILE__, __LINE__, extra);
+		WARNING ("Got an extraneous character in the detection phase. Maybe the line is connected to a modem?");
 	}
 
 	// Try transfer mode now.
 
 	serial_set_rts (device->port, 1);
 	if (suunto_vyper_send_testcmd (device, command, 3) == -1)
-		return -1;	// Failed to send? Huh?
+		return -1;
 	serial_set_rts (device->port, 0);
 	rc = serial_read (device->port, reply, 3);
 	if (rc == 0) {
 		if (detectmode_worked) {
-			fprintf (stderr, "%s:%d: Detected original suunto interface with RTS-switching.\n", __FILE__, __LINE__);
+			WARNING ("Detected an original suunto interface with RTS-switching.");
 		} else {
-			fprintf (stderr, "%s:%d: Can't detect Interface.\n"
-					"Hoping it's an original suunto interface with DC already attached.\n", __FILE__, __LINE__);
+			WARNING ("Can't detect the interface. Hoping it's an original suunto interface with the DC already attached.");
 		}
 		device->ifacealwaysechos = 0;
 		return 0;
 	}
 	if (rc != 3 || memcmp (command, reply, 3) != 0) {
-    	fprintf (stderr, "%s:%d: Interface not responding when RTS is on. Strange.\n", __FILE__, __LINE__);
+		WARNING ("Interface not responding in transfer mode.");
 	}
 	if (serial_read (device->port, &extra, 1) == 1) {
-		fprintf (stderr, "%s:%d: Got extraneous character %02x in detection phase - maybe line is connected to a modem?\n", __FILE__, __LINE__, extra);
+		WARNING ("Got an extraneous character in the detection phase. Maybe the line is connected to a modem?");
 	}
-	fprintf (stderr, "%s:%d: Detected clone interface without RTS-switching.\n", __FILE__, __LINE__);
+	WARNING ("Detected a clone interface without RTS-switching.");
 	device->ifacealwaysechos = 1;
 	return 0;
 }
@@ -240,7 +244,7 @@ suunto_vyper_read_memory_package (vyper *device, unsigned int address, unsigned 
 
 	// Send the command to the dive computer.
 	if (suunto_vyper_send_command (device, command, 5) != 0) {
-		fprintf (stderr, "%s:%d: Error sending command.\n", __FILE__, __LINE__);
+		WARNING ("Failed to send the command.");
 		return -1;
 	}
 
@@ -251,12 +255,9 @@ suunto_vyper_read_memory_package (vyper *device, unsigned int address, unsigned 
 	unsigned char reply[4] = {0, 0, 0, 0};
 	int rc = serial_read (device->port, reply, 4);
 	if (rc != 4 || memcmp (command, reply, 4) != 0) {
-		fprintf (stderr, "%s:%d: Reply to read memory malformed (expected %02x%02x%02x%02x, got %02x%02x%02x%02x).\n",
-			__FILE__, __LINE__,
-			command[0], command[1], command[2], command[3],
-			reply[0], reply[1], reply[2], reply[3]);
+		WARNING ("Unexpected answer start byte(s).");
 		if (rc == 0) {
-			fprintf (stderr, "%s:%d: Interface present, but DC does not answer. Check connection.\n", __FILE__, __LINE__);
+			WARNING ("Interface present, but the DC does not answer. Check the connection.");
 		}
 		return -1;
 	}
@@ -264,7 +265,7 @@ suunto_vyper_read_memory_package (vyper *device, unsigned int address, unsigned 
 	// Receive the contents of the package.
 	rc = serial_read (device->port, data, size);
 	if (rc != size) {
-		fprintf (stderr, "%s:%d: Unexpected EOF in answer.\n", __FILE__, __LINE__);
+		WARNING ("Unexpected EOF in answer.");
 		return -1;
 	}
 
@@ -277,7 +278,7 @@ suunto_vyper_read_memory_package (vyper *device, unsigned int address, unsigned 
 	unsigned char crc = 0x00;
 	rc = serial_read (device->port, &crc, 1);
 	if (rc != 1 || ccrc != crc) {
-		fprintf (stderr, "%s:%d: Reply failed CRC check. Line noise?\n", __FILE__, __LINE__);
+		WARNING ("Unexpected answer CRC.");
 		return -1;
 	}
 
@@ -302,7 +303,7 @@ suunto_vyper_write_memory_prepare (vyper *device)
 
 	// Send the command to the dive computer.
 	if (suunto_vyper_send_command (device, command, 3) != 0) {
-		fprintf (stderr, "%s:%d: Error sending command.\n", __FILE__, __LINE__);
+		WARNING ("Failed to send the command.");
 		return -1;
 	}
 
@@ -313,12 +314,9 @@ suunto_vyper_write_memory_prepare (vyper *device)
 	unsigned char reply[3] = {0, 0, 0};
 	int rc = serial_read (device->port, reply, 3);
 	if (rc != 3 || memcmp (command, reply, 3) != 0) {
-		fprintf (stderr, "%s:%d: Reply to prepare write memory malformed (expected %02x%02x%02x, got %02x%02x%02x).\n",
-			__FILE__, __LINE__,
-			command[0], command[1], command[2],
-			reply[0], reply[1], reply[2]);
+		WARNING ("Unexpected answer start byte(s).");
 		if (rc == 0) {
-			fprintf (stderr, "%s:%d: Interface present, but DC does not answer. Check connection.\n", __FILE__, __LINE__);
+			WARNING ("Interface present, but the DC does not answer. Check the connection.");
 		}
 		return -1;
 	}
@@ -345,7 +343,7 @@ suunto_vyper_write_memory_package (vyper *device, int address, const unsigned ch
 
 	// Send the command to the dive computer.
 	if (suunto_vyper_send_command (device, command, size + 5) != 0) {
-		fprintf (stderr, "%s:%d: Error sending command.\n", __FILE__, __LINE__);
+		WARNING ("Failed to send the command.");
 		return -1;
 	}
 
@@ -356,12 +354,9 @@ suunto_vyper_write_memory_package (vyper *device, int address, const unsigned ch
 	unsigned char reply[4] = {0, 0, 0, 0};
 	int rc = serial_read (device->port, reply, 4);
 	if (rc != 4 || memcmp (command, reply, 4) != 0) {
-		fprintf (stderr, "%s:%d: Reply to write memory malformed (expected %02x%02x%02x%02x, got %02x%02x%02x%02x).\n",
-			__FILE__, __LINE__,
-			command[0], command[1], command[2], command[3],
-			reply[0], reply[1], reply[2], reply[3]);
+		WARNING ("Unexpected answer start byte(s).");
 		if (rc == 0) {
-			fprintf (stderr, "%s:%d: Interface present, but DC does not answer. Check connection.\n", __FILE__, __LINE__);
+			WARNING ("Interface present, but the DC does not answer. Check the connection.");
 		}
 		return -1;
 	}
@@ -374,7 +369,7 @@ suunto_vyper_write_memory_package (vyper *device, int address, const unsigned ch
 	unsigned char crc = 0x00;
 	rc = serial_read (device->port, &crc, 1);
 	if (rc != 1 || ccrc != crc) {
-		fprintf (stderr, "%s:%d: Reply failed CRC check. Line noise?\n", __FILE__, __LINE__);
+		WARNING ("Unexpected answer CRC.");
 		return -1;
 	}
 
@@ -458,7 +453,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 
 	// Send the command to the dive computer.
 	if (suunto_vyper_send_command (device, command, 3) != 0) {
-		fprintf (stderr, "%s:%d: Error sending command.\n", __FILE__, __LINE__);
+		WARNING ("Failed to send the command.");
 		return -1;
 	}
 
@@ -485,7 +480,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			// if no data was received so far.
 			if (rc == 0 && nbytes != 0)
 				break;
-			fprintf (stderr, "%s:%d: Unexpected answer start byte (%d).\n", __FILE__, __LINE__, reply);
+			WARNING ("Unexpected answer start byte(s).");
 			return -1;
 		}
 
@@ -493,7 +488,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 		unsigned char len = 0;
 		rc = serial_read (device->port, &len, 1);
 		if (rc != 1 || len > SUUNTO_VYPER_PACKET_SIZE) {
-			fprintf (stderr, "%s:%d: Unexpected answer length (%d).\n", __FILE__, __LINE__, len);
+			WARNING ("Unexpected answer length.");
 			return -1;
 		}
 
@@ -501,7 +496,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 		unsigned char package[SUUNTO_VYPER_PACKET_SIZE] = {0};
 		rc = serial_read (device->port, package, len);
 		if (rc != len) {
-			fprintf (stderr, "%s:%d: Unexpected EOF in answer.\n", __FILE__, __LINE__);
+			WARNING ("Unexpected EOF in answer.");
 			return -1;
 		}
 
@@ -515,7 +510,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 		unsigned char crc = 0x00;
 		rc = serial_read (device->port, &crc, 1);
 		if (rc != 1 || ccrc != crc) {
-			fprintf (stderr, "%s:%d: Unexpected answer CRC (%d).\n", __FILE__, __LINE__, crc);
+			WARNING ("Unexpected answer CRC.");
 			return -1;
 		}
 
@@ -524,7 +519,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			memcpy (data + nbytes, package, len);
 			nbytes += len;
 		} else {
-			fprintf (stderr, "%s:%d: Insufficient buffer space available.\n", __FILE__, __LINE__);
+			WARNING ("Insufficient buffer space available.");
 			return -1;
 		}
 
