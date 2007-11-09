@@ -10,6 +10,13 @@ typedef struct vyper vyper;
 #define SUUNTO_VYPER_MEMORY_SIZE 0x2000
 #define SUUNTO_VYPER_PACKET_SIZE 32
 
+#define SUUNTO_VYPER_SUCCESS         0
+#define SUUNTO_VYPER_ERROR          -1
+#define SUUNTO_VYPER_ERROR_IO       -2
+#define SUUNTO_VYPER_ERROR_MEMORY   -3
+#define SUUNTO_VYPER_ERROR_PROTOCOL -4
+#define SUUNTO_VYPER_ERROR_TIMEOUT  -5
+
 int suunto_vyper_open (vyper **device, const char* name);
 
 int suunto_vyper_close (vyper *device);
