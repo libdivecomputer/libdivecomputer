@@ -342,7 +342,7 @@ static int
 suunto_vyper_write_memory_package (vyper *device, int address, const unsigned char data[], unsigned int size)
 {
 	// Prepare the command.
-	unsigned char command[37] = {0x06,
+	unsigned char command[SUUNTO_VYPER_PACKET_SIZE + 5] = {0x06,
 			(address >> 8) & 0xFF, // high
 			(address     ) & 0xFF, // low
 			size, // count
