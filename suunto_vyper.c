@@ -285,86 +285,6 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 }
 
 
-static int
-suunto_vyper_read_memory_package (vyper *device, unsigned int address, unsigned char data[], unsigned int size)
-{
-	// Prepare the command.
-	unsigned char header[4] = {0};
-	unsigned char command[5] = {0x05,
-			(address >> 8) & 0xFF, // high
-			(address     ) & 0xFF, // low
-			size, // count
-			0x00};  // CRC
-	command[4] = suunto_vyper_checksum (command, 4, 0x00);
-
-	// Send the command to the dive computer and receive the answer.
-	int rc = suunto_vyper_transfer (device, command, 5, header, 4, data, size);
-	if (rc != SUUNTO_VYPER_SUCCESS)
-		return rc;
-
-#ifndef NDEBUG
-	printf ("VyperRead(0x%04x,%d)=\"", (command[1] << 8) | command[2], command[3]);
-	for (unsigned int i = 0; i < size; ++i) {
-		printf("%02x",data[i]);
-	}
-	printf("\"\n");
-#endif
-
-	return SUUNTO_VYPER_SUCCESS;
-}
-
-
-static int
-suunto_vyper_write_memory_prepare (vyper *device)
-{
-	// Prepare the commmand.
-	unsigned char header[2] = {0};
-	unsigned char command[3] = {0x07, 0xA5, 0x00};
-	command[2] = suunto_vyper_checksum (command, 2, 0x00);
-
-	// Send the command to the dive computer and receive the answer.
-	int rc = suunto_vyper_transfer (device, command, 3, header, 2, NULL, 0);
-	if (rc != SUUNTO_VYPER_SUCCESS)
-		return rc;
-
-#ifndef NDEBUG
-	printf("VyperPrepareWrite();\n");
-#endif
-
-	return SUUNTO_VYPER_SUCCESS;
-}
-
-
-static int
-suunto_vyper_write_memory_package (vyper *device, int address, const unsigned char data[], unsigned int size)
-{
-	// Prepare the command.
-	unsigned char header[4] = {0};
-	unsigned char command[SUUNTO_VYPER_PACKET_SIZE + 5] = {0x06,
-			(address >> 8) & 0xFF, // high
-			(address     ) & 0xFF, // low
-			size, // count
-			0x00};  // data + CRC
-	memcpy (command + 4, data, size);
-	command[size + 4] = suunto_vyper_checksum (command, size + 4, 0x00);
-
-	// Send the command to the dive computer and receive the answer.
-	int rc = suunto_vyper_transfer (device, command, size + 5, header, 4, NULL, 0);
-	if (rc != SUUNTO_VYPER_SUCCESS)
-		return rc;
-
-#ifndef NDEBUG
-	printf ("VyperWrite(0x%04x,%d,\"", (command[1] << 8) | command[2], command[3]);
-	for (unsigned int i = 0; i < size; ++i) {
-		printf ("%02x", command[i + 4]);
-	}
-	printf ("\");\n");
-#endif
-
-	return SUUNTO_VYPER_SUCCESS;
-}
-
-
 int
 suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char data[], unsigned int size)
 {
@@ -378,14 +298,30 @@ suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char dat
 	while (nbytes < size) {
 		// Calculate the package size.
 		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER_PACKET_SIZE);
-
+		
 		// Read the package.
-		int rc = suunto_vyper_read_memory_package (device, address + nbytes, data + nbytes, len);
+		unsigned char header[4] = {0};
+		unsigned char command[5] = {0x05,
+				(address >> 8) & 0xFF, // high
+				(address     ) & 0xFF, // low
+				len, // count
+				0};  // CRC
+		command[4] = suunto_vyper_checksum (command, 4, 0x00);
+		int rc = suunto_vyper_transfer (device, command, 5, header, 4, data, len);
 		if (rc != SUUNTO_VYPER_SUCCESS)
 			return rc;
 
-		// Increment the total number of bytes read.
+#ifndef NDEBUG
+		printf ("VyperRead(0x%04x,%d)=\"", address, len);
+		for (unsigned int i = 0; i < len; ++i) {
+			printf("%02x", data[i]);
+		}
+		printf("\"\n");
+#endif
+
 		nbytes += len;
+		address += len;
+		data += len;
 	}
 
 	return SUUNTO_VYPER_SUCCESS;
@@ -407,17 +343,41 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER_PACKET_SIZE);
 
 		// Prepare to write the package.
-		int rc = suunto_vyper_write_memory_prepare (device);
+		unsigned char pheader[2] = {0};
+		unsigned char pcommand[3] = {0x07, 0xA5, 0};
+		pcommand[2] = suunto_vyper_checksum (pcommand, 2, 0x00);
+		int rc = suunto_vyper_transfer (device, pcommand, 3, pheader, 2, NULL, 0);
 		if (rc != SUUNTO_VYPER_SUCCESS)
 			return rc;
+
+#ifndef NDEBUG
+		printf("VyperPrepareWrite();\n");
+#endif
 
 		// Write the package.
-		rc = suunto_vyper_write_memory_package (device, address + nbytes, data + nbytes, len);
+		unsigned char wheader[4] = {0};
+		unsigned char wcommand[SUUNTO_VYPER_PACKET_SIZE + 5] = {0x06,
+				(address >> 8) & 0xFF, // high
+				(address     ) & 0xFF, // low
+				len, // count
+				0};  // data + CRC
+		memcpy (wcommand + 4, data, len);
+		wcommand[len + 4] = suunto_vyper_checksum (wcommand, len + 4, 0x00);
+		rc = suunto_vyper_transfer (device, wcommand, len + 5, wheader, 4, NULL, 0);
 		if (rc != SUUNTO_VYPER_SUCCESS)
 			return rc;
 
-		// Increment the total number of bytes written.
+#ifndef NDEBUG
+		printf ("VyperWrite(0x%04x,%d,\"", address, len);
+		for (unsigned int i = 0; i < len; ++i) {
+			printf ("%02x", data[i]);
+		}
+		printf ("\");\n");
+#endif
+
 		nbytes += len;
+		address += len;
+		data += len;
 	}
 
 	return SUUNTO_VYPER_SUCCESS;
