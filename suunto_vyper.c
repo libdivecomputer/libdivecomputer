@@ -248,6 +248,9 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 		return rc;
 	}
 
+	// Initial checksum value.
+	unsigned char ccrc = 0x00;
+
 	// FIXME: Give the DC extra answer time to send its first byte, 
 	//        then let the standard timeout apply.
 
@@ -260,18 +263,19 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 		}
 		return EXITCODE (rc, hsize);
 	}
-
-	// Receive the contents of the package.
-	rc = serial_read (device->port, data, size);
-	if (rc != size) {
-		WARNING ("Unexpected EOF in answer.");
-		return EXITCODE (rc, size);
-	}
-
-	// Calculate the checksum.
-	unsigned char ccrc = 0x00;
+	// Update the checksum.
 	ccrc = suunto_vyper_checksum (header, hsize, ccrc);
-	ccrc = suunto_vyper_checksum (data, size, ccrc);
+
+	if (data) {
+		// Receive the contents of the package.
+		rc = serial_read (device->port, data, size);
+		if (rc != size) {
+			WARNING ("Unexpected EOF in answer.");
+			return EXITCODE (rc, size);
+		}
+		// Update the checksum.
+		ccrc = suunto_vyper_checksum (data, size, ccrc);
+	}
 
 	// Receive (and verify) the checksum of the package.
 	unsigned char crc = 0x00;
@@ -409,6 +413,9 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 
 	unsigned int nbytes = 0;
 	for (;;) {
+		// Initial checksum value.
+		unsigned char ccrc = 0x00;
+
 		// Receive the header of the package.
 		unsigned char header[2] = {0};
 		rc = serial_read (device->port, header, 2);
@@ -428,6 +435,8 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			WARNING ("Unexpected answer start byte(s).");
 			return EXITCODE (rc, 2);
 		}
+		// Update the checksum.
+		ccrc = suunto_vyper_checksum (header, 2, ccrc);
 
 		// Receive the contents of the package.
 		unsigned char len = header[1];
@@ -437,10 +446,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			WARNING ("Unexpected EOF in answer.");
 			return EXITCODE (rc, len);
 		}
-
-		// Calculate the checksum.
-		unsigned char ccrc = 0x00;
-		ccrc = suunto_vyper_checksum (header, 2, ccrc);
+		// Update the checksum.
 		ccrc = suunto_vyper_checksum (package, len, ccrc);
 
 		// Receive (and verify) the checksum of the package.
