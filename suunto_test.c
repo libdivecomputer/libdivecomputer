@@ -160,9 +160,9 @@ int main(int argc, char *argv[])
 		name = argv[1];
 	}
 
-	int a = test_dump_sdm16 (name, "PROFILE.VPR");
+	int a = test_dump_sdm16 (name, "PROFILE.SDM");
 	int b = test_dump_memory (name, "PROFILE.DMP");
-	
+
 	printf ("\nSUMMARY\n");
 	printf ("-------\n");
 	printf ("test_dump_sdm16:  %s\n", errmsg (a));
