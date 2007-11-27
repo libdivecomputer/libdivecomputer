@@ -58,6 +58,8 @@ int serial_configure (serial *device, int baudrate, int databits, int parity, in
 
 int serial_set_timeout (serial *device, long timeout /* milliseconds */);
 
+int serial_set_queue_size (serial *device, unsigned int input, unsigned int output);
+
 int serial_read (serial *device, void* data, unsigned int size);
 int serial_write (serial *device, const void* data, unsigned int size);
 

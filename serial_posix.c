@@ -323,6 +323,19 @@ serial_set_timeout (serial *device, long timeout)
 }
 
 
+//
+// Configure the serial port (recommended size of the input/output buffers).
+//
+
+int
+serial_set_queue_size (serial *device, unsigned int input, unsigned int output)
+{
+	if (device == NULL)
+		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	return 0;
+}
+
 struct timeouts_t {
 	int interval;
 	int total;

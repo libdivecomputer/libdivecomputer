@@ -311,6 +311,23 @@ serial_set_timeout (serial* device, long timeout)
 	return 0;
 }
 
+//
+// Configure the serial port (recommended size of the input/output buffers).
+//
+
+int
+serial_set_queue_size (serial *device, unsigned int input, unsigned int output)
+{
+	if (device == NULL)
+		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	if (!SetupComm (device->hFile, input, output)) {
+		TRACE ("SetupComm");
+		return -1;
+	}
+
+	return 0;
+}
 
 int
 serial_read (serial* device, void* data, unsigned int size)
