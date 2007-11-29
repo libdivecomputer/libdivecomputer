@@ -246,12 +246,6 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 		return -1;
 	}
 
-	// Flush the input and output buffers.
-	if (!PurgeComm (device->hFile, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR)) {
-		TRACE ("PurgeComm");
-		return -1;
-	}
-
 	// Apply the new settings.
 	if (!SetCommState (device->hFile, &dcb)) {
 		TRACE ("SetCommState");

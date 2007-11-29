@@ -277,12 +277,6 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 		return -1;
 	}
 
-	// Flush the input and output buffers.
-	if (tcflush (device->fd, TCIOFLUSH) != 0) {
-		TRACE ("tcflush");
-		return -1;
-	}
-
 	// Apply the new settings.
 	if (tcsetattr (device->fd, TCSANOW, &tty) != 0) {
 		TRACE ("tcsetattr");
