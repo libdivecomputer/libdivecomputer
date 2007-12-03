@@ -421,12 +421,12 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 		rc = serial_read (device->port, header, 2);
 		if (rc != 2 || memcmp (command, header, 1) != 0 ||
 			header[1] > SUUNTO_VYPER_PACKET_SIZE) {
-			// If no data is received at this point (a timeout occured), 
-			// we assume the last package was already received and the 
-			// transmission should be finished. This is not 100% reliable, 
+			// If no data is received because a timeout occured, we assume 
+			// the last package was already received and the transmission 
+			// can be finished. Unfortunately this is not 100% reliable, 
 			// because there is always a small chance that more data will 
-			// arrive later (especially with a short timeout). But I'm not 
-			// aware of a better method to detect the end of the transmission. 
+			// arrive later (especially with a short timeout). But it works 
+			// good enough in practice.
 			// Only for the very first package, we can be sure there was 
 			// an error, because the DC always sends at least one package.
 			if (rc == 0 && npackages != 0)
@@ -465,11 +465,10 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			return SUUNTO_VYPER_ERROR_MEMORY;
 		}
 
-		// A null package (length zero) indicates the DC reached the end of 
-		// its internal ring buffer and the transmission should be aborted. 
-		// The remaining data of the current dive is overwritten with newer 
-		// data and thus not transmitted by the DC. Therefore, the data that 
-		// was already received is discarded.
+		// The DC sends a null package (a package with length zero) when it 
+		// has reached the end of its internal ring buffer. From this point on, 
+		// the current dive has been overwritten with newer data. Therefore, 
+		// we discard the current (incomplete) dive and end the transmission.
 		if (len == 0)
 			return 0;
 
@@ -481,9 +480,10 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			break;
 	}
 
-	// The DC traverses the internal ring buffer backwards while sending. 
-	// Therefore, we restore the original order before returning the 
-	// data to the application.
+	// The DC traverses its internal ring buffer backwards. The most recent 
+	// dive is send first (which allows you to download only the new dives), 
+	// but also the contents of each dive is reversed. Therefore, we reverse 
+	// the bytes again before returning them to the application.
 	suunto_vyper_reverse (data, nbytes);
 
 #ifndef NDEBUG
