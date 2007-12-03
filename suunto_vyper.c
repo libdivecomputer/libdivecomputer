@@ -412,7 +412,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
 
 	unsigned int nbytes = 0;
-	for (;;) {
+	for (unsigned int npackages = 0;; ++npackages) {
 		// Initial checksum value.
 		unsigned char ccrc = 0x00;
 
@@ -427,10 +427,9 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			// because there is always a small chance that more data will 
 			// arrive later (especially with a short timeout). But I'm not 
 			// aware of a better method to detect the end of the transmission. 
-			// Only for the very first package, we can be sure there was
-			// an error, because it makes no sense to end the transmission 
-			// if no data was received so far.
-			if (rc == 0 && nbytes != 0)
+			// Only for the very first package, we can be sure there was 
+			// an error, because the DC always sends at least one package.
+			if (rc == 0 && npackages != 0)
 				break;
 			WARNING ("Unexpected answer start byte(s).");
 			return EXITCODE (rc, 2);
