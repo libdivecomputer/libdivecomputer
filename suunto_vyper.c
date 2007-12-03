@@ -469,8 +469,18 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 		// has reached the end of its internal ring buffer. From this point on, 
 		// the current dive has been overwritten with newer data. Therefore, 
 		// we discard the current (incomplete) dive and end the transmission.
-		if (len == 0)
+		if (len == 0) {
+			WARNING ("Null package received.");
+#ifndef NDEBUG
+			suunto_vyper_reverse (data, nbytes);
+			printf ("Vyper%sProfile=\"", init ? "First" : "");
+			for (unsigned int i = 0; i < nbytes; ++i) {
+				printf("%02x", data[i]);
+			}
+			printf("\"\n");
+#endif
 			return 0;
+		}
 
 		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
 		// we assume it's the last packet and the transmission can be 
@@ -487,7 +497,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 	suunto_vyper_reverse (data, nbytes);
 
 #ifndef NDEBUG
-	printf ("Vyper%sProfile=\"", command[0] == 0x08 ? "First" : "");
+	printf ("Vyper%sProfile=\"", init ? "First" : "");
 	for (unsigned int i = 0; i < nbytes; ++i) {
 		printf("%02x", data[i]);
 	}
