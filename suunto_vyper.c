@@ -65,8 +65,8 @@ suunto_vyper_open (vyper **out, const char* name)
 		return SUUNTO_VYPER_ERROR_IO;
 	}
 
-	// Set the timeout for receiving data (500 ms).
-	if (serial_set_timeout (device->port, 500) == -1) {
+	// Set the timeout for receiving data (1000 ms).
+	if (serial_set_timeout (device->port, 1000) == -1) {
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
