@@ -97,7 +97,7 @@ int
 suunto_vyper_close (vyper *device)
 {
 	if (device == NULL)
-		return SUUNTO_VYPER_ERROR;
+		return SUUNTO_VYPER_SUCCESS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
