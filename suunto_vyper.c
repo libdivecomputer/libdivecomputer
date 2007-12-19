@@ -16,8 +16,8 @@
 #define EXITCODE(rc, n) \
 ( \
 	rc == -1 ? \
-	SUUNTO_VYPER_ERROR_IO : \
-	(rc != n ? SUUNTO_VYPER_ERROR_TIMEOUT : SUUNTO_VYPER_ERROR_PROTOCOL) \
+	SUUNTO_ERROR_IO : \
+	(rc != n ? SUUNTO_ERROR_TIMEOUT : SUUNTO_ERROR_PROTOCOL) \
 )
 
 
@@ -33,13 +33,13 @@ int
 suunto_vyper_open (vyper **out, const char* name)
 {
 	if (out == NULL)
-		return SUUNTO_VYPER_ERROR;
+		return SUUNTO_ERROR;
 
 	// Allocate memory.
 	struct vyper *device = malloc (sizeof (struct vyper));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return SUUNTO_VYPER_ERROR_MEMORY;
+		return SUUNTO_ERROR_MEMORY;
 	}
 
 	// Set the default values.
@@ -53,7 +53,7 @@ suunto_vyper_open (vyper **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return SUUNTO_VYPER_ERROR_IO;
+		return SUUNTO_ERROR_IO;
 	}
 
 	// Set the serial communication protocol (2400 8O1).
@@ -62,7 +62,7 @@ suunto_vyper_open (vyper **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_VYPER_ERROR_IO;
+		return SUUNTO_ERROR_IO;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
@@ -70,7 +70,7 @@ suunto_vyper_open (vyper **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_VYPER_ERROR_IO;
+		return SUUNTO_ERROR_IO;
 	}
 
 	// Set the DTR line (power supply for the interface).
@@ -78,7 +78,7 @@ suunto_vyper_open (vyper **out, const char* name)
 		WARNING ("Failed to set the DTR line.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_VYPER_ERROR_IO;
+		return SUUNTO_ERROR_IO;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -89,7 +89,7 @@ suunto_vyper_open (vyper **out, const char* name)
 
 	*out = device;
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -97,18 +97,18 @@ int
 suunto_vyper_close (vyper *device)
 {
 	if (device == NULL)
-		return SUUNTO_VYPER_SUCCESS;
+		return SUUNTO_SUCCESS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return SUUNTO_VYPER_ERROR_IO;
+		return SUUNTO_ERROR_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -139,10 +139,10 @@ suunto_vyper_send_testcmd (vyper *device, const unsigned char* data, unsigned in
 {
 	if (serial_write (device->port, data, size) != size) {
 		WARNING ("Failed to send the test sequence.");
-		return SUUNTO_VYPER_ERROR_IO;
+		return SUUNTO_ERROR_IO;
 	}
 	serial_drain (device->port);
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -153,7 +153,7 @@ suunto_vyper_detect_interface (vyper *device)
 	unsigned char command[3] = {'A', 'T', '\r'}, reply[3] = {0}, extra = 0;
 
 	if (device == NULL)
-		return SUUNTO_VYPER_ERROR;
+		return SUUNTO_ERROR;
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
@@ -166,7 +166,7 @@ suunto_vyper_detect_interface (vyper *device)
 
 	serial_set_rts (device->port, 0);
 	rc = suunto_vyper_send_testcmd (device, command, 3);
-	if (rc != SUUNTO_VYPER_SUCCESS)
+	if (rc != SUUNTO_SUCCESS)
 		return rc;
 	rc = serial_read (device->port, reply, 3);
 	if (rc != 3 || memcmp (command, reply, 3) != 0) {
@@ -181,7 +181,7 @@ suunto_vyper_detect_interface (vyper *device)
 
 	serial_set_rts (device->port, 1);
 	rc = suunto_vyper_send_testcmd (device, command, 3);
-	if (rc != SUUNTO_VYPER_SUCCESS)
+	if (rc != SUUNTO_SUCCESS)
 		return rc;
 	serial_set_rts (device->port, 0);
 	rc = serial_read (device->port, reply, 3);
@@ -192,7 +192,7 @@ suunto_vyper_detect_interface (vyper *device)
 			WARNING ("Can't detect the interface. Hoping it's an original suunto interface with the DC already attached.");
 		}
 		device->ifacealwaysechos = 0;
-		return SUUNTO_VYPER_SUCCESS;
+		return SUUNTO_SUCCESS;
 	}
 	if (rc != 3 || memcmp (command, reply, 3) != 0) {
 		WARNING ("Interface not responding in transfer mode.");
@@ -202,7 +202,7 @@ suunto_vyper_detect_interface (vyper *device)
 	}
 	WARNING ("Detected a clone interface without RTS-switching.");
 	device->ifacealwaysechos = 1;
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -234,7 +234,7 @@ suunto_vyper_send (vyper *device, const unsigned char command[], unsigned int cs
 	// Clear RTS to receive the reply.
 	serial_set_rts (device->port, 0);
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -243,7 +243,7 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 {
 	// Send the command to the dive computer.
 	int rc = suunto_vyper_send (device, command, csize);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		WARNING ("Failed to send the command.");
 		return rc;
 	}
@@ -285,7 +285,7 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 		return EXITCODE (rc, 1);
 	}
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -293,7 +293,7 @@ int
 suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
-		return SUUNTO_VYPER_ERROR;
+		return SUUNTO_ERROR;
 
 	// The data transmission is split in packages
 	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
@@ -312,7 +312,7 @@ suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char dat
 				0};  // CRC
 		command[4] = suunto_vyper_checksum (command, 4, 0x00);
 		int rc = suunto_vyper_transfer (device, command, 5, header, 4, data, len);
-		if (rc != SUUNTO_VYPER_SUCCESS)
+		if (rc != SUUNTO_SUCCESS)
 			return rc;
 
 #ifndef NDEBUG
@@ -328,7 +328,7 @@ suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char dat
 		data += len;
 	}
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -336,7 +336,7 @@ int
 suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
-		return SUUNTO_VYPER_ERROR;
+		return SUUNTO_ERROR;
 
 	// The data transmission is split in packages
 	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
@@ -351,7 +351,7 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 		unsigned char pcommand[3] = {0x07, 0xA5, 0};
 		pcommand[2] = suunto_vyper_checksum (pcommand, 2, 0x00);
 		int rc = suunto_vyper_transfer (device, pcommand, 3, pheader, 2, NULL, 0);
-		if (rc != SUUNTO_VYPER_SUCCESS)
+		if (rc != SUUNTO_SUCCESS)
 			return rc;
 
 #ifndef NDEBUG
@@ -368,7 +368,7 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 		memcpy (wcommand + 4, data, len);
 		wcommand[len + 4] = suunto_vyper_checksum (wcommand, len + 4, 0x00);
 		rc = suunto_vyper_transfer (device, wcommand, len + 5, wheader, 4, NULL, 0);
-		if (rc != SUUNTO_VYPER_SUCCESS)
+		if (rc != SUUNTO_SUCCESS)
 			return rc;
 
 #ifndef NDEBUG
@@ -384,7 +384,7 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 		data += len;
 	}
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 
@@ -392,7 +392,7 @@ int
 suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, int init)
 {
 	if (device == NULL)
-		return SUUNTO_VYPER_ERROR;
+		return SUUNTO_ERROR;
 
 	// Prepare the command.
 	unsigned char command[3] = {init ? 0x08 : 0x09, 0xA5, 0x00};
@@ -400,7 +400,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 
 	// Send the command to the dive computer.
 	int rc = suunto_vyper_send (device, command, 3);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		WARNING ("Failed to send the command.");
 		return rc;
 	}
@@ -462,7 +462,7 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			nbytes += len;
 		} else {
 			WARNING ("Insufficient buffer space available.");
-			return SUUNTO_VYPER_ERROR_MEMORY;
+			return SUUNTO_ERROR_MEMORY;
 		}
 
 		// The DC sends a null package (a package with length zero) when it 

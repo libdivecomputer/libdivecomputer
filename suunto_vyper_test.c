@@ -11,14 +11,14 @@ int test_dump_sdm16 (const char* name, const char* filename)
 
 	printf ("suunto_vyper_open\n");
 	int rc = suunto_vyper_open (&device, name);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "%s:%d: Error opening serial port.\n",__FILE__,__LINE__);
 		return rc;
 	}
 
 	printf ("suunto_vyper_detect_interface\n");
 	rc = suunto_vyper_detect_interface (device);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "%s:%d: Interface not found.\n",__FILE__,__LINE__);
 		suunto_vyper_close (device);
 		return rc;
@@ -26,25 +26,25 @@ int test_dump_sdm16 (const char* name, const char* filename)
 
 	printf ("suunto_vyper_read_memory\n");
 	rc = suunto_vyper_read_memory (device, 0x24, data + 0x24, 1);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "%s:%d: Cannot identify computer.\n",__FILE__,__LINE__);
 		suunto_vyper_close (device);
 		return rc;
 	}
 	rc = suunto_vyper_read_memory (device, 0x1E, data + 0x1E, 14);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "Cannot read memory.\n");
 		suunto_vyper_close (device);
 		return rc;
 	}
 	rc = suunto_vyper_read_memory (device, 0x2C, data + 0x2C, 32);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "Cannot read memory.\n");
 		suunto_vyper_close (device);
 		return rc;
 	}
 	rc = suunto_vyper_read_memory (device, 0x53, data + 0x53, 30);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "Cannot read memory.\n");
 		suunto_vyper_close (device);
 		return rc;
@@ -75,12 +75,12 @@ int test_dump_sdm16 (const char* name, const char* filename)
 
 	printf ("suunto_vyper_close\n");
 	rc = suunto_vyper_close (device);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 int test_dump_memory (const char* name, const char* filename)
@@ -90,14 +90,14 @@ int test_dump_memory (const char* name, const char* filename)
 
 	printf ("suunto_vyper_open\n");
 	int rc = suunto_vyper_open (&device, name);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "%s:%d: Error opening serial port.\n",__FILE__,__LINE__);
 		return rc;
 	}
 
 	printf ("suunto_vyper_detect_interface\n");
 	rc = suunto_vyper_detect_interface (device);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "%s:%d: Interface not found.\n",__FILE__,__LINE__);
 		suunto_vyper_close (device);
 		return rc;
@@ -105,7 +105,7 @@ int test_dump_memory (const char* name, const char* filename)
 
 	printf ("suunto_vyper_read_memory\n");
 	rc = suunto_vyper_read_memory (device, 0x00, data, sizeof (data));
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "Cannot read memory.\n");
 		suunto_vyper_close (device);
 		return rc;
@@ -120,28 +120,28 @@ int test_dump_memory (const char* name, const char* filename)
 
 	printf ("suunto_vyper_close\n");
 	rc = suunto_vyper_close (device);
-	if (rc != SUUNTO_VYPER_SUCCESS) {
+	if (rc != SUUNTO_SUCCESS) {
 		fprintf (stderr, "Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_VYPER_SUCCESS;
+	return SUUNTO_SUCCESS;
 }
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case SUUNTO_VYPER_SUCCESS:
+	case SUUNTO_SUCCESS:
 		return "Success";
-	case SUUNTO_VYPER_ERROR:
+	case SUUNTO_ERROR:
 		return "Generic error";
-	case SUUNTO_VYPER_ERROR_IO:
+	case SUUNTO_ERROR_IO:
 		return "Input/output error";
-	case SUUNTO_VYPER_ERROR_MEMORY:
+	case SUUNTO_ERROR_MEMORY:
 		return "Memory error";
-	case SUUNTO_VYPER_ERROR_PROTOCOL:
+	case SUUNTO_ERROR_PROTOCOL:
 		return "Protocol error";
-	case SUUNTO_VYPER_ERROR_TIMEOUT:
+	case SUUNTO_ERROR_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";
