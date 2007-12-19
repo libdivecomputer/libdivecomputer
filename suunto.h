@@ -9,5 +9,6 @@
 #define SUUNTO_ERROR_TIMEOUT  -5
 
 #include "suunto_vyper.h"
+#include "suunto_vyper2.h"
 
 #endif /* SUUNTO_H */
