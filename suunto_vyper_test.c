@@ -1,82 +1,87 @@
-#include <stdio.h>	// fprintf
+#include <stdio.h>     // fopen, fwrite, fclose
 
 #include "suunto.h"
 #include "serial.h"
+#include "utils.h"
 
+#define WARNING(expr) \
+{ \
+	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
+}
 
 int test_dump_sdm16 (const char* name, const char* filename)
 {
 	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE] = {0};
 	vyper *device = NULL;
 
-	printf ("suunto_vyper_open\n");
+	message ("suunto_vyper_open\n");
 	int rc = suunto_vyper_open (&device, name);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "%s:%d: Error opening serial port.\n",__FILE__,__LINE__);
+		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	printf ("suunto_vyper_detect_interface\n");
+	message ("suunto_vyper_detect_interface\n");
 	rc = suunto_vyper_detect_interface (device);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "%s:%d: Interface not found.\n",__FILE__,__LINE__);
+		WARNING ("Interface not found.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 
-	printf ("suunto_vyper_read_memory\n");
+	message ("suunto_vyper_read_memory\n");
 	rc = suunto_vyper_read_memory (device, 0x24, data + 0x24, 1);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "%s:%d: Cannot identify computer.\n",__FILE__,__LINE__);
+		WARNING ("Cannot identify computer.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 	rc = suunto_vyper_read_memory (device, 0x1E, data + 0x1E, 14);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot read memory.\n");
+		WARNING ("Cannot read memory.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 	rc = suunto_vyper_read_memory (device, 0x2C, data + 0x2C, 32);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot read memory.\n");
+		WARNING ("Cannot read memory.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 	rc = suunto_vyper_read_memory (device, 0x53, data + 0x53, 30);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot read memory.\n");
+		WARNING ("Cannot read memory.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 
-	printf ("suunto_vyper_read_dive\n");
+	message ("suunto_vyper_read_dive\n");
 	int ndives = 0;
 	int offset = 0x71;
 	do {
-		fprintf (stderr, "Reading dive #%d.\n", ndives + 1);
+		message ("Reading dive #%d.\n", ndives + 1);
 		rc = suunto_vyper_read_dive (device, data + offset, sizeof (data) - offset, (ndives == 0));
 		if (rc < 0) {
-			fprintf (stderr, "Cannot read dive.\n");
+			WARNING ("Cannot read dive.");
 			suunto_vyper_close (device);
 			return rc;
 		}
-		fprintf (stderr, "Returned %i bytes at offset 0x%04x.\n", rc, offset);
+		message ("Returned %i bytes at offset 0x%04x.\n", rc, offset);
 		ndives++;
 		offset += rc;
 	} while (rc > 0);
 
-	printf ("Dumping data\n");
+	message ("Dumping data\n");
 	FILE *fp = fopen (filename, "wb");
 	if (fp != NULL) {
 		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
 		fclose (fp);
 	}
 
-	printf ("suunto_vyper_close\n");
+	message ("suunto_vyper_close\n");
 	rc = suunto_vyper_close (device);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot close device.");
+		WARNING ("Cannot close device.");
 		return rc;
 	}
 
@@ -88,40 +93,40 @@ int test_dump_memory (const char* name, const char* filename)
 	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE] = {0};
 	vyper *device = NULL;
 
-	printf ("suunto_vyper_open\n");
+	message ("suunto_vyper_open\n");
 	int rc = suunto_vyper_open (&device, name);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "%s:%d: Error opening serial port.\n",__FILE__,__LINE__);
+		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	printf ("suunto_vyper_detect_interface\n");
+	message ("suunto_vyper_detect_interface\n");
 	rc = suunto_vyper_detect_interface (device);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "%s:%d: Interface not found.\n",__FILE__,__LINE__);
+		WARNING ("Interface not found.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 
-	printf ("suunto_vyper_read_memory\n");
+	message ("suunto_vyper_read_memory\n");
 	rc = suunto_vyper_read_memory (device, 0x00, data, sizeof (data));
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot read memory.\n");
+		WARNING ("Cannot read memory.");
 		suunto_vyper_close (device);
 		return rc;
 	}
 
-	printf ("Dumping data\n");
+	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
 		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
 		fclose (fp);
 	}
 
-	printf ("suunto_vyper_close\n");
+	message ("suunto_vyper_close\n");
 	rc = suunto_vyper_close (device);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot close device.");
+		WARNING ("Cannot close device.");
 		return rc;
 	}
 
@@ -150,6 +155,8 @@ const char* errmsg (int rc)
 
 int main(int argc, char *argv[])
 {
+	message_set_logfile ("VYPER.LOG");
+
 #ifdef _WIN32
 	const char* name = "COM1";
 #else
@@ -160,13 +167,15 @@ int main(int argc, char *argv[])
 		name = argv[1];
 	}
 
-	int a = test_dump_sdm16 (name, "PROFILE.SDM");
-	int b = test_dump_memory (name, "PROFILE.DMP");
+	int a = test_dump_sdm16 (name, "VYPER.SDM");
+	int b = test_dump_memory (name, "VYPER.DMP");
 
-	printf ("\nSUMMARY\n");
-	printf ("-------\n");
-	printf ("test_dump_sdm16:  %s\n", errmsg (a));
-	printf ("test_dump_memory: %s\n", errmsg (b));
+	message ("\nSUMMARY\n");
+	message ("-------\n");
+	message ("test_dump_sdm16:  %s\n", errmsg (a));
+	message ("test_dump_memory: %s\n", errmsg (b));
+
+	message_set_logfile (NULL);
 
 	return 0;
 }

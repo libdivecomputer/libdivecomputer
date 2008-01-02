@@ -12,13 +12,13 @@
 #include <time.h>	// nanosleep
 
 #include "serial.h"
+#include "utils.h"
 
-#include <stdio.h>	// perror
 #define TRACE(expr) \
 { \
 	int error = errno; \
-	fprintf (stderr, "TRACE %s:%d: ", __FILE__, __LINE__); \
-	perror (expr); \
+	message ("TRACE (%s:%d, %s): %s (%d)\n", __FILE__, __LINE__, \
+		expr, serial_errmsg (), serial_errcode ()); \
 	errno = error; \
 }
 

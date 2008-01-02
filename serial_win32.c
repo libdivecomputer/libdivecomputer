@@ -2,16 +2,13 @@
 #include <windows.h>
 
 #include "serial.h"
+#include "utils.h"
 
-#include <stdio.h>
 #define TRACE(expr) \
 { \
 	DWORD error = GetLastError (); \
-	fprintf (stderr, "TRACE %s:%d: ", __FILE__, __LINE__); \
-	if (expr) \
-		fprintf (stderr, "%s: %s\n", expr, serial_errmsg ()); \
-	else \
-		fprintf (stderr, "%s\n", serial_errmsg ()); \
+	message ("TRACE (%s:%d, %s): %s (%d)\n", __FILE__, __LINE__, \
+		expr, serial_errmsg (), serial_errcode ()); \
 	SetLastError (error); \
 }
 

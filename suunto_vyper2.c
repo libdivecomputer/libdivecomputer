@@ -1,16 +1,16 @@
-#include <stdio.h>	// fprintf
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
 #include "suunto.h"
 #include "serial.h"
+#include "utils.h"
 
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
 #define WARNING(expr) \
 { \
-	fprintf (stderr, "%s:%d: %s\n", __FILE__, __LINE__, expr); \
+	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
 #define EXITCODE(rc, n) \
@@ -206,7 +206,7 @@ suunto_vyper2_read_version (vyper2 *device, unsigned char data[], unsigned int s
 		return rc;
 
 #ifndef NDEBUG
-	printf ("Vyper2ReadVersion()=\"%02x %02x %02x %02x\"\n", data[0], data[1], data[2], data[3]);
+	message ("Vyper2ReadVersion()=\"%02x %02x %02x %02x\"\n", data[0], data[1], data[2], data[3]);
 #endif
 
 	return SUUNTO_SUCCESS;
@@ -227,7 +227,7 @@ suunto_vyper2_reset_maxdepth (vyper2 *device)
 		return rc;
 
 #ifndef NDEBUG
-	printf ("Vyper2ResetMaxDepth()\n");
+	message ("Vyper2ResetMaxDepth()\n");
 #endif
 
 	return SUUNTO_SUCCESS;
@@ -261,11 +261,11 @@ suunto_vyper2_read_memory (vyper2 *device, unsigned int address, unsigned char d
 			return rc;
 
 #ifndef NDEBUG
-		printf ("Vyper2Read(0x%04x,%d)=\"", address, len);
+		message ("Vyper2Read(0x%04x,%d)=\"", address, len);
 		for (unsigned int i = 0; i < len; ++i) {
-			printf("%02x", data[i]);
+			message("%02x", data[i]);
 		}
-		printf("\"\n");
+		message("\"\n");
 #endif
 
 		nbytes += len;
@@ -305,11 +305,11 @@ suunto_vyper2_write_memory (vyper2 *device, unsigned int address, const unsigned
 			return rc;
 
 #ifndef NDEBUG
-		printf ("Vyper2Write(0x%04x,%d,\"", address, len);
+		message ("Vyper2Write(0x%04x,%d,\"", address, len);
 		for (unsigned int i = 0; i < len; ++i) {
-			printf ("%02x", data[i]);
+			message ("%02x", data[i]);
 		}
-		printf ("\");\n");
+		message ("\");\n");
 #endif
 
 		nbytes += len;

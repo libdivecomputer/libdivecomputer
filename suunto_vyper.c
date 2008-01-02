@@ -1,16 +1,16 @@
-#include <stdio.h>	// fprintf
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
 #include "suunto.h"
 #include "serial.h"
+#include "utils.h"
 
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
 #define WARNING(expr) \
 { \
-	fprintf (stderr, "%s:%d: %s\n", __FILE__, __LINE__, expr); \
+	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
 #define EXITCODE(rc, n) \
@@ -318,11 +318,11 @@ suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char dat
 			return rc;
 
 #ifndef NDEBUG
-		printf ("VyperRead(0x%04x,%d)=\"", address, len);
+		message ("VyperRead(0x%04x,%d)=\"", address, len);
 		for (unsigned int i = 0; i < len; ++i) {
-			printf("%02x", data[i]);
+			message("%02x", data[i]);
 		}
-		printf("\"\n");
+		message("\"\n");
 #endif
 
 		nbytes += len;
@@ -357,7 +357,7 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 			return rc;
 
 #ifndef NDEBUG
-		printf("VyperPrepareWrite();\n");
+		message("VyperPrepareWrite();\n");
 #endif
 
 		// Write the package.
@@ -374,11 +374,11 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 			return rc;
 
 #ifndef NDEBUG
-		printf ("VyperWrite(0x%04x,%d,\"", address, len);
+		message ("VyperWrite(0x%04x,%d,\"", address, len);
 		for (unsigned int i = 0; i < len; ++i) {
-			printf ("%02x", data[i]);
+			message ("%02x", data[i]);
 		}
-		printf ("\");\n");
+		message ("\");\n");
 #endif
 
 		nbytes += len;
@@ -475,11 +475,11 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			WARNING ("Null package received.");
 #ifndef NDEBUG
 			suunto_vyper_reverse (data, nbytes);
-			printf ("Vyper%sProfile=\"", init ? "First" : "");
+			message ("Vyper%sProfile=\"", init ? "First" : "");
 			for (unsigned int i = 0; i < nbytes; ++i) {
-				printf("%02x", data[i]);
+				message("%02x", data[i]);
 			}
-			printf("\"\n");
+			message("\"\n");
 #endif
 			return 0;
 		}
@@ -499,11 +499,11 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 	suunto_vyper_reverse (data, nbytes);
 
 #ifndef NDEBUG
-	printf ("Vyper%sProfile=\"", init ? "First" : "");
+	message ("Vyper%sProfile=\"", init ? "First" : "");
 	for (unsigned int i = 0; i < nbytes; ++i) {
-		printf("%02x", data[i]);
+		message("%02x", data[i]);
 	}
-	printf("\"\n");
+	message("\"\n");
 #endif
 
 	return nbytes;

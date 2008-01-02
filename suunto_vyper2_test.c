@@ -1,47 +1,53 @@
-#include <stdio.h>	// fprintf
+#include <stdio.h>	// fopen, fwrite, fclose
 
 #include "suunto.h"
+#include "utils.h"
+
+#define WARNING(expr) \
+{ \
+	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
+}
 
 int test_dump_memory (const char* name, const char* filename)
 {
 	unsigned char data[SUUNTO_VYPER2_MEMORY_SIZE] = {0};
 	vyper2 *device = NULL;
 
-	printf ("suunto_vyper2_open\n");
+	message ("suunto_vyper2_open\n");
 	int rc = suunto_vyper2_open (&device, name);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Error opening serial port.\n");
+		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	printf ("suunto_vyper2_read_version\n");
+	message ("suunto_vyper2_read_version\n");
 	unsigned char version[4] = {0};
 	rc = suunto_vyper2_read_version (device, version, sizeof (version));
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot identify computer.\n");
+		WARNING ("Cannot identify computer.");
 		suunto_vyper2_close (device);
 		return rc;
 	}
 
-	printf ("suunto_vyper2_read_memory\n");
+	message ("suunto_vyper2_read_memory\n");
 	rc = suunto_vyper2_read_memory (device, 0x00, data, sizeof (data));
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot read memory.\n");
+		WARNING ("Cannot read memory.");
 		suunto_vyper2_close (device);
 		return rc;
 	}
 
-	printf ("Dumping data\n");
+	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
 		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
 		fclose (fp);
 	}
 
-	printf ("suunto_vyper2_close\n");
+	message ("suunto_vyper2_close\n");
 	rc = suunto_vyper2_close (device);
 	if (rc != SUUNTO_SUCCESS) {
-		fprintf (stderr, "Cannot close device.");
+		WARNING ("Cannot close device.");
 		return rc;
 	}
 
@@ -70,6 +76,8 @@ const char* errmsg (int rc)
 
 int main(int argc, char *argv[])
 {
+	message_set_logfile ("VYPER2.LOG");
+
 #ifdef _WIN32
 	const char* name = "COM1";
 #else
@@ -82,9 +90,11 @@ int main(int argc, char *argv[])
 
 	int a = test_dump_memory (name, "VYPER2.DMP");
 
-	printf ("\nSUMMARY\n");
-	printf ("-------\n");
-	printf ("test_dump_memory: %s\n", errmsg (a));
+	message ("\nSUMMARY\n");
+	message ("-------\n");
+	message ("test_dump_memory: %s\n", errmsg (a));
+
+	message_set_logfile (NULL);
 
 	return 0;
 }
