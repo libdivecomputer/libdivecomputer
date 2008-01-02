@@ -225,9 +225,11 @@ suunto_vyper_send (vyper *device, const unsigned char command[], unsigned int cs
 	// the data transfer will fail. Timing is also critical here! We have to 
 	// wait at least until the echo appears (40ms), but not until the reply 
 	// from the dive computer appears (600ms).
-	// The original suunto interface does not have this problem, because it
-	// does not send an echo and the RTS switching makes it impossible to
-	// receive the reply too early here.
+	// The original suunto interface does not have this problem, because it 
+	// does not send an echo and the RTS switching makes it impossible to 
+	// receive the reply before RTS is cleared. We have to wait some time 
+	// before clearing RTS (around 30ms). But if we wait too long (> 500ms), 
+	// the reply disappears again.
 	serial_sleep (200);
 	serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
