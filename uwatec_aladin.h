@@ -7,7 +7,7 @@ extern "C" {
 
 typedef struct aladin aladin;
 
-#define UWATEC_ALADIN_MEMORY_SIZE 2050
+#define UWATEC_ALADIN_MEMORY_SIZE 2048
 
 int uwatec_aladin_open (aladin **device, const char* name);
 

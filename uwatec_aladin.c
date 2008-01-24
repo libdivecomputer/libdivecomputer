@@ -143,21 +143,24 @@ uwatec_aladin_read (aladin *device, unsigned char data[], unsigned int size)
 	}
 
 	// Receive the contents of the package.
-	int rc = serial_read (device->port, data + 4, 2046);
-	if (rc != 2046) {
+	int rc = serial_read (device->port, data + 4, UWATEC_ALADIN_MEMORY_SIZE - 4);
+	if (rc != UWATEC_ALADIN_MEMORY_SIZE - 4) {
 		WARNING ("Unexpected EOF in answer.");
 		return UWATEC_ERROR;
 	}
 
 	// Reverse the bit order.
-	uwatec_aladin_reverse (data, 2050);
+	uwatec_aladin_reverse (data, UWATEC_ALADIN_MEMORY_SIZE);
 
 	// Calculate the checksum.
-	unsigned short ccrc = uwatec_aladin_checksum (data, 2048);
+	unsigned short ccrc = uwatec_aladin_checksum (data, UWATEC_ALADIN_MEMORY_SIZE);
 
-	// Verify the checksum of the package.
-	unsigned short crc = (data[2049] << 8) + data[2048];
-	if (ccrc != crc) {
+	// Receive (and verify) the checksum of the package.
+	unsigned char checksum[2] = {0};
+	rc = serial_read (device->port, checksum, sizeof (checksum));
+	uwatec_aladin_reverse (checksum, sizeof (checksum));
+	unsigned short crc = (checksum[1] << 8) + checksum[0];
+	if (rc != sizeof (checksum) || ccrc != crc) {
 		WARNING ("Unexpected answer CRC.");
 		return UWATEC_ERROR;
 	}
