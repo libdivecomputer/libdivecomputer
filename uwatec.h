@@ -9,5 +9,6 @@
 #define UWATEC_ERROR_TIMEOUT  -5
 
 #include "uwatec_aladin.h"
+#include "uwatec_memomouse.h"
 
 #endif /* UWATEC_H */
