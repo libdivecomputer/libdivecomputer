@@ -1,4 +1,5 @@
-#include <stdio.h>     // fopen, fwrite, fclose
+#include <stdio.h>	// fopen, fwrite, fclose
+#include <stdlib.h>	// atoi
 
 #include "suunto.h"
 #include "serial.h"
@@ -9,7 +10,7 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-int test_dump_sdm16 (const char* name, const char* filename)
+int test_dump_sdm16 (const char* name, unsigned int delay, const char* filename)
 {
 	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE] = {0};
 	vyper *device = NULL;
@@ -20,6 +21,8 @@ int test_dump_sdm16 (const char* name, const char* filename)
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
+
+	suunto_vyper_set_delay (device, delay);
 
 	message ("suunto_vyper_detect_interface\n");
 	rc = suunto_vyper_detect_interface (device);
@@ -88,7 +91,7 @@ int test_dump_sdm16 (const char* name, const char* filename)
 	return SUUNTO_SUCCESS;
 }
 
-int test_dump_memory (const char* name, const char* filename)
+int test_dump_memory (const char* name, unsigned int delay, const char* filename)
 {
 	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE] = {0};
 	vyper *device = NULL;
@@ -99,6 +102,8 @@ int test_dump_memory (const char* name, const char* filename)
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
+
+	suunto_vyper_set_delay (device, delay);
 
 	message ("suunto_vyper_detect_interface\n");
 	rc = suunto_vyper_detect_interface (device);
@@ -162,13 +167,18 @@ int main(int argc, char *argv[])
 #else
 	const char* name = "/dev/ttyS0";
 #endif
+	
+	unsigned int delay = 500;
 
-	if (argc > 1) {
+	if (argc > 2) {
+		name = argv[1];
+		delay = atoi (argv[2]);
+	} else if (argc > 1) {
 		name = argv[1];
 	}
 
-	int a = test_dump_sdm16 (name, "VYPER.SDM");
-	int b = test_dump_memory (name, "VYPER.DMP");
+	int a = test_dump_sdm16 (name, delay, "VYPER.SDM");
+	int b = test_dump_memory (name, delay, "VYPER.DMP");
 
 	message ("\nSUMMARY\n");
 	message ("-------\n");

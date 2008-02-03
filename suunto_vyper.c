@@ -26,6 +26,7 @@ struct vyper {
 	int extraanswertime;
 	int ifacealwaysechos;
 	int breakprofreadearly;
+	unsigned int delay;
 };
 
 
@@ -47,6 +48,7 @@ suunto_vyper_open (vyper **out, const char* name)
 	device->extraanswertime = 0;
 	device->ifacealwaysechos = 0;
 	device->breakprofreadearly = 0;
+	device->delay = 500;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -206,10 +208,21 @@ suunto_vyper_detect_interface (vyper *device)
 }
 
 
+int
+suunto_vyper_set_delay (vyper *device, unsigned int delay)
+{
+	if (device == NULL)
+		return SUUNTO_ERROR;
+
+	device->delay = delay;
+
+	return SUUNTO_SUCCESS;
+}
+
 static int
 suunto_vyper_send (vyper *device, const unsigned char command[], unsigned int csize)
 {
-	serial_sleep (500);
+	serial_sleep (device->delay);
 
 	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);
