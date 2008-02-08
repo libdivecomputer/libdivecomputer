@@ -157,6 +157,7 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 	}
 
 	dcb.fBinary = TRUE; // Enable Binary Transmission
+	dcb.fAbortOnError = FALSE;
 
 	// Baudrate.
 	switch (baudrate) {
