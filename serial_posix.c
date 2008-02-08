@@ -11,6 +11,10 @@
 #include <sys/time.h>	// gettimeofday
 #include <time.h>	// nanosleep
 
+#ifndef TIOCINQ
+#define TIOCINQ FIONREAD
+#endif
+
 #include "serial.h"
 #include "utils.h"
 
