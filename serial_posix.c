@@ -402,7 +402,7 @@ posix_wait (int fd, const struct timeouts_t* timeouts, int input, unsigned int a
 		// reading/writing when a call to an input/output function with 
 		// O_NONBLOCK clear would not block, whether or not the  function 
 		// would transfer data successfully. 
-/*
+
 		fd_set fds;
 		FD_ZERO (&fds);
 		FD_SET (fd, &fds);
@@ -420,11 +420,6 @@ posix_wait (int fd, const struct timeouts_t* timeouts, int input, unsigned int a
 			else
 				rc = select (fd + 1, NULL, &fds, NULL, NULL);
 		}
-*/
-		struct pollfd pfd = {0};
-		pfd.fd = fd;
-		pfd.events = (input ? POLLIN : POLLOUT);
-		rc = poll (&pfd, 1, timeout);
 	} while (rc < 0 && errno == EINTR);
 	
 	return rc;
