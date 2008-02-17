@@ -146,8 +146,22 @@ suunto_d9_send (d9 *device, const unsigned char command[], unsigned int csize)
 
 
 static int
-suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csize, unsigned char header[], unsigned int hsize, unsigned char data[], unsigned int size)
+suunto_d9_recv (d9 *device, unsigned char data[], unsigned int size)
 {
+	int rc = serial_read (device->port, data, size);
+	if (rc != size) {
+		return EXITCODE (rc, size);
+	}
+
+	return SUUNTO_SUCCESS;
+}
+
+
+static int
+suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
+{
+	assert (asize >= size + 4);
+
 	// Send the command to the dive computer.
 	int rc = suunto_d9_send (device, command, csize);
 	if (rc != SUUNTO_SUCCESS) {
@@ -155,40 +169,27 @@ suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csiz
 		return rc;
 	}
 
-	// Initial checksum value.
-	unsigned char ccrc = 0x00;
+	// Receive the answer of the dive computer.
+	rc = suunto_d9_recv (device, answer, asize);
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Failed to receive the answer.");
+		return rc;
+	}
 
-	// Receive the header of the package.
-	rc = serial_read (device->port, header, hsize);
-	header[2] -= size;
-	if (rc != hsize || memcmp (command, header, hsize) != 0) {
+	// Verify the header of the package.
+	answer[2] -= size; // Adjust the package size for the comparision.
+	if (memcmp (command, answer, asize - size - 1) != 0) {
 		WARNING ("Unexpected answer start byte(s).");
-		if (rc == 0) {
-			WARNING ("Interface present, but the DC does not answer. Check the connection.");
-		}
-		return EXITCODE (rc, hsize);
+		return SUUNTO_ERROR_PROTOCOL;
 	}
-	header[2] += size;
-	// Update the checksum.
-	ccrc = suunto_d9_checksum (header, hsize, ccrc);
+	answer[2] += size; // Restore the package size again.
 
-	if (data) {
-		// Receive the contents of the package.
-		rc = serial_read (device->port, data, size);
-		if (rc != size) {
-			WARNING ("Unexpected EOF in answer.");
-			return EXITCODE (rc, size);
-		}
-		// Update the checksum.
-		ccrc = suunto_d9_checksum (data, size, ccrc);
-	}
-
-	// Receive (and verify) the checksum of the package.
-	unsigned char crc = 0x00;
-	rc = serial_read (device->port, &crc, 1);
-	if (rc != 1 || ccrc != crc) {
+	// Verify the checksum of the package.
+	unsigned char crc = answer[asize - 1];
+	unsigned char ccrc = suunto_d9_checksum (answer, asize - 1, 0x00);
+	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return EXITCODE (rc, 1);
+		return SUUNTO_ERROR_PROTOCOL;
 	}
 
 	return SUUNTO_SUCCESS;
@@ -204,12 +205,13 @@ suunto_d9_read_version (d9 *device, unsigned char data[], unsigned int size)
 	if (size < 4)
 		return SUUNTO_ERROR_MEMORY;
 
-	unsigned char header[3] = {0};
-	unsigned char command[4] = {0x0F, 0x00, 0x00, 0};
-	command[3] = suunto_d9_checksum (command, 3, 0x00);
-	int rc = suunto_d9_transfer (device, command, 4, header, 3, data, 4);
+	unsigned char answer[4 + 4] = {0};
+	unsigned char command[4] = {0x0F, 0x00, 0x00, 0x0F};
+	int rc = suunto_d9_transfer (device, command, sizeof (command), answer, sizeof (answer), 4);
 	if (rc != SUUNTO_SUCCESS)
 		return rc;
+
+	memcpy (data, answer + 3, 4);
 
 #ifndef NDEBUG
 	message ("D9ReadVersion()=\"%02x %02x %02x %02x\"\n", data[0], data[1], data[2], data[3]);
@@ -225,10 +227,9 @@ suunto_d9_reset_maxdepth (d9 *device)
 	if (device == NULL)
 		return SUUNTO_ERROR;
 
-	unsigned char header[3] = {0};
-	unsigned char command[4] = {0x20, 0x00, 0x00, 0};
-	command[3] = suunto_d9_checksum (command, 3, 0x00);
-	int rc = suunto_d9_transfer (device, command, 4, header, 3, NULL, 0);
+	unsigned char answer[4] = {0};
+	unsigned char command[4] = {0x20, 0x00, 0x00, 0x20};
+	int rc = suunto_d9_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
 	if (rc != SUUNTO_SUCCESS)
 		return rc;
 
@@ -255,16 +256,18 @@ suunto_d9_read_memory (d9 *device, unsigned int address, unsigned char data[], u
 		unsigned int len = MIN (size - nbytes, SUUNTO_D9_PACKET_SIZE);
 		
 		// Read the package.
-		unsigned char header[6] = {0};
+		unsigned char answer[SUUNTO_D9_PACKET_SIZE + 7] = {0};
 		unsigned char command[7] = {0x05, 0x00, 0x03,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
 				len, // count
 				0};  // CRC
 		command[6] = suunto_d9_checksum (command, 6, 0x00);
-		int rc = suunto_d9_transfer (device, command, 7, header, 6, data, len);
+		int rc = suunto_d9_transfer (device, command, sizeof (command), answer, len + 7, len);
 		if (rc != SUUNTO_SUCCESS)
 			return rc;
+
+		memcpy (data, answer + 6, len);
 
 #ifndef NDEBUG
 		message ("D9Read(0x%04x,%d)=\"", address, len);
@@ -298,7 +301,7 @@ suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char da
 		unsigned int len = MIN (size - nbytes, SUUNTO_D9_PACKET_SIZE);
 
 		// Write the package.
-		unsigned char header[6] = {0};
+		unsigned char answer[7] = {0};
 		unsigned char command[SUUNTO_D9_PACKET_SIZE + 7] = {0x06, 0x00, 0x03,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
@@ -306,7 +309,7 @@ suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char da
 				0};  // data + CRC
 		memcpy (command + 6, data, len);
 		command[len + 6] = suunto_d9_checksum (command, len + 6, 0x00);
-		int rc = suunto_d9_transfer (device, command, len + 7, header, 6, NULL, 0);
+		int rc = suunto_d9_transfer (device, command, len + 7, answer, sizeof (answer), 0);
 		if (rc != SUUNTO_SUCCESS)
 			return rc;
 

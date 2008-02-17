@@ -1,5 +1,6 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
+#include <assert.h>	// assert
 
 #include "suunto.h"
 #include "serial.h"
@@ -219,6 +220,7 @@ suunto_vyper_set_delay (vyper *device, unsigned int delay)
 	return SUUNTO_SUCCESS;
 }
 
+
 static int
 suunto_vyper_send (vyper *device, const unsigned char command[], unsigned int csize)
 {
@@ -254,8 +256,22 @@ suunto_vyper_send (vyper *device, const unsigned char command[], unsigned int cs
 
 
 static int
-suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned int csize, unsigned char header[], unsigned int hsize, unsigned char data[], unsigned int size)
+suunto_vyper_recv (vyper *device, unsigned char data[], unsigned int size)
 {
+	int rc = serial_read (device->port, data, size);
+	if (rc != size) {
+		return EXITCODE (rc, size);
+	}
+
+	return SUUNTO_SUCCESS;
+}
+
+
+static int
+suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
+{
+	assert (asize >= size + 2);
+
 	// Send the command to the dive computer.
 	int rc = suunto_vyper_send (device, command, csize);
 	if (rc != SUUNTO_SUCCESS) {
@@ -263,41 +279,25 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 		return rc;
 	}
 
-	// Initial checksum value.
-	unsigned char ccrc = 0x00;
+	// Receive the answer of the dive computer.
+	rc = suunto_vyper_recv (device, answer, asize);
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Failed to receive the answer.");
+		return rc;
+	}
 
-	// FIXME: Give the DC extra answer time to send its first byte, 
-	//        then let the standard timeout apply.
-
-	// Receive the header of the package.
-	rc = serial_read (device->port, header, hsize);
-	if (rc != hsize || memcmp (command, header, hsize) != 0) {
+	// Verify the header of the package.
+	if (memcmp (command, answer, asize - size - 1) != 0) {
 		WARNING ("Unexpected answer start byte(s).");
-		if (rc == 0) {
-			WARNING ("Interface present, but the DC does not answer. Check the connection.");
-		}
-		return EXITCODE (rc, hsize);
-	}
-	// Update the checksum.
-	ccrc = suunto_vyper_checksum (header, hsize, ccrc);
-
-	if (data) {
-		// Receive the contents of the package.
-		rc = serial_read (device->port, data, size);
-		if (rc != size) {
-			WARNING ("Unexpected EOF in answer.");
-			return EXITCODE (rc, size);
-		}
-		// Update the checksum.
-		ccrc = suunto_vyper_checksum (data, size, ccrc);
+		return SUUNTO_ERROR_PROTOCOL;
 	}
 
-	// Receive (and verify) the checksum of the package.
-	unsigned char crc = 0x00;
-	rc = serial_read (device->port, &crc, 1);
-	if (rc != 1 || ccrc != crc) {
+	// Verify the checksum of the package.
+	unsigned char crc = answer[asize - 1];
+	unsigned char ccrc = suunto_vyper_checksum (answer, asize - 1, 0x00);
+	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return EXITCODE (rc, 1);
+		return SUUNTO_ERROR_PROTOCOL;
 	}
 
 	return SUUNTO_SUCCESS;
@@ -317,18 +317,20 @@ suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char dat
 	while (nbytes < size) {
 		// Calculate the package size.
 		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER_PACKET_SIZE);
-		
+
 		// Read the package.
-		unsigned char header[4] = {0};
+		unsigned char answer[SUUNTO_VYPER_PACKET_SIZE + 5] = {0};
 		unsigned char command[5] = {0x05,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
 				len, // count
 				0};  // CRC
 		command[4] = suunto_vyper_checksum (command, 4, 0x00);
-		int rc = suunto_vyper_transfer (device, command, 5, header, 4, data, len);
+		int rc = suunto_vyper_transfer (device, command, sizeof (command), answer, len + 5, len);
 		if (rc != SUUNTO_SUCCESS)
 			return rc;
+
+		memcpy (data, answer + 4, len);
 
 #ifndef NDEBUG
 		message ("VyperRead(0x%04x,%d)=\"", address, len);
@@ -362,10 +364,9 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER_PACKET_SIZE);
 
 		// Prepare to write the package.
-		unsigned char pheader[2] = {0};
-		unsigned char pcommand[3] = {0x07, 0xA5, 0};
-		pcommand[2] = suunto_vyper_checksum (pcommand, 2, 0x00);
-		int rc = suunto_vyper_transfer (device, pcommand, 3, pheader, 2, NULL, 0);
+		unsigned char panswer[3] = {0};
+		unsigned char pcommand[3] = {0x07, 0xA5, 0xA2};
+		int rc = suunto_vyper_transfer (device, pcommand, sizeof (pcommand), panswer, sizeof (panswer), 0);
 		if (rc != SUUNTO_SUCCESS)
 			return rc;
 
@@ -374,7 +375,7 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 #endif
 
 		// Write the package.
-		unsigned char wheader[4] = {0};
+		unsigned char wanswer[5] = {0};
 		unsigned char wcommand[SUUNTO_VYPER_PACKET_SIZE + 5] = {0x06,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
@@ -382,7 +383,7 @@ suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned c
 				0};  // data + CRC
 		memcpy (wcommand + 4, data, len);
 		wcommand[len + 4] = suunto_vyper_checksum (wcommand, len + 4, 0x00);
-		rc = suunto_vyper_transfer (device, wcommand, len + 5, wheader, 4, NULL, 0);
+		rc = suunto_vyper_transfer (device, wcommand, len + 5, wanswer, sizeof (wanswer), 0);
 		if (rc != SUUNTO_SUCCESS)
 			return rc;
 
