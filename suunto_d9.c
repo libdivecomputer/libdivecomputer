@@ -14,13 +14,6 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define EXITCODE(rc, n) \
-( \
-	rc == -1 ? \
-	SUUNTO_ERROR_IO : \
-	(rc != n ? SUUNTO_ERROR_TIMEOUT : SUUNTO_ERROR_PROTOCOL) \
-)
-
 
 struct d9 {
 	struct serial *port;
@@ -133,25 +126,21 @@ suunto_d9_send (d9 *device, const unsigned char command[], unsigned int csize)
 	unsigned char echo[128] = {0};
 	assert (sizeof (echo) >= csize);
 	int rc = serial_read (device->port, echo, csize);
-	if (rc != csize || memcmp (command, echo, csize) != 0) {
+	if (rc != csize) {
+		WARNING ("Failed to receive the echo.");
+		if (rc == -1)
+			return SUUNTO_ERROR_IO;
+		return SUUNTO_ERROR_TIMEOUT;
+	}
+
+	// Verify the echo.
+	if (memcmp (command, echo, csize) != 0) {
 		WARNING ("Unexpected echo.");
-		return EXITCODE (rc, csize);
+		return SUUNTO_ERROR_PROTOCOL;
 	}
 
 	// Set RTS to receive the reply.
 	serial_set_rts (device->port, 1);
-
-	return SUUNTO_SUCCESS;
-}
-
-
-static int
-suunto_d9_recv (d9 *device, unsigned char data[], unsigned int size)
-{
-	int rc = serial_read (device->port, data, size);
-	if (rc != size) {
-		return EXITCODE (rc, size);
-	}
 
 	return SUUNTO_SUCCESS;
 }
@@ -170,10 +159,12 @@ suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csiz
 	}
 
 	// Receive the answer of the dive computer.
-	rc = suunto_d9_recv (device, answer, asize);
-	if (rc != SUUNTO_SUCCESS) {
+	rc = serial_read (device->port, answer, asize);
+	if (rc != asize) {
 		WARNING ("Failed to receive the answer.");
-		return rc;
+		if (rc == -1)
+			return SUUNTO_ERROR_IO;
+		return SUUNTO_ERROR_TIMEOUT;
 	}
 
 	// Verify the header of the package.

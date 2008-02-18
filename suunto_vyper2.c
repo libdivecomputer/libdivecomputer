@@ -14,13 +14,6 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define EXITCODE(rc, n) \
-( \
-	rc == -1 ? \
-	SUUNTO_ERROR_IO : \
-	(rc != n ? SUUNTO_ERROR_TIMEOUT : SUUNTO_ERROR_PROTOCOL) \
-)
-
 
 struct vyper2 {
 	struct serial *port;
@@ -141,18 +134,6 @@ suunto_vyper2_send (vyper2 *device, const unsigned char command[], unsigned int 
 
 
 static int
-suunto_vyper2_recv (vyper2 *device, unsigned char data[], unsigned int size)
-{
-	int rc = serial_read (device->port, data, size);
-	if (rc != size) {
-		return EXITCODE (rc, size);
-	}
-
-	return SUUNTO_SUCCESS;
-}
-
-
-static int
 suunto_vyper2_transfer (vyper2 *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	assert (asize >= size + 4);
@@ -165,10 +146,12 @@ suunto_vyper2_transfer (vyper2 *device, const unsigned char command[], unsigned 
 	}
 
 	// Receive the answer of the dive computer.
-	rc = suunto_vyper2_recv (device, answer, asize);
-	if (rc != SUUNTO_SUCCESS) {
+	rc = serial_read (device->port, answer, asize);
+	if (rc != asize) {
 		WARNING ("Failed to receive the answer.");
-		return rc;
+		if (rc == -1)
+			return SUUNTO_ERROR_IO;
+		return SUUNTO_ERROR_TIMEOUT;
 	}
 
 	// Verify the header of the package.
