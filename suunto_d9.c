@@ -6,6 +6,8 @@
 #include "serial.h"
 #include "utils.h"
 
+#define MAXRETRIES 2
+
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
@@ -151,39 +153,48 @@ suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csiz
 {
 	assert (asize >= size + 4);
 
-	// Send the command to the dive computer.
-	int rc = suunto_d9_send (device, command, csize);
-	if (rc != SUUNTO_SUCCESS) {
-		WARNING ("Failed to send the command.");
-		return rc;
-	}
+	// Occasionally, the dive computer does not respond to a command. 
+	// In that case we retry the command a number of times before 
+	// returning an error. Usually the dive computer will respond 
+	// again during one of the retries.
 
-	// Receive the answer of the dive computer.
-	rc = serial_read (device->port, answer, asize);
-	if (rc != asize) {
-		WARNING ("Failed to receive the answer.");
-		if (rc == -1)
-			return SUUNTO_ERROR_IO;
-		return SUUNTO_ERROR_TIMEOUT;
-	}
+	for (unsigned int i = 0;; ++i) {
+		// Send the command to the dive computer.
+		int rc = suunto_d9_send (device, command, csize);
+		if (rc != SUUNTO_SUCCESS) {
+			WARNING ("Failed to send the command.");
+			return rc;
+		}
 
-	// Verify the header of the package.
-	answer[2] -= size; // Adjust the package size for the comparision.
-	if (memcmp (command, answer, asize - size - 1) != 0) {
-		WARNING ("Unexpected answer start byte(s).");
-		return SUUNTO_ERROR_PROTOCOL;
-	}
-	answer[2] += size; // Restore the package size again.
+		// Receive the answer of the dive computer.
+		rc = serial_read (device->port, answer, asize);
+		if (rc != asize) {
+			WARNING ("Failed to receive the answer.");
+			if (rc == -1)
+				return SUUNTO_ERROR_IO;
+			if (i < MAXRETRIES)
+				continue; // Retry.
+			return SUUNTO_ERROR_TIMEOUT;
+		}
 
-	// Verify the checksum of the package.
-	unsigned char crc = answer[asize - 1];
-	unsigned char ccrc = suunto_d9_checksum (answer, asize - 1, 0x00);
-	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
-		return SUUNTO_ERROR_PROTOCOL;
-	}
+		// Verify the header of the package.
+		answer[2] -= size; // Adjust the package size for the comparision.
+		if (memcmp (command, answer, asize - size - 1) != 0) {
+			WARNING ("Unexpected answer start byte(s).");
+			return SUUNTO_ERROR_PROTOCOL;
+		}
+		answer[2] += size; // Restore the package size again.
 
-	return SUUNTO_SUCCESS;
+		// Verify the checksum of the package.
+		unsigned char crc = answer[asize - 1];
+		unsigned char ccrc = suunto_d9_checksum (answer, asize - 1, 0x00);
+		if (crc != ccrc) {
+			WARNING ("Unexpected answer CRC.");
+			return SUUNTO_ERROR_PROTOCOL;
+		}
+
+		return SUUNTO_SUCCESS;
+	}
 }
 
 
