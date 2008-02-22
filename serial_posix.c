@@ -1,12 +1,12 @@
 #define _POSIX_C_SOURCE 199309
+#define _BSD_SOURCE 
 
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strerror
 #include <errno.h>	// errno
-#include <unistd.h>	// open, close, read, write, isatty, usleep
+#include <unistd.h>	// open, close, read, write
 #include <fcntl.h>	// fcntl
 #include <termios.h>	// tcgetattr, tcsetattr, cfsetispeed, cfsetospeed, tcflush, tcsendbreak
-#include <poll.h>	// poll
 #include <sys/ioctl.h>	// ioctl
 #include <sys/time.h>	// gettimeofday
 #include <time.h>	// nanosleep
@@ -31,7 +31,7 @@ struct serial {
 	 * The file descriptor corresponding to the serial port.
 	 */
 	int fd;
-	int timeout;
+	long timeout;
 	/*
 	 * Serial port settings are saved into this variable immediately
 	 * after the port is opened. These settings are restored when the
@@ -334,94 +334,78 @@ serial_set_queue_size (serial *device, unsigned int input, unsigned int output)
 	return 0;
 }
 
-struct timeouts_t {
-	int interval;
-	int total;
-	int end;
-};
 
-
-static void
-timeouts_init_read (serial* device, struct timeouts_t* timeouts, unsigned int count)
-{
-	timeouts->interval = -1;
-	timeouts->total = (device->timeout >= 0 ? device->timeout : -1);
-	if (timeouts->total > 0)
-		timeouts->end = serial_timer () + timeouts->total;
-}
-
-
-static void
-timeouts_init_write (serial* device, struct timeouts_t* timeouts, unsigned int count)
-{
-	timeouts->interval = -1;
-	timeouts->total = -1;
-	if (timeouts->total > 0)
-		timeouts->end = serial_timer () + timeouts->total;
-}
+#define MYSELECT(nfds, fds, queue, timeout) \
+	(queue == SERIAL_QUEUE_INPUT ? \
+	select (nfds, fds, NULL, NULL, timeout) : \
+	select (nfds, NULL, fds, NULL, timeout))
 
 
 static int
-timeouts_next (const struct timeouts_t* timeouts, unsigned int already)
+serial_poll_internal (int fd, int queue, long timeout, const struct timeval *timestamp)
 {
-	// Default timeout (INFINITE)
-	int result = -1;
+	// Calculate the initial timeout, and obtain
+	// a timestamp for updating the timeout.
 
-	// Calculate the remaining total timeout.
-	if (timeouts->total != -1) {
-		if (timeouts->total > 0) {
-			result = timeouts->end - serial_timer ();
-			if (result < 0) 
-				result = 0;
+	struct timeval tvt = {0}, tve = {0};
+	if (timeout > 0) {
+		// Calculate the initial timeout.
+		tvt.tv_sec  = (timeout / 1000);
+		tvt.tv_usec = (timeout % 1000) * 1000;
+		// Calculate the timestamp.
+		if (timestamp == NULL) {
+			struct timeval now = {0};
+			if (gettimeofday (&now, NULL) != 0) {
+				TRACE ("gettimeofday");
+				return -1;
+			}
+			timeradd (&now, &tvt, &tve);
 		} else {
-			result = 0;
+			timeradd (timestamp, &tvt, &tve);
 		}
 	}
-	
-	// Adjust with the interval timeout.
-	if (already && timeouts->interval != -1) {
-		if (result == -1 || result > timeouts->interval)
-			result = timeouts->interval;
-	}
-	
-	// Return timeout value.
-	return result;
-}
 
+	// Wait until the file descriptor is ready for reading/writing, or 
+	// the timeout expires. A file descriptor is considered ready for 
+	// reading/writing when a call to an input/output function with 
+	// O_NONBLOCK clear would not block, whether or not the function 
+	// would transfer data successfully. 
 
-static int 
-posix_wait (int fd, const struct timeouts_t* timeouts, int input, unsigned int already)
-{
+	fd_set fds;
+	FD_ZERO (&fds);
+	FD_SET (fd, &fds);
+
 	int rc = 0;
-	do {
-		// Calculate the remaining timeout.
-		int timeout = timeouts_next (timeouts, already);
+	while (rc = MYSELECT (fd + 1, &fds, queue, timeout >= 0 ? &tvt : NULL) == -1) {
+		if (errno != EINTR ) {
+			TRACE ("select");
+			return -1;
+		}
 
-		// Wait until the file descriptor is ready for reading/writing, or 
-		// the timeout expires. A file descriptor is considered ready for 
-		// reading/writing when a call to an input/output function with 
-		// O_NONBLOCK clear would not block, whether or not the  function 
-		// would transfer data successfully. 
+		// According to the select() man pages, the file descriptor sets 
+		// and the timeout become undefined after select() returns an error.
+		// We follow the advise and do not rely on their contents.
 
-		fd_set fds;
 		FD_ZERO (&fds);
 		FD_SET (fd, &fds);
-		if (timeout >= 0) {
-			struct timeval tv;
-			tv.tv_sec  = (timeout / 1000);
-			tv.tv_usec = (timeout % 1000) * 1000;
-			if (input)
-				rc = select (fd + 1, &fds, NULL, NULL, &tv);
+
+		// Calculate the remaining timeout.
+
+		if (timeout > 0) {
+			struct timeval now = {0};
+			if (gettimeofday (&now, NULL) != 0) {
+				TRACE ("gettimeofday");
+				return -1;
+			}
+			if (timercmp (&now, &tve, >=))
+				timerclear (&tvt);
 			else
-				rc = select (fd + 1, NULL, &fds, NULL, &tv);
-		} else {
-			if (input)
-				rc = select (fd + 1, &fds, NULL, NULL, NULL);
-			else
-				rc = select (fd + 1, NULL, &fds, NULL, NULL);
+				timersub (&tve, &now, &tvt);				
+		} else if (timeout == 0) {
+			timerclear (&tvt);
 		}
-	} while (rc < 0 && errno == EINTR);
-	
+	}
+
 	return rc;
 }
 
@@ -432,9 +416,15 @@ serial_read (serial* device, void* data, unsigned int size)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-	// Initialize the timeout calculation.
-	struct timeouts_t timeouts = {0};
-	timeouts_init_read (device, &timeouts, size);
+	long timeout = device->timeout;
+
+	struct timeval timestamp = {0};
+	if (timeout > 0) {
+		if (gettimeofday (&timestamp, NULL) != 0) {
+			TRACE ("gettimeofday");
+			return -1;
+		}
+	}
 
 	unsigned int nbytes = 0;
 	for (;;) {
@@ -452,14 +442,28 @@ serial_read (serial* device, void* data, unsigned int size)
 			if (!n || nbytes == size)
 				break; // Success or EOF.
 		}
-		
+
 		// Wait until the file descriptor is ready for reading, or the timeout expires.
-		int rc = posix_wait (device->fd, &timeouts, 1, nbytes);
+		int rc = serial_poll_internal (device->fd, SERIAL_QUEUE_INPUT, timeout, &timestamp);
 		if (rc < 0) {
-			TRACE ("posix_wait");
 			return -1; // Error during select/poll call.
 		} else if (rc == 0)
 			break; // Timeout.
+
+		// Calculate the remaining timeout.
+		if (timeout > 0) {
+			struct timeval now = {0}, delta = {0};
+			if (gettimeofday (&now, NULL) != 0) {
+				TRACE ("gettimeofday");
+				return -1;
+			}
+			timersub (&now, &timestamp ,&delta);
+			long elapsed = delta.tv_sec * 1000 + delta.tv_usec / 1000;
+			if (elapsed >= device->timeout)
+				timeout = 0;
+			else
+				timeout = device->timeout - elapsed;
+		}	
 	}
 
 	return nbytes;
@@ -471,10 +475,6 @@ serial_write (serial* device, const void* data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
-
-	// Initialize the timeout calculation.
-	struct timeouts_t timeouts = {0};
-	timeouts_init_write (device, &timeouts, size);
 
 	unsigned int nbytes = 0;
 	for (;;) {
@@ -494,9 +494,8 @@ serial_write (serial* device, const void* data, unsigned int size)
 		}
 		
 		// Wait until the file descriptor is ready for writing, or the timeout expires.
-		int rc = posix_wait (device->fd, &timeouts, 0, nbytes);
+		int rc = serial_poll_internal (device->fd, SERIAL_QUEUE_OUTPUT, -1, NULL);
 		if (rc < 0) {
-			TRACE ("posix_wait");
 			return -1; // Error during select/poll call.
 		} else if (rc == 0)
 			break; // Timeout.
