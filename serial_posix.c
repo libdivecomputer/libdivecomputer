@@ -540,14 +540,11 @@ serial_drain (serial *device)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-	int rc = 0;
-	do {
-		rc = tcdrain (device->fd);
-	} while (rc == -1 && errno == EINTR);
-
-	if (rc != 0) {
-		TRACE ("tcdrain");
-		return -1;
+	while (tcdrain (device->fd) != 0) {
+		if (errno != EINTR ) {
+			TRACE ("tcdrain");
+			return -1;
+		}
 	}
 
 	return 0;
@@ -642,14 +639,11 @@ serial_sleep (unsigned long timeout)
 	ts.tv_sec  = (timeout / 1000);
 	ts.tv_nsec = (timeout % 1000) * 1000000;
 
-	int rc = 0;
-	do {
-		rc = nanosleep (&ts, &ts);
-	} while (rc == -1 && errno == EINTR);
-
-	if (rc != 0) {
-		TRACE ("nanosleep");
-		return -1;
+	while (nanosleep (&ts, &ts) != 0) {
+		if (errno != EINTR ) {
+			TRACE ("nanosleep");
+			return -1;
+		}
 	}
 
 	return 0;
