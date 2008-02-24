@@ -420,6 +420,27 @@ serial_send_break (serial* device)
 
 
 int
+serial_set_break (serial *device, int level)
+{
+	if (device == NULL)
+		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	if (level) {
+		if (!SetCommBreak (device->hFile)) {
+			TRACE ("SetCommBreak");
+			return -1;
+		}
+	} else {
+		if (!ClearCommBreak (device->hFile)) {
+			TRACE ("ClearCommBreak");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int
 serial_set_dtr (serial* device, int level)
 {
 	if (device == NULL)

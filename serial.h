@@ -68,6 +68,7 @@ int serial_drain (serial *device);
 
 int serial_send_break (serial *device);
 
+int serial_set_break (serial *device, int level);
 int serial_set_dtr (serial *device, int level);
 int serial_set_rts (serial *device, int level);
 

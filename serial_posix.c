@@ -457,7 +457,7 @@ serial_read (serial* device, void* data, unsigned int size)
 				TRACE ("gettimeofday");
 				return -1;
 			}
-			timersub (&now, &timestamp ,&delta);
+			timersub (&now, &timestamp, &delta);
 			long elapsed = delta.tv_sec * 1000 + delta.tv_usec / 1000;
 			if (elapsed >= device->timeout)
 				timeout = 0;
@@ -562,6 +562,23 @@ serial_send_break (serial *device)
 		return -1;
 	}
 	
+	return 0;
+}
+
+
+int
+serial_set_break (serial *device, int level)
+{
+	if (device == NULL)
+		return -1; // EINVAL (Invalid argument)
+
+	int action = (level ? TIOCSBRK : TIOCCBRK);
+
+	if (ioctl (device->fd, action, NULL) != 0) {
+		TRACE ("ioctl");
+		return -1;
+	}
+
 	return 0;
 }
 
