@@ -376,7 +376,7 @@ serial_poll_internal (int fd, int queue, long timeout, const struct timeval *tim
 	FD_SET (fd, &fds);
 
 	int rc = 0;
-	while (rc = MYSELECT (fd + 1, &fds, queue, timeout >= 0 ? &tvt : NULL) == -1) {
+	while ((rc = MYSELECT (fd + 1, &fds, queue, timeout >= 0 ? &tvt : NULL)) == -1) {
 		if (errno != EINTR ) {
 			TRACE ("select");
 			return -1;
