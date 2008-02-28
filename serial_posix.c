@@ -463,6 +463,7 @@ serial_read (serial* device, void* data, unsigned int size)
 				timeout = 0;
 			else
 				timeout = device->timeout - elapsed;
+			timestamp = now;
 		}	
 	}
 
