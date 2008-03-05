@@ -10,7 +10,7 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define DISTANCE(a,b) distance (a, b, SUUNTO_D9_MEMORY_SIZE - 0x019A)
+#define DISTANCE(a,b) distance (a, b, SUUNTO_D9_MEMORY_SIZE - 0x019A - 2)
 
 unsigned int
 distance (unsigned int a, unsigned int b, unsigned int size)
@@ -177,7 +177,7 @@ int test_dump_sdm (const char* name, const char* filename)
 			nbytes += len;
 			address -= len;
 			if (address <= 0x019A)
-				address = SUUNTO_D9_MEMORY_SIZE;		
+				address = SUUNTO_D9_MEMORY_SIZE - 2;		
 		}
 
 		// The last package of the current dive contains the previous and
