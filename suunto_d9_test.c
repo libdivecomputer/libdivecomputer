@@ -309,6 +309,8 @@ int main(int argc, char *argv[])
 		name = argv[1];
 	}
 
+	message ("DEVICE=%s\n", name);
+
 	int a = test_dump_memory (name, "D9.DMP");
 	int b = test_dump_sdm (name, "D9.SDM");
 

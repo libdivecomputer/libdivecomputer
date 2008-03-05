@@ -82,6 +82,8 @@ int main(int argc, char *argv[])
 		name = argv[1];
 	}
 
+	message ("DEVICE=%s\n", name);
+
 	int a = test_dump_memory (name, "ALADIN.DMP");
 
 	message ("\nSUMMARY\n");

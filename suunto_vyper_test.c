@@ -177,6 +177,8 @@ int main(int argc, char *argv[])
 		name = argv[1];
 	}
 
+	message ("DEVICE=%s, DELAY=%i\n", name, delay);
+
 	int a = test_dump_sdm16 (name, delay, "VYPER.SDM");
 	int b = test_dump_memory (name, delay, "VYPER.DMP");
 
