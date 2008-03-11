@@ -8,6 +8,8 @@
 #define SUUNTO_ERROR_PROTOCOL -4
 #define SUUNTO_ERROR_TIMEOUT  -5
 
+typedef void (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
+
 #include "suunto_vyper.h"
 #include "suunto_vyper2.h"
 #include "suunto_d9.h"

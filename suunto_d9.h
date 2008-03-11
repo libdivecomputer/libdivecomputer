@@ -22,6 +22,8 @@ int suunto_d9_read_memory (d9 *device, unsigned int address, unsigned char data[
 
 int suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char data[], unsigned int size);
 
+int suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

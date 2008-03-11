@@ -16,10 +16,22 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define DISTANCE(a,b) distance (a, b, SUUNTO_D9_MEMORY_SIZE - 0x019A - 2)
 
 struct d9 {
 	struct serial *port;
 };
+
+
+static unsigned int
+distance (unsigned int a, unsigned int b, unsigned int size)
+{
+	if (a <= b) {
+		return (b - a) % size;
+	} else {
+		return size - (a - b) % size;
+	}
+}
 
 
 int
@@ -327,6 +339,176 @@ suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char da
 		address += len;
 		data += len;
 	}
+
+	return SUUNTO_SUCCESS;
+}
+
+
+int
+suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
+{
+	if (device == NULL)
+		return SUUNTO_ERROR;
+
+	// Read the header bytes.
+	unsigned char header[8] = {0};
+	int rc = suunto_d9_read_memory (device, 0x0190, header, sizeof (header));
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Cannot read memory header.");
+		return rc;
+	}
+
+	// Obtain the pointers from the header.
+	unsigned int last  = header[0] + (header[1] << 8);
+	unsigned int count = header[2] + (header[3] << 8);
+	unsigned int end   = header[4] + (header[5] << 8);
+	unsigned int begin = header[6] + (header[7] << 8);
+	message ("Pointers: begin=%04x, last=%04x, end=%04x, count=%i\n", begin, last, end, count);
+
+	// Memory buffer to store all the dives.
+
+	unsigned int index = 0;
+	unsigned char data[SUUNTO_D9_MEMORY_SIZE - 0x019A - 2] = {0};
+
+	// Calculate the total amount of bytes.
+
+	unsigned int remaining = DISTANCE (begin, end);
+
+	// To reduce the number of read operations, we always try to read 
+	// packages with the largest possible size. As a consequence, the 
+	// last package of a dive can contain data from more than one dive. 
+	// Therefore, the remaining data of this package (and its size) 
+	// needs to be preserved for the next dive.
+	// The package buffer also needs some extra space to store the 
+	// pointer bytes (see later on for the reason).
+
+	unsigned int available = 0;
+	unsigned char package[SUUNTO_D9_PACKET_SIZE + 3] = {0};
+
+	// The ring buffer is traversed backwards to retrieve the most recent
+	// dives first. This allows you to download only the new dives. During 
+	// the traversal, the current pointer does always point to the end of
+	// the dive data and we move to the "next" dive by means of the previous 
+	// pointer.
+
+	unsigned int ndives = 0;
+	unsigned int current = end;
+	unsigned int previous = last;
+	while (current != begin) {
+		// Calculate the size of the current dive.
+		unsigned int size = DISTANCE (previous, current);
+		message ("Pointers: dive=%u, current=%04x, previous=%04x, size=%u, remaining=%u\n", ndives + 1, current, previous, size, remaining);
+		assert (size >= 4);
+
+		// Check if the output buffer is large enough to store the entire 
+		// dive. The output buffer does not need space for the previous and 
+		// next pointers (4 bytes).
+		assert (sizeof (data) >= index + size - 4);
+
+		// If there is already some data available from downloading 
+		// the previous dive, it is processed here.
+		if (available) {
+			// Calculate the offset to the package data.
+			unsigned int offset = 0;
+			if (available > size - 4)
+				offset = available - (size - 4);
+
+			// Prepend the package data to the output buffer.
+			unsigned int e = index + (size - 4);
+			unsigned int n = available - offset;
+			memcpy (data + e - n, package + offset, n);
+		}
+
+		unsigned int nbytes = available;
+		unsigned int address = current - available;
+		while (nbytes < size) {
+			// Calculate the package size. Try with the largest possible 
+			// size first, and adjust when the end of the ringbuffer or  
+			// the end of the profile data is reached.
+			unsigned int len = SUUNTO_D9_PACKET_SIZE;
+			if (0x019A + len > address)
+				len = address - 0x019A; // End of ringbuffer.
+			if (nbytes + len > remaining)
+				len = remaining - nbytes; // End of profile.
+			/*if (nbytes + len > size)
+				len = size - nbytes;*/ // End of dive (for testing only).
+
+			// Calculate the offset to the package data, skipping the
+			// previous and next pointers (4 bytes) and also the data
+			// from the next dive (if present). Thus, the offset is only 
+			// non-zero for packages at the end of the dive.
+			unsigned int offset = 0;
+			if (nbytes + len > size - 4)
+				offset = nbytes + len - (size - 4);
+
+			message ("Pointers: address=%04x, len=%u, offset=%u\n", address - len, len, offset);
+
+			// The previous and next pointers can be split over multiple 
+			// packages. If that is the case, we move those byte(s) from 
+			// the start of the previous package to the end of the current 
+			// package. With this approach, the pointers are preserved when 
+			// reading the current package (in the next step) and they are 
+			// again in a continuous memory area.
+			if (offset > len) {
+				message ("Pointers: dst=%u, src=%u, len=%u\n", len, 0, offset - len);
+				memmove (package + len, package, offset - len);
+			}
+
+			// Read the package.
+			rc = suunto_d9_read_memory (device, address - len, package, len);
+			if (rc != SUUNTO_SUCCESS) {
+				WARNING ("Cannot read memory.");
+				return rc;
+			}
+
+			// Prepend the package data to the output buffer.
+			if (offset < len) {
+				unsigned int e = index + (size - 4) - nbytes;
+				unsigned int n = len - offset;
+				memcpy (data + e - n, package + offset, n);
+			}
+
+			// Next package.
+			nbytes += len;
+			address -= len;
+			if (address <= 0x019A)
+				address = SUUNTO_D9_MEMORY_SIZE - 2;		
+		}
+
+		// The last package of the current dive contains the previous and
+		// next pointers (in a continuous memory area). It can also contain
+		// a number of bytes from the next dive. The offset to the pointers
+		// is equal to the number of remaining (or "available") bytes.
+
+		available = nbytes - size;
+		message ("Pointers: nbytes=%u, available=%u\n", nbytes, available);
+
+		unsigned int oprevious = package[available + 0x00] + (package[available + 0x01] << 8);
+		unsigned int onext     = package[available + 0x02] + (package[available + 0x03] << 8);
+		message ("Pointers: previous=%04x, next=%04x\n", oprevious, onext);
+		assert (current == onext);
+
+		// Next dive.
+		current = previous;
+		previous = oprevious;
+		remaining -= size;
+		ndives++;
+
+#ifndef NDEBUG
+		message ("D9Profile()=\"");
+		for (unsigned int i = 0; i < size - 4; ++i) {
+			message ("%02x", data[i + index]);
+		}
+		message ("\"\n");
+#endif
+
+		if (callback)
+			callback (data + index, size - 4, userdata);
+
+		index += size - 4;
+	}
+	assert (remaining == 0);
+	assert (available == 0);
 
 	return SUUNTO_SUCCESS;
 }
