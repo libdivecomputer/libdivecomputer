@@ -9,5 +9,6 @@
 #define REEFNET_ERROR_TIMEOUT  -5
 
 #include "reefnet_sensuspro.h"
+#include "reefnet_sensusultra.h"
 
 #endif /* REEFNET_H */
