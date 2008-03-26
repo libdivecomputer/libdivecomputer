@@ -14,13 +14,6 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define EXITCODE(rc, n) \
-( \
-	rc == -1 ? \
-	SUUNTO_ERROR_IO : \
-	(rc != n ? SUUNTO_ERROR_TIMEOUT : SUUNTO_ERROR_PROTOCOL) \
-)
-
 
 struct vyper {
 	struct serial *port;
@@ -256,18 +249,6 @@ suunto_vyper_send (vyper *device, const unsigned char command[], unsigned int cs
 
 
 static int
-suunto_vyper_recv (vyper *device, unsigned char data[], unsigned int size)
-{
-	int rc = serial_read (device->port, data, size);
-	if (rc != size) {
-		return EXITCODE (rc, size);
-	}
-
-	return SUUNTO_SUCCESS;
-}
-
-
-static int
 suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	assert (asize >= size + 2);
@@ -280,10 +261,12 @@ suunto_vyper_transfer (vyper *device, const unsigned char command[], unsigned in
 	}
 
 	// Receive the answer of the dive computer.
-	rc = suunto_vyper_recv (device, answer, asize);
-	if (rc != SUUNTO_SUCCESS) {
+	rc = serial_read (device->port, answer, asize);
+	if (rc != asize) {
 		WARNING ("Failed to receive the answer.");
-		return rc;
+		if (rc == -1)
+			return SUUNTO_ERROR_IO;
+		return SUUNTO_ERROR_TIMEOUT;
 	}
 
 	// Verify the header of the package.
@@ -410,33 +393,24 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 	if (device == NULL)
 		return SUUNTO_ERROR;
 
-	// Prepare the command.
+	// Send the command to the dive computer.
 	unsigned char command[3] = {init ? 0x08 : 0x09, 0xA5, 0x00};
 	command[2] = suunto_vyper_checksum (command, 2, 0x00);
-
-	// Send the command to the dive computer.
 	int rc = suunto_vyper_send (device, command, 3);
 	if (rc != SUUNTO_SUCCESS) {
 		WARNING ("Failed to send the command.");
 		return rc;
 	}
 
-	// FIXME: Give the DC extra answer time to send its first byte, 
-	//        then let the standard timeout apply.
-
 	// The data transmission is split in packages
 	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
 
 	unsigned int nbytes = 0;
 	for (unsigned int npackages = 0;; ++npackages) {
-		// Initial checksum value.
-		unsigned char ccrc = 0x00;
-
 		// Receive the header of the package.
-		unsigned char header[2] = {0};
-		rc = serial_read (device->port, header, 2);
-		if (rc != 2 || memcmp (command, header, 1) != 0 ||
-			header[1] > SUUNTO_VYPER_PACKET_SIZE) {
+		unsigned char answer[SUUNTO_VYPER_PACKET_SIZE + 3] = {0};
+		rc = serial_read (device->port, answer, 2);
+		if (rc != 2) {
 			// If no data is received because a timeout occured, we assume 
 			// the last package was already received and the transmission 
 			// can be finished. Unfortunately this is not 100% reliable, 
@@ -447,34 +421,40 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 			// an error, because the DC always sends at least one package.
 			if (rc == 0 && npackages != 0)
 				break;
+			WARNING ("Failed to receive the answer.");
+			if (rc == -1)
+				return SUUNTO_ERROR_IO;
+			return SUUNTO_ERROR_TIMEOUT;
+		}
+
+		// Verify the header of the package.
+		if (answer[0] != command[0] || 
+			answer[1] > SUUNTO_VYPER_PACKET_SIZE) {
 			WARNING ("Unexpected answer start byte(s).");
-			return EXITCODE (rc, 2);
+			return SUUNTO_ERROR_PROTOCOL;
 		}
-		// Update the checksum.
-		ccrc = suunto_vyper_checksum (header, 2, ccrc);
 
-		// Receive the contents of the package.
-		unsigned char len = header[1];
-		unsigned char package[SUUNTO_VYPER_PACKET_SIZE] = {0};
-		rc = serial_read (device->port, package, len);
-		if (rc != len) {
-			WARNING ("Unexpected EOF in answer.");
-			return EXITCODE (rc, len);
+		// Receive the remaining part of the package.
+		unsigned char len = answer[1];
+		rc = serial_read (device->port, answer + 2, len + 1);
+		if (rc != len + 1) {
+			WARNING ("Failed to receive the answer.");
+			if (rc == -1)
+				return SUUNTO_ERROR_IO;
+			return SUUNTO_ERROR_TIMEOUT;
 		}
-		// Update the checksum.
-		ccrc = suunto_vyper_checksum (package, len, ccrc);
 
-		// Receive (and verify) the checksum of the package.
-		unsigned char crc = 0x00;
-		rc = serial_read (device->port, &crc, 1);
-		if (rc != 1 || ccrc != crc) {
+		// Verify the checksum of the package.
+		unsigned char crc = answer[len + 2];
+		unsigned char ccrc = suunto_vyper_checksum (answer, len + 2, 0x00);
+		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
-			return EXITCODE (rc, 1);
+			return SUUNTO_ERROR_PROTOCOL;
 		}
 
 		// Append the package to the output buffer.
 		if (nbytes + len <= size) {
-			memcpy (data + nbytes, package, len);
+			memcpy (data + nbytes, answer + 2, len);
 			nbytes += len;
 		} else {
 			WARNING ("Insufficient buffer space available.");
