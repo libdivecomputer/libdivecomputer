@@ -10,9 +10,8 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-int test_dump_sdm16 (const char* name, unsigned int delay, const char* filename)
+int test_dump_sdm (const char* name, unsigned int delay)
 {
-	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE] = {0};
 	vyper *device = NULL;
 
 	message ("suunto_vyper_open\n");
@@ -32,53 +31,12 @@ int test_dump_sdm16 (const char* name, unsigned int delay, const char* filename)
 		return rc;
 	}
 
-	message ("suunto_vyper_read_memory\n");
-	rc = suunto_vyper_read_memory (device, 0x24, data + 0x24, 1);
+	message ("suunto_vyper_read_dives\n");
+	rc = suunto_vyper_read_dives (device, NULL, NULL);
 	if (rc != SUUNTO_SUCCESS) {
-		WARNING ("Cannot identify computer.");
+		WARNING ("Cannot read dives.");
 		suunto_vyper_close (device);
 		return rc;
-	}
-	rc = suunto_vyper_read_memory (device, 0x1E, data + 0x1E, 14);
-	if (rc != SUUNTO_SUCCESS) {
-		WARNING ("Cannot read memory.");
-		suunto_vyper_close (device);
-		return rc;
-	}
-	rc = suunto_vyper_read_memory (device, 0x2C, data + 0x2C, 32);
-	if (rc != SUUNTO_SUCCESS) {
-		WARNING ("Cannot read memory.");
-		suunto_vyper_close (device);
-		return rc;
-	}
-	rc = suunto_vyper_read_memory (device, 0x53, data + 0x53, 30);
-	if (rc != SUUNTO_SUCCESS) {
-		WARNING ("Cannot read memory.");
-		suunto_vyper_close (device);
-		return rc;
-	}
-
-	message ("suunto_vyper_read_dive\n");
-	int ndives = 0;
-	int offset = 0x71;
-	do {
-		message ("Reading dive #%d.\n", ndives + 1);
-		rc = suunto_vyper_read_dive (device, data + offset, sizeof (data) - offset, (ndives == 0));
-		if (rc < 0) {
-			WARNING ("Cannot read dive.");
-			suunto_vyper_close (device);
-			return rc;
-		}
-		message ("Returned %i bytes at offset 0x%04x.\n", rc, offset);
-		ndives++;
-		offset += rc;
-	} while (rc > 0);
-
-	message ("Dumping data\n");
-	FILE *fp = fopen (filename, "wb");
-	if (fp != NULL) {
-		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
-		fclose (fp);
 	}
 
 	message ("suunto_vyper_close\n");
@@ -179,12 +137,12 @@ int main(int argc, char *argv[])
 
 	message ("DEVICE=%s, DELAY=%i\n", name, delay);
 
-	int a = test_dump_sdm16 (name, delay, "VYPER.SDM");
+	int a = test_dump_sdm (name, delay);
 	int b = test_dump_memory (name, delay, "VYPER.DMP");
 
 	message ("\nSUMMARY\n");
 	message ("-------\n");
-	message ("test_dump_sdm16:  %s\n", errmsg (a));
+	message ("test_dump_sdm:    %s\n", errmsg (a));
 	message ("test_dump_memory: %s\n", errmsg (b));
 
 	message_set_logfile (NULL);

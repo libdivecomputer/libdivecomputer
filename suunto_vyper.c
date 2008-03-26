@@ -502,3 +502,34 @@ suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, 
 
 	return nbytes;
 }
+
+
+int
+suunto_vyper_read_dives (vyper *device, dive_callback_t callback, void *userdata)
+{
+	if (device == NULL)
+		return SUUNTO_ERROR;
+
+	// The memory layout of the Spyder is different from the Vyper
+	// (and all other compatible dive computers). The Spyder has
+	// the largest ring buffer for the profile memory, so we use
+	// that value as the maximum size of the memory buffer.
+
+	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE - 0x4C] = {0};
+
+	int rc = 0;
+	unsigned int ndives = 0;
+	unsigned int offset = 0;
+	while ((rc = suunto_vyper_read_dive (device, data + offset, sizeof (data) - offset, (ndives == 0))) > 0) {
+		if (callback)
+			callback (data + offset, rc, userdata);
+
+		ndives++;
+		offset += rc;
+	}
+
+	if (rc != 0)
+		return rc;
+
+	return SUUNTO_SUCCESS;
+}
