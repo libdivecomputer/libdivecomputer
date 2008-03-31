@@ -15,6 +15,8 @@ int uwatec_aladin_close (aladin *device);
 
 int uwatec_aladin_read (aladin *device, unsigned char data[], unsigned int size);
 
+int uwatec_aladin_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
