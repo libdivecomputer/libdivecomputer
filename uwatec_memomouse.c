@@ -347,3 +347,35 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 
 	return UWATEC_SUCCESS;
 }
+
+
+int
+uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	unsigned int previous = 0;
+	unsigned int current = 5;
+	while (current + 18 <= size) {
+		// Memomouse sends all the data twice. The first time, it sends 
+		// the data starting from the oldest dive towards the newest dive. 
+		// Next, it send the same data in reverse order (newest to oldest).
+		// We abort the parsing once we detect the first duplicate dive.
+		if (previous && memcmp (data + previous, data + current, 18) == 0)
+			break;
+
+		// Get the length of the profile data.
+		unsigned int len = data[current + 16] + (data[current + 17] << 8);
+
+		// Check for a buffer overflow.
+		if (current + len + 18 > size)
+			return UWATEC_ERROR;
+
+		if (callback)
+			callback (data + current, len + 18, userdata);
+
+		// Move to the next dive.
+		previous = current;
+		current += len + 18;
+	}
+
+	return UWATEC_SUCCESS;
+}

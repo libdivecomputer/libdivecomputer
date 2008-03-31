@@ -15,6 +15,8 @@ int uwatec_memomouse_close (memomouse *device);
 
 int uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int size);
 
+int uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
