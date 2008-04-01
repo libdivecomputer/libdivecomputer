@@ -352,6 +352,8 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 int
 uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	// Parse the data stream to find the total number of dives.
+	unsigned int ndives = 0;
 	unsigned int previous = 0;
 	unsigned int current = 5;
 	while (current + 18 <= size) {
@@ -359,6 +361,9 @@ uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, d
 		// the data starting from the oldest dive towards the newest dive. 
 		// Next, it send the same data in reverse order (newest to oldest).
 		// We abort the parsing once we detect the first duplicate dive.
+		// The second data stream contains always exactly 37 dives, and not
+		// all dives have profile data, so it's probably data from the
+		// connected Uwatec Aladin (converted to the memomouse format).
 		if (previous && memcmp (data + previous, data + current, 18) == 0)
 			break;
 
@@ -369,12 +374,33 @@ uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, d
 		if (current + len + 18 > size)
 			return UWATEC_ERROR;
 
-		if (callback)
-			callback (data + current, len + 18, userdata);
-
 		// Move to the next dive.
 		previous = current;
 		current += len + 18;
+		ndives++;
+	}
+
+	// Parse the data stream again to return each dive in reverse order
+	// (newest dive first). This is less efficient, since the data stream
+	// needs to be scanned multiple times, but it makes the behaviour
+	// consistent with the equivalent function for the Uwatec Aladin.
+	for (unsigned int i = 0; i < ndives; ++i) {
+		// Skip the older dives.
+		unsigned int offset = 5;
+		unsigned int skip = ndives - i - 1;
+		while (skip) {
+			// Get the length of the profile data.
+			unsigned int len = data[offset + 16] + (data[offset + 17] << 8);
+			// Move to the next dive.
+			offset += len + 18;
+			skip--;
+		}
+
+		// Get the length of the profile data.
+		unsigned int length = data[offset + 16] + (data[offset + 17] << 8);
+
+		if (callback)
+			callback (data + offset, length + 18, userdata);
 	}
 
 	return UWATEC_SUCCESS;
