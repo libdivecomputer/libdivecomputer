@@ -12,5 +12,6 @@ typedef void (*dive_callback_t) (const unsigned char *data, unsigned int size, v
 
 #include "uwatec_aladin.h"
 #include "uwatec_memomouse.h"
+#include "uwatec_smart.h"
 
 #endif /* UWATEC_H */
