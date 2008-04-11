@@ -28,6 +28,8 @@ int irda_socket_discover (irda *device, irda_callback_t callback, void *userdata
 int irda_socket_connect_name (irda *device, unsigned int address, const char *name);
 int irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap);
 
+int irda_socket_available (irda* device);
+
 int irda_socket_read (irda* device, void* data, unsigned int size);
 
 int irda_socket_write (irda* device, const void *data, unsigned int size);

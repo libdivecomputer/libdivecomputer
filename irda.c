@@ -13,6 +13,7 @@
 	#include <linux/types.h>	// irda
 	#include <linux/irda.h>		// irda
 	#include <sys/select.h>		// select
+	#include <sys/ioctl.h>		// ioctl
 #endif
 
 #include "irda.h"
@@ -348,6 +349,28 @@ irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap)
 
 
 int
+irda_socket_available (irda* device)
+{
+	if (device == NULL)
+		return -1; // EINVAL (Invalid argument)
+
+#ifdef _WIN32
+	unsigned long bytes = 0;
+	if (ioctlsocket (device->fd, FIONREAD, &bytes) != 0) {
+		TRACE ("ioctlsocket");
+#else
+	int bytes = 0;
+	if (ioctl (device->fd, FIONREAD, &bytes) != 0) {
+		TRACE ("ioctl");
+#endif
+		return -1;
+	}
+
+	return bytes;
+}
+
+
+int
 irda_socket_read (irda* device, void* data, unsigned int size)
 {
 	if (device == NULL)
@@ -362,21 +385,29 @@ irda_socket_read (irda* device, void* data, unsigned int size)
 	fd_set fds;
 	FD_ZERO (&fds);
 	FD_SET (device->fd, &fds);
-	int rc = select (device->fd + 1, &fds, NULL, NULL, (device->timeout >= 0 ? &tv : NULL));
-	if (rc < 0) {
-		TRACE ("select");
-		return -1; // Error.
-	} else if (rc == 0) {
-		return 0; // Timeout.
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		int rc = select (device->fd + 1, &fds, NULL, NULL, (device->timeout >= 0 ? &tv : NULL));
+		if (rc < 0) {
+			TRACE ("select");
+			return -1; // Error during select call.
+		} else if (rc == 0) {
+			break; // Timeout.
+		}
+
+		int n = recv (device->fd, data + nbytes, size - nbytes, 0);
+		if (n < 0) {
+			TRACE ("recv");
+			return -1; // Error during recv call.
+		} else if (n == 0) {
+			break; // EOF reached.
+		}
+
+		nbytes += n;
 	}
 
-	int n = recv (device->fd, data, size, 0);
-	if (n < 0) {
-		TRACE ("recv");
-		return -1;
-	}
-
-	return n;
+	return nbytes;
 }
 
 
@@ -386,11 +417,16 @@ irda_socket_write (irda* device, const void *data, unsigned int size)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-	int n = send (device->fd, data, size, 0);
-	if (n < 0) {
-		TRACE ("send");
-		return -1;
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		int n = send (device->fd, data + nbytes, size - nbytes, 0);
+		if (n < 0) {
+			TRACE ("send");
+			return -1; // Error during send call.
+		}
+
+		nbytes += n;
 	}
 
-	return n;
+	return nbytes;
 }
