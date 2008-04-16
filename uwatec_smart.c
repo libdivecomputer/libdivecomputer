@@ -1,6 +1,7 @@
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strncmp, strstr
 #include <time.h>	// time, strftime
+#include <assert.h>	// assert
 
 #include "uwatec.h"
 #include "irda.h"
@@ -297,6 +298,17 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 		free (package);
 		return EXITCODE (rc);
 	}
+	rc = irda_socket_read (device->socket, answer, 4);
+	if (rc != 4) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (rc);
+	}
+
+	unsigned int length = answer[0] + (answer[1] << 8) + 
+						(answer[2] << 16) + (answer[3] << 24);
+	message ("handshake: size=%u\n", length);
+
+	assert (length == size + 4);
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
