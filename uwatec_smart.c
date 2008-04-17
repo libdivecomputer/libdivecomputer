@@ -336,3 +336,33 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 
 	return UWATEC_SUCCESS;
 }
+
+
+int
+uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	const unsigned char header[4] = {0xa5, 0xa5, 0x5a, 0x5a};
+
+	unsigned int offset = 0;
+	while (offset + 8 <= size) {
+		// Search for the header marker.
+		if (memcmp (data + offset, header, sizeof (header)) == 0) {
+			// Get the length of the profile data.
+			unsigned int len = data[offset + 4] + (data[offset + 5] << 8) + 
+							(data[offset + 6] << 16) + (data[offset + 7] << 24);
+
+			// Check for a buffer overflow.
+			if (offset + len > size)
+				return UWATEC_ERROR;
+
+			if (callback)
+				callback (data + offset, len, userdata);
+
+			offset += len;
+		} else {
+			offset++;
+		}
+	}
+
+	return UWATEC_SUCCESS;
+}
