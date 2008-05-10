@@ -131,6 +131,25 @@ uwatec_smart_close (smart *device)
 }
 
 
+static int
+uwatec_smart_transfer (smart *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+{
+	int rc = irda_socket_write (device->socket, command, csize);
+	if (rc != csize) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (rc);
+	}
+
+	rc = irda_socket_read (device->socket, answer, asize);
+	if (rc != asize) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (rc);
+	}
+
+	return UWATEC_SUCCESS;
+}
+
+
 int
 uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 {
@@ -144,16 +163,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	// Handshake (stage 1).
 
 	command[0] = 0x1B;
-	int rc = irda_socket_write (device->socket, command, 1);
-	if (rc != 1) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 1);
-	if (rc != 1) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+
+	int rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	if (rc != UWATEC_SUCCESS)
+		return rc;
 
 	message ("handshake: header=%02x\n", answer[0]);
 
@@ -169,16 +182,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	command[2] = 0x27;
 	command[3] = 0;
 	command[4] = 0;
-	rc = irda_socket_write (device->socket, command, 5);
-	if (rc != 5) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 1);
-	if (rc != 1) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+
+	rc = uwatec_smart_transfer (device, command, 5, answer, 1);
+	if (rc != UWATEC_SUCCESS)
+		return rc;
 
 	message ("handshake: header=%02x\n", answer[0]);
 
@@ -190,16 +197,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	// Dive Computer Time.
 
 	command[0] = 0x1A;
-	rc = irda_socket_write (device->socket, command, 1);
-	if (rc != 1) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 4);
-	if (rc != 4) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+
+	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
+	if (rc != UWATEC_SUCCESS)
+		return rc;
 
 	time_t device_time = answer[0] + (answer[1] << 8) + 
 						(answer[2] << 16) + (answer[3] << 24);
@@ -215,16 +216,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	// Serial Number
 
 	command[0] = 0x14;
-	rc = irda_socket_write (device->socket, command, 1);
-	if (rc != 1) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 4);
-	if (rc != 4) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+
+	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
+	if (rc != UWATEC_SUCCESS)
+		return rc;
 
 	unsigned int serial = answer[0] + (answer[1] << 8) + 
 							(answer[2] << 16) + (answer[3] << 24);
@@ -233,16 +228,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	// Dive Computer Model.
 
 	command[0] = 0x10;
-	rc = irda_socket_write (device->socket, command, 1);
-	if (rc != 1) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 1);
-	if (rc != 1) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+
+	rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	if (rc != UWATEC_SUCCESS)
+		return rc;
 
 	message ("handshake: model=0x%02x\n", answer[0]);
 
@@ -257,16 +246,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	command[6] = 0x27;
 	command[7] = 0;
 	command[8] = 0;
-	rc = irda_socket_write (device->socket, command, 9);
-	if (rc != 9) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 4);
-	if (rc != 4) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+
+	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	if (rc != UWATEC_SUCCESS)
+		return rc;
 
 	unsigned int size = answer[0] + (answer[1] << 8) + 
 						(answer[2] << 16) + (answer[3] << 24);
@@ -292,16 +275,11 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	command[6] = 0x27;
 	command[7] = 0;
 	command[8] = 0;
-	rc = irda_socket_write (device->socket, command, 9);
-	if (rc != 9) {
-		WARNING ("Failed to send the command.");
+
+	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	if (rc != UWATEC_SUCCESS) {
 		free (package);
-		return EXITCODE (rc);
-	}
-	rc = irda_socket_read (device->socket, answer, 4);
-	if (rc != 4) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
+		return rc;
 	}
 
 	unsigned int length = answer[0] + (answer[1] << 8) + 
