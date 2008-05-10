@@ -272,8 +272,8 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 						(answer[2] << 16) + (answer[3] << 24);
 	message ("handshake: size=%u\n", size);
 
-  	if (size == UWATEC_SUCCESS)
-  		return 0;
+  	if (size == 0)
+  		return UWATEC_SUCCESS;
 
 	unsigned char *package = malloc (size * sizeof (unsigned char));
 	if (package == NULL) {
