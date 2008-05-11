@@ -10,6 +10,7 @@
 
 typedef void (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
 
+#include "suunto_eon.h"
 #include "suunto_vyper.h"
 #include "suunto_vyper2.h"
 #include "suunto_d9.h"

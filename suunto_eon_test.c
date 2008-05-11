@@ -1,0 +1,94 @@
+#include <stdio.h>	// fopen, fwrite, fclose
+
+#include "suunto.h"
+#include "utils.h"
+
+#define WARNING(expr) \
+{ \
+	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
+}
+
+int test_dump_memory (const char* name, const char* filename)
+{
+	eon *device = NULL;
+	unsigned char data[SUUNTO_EON_MEMORY_SIZE] = {0};
+
+	message ("suunto_eon_open\n");
+	int rc = suunto_eon_open (&device, name);
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Error opening serial port.");
+		return rc;
+	}
+
+	message ("suunto_eon_read\n");
+	rc = suunto_eon_read (device, data, sizeof (data));
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Cannot read memory.");
+		suunto_eon_close (device);
+		return rc;
+	}
+
+	message ("Dumping data\n");
+	FILE* fp = fopen (filename, "wb");
+	if (fp != NULL) {
+		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
+		fclose (fp);
+	}
+
+	message ("suunto_eon_close\n");
+	rc = suunto_eon_close (device);
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Cannot close device.");
+		return rc;
+	}
+
+	return SUUNTO_SUCCESS;
+}
+
+const char* errmsg (int rc)
+{
+	switch (rc) {
+	case SUUNTO_SUCCESS:
+		return "Success";
+	case SUUNTO_ERROR:
+		return "Generic error";
+	case SUUNTO_ERROR_IO:
+		return "Input/output error";
+	case SUUNTO_ERROR_MEMORY:
+		return "Memory error";
+	case SUUNTO_ERROR_PROTOCOL:
+		return "Protocol error";
+	case SUUNTO_ERROR_TIMEOUT:
+		return "Timeout";
+	default:
+		return "Unknown error";
+	}
+}
+
+
+int main(int argc, char *argv[])
+{
+	message_set_logfile ("EON.LOG");
+
+#ifdef _WIN32
+	const char* name = "COM1";
+#else
+	const char* name = "/dev/ttyS0";
+#endif
+
+	if (argc > 1) {
+		name = argv[1];
+	}
+
+	message ("DEVICE=%s\n", name);
+
+	int a = test_dump_memory (name, "EON.DMP");
+
+	message ("SUMMARY\n");
+	message ("-------\n");
+	message ("test_dump_memory:          %s\n", errmsg (a));
+
+	message_set_logfile (NULL);
+
+	return 0;
+}
