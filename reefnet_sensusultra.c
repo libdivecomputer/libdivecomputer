@@ -478,3 +478,46 @@ reefnet_sensusultra_sense (sensusultra *device, unsigned char *data, unsigned in
 
 	return REEFNET_SUCCESS;
 }
+
+
+int
+reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
+	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+
+	// Search the entire data stream for start markers.
+	unsigned int previous = size;
+	unsigned int current = (size >= 4 ? size - 4 : 0);
+	while (current > 0) {
+		current--;
+		if (memcmp (data + current, header, sizeof (header)) == 0) {
+			// Once a start marker is found, start searching
+			// for the corresponding stop marker. The search is 
+			// now limited to the start of the previous dive.
+			int found = 0;
+			unsigned int offset = current + 16; // Skip non-sample data.
+			while (offset + 4 <= previous) {
+				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
+					if (callback)
+						callback (data + current, offset + 4 - current, userdata);
+
+					found = 1;
+					break;
+				} else {
+					offset++;
+				}
+			}
+
+			// Report an error if no stop marker was found.
+			if (!found)
+				return REEFNET_ERROR;
+
+			// Prepare for the next dive.
+			previous = current;
+			current = (current >= 4 ? current - 4 : 0);
+		}
+	}
+
+	return REEFNET_SUCCESS;
+}
