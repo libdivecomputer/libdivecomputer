@@ -20,6 +20,8 @@ int reefnet_sensuspro_read (sensuspro *device, unsigned char data[], unsigned in
 
 int reefnet_sensuspro_write_interval (sensuspro *device, unsigned char interval);
 
+int reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
