@@ -321,24 +321,26 @@ uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_
 {
 	const unsigned char header[4] = {0xa5, 0xa5, 0x5a, 0x5a};
 
-	unsigned int offset = 0;
-	while (offset + 8 <= size) {
-		// Search for the header marker.
-		if (memcmp (data + offset, header, sizeof (header)) == 0) {
+	// Search the data stream for start markers.
+	unsigned int previous = size;
+	unsigned int current = (size >= 4 ? size - 4 : 0);
+	while (current > 0) {
+		current--;
+		if (memcmp (data + current, header, sizeof (header)) == 0) {
 			// Get the length of the profile data.
-			unsigned int len = data[offset + 4] + (data[offset + 5] << 8) + 
-							(data[offset + 6] << 16) + (data[offset + 7] << 24);
+			unsigned int len = data[current + 4] + (data[current + 5] << 8) + 
+							(data[current + 6] << 16) + (data[current + 7] << 24);
 
 			// Check for a buffer overflow.
-			if (offset + len > size)
+			if (current + len > previous)
 				return UWATEC_ERROR;
 
 			if (callback)
-				callback (data + offset, len, userdata);
+				callback (data + current, len, userdata);
 
-			offset += len;
-		} else {
-			offset++;
+			// Prepare for the next dive.
+			previous = current;
+			current = (current >= 4 ? current - 4 : 0);
 		}
 	}
 
