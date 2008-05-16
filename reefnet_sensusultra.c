@@ -11,11 +11,9 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define EXITCODE(rc, n) \
+#define EXITCODE(rc) \
 ( \
-	rc == -1 ? \
-	REEFNET_ERROR_IO : \
-	(rc != n ? REEFNET_ERROR_TIMEOUT : REEFNET_ERROR_PROTOCOL) \
+	rc == -1 ? REEFNET_ERROR_IO : REEFNET_ERROR_TIMEOUT \
 )
 
 #define PROMPT 0xA5
@@ -148,16 +146,22 @@ reefnet_sensusultra_send_uchar (sensusultra *device, unsigned char value)
 	// Wait for the prompt byte.
 	unsigned char prompt = 0;
 	int rc = serial_read (device->port, &prompt, 1);
-	if (rc != 1 || prompt != PROMPT) {
+	if (rc != 1) {
 		WARNING ("Failed to receive the prompt byte");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
+	}
+
+	// Verify the prompt byte.
+	if (prompt != PROMPT) {
+		WARNING ("Unexpected answer data.");
+		return REEFNET_ERROR_PROTOCOL;
 	}
 
 	// Send the value to the device.
 	rc = serial_write (device->port, &value, 1);
 	if (rc != 1) {
 		WARNING ("Failed to send the value.");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
 	}
 
 	return REEFNET_SUCCESS;
@@ -192,7 +196,7 @@ reefnet_sensusultra_packet (sensusultra *device, unsigned char *data, unsigned i
 	int rc = serial_read (device->port, data, size);
 	if (rc != size) {
 		WARNING ("Failed to receive the packet.");
-		return EXITCODE (rc, size);
+		return EXITCODE (rc);
 	}
 
 	// Verify the checksum of the packet.
