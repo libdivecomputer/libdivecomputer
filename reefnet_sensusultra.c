@@ -266,10 +266,49 @@ reefnet_sensusultra_handshake (sensusultra *device, unsigned char *data, unsigne
 }
 
 
+static int
+reefnet_sensusultra_page (sensusultra *device, unsigned char *data, unsigned int size, unsigned int pagenum)
+{
+	if (device == NULL)
+		return REEFNET_ERROR;
+
+	int rc = 0;
+	unsigned char package[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
+	while ((rc = reefnet_sensusultra_packet (device, package, sizeof (package), 2)) != REEFNET_SUCCESS) {
+		// Automatically discard a corrupted packet, 
+		// and request a new one.
+		if (rc != REEFNET_ERROR_PROTOCOL)
+			return rc;
+
+		// Reject the packet.
+		rc = reefnet_sensusultra_send_uchar (device, REJECT);
+		if (rc != REEFNET_SUCCESS)
+			return rc;
+	}
+
+	// Verify the page number.
+	unsigned int page = package[0] + (package[1] << 8);
+	if (page != pagenum) {
+		WARNING ("Unexpected page number."); 
+		return REEFNET_ERROR_PROTOCOL;
+	}
+
+	if (size >= REEFNET_SENSUSULTRA_PACKET_SIZE)
+		memcpy (data, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
+	else
+		WARNING ("Insufficient buffer space available.");
+
+	return REEFNET_SUCCESS;
+}
+
+
 int
 reefnet_sensusultra_read_data (sensusultra *device, unsigned char *data, unsigned int size)
 {
 	if (device == NULL)
+		return REEFNET_ERROR;
+
+	if (size < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)
 		return REEFNET_ERROR;
 
 	// Send the instruction code to the device.
@@ -281,35 +320,19 @@ reefnet_sensusultra_read_data (sensusultra *device, unsigned char *data, unsigne
 	unsigned int npages = 0;
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
 		// Receive the packet.
-		unsigned char package[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
-		rc = reefnet_sensusultra_packet (device, package, sizeof (package), 2);
-		if (rc == REEFNET_SUCCESS) {
-			// Accept the packet.
-			rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
-			if (rc != REEFNET_SUCCESS)
-				return rc;
-
-			unsigned int page = package[0] + (package[1] << 8);
-			assert (page == npages);
-
-			unsigned int offset = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
-				nbytes - REEFNET_SENSUSULTRA_PACKET_SIZE;
-			if (size >= offset + REEFNET_SENSUSULTRA_PACKET_SIZE)
-				memcpy (data + offset, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
-			else
-				WARNING ("Insufficient buffer space available.");
-
-			nbytes += REEFNET_SENSUSULTRA_PACKET_SIZE;
-			npages++;
-		} else if (rc == REEFNET_ERROR_PROTOCOL) {
-			// Reject the packet.
-			rc = reefnet_sensusultra_send_uchar (device, REJECT);
-			if (rc != REEFNET_SUCCESS)
-				return rc;
-		} else {
-			// Return the error.
+		unsigned int offset = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
+			nbytes - REEFNET_SENSUSULTRA_PACKET_SIZE;
+		rc = reefnet_sensusultra_page (device, data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		if (rc != REEFNET_SUCCESS)
 			return rc;
-		}
+
+		// Accept the packet.
+		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
+		if (rc != REEFNET_SUCCESS)
+			return rc;
+
+		nbytes += REEFNET_SENSUSULTRA_PACKET_SIZE;
+		npages++;
 	}
 
 	return REEFNET_SUCCESS;
@@ -322,6 +345,9 @@ reefnet_sensusultra_read_user (sensusultra *device, unsigned char *data, unsigne
 	if (device == NULL)
 		return REEFNET_ERROR;
 
+	if (size < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE)
+		return REEFNET_ERROR;
+
 	// Send the instruction code to the device.
 	int rc = reefnet_sensusultra_send_ushort (device, 0xB420);
 	if (rc != REEFNET_SUCCESS)
@@ -331,33 +357,17 @@ reefnet_sensusultra_read_user (sensusultra *device, unsigned char *data, unsigne
 	unsigned int npages = 0;
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE) {
 		// Receive the packet.
-		unsigned char package[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
-		rc = reefnet_sensusultra_packet (device, package, sizeof (package), 2);
-		if (rc == REEFNET_SUCCESS) {
-			// Accept the packet.
-			rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
-			if (rc != REEFNET_SUCCESS)
-				return rc;
-
-			unsigned int page = package[0] + (package[1] << 8);
-			assert (page == npages);
-
-			if (size >= nbytes + REEFNET_SENSUSULTRA_PACKET_SIZE)
-				memcpy (data + nbytes, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
-			else
-				WARNING ("Insufficient buffer space available.");
-
-			nbytes += REEFNET_SENSUSULTRA_PACKET_SIZE;
-			npages++;
-		} else if (rc == REEFNET_ERROR_PROTOCOL) {
-			// Reject the packet.
-			rc = reefnet_sensusultra_send_uchar (device, REJECT);
-			if (rc != REEFNET_SUCCESS)
-				return rc;
-		} else {
-			// Return the error.
+		rc = reefnet_sensusultra_page (device, data + nbytes, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		if (rc != REEFNET_SUCCESS)
 			return rc;
-		}
+
+		// Accept the packet.
+		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
+		if (rc != REEFNET_SUCCESS)
+			return rc;
+
+		nbytes += REEFNET_SENSUSULTRA_PACKET_SIZE;
+		npages++;
 	}
 
 	return REEFNET_SUCCESS;
