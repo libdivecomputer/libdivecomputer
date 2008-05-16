@@ -18,6 +18,8 @@ int reefnet_sensusultra_open (sensusultra **device, const char* name);
 
 int reefnet_sensusultra_close (sensusultra *device);
 
+int reefnet_sensusultra_set_maxretries (sensusultra *device, unsigned int maxretries);
+
 int reefnet_sensusultra_handshake (sensusultra *device, unsigned char *data, unsigned int size);
 
 int reefnet_sensusultra_read_data (sensusultra *device, unsigned char *data, unsigned int size);

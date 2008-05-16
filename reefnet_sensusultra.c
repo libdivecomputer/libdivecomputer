@@ -22,6 +22,7 @@
 
 struct sensusultra {
 	struct serial *port;
+	unsigned int maxretries;
 };
 
 
@@ -40,6 +41,7 @@ reefnet_sensusultra_open (sensusultra **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->maxretries = 2;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -93,6 +95,17 @@ reefnet_sensusultra_close (sensusultra *device)
 	return REEFNET_SUCCESS;
 }
 
+
+int
+reefnet_sensusultra_set_maxretries (sensusultra *device, unsigned int maxretries)
+{
+	if (device == NULL)
+		return REEFNET_ERROR;
+
+	device->maxretries = maxretries;
+
+	return REEFNET_SUCCESS;
+}
 
 static unsigned short
 reefnet_sensusultra_checksum (const unsigned char *data, unsigned int size)
@@ -221,11 +234,16 @@ reefnet_sensusultra_handshake (sensusultra *device, unsigned char *data, unsigne
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	int rc = 0;
+	unsigned int nretries = 0;
 	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE + 2] = {0};
 	while ((rc = reefnet_sensusultra_packet (device, handshake, sizeof (handshake), 0)) != REEFNET_SUCCESS) {
 		// Automatically discard a corrupted handshake packet, 
 		// and wait for the next one.
 		if (rc != REEFNET_ERROR_PROTOCOL)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= device->maxretries)
 			return rc;
 
 		// According to the developers guide, a 250 ms delay is suggested to
@@ -277,11 +295,16 @@ reefnet_sensusultra_page (sensusultra *device, unsigned char *data, unsigned int
 		return REEFNET_ERROR;
 
 	int rc = 0;
+	unsigned int nretries = 0;
 	unsigned char package[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
 	while ((rc = reefnet_sensusultra_packet (device, package, sizeof (package), 2)) != REEFNET_SUCCESS) {
 		// Automatically discard a corrupted packet, 
 		// and request a new one.
 		if (rc != REEFNET_ERROR_PROTOCOL)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= device->maxretries)
 			return rc;
 
 		// Reject the packet.
