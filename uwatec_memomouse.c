@@ -11,19 +11,17 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define EXITCODE(rc, n) \
+#define EXITCODE(rc) \
 ( \
-	rc == -1 ? \
-	UWATEC_ERROR_IO : \
-	(rc != n ? UWATEC_ERROR_TIMEOUT : UWATEC_ERROR_PROTOCOL) \
+	rc == -1 ? UWATEC_ERROR_IO : UWATEC_ERROR_TIMEOUT \
 )
+
+#define ACK 0x60
+#define NAK 0xA8
 
 struct memomouse {
 	struct serial *port;
 };
-
-
-static const unsigned char ack = 0x60, nak = 0xA8;
 
 
 int
@@ -135,37 +133,16 @@ uwatec_memomouse_checksum (unsigned char data[], unsigned int size, unsigned cha
 
 
 static int
-serial_read_uwatec (serial *device, unsigned char data[], unsigned int size)
-{
-	int rc = serial_read (device, data, size);
-
-	if (rc > 0)
-		uwatec_memomouse_reverse (data, rc);
-
-	return rc;
-}
-
-
-static int
-serial_write_uwatec (serial *device, const unsigned char data[], unsigned int size)
-{
-	int rc = serial_write (device, data, size);
-
-	serial_drain (device);
-
-	return rc;
-}
-
-
-static int
 uwatec_memomouse_confirm (memomouse *device, unsigned char value)
 {
 	// Send the value to the device.
-	int rc = serial_write_uwatec (device->port, &value, 1);
+	int rc = serial_write (device->port, &value, 1);
 	if (rc != 1) {
 		WARNING ("Failed to send the value.");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
 	}
+
+	serial_drain (device->port);
 
 	return UWATEC_SUCCESS;
 }
@@ -180,7 +157,7 @@ uwatec_memomouse_read_packet (memomouse *device, unsigned char data[], unsigned 
 	int rc = serial_read (device->port, data, 1);
 	if (rc != 1) {
 		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
 	}
 
 	// Reverse the bits.
@@ -197,7 +174,7 @@ uwatec_memomouse_read_packet (memomouse *device, unsigned char data[], unsigned 
 	rc = serial_read (device->port, data + 1, len + 1);
 	if (rc != len + 1) {
 		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc, len + 1);
+		return EXITCODE (rc);
 	}
 
 	// Reverse the bits.
@@ -230,7 +207,7 @@ uwatec_memomouse_read_packet_outer (memomouse *device, unsigned char data[], uns
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
 		// Reject the packet.
-		rc = uwatec_memomouse_confirm (device, nak);
+		rc = uwatec_memomouse_confirm (device, NAK);
 		if (rc != UWATEC_SUCCESS)
 			return rc;
 	}
@@ -265,7 +242,7 @@ uwatec_memomouse_read_packet_inner (memomouse *device, unsigned char data[], uns
 		return rca;
 
 	// Accept the package.
-	int rcb = uwatec_memomouse_confirm (device, ack);
+	int rcb = uwatec_memomouse_confirm (device, ACK);
 	if (rcb != UWATEC_SUCCESS)
 		return rcb;
 
@@ -300,7 +277,7 @@ uwatec_memomouse_read_packet_inner (memomouse *device, unsigned char data[], uns
 			return rca;
 
 		// Accept the package.
-		rcb = uwatec_memomouse_confirm (device, ack);
+		rcb = uwatec_memomouse_confirm (device, ACK);
 		if (rcb != UWATEC_SUCCESS)
 			return rcb;
 
@@ -340,9 +317,14 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 
 	// Waiting for greeting message.
 	while (serial_get_received (device->port) == 0) {
-		message ("No greeting yet, sending NAK\n");
+		// Flush the input buffer.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
-		serial_write_uwatec (device->port, &nak, 1);
+
+		// Reject the packet.
+		int rc = uwatec_memomouse_confirm (device, NAK);
+		if (rc != UWATEC_SUCCESS)
+			return rc;
+
 		serial_sleep (300);
 	}
 
@@ -362,31 +344,31 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 	command[8] = uwatec_memomouse_checksum (command, 8, 0x00);
 	uwatec_memomouse_reverse (command, sizeof (command));
 
-	// Send upload command, until getting ACK.
-	unsigned char answer = nak;
-	while (answer != ack) {
-		message ("Sending command\n");
+	// Keep send the command to the device, 
+	// until the ACK answer is received.
+	unsigned char answer = NAK;
+	while (answer != ACK) {
+		// Flush the input buffer.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
-		rc = serial_write_uwatec (device->port, command, sizeof (command));
+		
+		// Send the command to the device.
+		rc = serial_write (device->port, command, sizeof (command));
 		if (rc != sizeof (command)) {
-			WARNING ("Failed to send command");
-			return EXITCODE (rc, sizeof (command));
+			WARNING ("Failed to send the command.");
+			return EXITCODE (rc);
 		}
 
+		serial_drain (device->port);
+
+		// Wait for the answer (ACK).
 		rc = serial_read (device->port, &answer, 1);
 		if (rc != 1) {
-			WARNING ("Failed to recieve ACK");
-			return EXITCODE (rc, 1);
+			WARNING ("Failed to recieve the answer.");
+			return EXITCODE (rc);
 		}
-
-		if (answer != ack)
-			message ("No ACK, got (0x%x)\n", answer);
-		else
-			message ("Received ACK\n");
 	}
 
 	// Wait for the transfer and read the data.
-	message ("Waiting for transfer, access the log in your Aladin\n");
 	rc = uwatec_memomouse_read_packet_inner (device, data, size);
 	if (rc != UWATEC_SUCCESS)
 		return UWATEC_ERROR;
