@@ -83,7 +83,6 @@ uwatec_memomouse_open (memomouse **out, const char* name)
 	return UWATEC_SUCCESS;
 }
 
-
 int
 uwatec_memomouse_close (memomouse *device)
 {
@@ -232,9 +231,6 @@ uwatec_memomouse_read_packet_outer (memomouse *device, unsigned char data[], uns
 static int
 uwatec_memomouse_read_packet_inner (memomouse *device, unsigned char data[], unsigned int size)
 {
-	// Initial checksum value.
-	unsigned char ccrc = 0x00;
-
 	// Read the first package.
 	unsigned char package[126] = {0};
 	int rca = uwatec_memomouse_read_packet_outer (device, package, sizeof (package));
@@ -246,66 +242,63 @@ uwatec_memomouse_read_packet_inner (memomouse *device, unsigned char data[], uns
 	if (rcb != UWATEC_SUCCESS)
 		return rcb;
 
+	// Verify the first package contains at least 
+	// the size of the inner package.
 	if (rca < 2) {
-		message ("First package is too small.\n");
+		WARNING ("First package is too small.");
 		return UWATEC_ERROR_PROTOCOL;
 	}
 
 	// Calculate the total size of the inner package.
 	unsigned int total = package[0] + (package[1] << 8) + 3;
-	message ("Package: size=%u\n", total);
 
-	// Calculate the size of the data in current package
-	// (excluding the checksum).
-	unsigned int len = (rca >= total ? total - 1 : rca);
-	message ("Package: nbytes=%u, rc=%i, len=%u\n", 0, rca, len);
+	// Allocate memory for the entire package.
+	unsigned char *buffer = malloc (total * sizeof (unsigned char));
+	if (package == NULL) {
+		WARNING ("Memory allocation error.");
+		return UWATEC_ERROR_MEMORY;
+	}
 
-	// Update the checksum.
-	ccrc = uwatec_memomouse_checksum (package, len, ccrc);
+	// Copy the first package to the new memory buffer.
+	memcpy (buffer, package, rca);
 
-	// Append the data package to the output buffer.
-	if (len - 2 <= size)
-		memcpy (data, package + 2, len - 2);
-	else
-		message ("Insufficient buffer space available.\n");
-
+	// Read the remaining packages.
 	unsigned int nbytes = rca;
 	while (nbytes < total) {
 		// Read the package.
-		rca = uwatec_memomouse_read_packet_outer (device, package, sizeof (package));
-		if (rca < 0)
+		rca = uwatec_memomouse_read_packet_outer (device, buffer + nbytes, total - nbytes);
+		if (rca < 0) {
+			free (buffer);
 			return rca;
+		}
 
 		// Accept the package.
 		rcb = uwatec_memomouse_confirm (device, ACK);
-		if (rcb != UWATEC_SUCCESS)
+		if (rcb != UWATEC_SUCCESS) {
+			free (buffer);
 			return rcb;
-
-		// Calculate the size of the data in current package
-		// (excluding the checksum).
-		len = (nbytes + rca >= total ? total - nbytes - 1 : rca);
-		message ("Package: nbytes=%u, rc=%u, len=%u\n", nbytes, rca, len);
-
-		// Update the checksum.
-		ccrc = uwatec_memomouse_checksum (package, len, ccrc);
-
-		// Append the data package to the output buffer.
-		if (nbytes + len - 2 <= size)
-			memcpy (data + nbytes - 2, package, len);
-		else
-			message ("Insufficient buffer space available.\n");
+		}
 
 		nbytes += rca;
 	}
 
-	message ("Package: nbytes=%i\n", nbytes);
-
 	// Verify the checksum.
-	unsigned char crc = package[len];
-	if (crc != ccrc)
-		return UWATEC_ERROR;
+	unsigned char crc = buffer[total - 1];
+	unsigned char ccrc = uwatec_memomouse_checksum (buffer, total - 1, 0x00);
+	if (crc != ccrc) {
+		free (buffer);
+		return UWATEC_ERROR_PROTOCOL;
+	}
 
-	return UWATEC_SUCCESS;
+	// Copy the package to the output buffer.
+	if (total - 3 <= size)
+		memcpy (data, buffer + 1, total - 3);
+	else
+		WARNING ("Insufficient buffer space available.");
+
+	free (buffer);
+
+	return total - 3;
 }
 
 
@@ -331,8 +324,8 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 	// Read the ID string.
 	unsigned char id[7] = {0};
 	int rc = uwatec_memomouse_read_packet_inner (device, id, sizeof (id));
-	if (rc != UWATEC_SUCCESS)
-		return UWATEC_ERROR;
+	if (rc < 0)
+		return rc;
 
 	// Prepare the command.
 	unsigned char command [9] = {
@@ -369,11 +362,7 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 	}
 
 	// Wait for the transfer and read the data.
-	rc = uwatec_memomouse_read_packet_inner (device, data, size);
-	if (rc != UWATEC_SUCCESS)
-		return UWATEC_ERROR;
-
-	return UWATEC_SUCCESS;
+	return uwatec_memomouse_read_packet_inner (device, data, size);
 }
 
 

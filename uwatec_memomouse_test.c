@@ -12,7 +12,7 @@
 int test_dump_memory (const char* name, const char* filename)
 {
 	memomouse *device = NULL;
-	unsigned char data[UWATEC_MEMOMOUSE_MEMORY_SIZE] = {0};
+	unsigned char data[0x8000] = {0};
 
 	message ("uwatec_memomouse_open\n");
 	int rc = uwatec_memomouse_open (&device, name);
@@ -23,7 +23,7 @@ int test_dump_memory (const char* name, const char* filename)
 
 	message ("uwatec_memomouse_read\n");
 	rc = uwatec_memomouse_read (device, data, sizeof (data));
-	if (rc != UWATEC_SUCCESS) {
+	if (rc < 0) {
 		WARNING ("Cannot read memory.");
 		uwatec_memomouse_close (device);
 		return rc;
@@ -32,7 +32,7 @@ int test_dump_memory (const char* name, const char* filename)
 	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
-		fwrite (data, sizeof (unsigned char), sizeof (data), fp);
+		fwrite (data, sizeof (unsigned char), rc, fp);
 		fclose (fp);
 	}
 

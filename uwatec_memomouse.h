@@ -7,8 +7,6 @@ extern "C" {
 
 typedef struct memomouse memomouse;
 
-#define UWATEC_MEMOMOUSE_MEMORY_SIZE 0x8000
-
 int uwatec_memomouse_open (memomouse **device, const char* name);
 
 int uwatec_memomouse_close (memomouse *device);
