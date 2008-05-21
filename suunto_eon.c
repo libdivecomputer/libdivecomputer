@@ -1,7 +1,9 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
+#include <assert.h> // assert
 
 #include "suunto.h"
+#include "suunto_common.h"
 #include "serial.h"
 #include "utils.h"
 
@@ -183,4 +185,22 @@ suunto_eon_write_interval (eon *device, unsigned char interval)
 	}
 
 	return SUUNTO_SUCCESS;
+}
+
+
+int
+suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	assert (size >= SUUNTO_EON_MEMORY_SIZE);
+
+	// Search the end-of-profile marker.
+	unsigned int eop = 0x100;
+	while (eop < SUUNTO_EON_MEMORY_SIZE) {
+		if (data[eop] == 0x82) {
+			break;
+		}
+		eop++;
+	}
+
+	return suunto_common_extract_dives (data, 0x100, SUUNTO_EON_MEMORY_SIZE, eop, 3, callback, userdata);
 }

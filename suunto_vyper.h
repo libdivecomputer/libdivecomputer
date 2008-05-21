@@ -26,6 +26,10 @@ int suunto_vyper_write_memory (vyper *device, unsigned int address, const unsign
 
 int suunto_vyper_read_dives (vyper *device, dive_callback_t callback, void *userdata);
 
+int suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
+int suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

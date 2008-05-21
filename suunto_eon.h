@@ -19,6 +19,8 @@ int suunto_eon_write_name (eon *device, unsigned char data[], unsigned int size)
 
 int suunto_eon_write_interval (eon *device, unsigned char interval);
 
+int suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

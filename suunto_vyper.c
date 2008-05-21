@@ -3,6 +3,7 @@
 #include <assert.h>	// assert
 
 #include "suunto.h"
+#include "suunto_common.h"
 #include "serial.h"
 #include "utils.h"
 
@@ -532,4 +533,26 @@ suunto_vyper_read_dives (vyper *device, dive_callback_t callback, void *userdata
 		return rc;
 
 	return SUUNTO_SUCCESS;
+}
+
+
+int
+suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	assert (size >= SUUNTO_VYPER_MEMORY_SIZE);
+
+	unsigned int eop = (data[0x51] << 8) + data[0x52];
+
+	return suunto_common_extract_dives (data, 0x71, SUUNTO_VYPER_MEMORY_SIZE, eop, 5, callback, userdata);
+}
+
+
+int
+suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	assert (size >= SUUNTO_VYPER_MEMORY_SIZE);
+
+	unsigned int eop = (data[0x1C] << 8) + data[0x1D];
+
+	return suunto_common_extract_dives (data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, callback, userdata);
 }
