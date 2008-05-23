@@ -10,6 +10,50 @@
 }
 
 
+int test_dump_memory_dives (const char* name, const char* filename)
+{
+	sensusultra *device = NULL;
+	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE] = {0};
+
+	message ("reefnet_sensusultra_open\n");
+	int rc = reefnet_sensusultra_open (&device, name);
+	if (rc != REEFNET_SUCCESS) {
+		WARNING ("Error opening serial port.");
+		return rc;
+	}
+
+	message ("reefnet_sensusultra_handshake\n");
+	rc = reefnet_sensusultra_handshake (device, handshake, sizeof (handshake));
+	if (rc != REEFNET_SUCCESS) {
+		WARNING ("Cannot read handshake.");
+		reefnet_sensusultra_close (device);
+		return rc;
+	}
+
+	time_t now = time (NULL);
+	unsigned char datetime[21] = {0};
+	strftime (datetime, sizeof (datetime), "%Y-%m-%dT%H:%M:%SZ", gmtime (&now));
+	message ("time=%lu (%s)\n", (unsigned long)now, datetime);
+
+	message ("reefnet_sensusultra_read_dives\n");
+	rc = reefnet_sensusultra_read_dives (device, NULL, NULL);
+	if (rc != REEFNET_SUCCESS) {
+		WARNING ("Cannot read dives.");
+		reefnet_sensusultra_close (device);
+		return rc;
+	}
+
+	message ("reefnet_sensusultra_close\n");
+	rc = reefnet_sensusultra_close (device);
+	if (rc != REEFNET_SUCCESS) {
+		WARNING ("Cannot close device.");
+		return rc;
+	}
+
+	return REEFNET_SUCCESS;
+}
+
+
 int test_dump_memory_data (const char* name, const char* filename)
 {
 	sensusultra *device = NULL;
@@ -153,11 +197,13 @@ int main(int argc, char *argv[])
 
 	int a = test_dump_memory_data (name, "SENSUSULTRA_DATA.DMP");
 	int b = test_dump_memory_user (name, "SENSUSULTRA_USER.DMP");
+	int c = test_dump_memory_dives (name, "SENSUSULTRA_DIVES.DMP");
 
 	message ("SUMMARY\n");
 	message ("-------\n");
 	message ("test_dump_memory_data:     %s\n", errmsg (a));
 	message ("test_dump_memory_user:     %s\n", errmsg (b));
+	message ("test_dump_memory_dives:    %s\n", errmsg (c));
 
 	message_set_logfile (NULL);
 

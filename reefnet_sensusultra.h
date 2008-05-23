@@ -34,6 +34,8 @@ int reefnet_sensusultra_write_averaging (sensusultra *device, unsigned int value
 
 int reefnet_sensusultra_sense (sensusultra *device, unsigned char *data, unsigned int size);
 
+int reefnet_sensusultra_read_dives (sensusultra *device, dive_callback_t callback, void *userdata);
+
 int reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus

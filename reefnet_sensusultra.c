@@ -154,6 +154,18 @@ reefnet_sensusultra_checksum (const unsigned char *data, unsigned int size)
 
 
 static int
+reefnet_sensusultra_isempty (const unsigned char *data, unsigned int size)
+{
+	for (unsigned int i = 0; i < size; ++i) {
+		if (data[i] != 0xFF)
+			return 0;
+	}
+
+	return 1;
+}
+
+
+static int
 reefnet_sensusultra_send_uchar (sensusultra *device, unsigned char value)
 {
 	// Wait for the prompt byte.
@@ -518,6 +530,100 @@ reefnet_sensusultra_sense (sensusultra *device, unsigned char *data, unsigned in
 
 
 int
+reefnet_sensusultra_read_dives (sensusultra *device, dive_callback_t callback, void *userdata)
+{
+	if (device == NULL)
+		return REEFNET_ERROR;
+
+	unsigned char *data = malloc (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE * sizeof (unsigned char));
+	if (data == NULL) {
+		WARNING ("Memory allocation error.");
+		return REEFNET_ERROR_MEMORY;
+	}
+
+	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
+	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+
+	// Initialize the state for the parsing code.
+	unsigned int previous = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
+	unsigned int current = (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE >= 4 ? 
+			REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 4 : 0);
+
+	// Send the instruction code to the device.
+	int rc = reefnet_sensusultra_send_ushort (device, 0xB421);
+	if (rc != REEFNET_SUCCESS) {
+		free (data);
+		return rc;
+	}
+
+	unsigned int nbytes = 0;
+	unsigned int npages = 0;
+	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
+		// Receive the packet.
+		unsigned int index = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
+			nbytes - REEFNET_SENSUSULTRA_PACKET_SIZE;
+		rc = reefnet_sensusultra_page (device, data + index, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		if (rc != REEFNET_SUCCESS) {
+			free (data);
+			return rc;
+		}
+
+		// Abort the transfer if the page contains no useful data.
+		if (reefnet_sensusultra_isempty (data + index, REEFNET_SENSUSULTRA_PACKET_SIZE))
+			break;
+
+		// Search the page data for a start marker.
+		while (current > index) {
+			current--;
+			if (memcmp (data + current, header, sizeof (header)) == 0) {
+				// Once a start marker is found, start searching
+				// for the corresponding stop marker. The search is 
+				// now limited to the start of the previous dive.
+				int found = 0;
+				unsigned int offset = current + 16; // Skip non-sample data.
+				while (offset + 4 <= previous) {
+					if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
+						found = 1;
+						break;
+					} else {
+						offset++;
+					}
+				}
+
+				// Report an error if no stop marker was found.
+				if (!found) {
+					WARNING ("No stop marker present.");
+					free (data);
+					return REEFNET_ERROR;
+				}
+
+				if (callback)
+					callback (data + current, offset + 4 - current, userdata);
+
+				// Prepare for the next dive.
+				previous = current;
+				current = (current >= 4 ? current - 4 : 0);
+			}
+		}
+
+		// Accept the packet.
+		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
+		if (rc != REEFNET_SUCCESS) {
+			free (data);
+			return rc;
+		}
+
+		nbytes += REEFNET_SENSUSULTRA_PACKET_SIZE;
+		npages++;
+	}
+
+	free (data);
+
+	return REEFNET_SUCCESS;
+}
+
+
+int
 reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
@@ -536,9 +642,6 @@ reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size
 			unsigned int offset = current + 16; // Skip non-sample data.
 			while (offset + 4 <= previous) {
 				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
-					if (callback)
-						callback (data + current, offset + 4 - current, userdata);
-
 					found = 1;
 					break;
 				} else {
@@ -547,8 +650,13 @@ reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size
 			}
 
 			// Report an error if no stop marker was found.
-			if (!found)
+			if (!found) {
+				WARNING ("No stop marker present.");
 				return REEFNET_ERROR;
+			}
+
+			if (callback)
+				callback (data + current, offset + 4 - current, userdata);
 
 			// Prepare for the next dive.
 			previous = current;
