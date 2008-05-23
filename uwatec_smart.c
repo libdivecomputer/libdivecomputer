@@ -165,7 +165,7 @@ uwatec_smart_transfer (smart *device, const unsigned char command[], unsigned in
 
 
 int
-uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
+uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
 		return UWATEC_ERROR;
@@ -265,14 +265,14 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	if (rc != UWATEC_SUCCESS)
 		return rc;
 
-	unsigned int size = answer[0] + (answer[1] << 8) + 
+	unsigned int length = answer[0] + (answer[1] << 8) + 
 						(answer[2] << 16) + (answer[3] << 24);
-	message ("handshake: size=%u\n", size);
+	message ("handshake: length=%u\n", length);
 
-  	if (size == 0)
-  		return UWATEC_SUCCESS;
+  	if (length == 0)
+  		return 0;
 
-	unsigned char *package = malloc (size * sizeof (unsigned char));
+	unsigned char *package = malloc (length * sizeof (unsigned char));
 	if (package == NULL) {
 		WARNING ("Memory allocation error.");
 		return UWATEC_ERROR_MEMORY;
@@ -296,15 +296,15 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 		return rc;
 	}
 
-	unsigned int length = answer[0] + (answer[1] << 8) + 
+	unsigned int total = answer[0] + (answer[1] << 8) + 
 						(answer[2] << 16) + (answer[3] << 24);
-	message ("handshake: size=%u\n", length);
+	message ("handshake: total=%u\n", total);
 
-	assert (length == size + 4);
+	assert (total == length + 4);
 
 	unsigned int nbytes = 0;
-	while (nbytes < size) {
-		unsigned int len = size - nbytes;
+	while (nbytes < length) {
+		unsigned int len = length - nbytes;
 		if (len > 32)
 			len = 32;
 		rc = irda_socket_read (device->socket, package + nbytes, len);
@@ -317,16 +317,16 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 		message ("len=%u, rc=%i, nbytes=%u\n", len, rc, nbytes);
 	}
 
-	if (size <= msize) {
-		memcpy (data, package, size);
+	if (length <= size) {
+		memcpy (data, package, length);
 	} else {
 		message ("Insufficient buffer space available.\n");
-		memcpy (data, package, msize);
+		memcpy (data, package, size);
 	}
 
 	free (package);
 
-	return UWATEC_SUCCESS;
+	return length;
 }
 
 

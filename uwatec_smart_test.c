@@ -31,7 +31,7 @@ int test_dump_memory (const char* filename)
 
 	message ("uwatec_smart_read\n");
 	rc = uwatec_smart_read (device, data, size);
-	if (rc != UWATEC_SUCCESS) {
+	if (rc < 0) {
 		WARNING ("Cannot read data.");
 		uwatec_smart_close (device);
 		free (data);
@@ -41,7 +41,7 @@ int test_dump_memory (const char* filename)
 	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
-		fwrite (data, sizeof (unsigned char), size, fp);
+		fwrite (data, sizeof (unsigned char), rc, fp);
 		fclose (fp);
 	}
 
