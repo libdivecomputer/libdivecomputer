@@ -20,6 +20,7 @@
 struct smart {
 	struct irda *socket;
 	unsigned int address;
+	unsigned int timestamp;
 };
 
 
@@ -63,6 +64,7 @@ uwatec_smart_open (smart **out)
 	// Set the default values.
 	device->socket = NULL;
 	device->address = 0;
+	device->timestamp = 0;
 
 	irda_init ();
 
@@ -126,6 +128,18 @@ uwatec_smart_close (smart *device)
 
 	// Free memory.	
 	free (device);
+
+	return UWATEC_SUCCESS;
+}
+
+
+int
+uwatec_smart_set_timestamp (smart *device, unsigned int timestamp)
+{
+	if (device == NULL)
+		return UWATEC_ERROR;
+
+	device->timestamp = timestamp;
 
 	return UWATEC_SUCCESS;
 }
@@ -238,10 +252,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	// Data Length.
 
 	command[0] = 0xC6;
-	command[1] = (timestamp      ) & 0xFF;
-	command[2] = (timestamp >> 8 ) & 0xFF;
-	command[3] = (timestamp >> 16) & 0xFF;
-	command[4] = (timestamp >> 24) & 0xFF;
+	command[1] = (device->timestamp      ) & 0xFF;
+	command[2] = (device->timestamp >> 8 ) & 0xFF;
+	command[3] = (device->timestamp >> 16) & 0xFF;
+	command[4] = (device->timestamp >> 24) & 0xFF;
 	command[5] = 0x10;
 	command[6] = 0x27;
 	command[7] = 0;
@@ -267,10 +281,10 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int msize)
 	// Data.
 
 	command[0] = 0xC4;
-	command[1] = (timestamp      ) & 0xFF;
-	command[2] = (timestamp >> 8 ) & 0xFF;
-	command[3] = (timestamp >> 16) & 0xFF;
-	command[4] = (timestamp >> 24) & 0xFF;
+	command[1] = (device->timestamp      ) & 0xFF;
+	command[2] = (device->timestamp >> 8 ) & 0xFF;
+	command[3] = (device->timestamp >> 16) & 0xFF;
+	command[4] = (device->timestamp >> 24) & 0xFF;
 	command[5] = 0x10;
 	command[6] = 0x27;
 	command[7] = 0;

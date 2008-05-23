@@ -11,6 +11,8 @@ int uwatec_smart_open (smart **device);
 
 int uwatec_smart_close (smart *device);
 
+int uwatec_smart_set_timestamp (smart *device, unsigned int timestamp);
+
 int uwatec_smart_read (smart *device, unsigned char data[], unsigned int size);
 
 int uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);

@@ -21,6 +21,7 @@
 
 struct memomouse {
 	struct serial *port;
+	unsigned int timestamp;
 };
 
 
@@ -39,6 +40,7 @@ uwatec_memomouse_open (memomouse **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->timestamp = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -97,6 +99,18 @@ uwatec_memomouse_close (memomouse *device)
 
 	// Free memory.	
 	free (device);
+
+	return UWATEC_SUCCESS;
+}
+
+
+int
+uwatec_memomouse_set_timestamp (memomouse *device, unsigned int timestamp)
+{
+	if (device == NULL)
+		return UWATEC_ERROR;
+
+	device->timestamp = timestamp;
 
 	return UWATEC_SUCCESS;
 }
@@ -332,7 +346,10 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 		0x07, 					// Outer packet size.
 		0x05, 0x00, 			// Inner packet size.
 		0x55, 					// Command byte.
-		0x00, 0x00, 0x00, 0x00, // Timestamp.
+		(device->timestamp      ) & 0xFF,
+		(device->timestamp >>  8) & 0xFF,
+		(device->timestamp >> 16) & 0xFF,
+		(device->timestamp >> 24) & 0xFF,
 		0x00}; 					// Outer packet checksum.
 	command[8] = uwatec_memomouse_checksum (command, 8, 0x00);
 	uwatec_memomouse_reverse (command, sizeof (command));
