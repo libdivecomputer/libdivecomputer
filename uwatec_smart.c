@@ -24,7 +24,8 @@ struct smart {
 };
 
 
-void discovery (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata)
+static void
+uwatec_smart_discovery (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata)
 {
 	message ("device: address=%08x, name=%s, charset=%02x, hints=%04x\n", address, name, charset, hints);
 
@@ -78,7 +79,7 @@ uwatec_smart_open (smart **out)
 	}
 
 	// Discover the device.
-	rc = irda_socket_discover (device->socket, discovery, device);
+	rc = irda_socket_discover (device->socket, uwatec_smart_discovery, device);
 	if (rc == -1) {
 		WARNING ("Failed to discover the device.");
 		irda_socket_close (device->socket);
