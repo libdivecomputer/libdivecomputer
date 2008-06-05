@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libdivecomputer
+Description: A library for communication with various dive computers.
+Version: @VERSION@
+Libs: -L${libdir} -ldivecomputer
+Cflags: -I${includedir}/libdivecomputer

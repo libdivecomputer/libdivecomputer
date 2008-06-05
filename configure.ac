@@ -38,6 +38,7 @@ AM_CONDITIONAL([IRDA_LINUX], [test "$irda_linux" = "yes"])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
+   libdivecomputer.pc
    Makefile
    src/Makefile
    examples/Makefile
