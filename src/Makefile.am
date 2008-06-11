@@ -16,7 +16,9 @@ libdivecomputer_HEADERS = 	\
 	uwatec.h \
 	uwatec_aladin.h \
 	uwatec_memomouse.h \
-	uwatec_smart.h
+	uwatec_smart.h \
+	oceanic.h \
+	oceanic_atom2.h
 
 #
 # Source files.
@@ -39,6 +41,8 @@ libdivecomputer_la_SOURCES = \
 	uwatec.h \
 	uwatec_aladin.h uwatec_aladin.c \
 	uwatec_memomouse.h uwatec_memomouse.c \
+	oceanic.h \
+	oceanic_atom2.h oceanic_atom2.c \
 	utils.h utils.c
 
 if OS_WIN32

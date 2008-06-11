@@ -9,7 +9,8 @@ bin_PROGRAMS = \
 	sensuspro \
 	sensusultra \
 	aladin \
-	memomouse
+	memomouse \
+	atom2
 
 if IRDA
 bin_PROGRAMS += smart
@@ -30,6 +31,8 @@ sensusultra_SOURCES = reefnet_sensusultra_test.c
 aladin_SOURCES = uwatec_aladin_test.c
 
 memomouse_SOURCES = uwatec_memomouse_test.c
+
+atom2_SOURCES = oceanic_atom2_test.c
 
 if IRDA
 smart_SOURCES = uwatec_smart_test.c
