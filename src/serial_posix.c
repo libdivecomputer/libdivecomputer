@@ -1,6 +1,3 @@
-#define _POSIX_C_SOURCE 199309
-#define _BSD_SOURCE 
-
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strerror
 #include <errno.h>	// errno
