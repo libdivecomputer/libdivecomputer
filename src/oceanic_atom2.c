@@ -132,6 +132,9 @@ oceanic_atom2_open (atom2 **out, const char* name)
 		return OCEANIC_ERROR_IO;
 	}
 
+	// Give the interface 100 ms to settle and draw power up.
+	serial_sleep (100);
+
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
