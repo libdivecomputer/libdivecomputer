@@ -10,11 +10,9 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define EXITCODE(rc, n) \
+#define EXITCODE(rc) \
 ( \
-	rc == -1 ? \
-	REEFNET_ERROR_IO : \
-	(rc != n ? REEFNET_ERROR_TIMEOUT : REEFNET_ERROR_PROTOCOL) \
+	rc == -1 ? REEFNET_ERROR_IO : REEFNET_ERROR_TIMEOUT \
 )
 
 
@@ -152,7 +150,7 @@ reefnet_sensuspro_handshake (sensuspro *device, unsigned char *data, unsigned in
 	int rc = serial_read (device->port, handshake, sizeof (handshake));
 	if (rc != sizeof (handshake)) {
 		WARNING ("Failed to receive the handshake.");
-		return EXITCODE (rc, sizeof (handshake));
+		return EXITCODE (rc);
 	}
 
 	// Clear the break condition again.
@@ -201,7 +199,7 @@ reefnet_sensuspro_read (sensuspro *device, unsigned char *data, unsigned int siz
 	int rc = serial_write (device->port, &command, 1);
 	if (rc != 1) {
 		WARNING ("Failed to send the command.");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
 	}
 
 	unsigned int nbytes = 0;
@@ -214,7 +212,7 @@ reefnet_sensuspro_read (sensuspro *device, unsigned char *data, unsigned int siz
 		int rc = serial_read (device->port, answer + nbytes, len);
 		if (rc != len) {
 			WARNING ("Failed to receive the answer.");
-			return EXITCODE (rc, len);
+			return EXITCODE (rc);
 		}
 
 		nbytes += len;
@@ -251,7 +249,7 @@ reefnet_sensuspro_write_interval (sensuspro *device, unsigned char interval)
 	int rc = serial_write (device->port, &command, 1);
 	if (rc != 1) {
 		WARNING ("Failed to send the command.");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
 	}
 
 	serial_sleep (10);
@@ -259,7 +257,7 @@ reefnet_sensuspro_write_interval (sensuspro *device, unsigned char interval)
 	rc = serial_write (device->port, &interval, 1);
 	if (rc != 1) {
 		WARNING ("Failed to send the new value.");
-		return EXITCODE (rc, 1);
+		return EXITCODE (rc);
 	}
 
 	return REEFNET_SUCCESS;
