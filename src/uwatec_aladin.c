@@ -10,6 +10,10 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define EXITCODE(rc) \
+( \
+	rc == -1 ? UWATEC_ERROR_IO : UWATEC_ERROR_TIMEOUT \
+)
 
 struct aladin {
 	struct serial *port;
@@ -150,44 +154,47 @@ uwatec_aladin_read (aladin *device, unsigned char data[], unsigned int size)
 	if (device == NULL)
 		return UWATEC_ERROR;
 
-	if (size < UWATEC_ALADIN_MEMORY_SIZE)
-		return UWATEC_ERROR_MEMORY;
+	unsigned char answer[UWATEC_ALADIN_MEMORY_SIZE + 2] = {0};
 
 	// Receive the header of the package.
 	for (unsigned int i = 0; i < 4;) {
-		int rc = serial_read (device->port, data + i, 1);
+		int rc = serial_read (device->port, answer + i, 1);
 		if (rc != 1) {
-			WARNING ("Cannot read from device.");
-			return UWATEC_ERROR;
+			WARNING ("Failed to receive the answer.");
+			return EXITCODE (rc);
 		}
-		if (data[i] == (i < 3 ? 0x55 : 0x00)) {
+		if (answer[i] == (i < 3 ? 0x55 : 0x00)) {
 			i++; // Continue.
 		} else {
 			i = 0; // Reset.
 		}
 	}
 
-	// Receive the contents of the package.
-	int rc = serial_read (device->port, data + 4, UWATEC_ALADIN_MEMORY_SIZE - 4);
-	if (rc != UWATEC_ALADIN_MEMORY_SIZE - 4) {
+	// Receive the remaining part of the package.
+	int rc = serial_read (device->port, answer + 4, sizeof (answer) - 4);
+	if (rc != sizeof (answer) - 4) {
 		WARNING ("Unexpected EOF in answer.");
-		return UWATEC_ERROR;
+		return EXITCODE (rc);
 	}
 
 	// Reverse the bit order.
-	uwatec_aladin_reverse_bits (data, UWATEC_ALADIN_MEMORY_SIZE);
+	uwatec_aladin_reverse_bits (answer, sizeof (answer));
 
-	// Calculate the checksum.
-	unsigned short ccrc = uwatec_aladin_checksum (data, UWATEC_ALADIN_MEMORY_SIZE);
-
-	// Receive (and verify) the checksum of the package.
-	unsigned char checksum[2] = {0};
-	rc = serial_read (device->port, checksum, sizeof (checksum));
-	uwatec_aladin_reverse_bits (checksum, sizeof (checksum));
-	unsigned short crc = (checksum[1] << 8) + checksum[0];
-	if (rc != sizeof (checksum) || ccrc != crc) {
+	// Verify the checksum of the package.
+	unsigned short crc = 
+		 answer[UWATEC_ALADIN_MEMORY_SIZE + 0] + 
+		(answer[UWATEC_ALADIN_MEMORY_SIZE + 1] << 8);
+	unsigned short ccrc = uwatec_aladin_checksum (answer, UWATEC_ALADIN_MEMORY_SIZE);
+	if (ccrc != crc) {
 		WARNING ("Unexpected answer CRC.");
-		return UWATEC_ERROR;
+		return UWATEC_ERROR_PROTOCOL;
+	}
+
+	if (size >= UWATEC_ALADIN_MEMORY_SIZE) {
+		memcpy (data, answer, UWATEC_ALADIN_MEMORY_SIZE);
+	} else {
+		WARNING ("Insufficient buffer space available.");
+		return UWATEC_ERROR_MEMORY;
 	}
 
 	return UWATEC_SUCCESS;
