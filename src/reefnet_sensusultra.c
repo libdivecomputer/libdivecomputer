@@ -291,10 +291,12 @@ reefnet_sensusultra_handshake (sensusultra *device, unsigned char *data, unsigne
 		handshake[22] + (handshake[23] << 8));
 #endif
 
-	if (size >= REEFNET_SENSUSULTRA_HANDSHAKE_SIZE)
+	if (size >= REEFNET_SENSUSULTRA_HANDSHAKE_SIZE) {
 		memcpy (data, handshake, REEFNET_SENSUSULTRA_HANDSHAKE_SIZE);
-	else
+	} else {
 		WARNING ("Insufficient buffer space available.");
+		return REEFNET_ERROR_MEMORY;
+	}
 
 	return REEFNET_SUCCESS;
 }
@@ -332,10 +334,12 @@ reefnet_sensusultra_page (sensusultra *device, unsigned char *data, unsigned int
 		return REEFNET_ERROR_PROTOCOL;
 	}
 
-	if (size >= REEFNET_SENSUSULTRA_PACKET_SIZE)
+	if (size >= REEFNET_SENSUSULTRA_PACKET_SIZE) {
 		memcpy (data, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
-	else
+	} else {
 		WARNING ("Insufficient buffer space available.");
+		return REEFNET_ERROR_MEMORY;
+	}
 
 	return REEFNET_SUCCESS;
 }
@@ -520,10 +524,12 @@ reefnet_sensusultra_sense (sensusultra *device, unsigned char *data, unsigned in
 	if (rc != REEFNET_SUCCESS)
 		return rc;
 
-	if (size >= REEFNET_SENSUSULTRA_SENSE_SIZE)
+	if (size >= REEFNET_SENSUSULTRA_SENSE_SIZE) {
 		memcpy (data, package, REEFNET_SENSUSULTRA_SENSE_SIZE);
-	else
+	} else {
 		WARNING ("Insufficient buffer space available.");
+		return REEFNET_ERROR_MEMORY;
+	}
 
 	return REEFNET_SUCCESS;
 }

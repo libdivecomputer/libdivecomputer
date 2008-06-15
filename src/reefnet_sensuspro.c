@@ -157,8 +157,10 @@ reefnet_sensuspro_handshake (sensuspro *device, unsigned char *data, unsigned in
 	serial_set_break (device->port, 0);
 
 	// Verify the checksum of the handshake packet.
-	unsigned short crc = handshake[10] + (handshake[11] << 8);
-	unsigned short ccrc = reefnet_sensuspro_checksum (handshake, sizeof (handshake) - 2);
+	unsigned short crc = 
+		 handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE + 0] + 
+		(handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE + 1] << 8);
+	unsigned short ccrc = reefnet_sensuspro_checksum (handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
 		return REEFNET_ERROR_PROTOCOL;
@@ -178,10 +180,12 @@ reefnet_sensuspro_handshake (sensuspro *device, unsigned char *data, unsigned in
 		handshake[6] + (handshake[7] << 8) + (handshake[8] << 16) + (handshake[9] << 24));
 #endif
 
-	if (size >= sizeof (handshake) - 2)
-		memcpy (data, handshake, sizeof (handshake) - 2);
-	else
+	if (size >= REEFNET_SENSUSPRO_HANDSHAKE_SIZE) {
+		memcpy (data, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
+	} else {
 		WARNING ("Insufficient buffer space available.");
+		return REEFNET_ERROR_MEMORY;
+	}
 
 	serial_sleep (10);
 
@@ -227,10 +231,12 @@ reefnet_sensuspro_read (sensuspro *device, unsigned char *data, unsigned int siz
 		return REEFNET_ERROR_PROTOCOL;
 	}
 
-	if (size >= REEFNET_SENSUSPRO_MEMORY_SIZE)
+	if (size >= REEFNET_SENSUSPRO_MEMORY_SIZE) {
 		memcpy (data, answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
-	else
+	} else {
 		WARNING ("Insufficient buffer space available.");
+		return REEFNET_ERROR_MEMORY;
+	}
 
 	return REEFNET_SUCCESS;
 }

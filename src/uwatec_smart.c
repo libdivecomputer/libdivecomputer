@@ -321,8 +321,8 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	if (length <= size) {
 		memcpy (data, package, length);
 	} else {
-		message ("Insufficient buffer space available.\n");
-		memcpy (data, package, size);
+		WARNING ("Insufficient buffer space available.");
+		return UWATEC_ERROR_MEMORY;
 	}
 
 	free (package);
