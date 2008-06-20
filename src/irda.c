@@ -228,7 +228,7 @@ irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
 
 	int rc = 0;
 	unsigned int n = 0;
-	while ((rc = getsockopt (device->fd, SOL_IRLMP, IRLMP_ENUMDEVICES, data, &size)) != 0) {
+	while ((rc = getsockopt (device->fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char*) data, &size)) != 0) {
 #ifdef _WIN32
 		if (WSAGetLastError() != WSAEWOULDBLOCK) {
 #else
@@ -396,7 +396,7 @@ irda_socket_read (irda* device, void* data, unsigned int size)
 			break; // Timeout.
 		}
 
-		int n = recv (device->fd, data + nbytes, size - nbytes, 0);
+		int n = recv (device->fd, (char*) data + nbytes, size - nbytes, 0);
 		if (n < 0) {
 			TRACE ("recv");
 			return -1; // Error during recv call.
@@ -419,7 +419,7 @@ irda_socket_write (irda* device, const void *data, unsigned int size)
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
-		int n = send (device->fd, data + nbytes, size - nbytes, 0);
+		int n = send (device->fd, (char*) data + nbytes, size - nbytes, 0);
 		if (n < 0) {
 			TRACE ("send");
 			return -1; // Error during send call.

@@ -171,7 +171,6 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	if (device == NULL)
 		return UWATEC_ERROR;
 
-	unsigned int timestamp = 0;
 	unsigned char command[9] = {0};
 	unsigned char answer[4] = {0};
 
@@ -224,7 +223,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	// PC Time and Time Correction.
 
 	time_t now = time (NULL);
-	unsigned char datetime[21] = {0};
+	char datetime[21] = {0};
 	strftime (datetime, sizeof (datetime), "%Y-%m-%dT%H:%M:%SZ", gmtime (&now));
 	message ("handshake: now=%lu (%s)\n", (unsigned long)now, datetime);
 

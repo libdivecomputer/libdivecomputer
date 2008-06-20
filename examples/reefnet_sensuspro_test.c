@@ -31,7 +31,7 @@ int test_dump_memory (const char* name, const char* filename)
 	}
 
 	time_t now = time (NULL);
-	unsigned char datetime[21] = {0};
+	char datetime[21] = {0};
 	strftime (datetime, sizeof (datetime), "%Y-%m-%dT%H:%M:%SZ", gmtime (&now));
 	message ("time=%lu (%s)\n", (unsigned long)now, datetime);
 

@@ -5,7 +5,7 @@ static FILE* g_logfile = NULL;
 
 int message (const char* fmt, ...)
 {
-	va_list ap = {0};
+	va_list ap;
 	
 	if (g_logfile) {
 		va_start (ap, fmt);

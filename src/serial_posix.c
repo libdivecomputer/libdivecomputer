@@ -426,7 +426,7 @@ serial_read (serial* device, void* data, unsigned int size)
 	unsigned int nbytes = 0;
 	for (;;) {
 		// Attempt to read data from the file descriptor.
-		int n = read (device->fd, data + nbytes, size - nbytes);
+		int n = read (device->fd, (char*) data + nbytes, size - nbytes);
 		if (n < 0) {
 			if (errno == EINTR)
 				continue; // Retry.
@@ -477,7 +477,7 @@ serial_write (serial* device, const void* data, unsigned int size)
 	unsigned int nbytes = 0;
 	for (;;) {
 		// Attempt to write data to the file descriptor.
-		int n = write (device->fd, data + nbytes, size - nbytes);
+		int n = write (device->fd, (char*) data + nbytes, size - nbytes);
 		if (n < 0) {
 			if (errno == EINTR)
 				continue; // Retry.
