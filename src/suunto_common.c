@@ -28,8 +28,8 @@ suunto_common_extract_dives (const unsigned char data[], unsigned int begin, uns
 
 		// Check for an end of dive marker (of the next dive),
 		// to find the start of the current dive.
-		unsigned int peek = ringbuffer_decrement (current, peek, begin, end);
-		if (data[peek] == 0x80) {
+		unsigned int index = ringbuffer_decrement (current, peek, begin, end);
+		if (data[index] == 0x80) {
 			unsigned int len = ringbuffer_distance (current, previous, begin, end);
 			if (current + len > end) {
 				unsigned int a = end - current;
