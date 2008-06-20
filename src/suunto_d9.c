@@ -5,6 +5,7 @@
 #include "suunto.h"
 #include "serial.h"
 #include "utils.h"
+#include "ringbuffer.h"
 
 #define MAXRETRIES 2
 
@@ -16,22 +17,11 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define DISTANCE(a,b) distance (a, b, SUUNTO_D9_MEMORY_SIZE - 0x019A - 2)
+#define DISTANCE(a,b) ringbuffer_distance (a, b, 0x019A, SUUNTO_D9_MEMORY_SIZE - 2)
 
 struct d9 {
 	struct serial *port;
 };
-
-
-static unsigned int
-distance (unsigned int a, unsigned int b, unsigned int size)
-{
-	if (a <= b) {
-		return (b - a) % size;
-	} else {
-		return size - (a - b) % size;
-	}
-}
 
 
 int

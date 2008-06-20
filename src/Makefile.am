@@ -43,6 +43,7 @@ libdivecomputer_la_SOURCES = \
 	uwatec_memomouse.h uwatec_memomouse.c \
 	oceanic.h \
 	oceanic_atom2.h oceanic_atom2.c \
+	ringbuffer.h ringbuffer.c \
 	utils.h utils.c
 
 if OS_WIN32

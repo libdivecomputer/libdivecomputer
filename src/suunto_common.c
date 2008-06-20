@@ -2,29 +2,8 @@
 #include <string.h>
 
 #include "suunto_common.h"
+#include "ringbuffer.h"
 
-#define SUBSTRACT(a, x, begin, end) substract (a - begin, x, end - begin) + begin
-#define DISTANCE(a, b, begin, end) distance (a, b, end - begin)
-
-static unsigned int
-substract (unsigned int a, unsigned int x, unsigned int size)
-{
-	if (x <= a) {
-		return (a - x) % size;
-	} else {
-		return size - (x - a) % size;
-	}
-}
-
-static unsigned int
-distance (unsigned int a, unsigned int b, unsigned int size)
-{
-	if (a <= b) {
-		return (b - a) % size;
-	} else {
-		return size - (a - b) % size;
-	}
-}
 
 int
 suunto_common_extract_dives (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, dive_callback_t callback, void *userdata)
@@ -49,9 +28,9 @@ suunto_common_extract_dives (const unsigned char data[], unsigned int begin, uns
 
 		// Check for an end of dive marker (of the next dive),
 		// to find the start of the current dive.
-		unsigned int peek = SUBSTRACT (current, peek, begin, end);
+		unsigned int peek = ringbuffer_decrement (current, peek, begin, end);
 		if (data[peek] == 0x80) {
-			unsigned int len = DISTANCE (current, previous, begin, end);
+			unsigned int len = ringbuffer_distance (current, previous, begin, end);
 			if (current + len > end) {
 				unsigned int a = end - current;
 				unsigned int b = (current + len) - end;

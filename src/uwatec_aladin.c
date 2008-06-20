@@ -4,6 +4,7 @@
 #include "uwatec.h"
 #include "serial.h"
 #include "utils.h"
+#include "ringbuffer.h"
 
 #define WARNING(expr) \
 { \
@@ -15,22 +16,11 @@
 	rc == -1 ? UWATEC_ERROR_IO : UWATEC_ERROR_TIMEOUT \
 )
 
+#define DISTANCE(a,b) ringbuffer_distance (a, b, 0, 0x600)
+
 struct aladin {
 	struct serial *port;
 };
-
-
-#define DISTANCE(a,b) distance (a, b, 0x600)
-
-static unsigned int
-distance (unsigned int a, unsigned int b, unsigned int size)
-{
-	if (a <= b) {
-		return (b - a) % size;
-	} else {
-		return size - (a - b) % size;
-	}
-}
 
 
 int
