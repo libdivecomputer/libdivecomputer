@@ -22,6 +22,8 @@ int suunto_vyper2_read_memory (vyper2 *device, unsigned int address, unsigned ch
 
 int suunto_vyper2_write_memory (vyper2 *device, unsigned int address, const unsigned char data[], unsigned int size);
 
+int suunto_vyper2_read_dives (vyper2 *device, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

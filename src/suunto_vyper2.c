@@ -1,10 +1,12 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
-#include <assert.h>	// assert
+#include <assert.h> // assert
 
 #include "suunto.h"
 #include "serial.h"
 #include "utils.h"
+
+#define MAXRETRIES 2
 
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
@@ -14,10 +16,22 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define DISTANCE(a,b) distance (a, b, SUUNTO_VYPER2_MEMORY_SIZE - 0x019A - 2)
 
 struct vyper2 {
 	struct serial *port;
 };
+
+
+static unsigned int
+distance (unsigned int a, unsigned int b, unsigned int size)
+{
+	if (a <= b) {
+		return (b - a) % size;
+	} else {
+		return size - (a - b) % size;
+	}
+}
 
 
 int
@@ -138,39 +152,48 @@ suunto_vyper2_transfer (vyper2 *device, const unsigned char command[], unsigned 
 {
 	assert (asize >= size + 4);
 
-	// Send the command to the dive computer.
-	int rc = suunto_vyper2_send (device, command, csize);
-	if (rc != SUUNTO_SUCCESS) {
-		WARNING ("Failed to send the command.");
-		return rc;
-	}
+	// Occasionally, the dive computer does not respond to a command. 
+	// In that case we retry the command a number of times before 
+	// returning an error. Usually the dive computer will respond 
+	// again during one of the retries.
 
-	// Receive the answer of the dive computer.
-	rc = serial_read (device->port, answer, asize);
-	if (rc != asize) {
-		WARNING ("Failed to receive the answer.");
-		if (rc == -1)
-			return SUUNTO_ERROR_IO;
-		return SUUNTO_ERROR_TIMEOUT;
-	}
+	for (unsigned int i = 0;; ++i) {
+		// Send the command to the dive computer.
+		int rc = suunto_vyper2_send (device, command, csize);
+		if (rc != SUUNTO_SUCCESS) {
+			WARNING ("Failed to send the command.");
+			return rc;
+		}
 
-	// Verify the header of the package.
-	answer[2] -= size; // Adjust the package size for the comparision.
-	if (memcmp (command, answer, asize - size - 1) != 0) {
-		WARNING ("Unexpected answer start byte(s).");
-		return SUUNTO_ERROR_PROTOCOL;
-	}
-	answer[2] += size; // Restore the package size again.
+		// Receive the answer of the dive computer.
+		rc = serial_read (device->port, answer, asize);
+		if (rc != asize) {
+			WARNING ("Failed to receive the answer.");
+			if (rc == -1)
+				return SUUNTO_ERROR_IO;
+			if (i < MAXRETRIES)
+				continue; // Retry.
+			return SUUNTO_ERROR_TIMEOUT;
+		}
 
-	// Verify the checksum of the package.
-	unsigned char crc = answer[asize - 1];
-	unsigned char ccrc = suunto_vyper2_checksum (answer, asize - 1, 0x00);
-	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
-		return SUUNTO_ERROR_PROTOCOL;
-	}
+		// Verify the header of the package.
+		answer[2] -= size; // Adjust the package size for the comparision.
+		if (memcmp (command, answer, asize - size - 1) != 0) {
+			WARNING ("Unexpected answer start byte(s).");
+			return SUUNTO_ERROR_PROTOCOL;
+		}
+		answer[2] += size; // Restore the package size again.
 
-	return SUUNTO_SUCCESS;
+		// Verify the checksum of the package.
+		unsigned char crc = answer[asize - 1];
+		unsigned char ccrc = suunto_vyper2_checksum (answer, asize - 1, 0x00);
+		if (crc != ccrc) {
+			WARNING ("Unexpected answer CRC.");
+			return SUUNTO_ERROR_PROTOCOL;
+		}
+
+		return SUUNTO_SUCCESS;
+	}
 }
 
 
@@ -303,6 +326,129 @@ suunto_vyper2_write_memory (vyper2 *device, unsigned int address, const unsigned
 		address += len;
 		data += len;
 	}
+
+	return SUUNTO_SUCCESS;
+}
+
+
+int
+suunto_vyper2_read_dives (vyper2 *device, dive_callback_t callback, void *userdata)
+{
+	if (device == NULL)
+		return SUUNTO_ERROR;
+
+	// Read the header bytes.
+	unsigned char header[8] = {0};
+	int rc = suunto_vyper2_read_memory (device, 0x0190, header, sizeof (header));
+	if (rc != SUUNTO_SUCCESS) {
+		WARNING ("Cannot read memory header.");
+		return rc;
+	}
+
+	// Obtain the pointers from the header.
+	unsigned int last  = header[0] + (header[1] << 8);
+	unsigned int count = header[2] + (header[3] << 8);
+	unsigned int end   = header[4] + (header[5] << 8);
+	unsigned int begin = header[6] + (header[7] << 8);
+	message ("Pointers: begin=%04x, last=%04x, end=%04x, count=%i\n", begin, last, end, count);
+
+	// Memory buffer to store all the dives.
+
+	unsigned char data[SUUNTO_VYPER2_MEMORY_SIZE - 0x019A - 2] = {0};
+
+	// Calculate the total amount of bytes.
+
+	unsigned int remaining = DISTANCE (begin, end);
+
+	// To reduce the number of read operations, we always try to read 
+	// packages with the largest possible size. As a consequence, the 
+	// last package of a dive can contain data from more than one dive. 
+	// Therefore, the remaining data of this package (and its size) 
+	// needs to be preserved for the next dive.
+
+	unsigned int available = 0;
+
+	// The ring buffer is traversed backwards to retrieve the most recent
+	// dives first. This allows you to download only the new dives. During 
+	// the traversal, the current pointer does always point to the end of
+	// the dive data and we move to the "next" dive by means of the previous 
+	// pointer.
+
+	unsigned int ndives = 0;
+	unsigned int current = end;
+	unsigned int previous = last;
+	while (current != begin) {
+		// Calculate the size of the current dive.
+		unsigned int size = DISTANCE (previous, current);
+		message ("Pointers: dive=%u, current=%04x, previous=%04x, size=%u, remaining=%u, available=%u\n",
+			ndives + 1, current, previous, size, remaining, available);
+
+		assert (size >= 4 && size <= remaining);
+
+		unsigned int nbytes = available;
+		unsigned int address = current - available;
+		while (nbytes < size) {
+			// Calculate the package size. Try with the largest possible 
+			// size first, and adjust when the end of the ringbuffer or  
+			// the end of the profile data is reached.
+			unsigned int len = SUUNTO_VYPER2_PACKET_SIZE;
+			if (0x019A + len > address)
+				len = address - 0x019A; // End of ringbuffer.
+			if (nbytes + len > remaining)
+				len = remaining - nbytes; // End of profile.
+			/*if (nbytes + len > size)
+				len = size - nbytes;*/ // End of dive (for testing only).
+
+			message ("Pointers: address=%04x, len=%u\n", address - len, len);
+
+			// Read the package.
+			unsigned char *p = data + remaining - nbytes;
+			rc = suunto_vyper2_read_memory (device, address - len, p - len, len);
+			if (rc != SUUNTO_SUCCESS) {
+				WARNING ("Cannot read memory.");
+				return rc;
+			}
+
+			// Next package.
+			nbytes += len;
+			address -= len;
+			if (address <= 0x019A)
+				address = SUUNTO_VYPER2_MEMORY_SIZE - 2;		
+		}
+
+		message ("Pointers: nbytes=%u\n", nbytes);
+
+		// The last package of the current dive contains the previous and
+		// next pointers (in a continuous memory area). It can also contain
+		// a number of bytes from the next dive. The offset to the pointers
+		// is equal to the number of bytes remaining after the current dive.
+
+		remaining -= size;
+		available = nbytes - size;
+
+		unsigned int oprevious = data[remaining + 0] + (data[remaining + 1] << 8);
+		unsigned int onext     = data[remaining + 2] + (data[remaining + 3] << 8);
+		message ("Pointers: previous=%04x, next=%04x\n", oprevious, onext);
+		assert (current == onext);
+
+		// Next dive.
+		current = previous;
+		previous = oprevious;
+		ndives++;
+
+#ifndef NDEBUG
+		message ("Vyper2Profile()=\"");
+		for (unsigned int i = 0; i < size - 4; ++i) {
+			message ("%02x", data[remaining + 4 + i]);
+		}
+		message ("\"\n");
+#endif
+
+		if (callback)
+			callback (data + remaining + 4, size - 4, userdata);
+	}
+	assert (remaining == 0);
+	assert (available == 0);
 
 	return SUUNTO_SUCCESS;
 }
