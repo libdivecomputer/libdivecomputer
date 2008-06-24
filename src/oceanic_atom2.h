@@ -18,6 +18,8 @@ int oceanic_atom2_read_version (atom2 *device, unsigned char data[], unsigned in
 
 int oceanic_atom2_read_memory (atom2 *device, unsigned int address, unsigned char data[], unsigned int size);
 
+int oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

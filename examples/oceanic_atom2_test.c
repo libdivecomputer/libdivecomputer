@@ -44,6 +44,14 @@ int test_dump_memory (const char* name, const char* filename)
 		fclose (fp);
 	}
 
+	message ("oceanic_atom2_read_dives\n");
+	rc = oceanic_atom2_read_dives (device, NULL, NULL);
+	if (rc != OCEANIC_SUCCESS) {
+		WARNING ("Cannot read dives.");
+		oceanic_atom2_close (device);
+		return rc;
+	}
+
 	message ("oceanic_atom2_close\n");
 	rc = oceanic_atom2_close (device);
 	if (rc != OCEANIC_SUCCESS) {
