@@ -155,24 +155,6 @@ oceanic_atom2_open (atom2 **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the handshake to connect to the device.
-	unsigned char answer[3] = {0};
-	unsigned char command[3] = {0xA8, 0x99, 0x00};
-	rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
-	if (rc != OCEANIC_SUCCESS) {
-		serial_close (device->port);
-		free (device);
-		return rc;
-	}
-
-	// Verify the handshake.
-	if (answer[1] != 0xA5) {
-		WARNING ("Unexpected handshake byte(s).");
-		serial_close (device->port);
-		free (device);
-		return OCEANIC_ERROR_PROTOCOL;
-	}
-
 	*out = device;
 
 	return OCEANIC_SUCCESS;
@@ -193,6 +175,63 @@ oceanic_atom2_close (atom2 *device)
 
 	// Free memory.	
 	free (device);
+
+	return OCEANIC_SUCCESS;
+}
+
+
+int
+oceanic_atom2_handshake (atom2 *device)
+{
+	if (device == NULL)
+		return OCEANIC_ERROR;
+
+	// Send the handshake to connect to the device.
+	unsigned char answer[3] = {0};
+	unsigned char command[3] = {0xA8, 0x99, 0x00};
+	int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
+	if (rc != OCEANIC_SUCCESS)
+		return rc;
+
+	// Verify the handshake.
+	if (answer[1] != 0xA5) {
+		WARNING ("Unexpected handshake byte(s).");
+		return OCEANIC_ERROR_PROTOCOL;
+	}
+
+	return OCEANIC_SUCCESS;
+}
+
+
+int
+oceanic_atom2_quit (atom2 *device)
+{
+	if (device == NULL)
+		return OCEANIC_ERROR;
+
+	// Send the command to the dive computer.
+	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
+	int rc = oceanic_atom2_send (device, command, sizeof (command));
+	if (rc != OCEANIC_SUCCESS) {
+		WARNING ("Failed to send the command.");
+		return rc;
+	}
+
+	// Receive the answer of the dive computer.
+	unsigned char answer[1] = {0};
+	rc = serial_read (device->port, answer, sizeof (answer));
+	if (rc != sizeof (answer)) {
+		WARNING ("Failed to receive the answer.");
+		if (rc == -1)
+			return OCEANIC_ERROR_IO;
+		return OCEANIC_ERROR_TIMEOUT;
+	}
+
+	// Verify the answer.
+	if (answer[0] != 0xA5) {
+		WARNING ("Unexpected answer byte(s).");
+		return OCEANIC_ERROR_PROTOCOL;
+	}
 
 	return OCEANIC_SUCCESS;
 }

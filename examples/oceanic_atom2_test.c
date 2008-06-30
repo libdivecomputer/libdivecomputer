@@ -20,6 +20,14 @@ int test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
+	message ("oceanic_atom2_handshake\n");
+	rc = oceanic_atom2_handshake (device);
+	if (rc != OCEANIC_SUCCESS) {
+		WARNING ("Handshake failed.");
+		oceanic_atom2_close (device);
+		return rc;
+	}
+
 	message ("oceanic_atom2_read_version\n");
 	unsigned char version[OCEANIC_ATOM2_PACKET_SIZE] = {0};
 	rc = oceanic_atom2_read_version (device, version, sizeof (version));
@@ -48,6 +56,14 @@ int test_dump_memory (const char* name, const char* filename)
 	rc = oceanic_atom2_read_dives (device, NULL, NULL);
 	if (rc != OCEANIC_SUCCESS) {
 		WARNING ("Cannot read dives.");
+		oceanic_atom2_close (device);
+		return rc;
+	}
+
+	message ("oceanic_atom2_quit\n");
+	rc = oceanic_atom2_quit (device);
+	if (rc != OCEANIC_SUCCESS) {
+		WARNING ("Quit failed.");
 		oceanic_atom2_close (device);
 		return rc;
 	}
