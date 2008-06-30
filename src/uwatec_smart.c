@@ -166,13 +166,13 @@ uwatec_smart_transfer (smart *device, const unsigned char command[], unsigned in
 
 
 int
-uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
+uwatec_smart_handshake (smart *device)
 {
 	if (device == NULL)
 		return UWATEC_ERROR;
 
-	unsigned char command[9] = {0};
-	unsigned char answer[4] = {0};
+	unsigned char command[5] = {0};
+	unsigned char answer[1] = {0};
 
 	// Handshake (stage 1).
 
@@ -207,12 +207,25 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 		WARNING ("Unexpected answer byte(s).");
 		return UWATEC_ERROR_PROTOCOL;
 	}
+	
+	return UWATEC_SUCCESS;
+}
+
+
+int
+uwatec_smart_version (smart *device, unsigned char data[], unsigned int size)
+{
+	if (device == NULL)
+		return UWATEC_ERROR;
+
+	unsigned char command[1] = {0};
+	unsigned char answer[UWATEC_SMART_VERSION_SIZE] = {0};
 
 	// Dive Computer Time.
 
 	command[0] = 0x1A;
 
-	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
+	int rc = uwatec_smart_transfer (device, command, 1, answer + 0, 4);
 	if (rc != UWATEC_SUCCESS)
 		return rc;
 
@@ -231,23 +244,43 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 
 	command[0] = 0x14;
 
-	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
+	rc = uwatec_smart_transfer (device, command, 1, answer + 4, 4);
 	if (rc != UWATEC_SUCCESS)
 		return rc;
 
-	unsigned int serial = answer[0] + (answer[1] << 8) + 
-							(answer[2] << 16) + (answer[3] << 24);
+	unsigned int serial = answer[4] + (answer[5] << 8) + 
+							(answer[6] << 16) + (answer[7] << 24);
 	message ("handshake: serial=0x%08x\n", serial);
 
 	// Dive Computer Model.
 
 	command[0] = 0x10;
 
-	rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	rc = uwatec_smart_transfer (device, command, 1, answer + 8, 1);
 	if (rc != UWATEC_SUCCESS)
 		return rc;
 
-	message ("handshake: model=0x%02x\n", answer[0]);
+	message ("handshake: model=0x%02x\n", answer[8]);
+
+	if (size >= UWATEC_SMART_VERSION_SIZE) {
+		memcpy (data, answer, UWATEC_SMART_VERSION_SIZE);
+	} else {
+		WARNING ("Insufficient buffer space available.");
+		return UWATEC_ERROR_MEMORY;
+	}
+
+	return UWATEC_SUCCESS;
+}
+
+
+int
+uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
+{
+	if (device == NULL)
+		return UWATEC_ERROR;
+
+	unsigned char command[9] = {0};
+	unsigned char answer[4] = {0};
 
 	// Data Length.
 
@@ -261,7 +294,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	command[7] = 0;
 	command[8] = 0;
 
-	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	int rc = uwatec_smart_transfer (device, command, 9, answer, 4);
 	if (rc != UWATEC_SUCCESS)
 		return rc;
 

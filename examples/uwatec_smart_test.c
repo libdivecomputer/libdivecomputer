@@ -29,6 +29,25 @@ int test_dump_memory (const char* filename)
 		return rc;
 	}
 
+	message ("uwatec_smart_handshake\n");
+	rc = uwatec_smart_handshake (device);
+	if (rc != UWATEC_SUCCESS) {
+		WARNING ("Handshake failed.");
+		uwatec_smart_close (device);
+		free (data);
+		return rc;
+	}
+
+	message ("uwatec_smart_version\n");
+	unsigned char version[UWATEC_SMART_VERSION_SIZE] = {0};
+	rc = uwatec_smart_version (device, version, sizeof (version));
+	if (rc != UWATEC_SUCCESS) {
+		WARNING ("Cannot identify computer.");
+		uwatec_smart_close (device);
+		free (data);
+		return rc;
+	}
+
 	message ("uwatec_smart_read\n");
 	rc = uwatec_smart_read (device, data, size);
 	if (rc < 0) {
