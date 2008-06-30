@@ -14,6 +14,14 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define EXITCODE(rc) \
+( \
+	rc == -1 ? OCEANIC_ERROR_IO : OCEANIC_ERROR_TIMEOUT \
+)
+
+#define ACK 0x5A
+#define NAK 0xA5
+
 #define RB_LOGBOOK_EMPTY			0x0230
 #define RB_LOGBOOK_BEGIN			0x0240
 #define RB_LOGBOOK_END				0x0A40
@@ -60,16 +68,17 @@ oceanic_atom2_send (atom2 *device, const unsigned char command[], unsigned int c
 
 
 static int
-oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int handshake)
+oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
-	assert (asize >= 2);
+	// Send the command to the device. If the device responds with an
+	// ACK byte, the command was received successfully and the answer
+	// (if any) follows after the ACK byte. If the device responds with
+	// a NAK byte, we try to resend the command a number of times before
+	// returning an error.
 
-	// Occasionally, the dive computer does not respond to a command. 
-	// In that case we retry the command a number of times before 
-	// returning an error. Usually the dive computer will respond 
-	// again during one of the retries.
-
-	for (unsigned int i = 0;; ++i) {
+	unsigned int nretries = 0;
+	unsigned char response = NAK;
+	while (response == NAK) {
 		// Send the command to the dive computer.
 		int rc = oceanic_atom2_send (device, command, csize);
 		if (rc != OCEANIC_SUCCESS) {
@@ -77,34 +86,47 @@ oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned i
 			return rc;
 		}
 
+		// Receive the response (ACK/NAK) of the dive computer.
+		rc = serial_read (device->port, &response, 1);
+		if (rc != 1) {
+			WARNING ("Failed to receive the answer.");
+			return EXITCODE (rc);
+		}
+
+#ifndef NDEBUG
+		if (response != ACK)
+			message ("Received unexpected response (%02x).\n", response);
+#endif
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			break;
+	}
+
+	// Verify the response of the dive computer.
+	if (response != ACK) {
+		WARNING ("Unexpected answer start byte(s).");
+		return OCEANIC_ERROR_PROTOCOL;
+	}
+
+	if (asize) {
 		// Receive the answer of the dive computer.
-		rc = serial_read (device->port, answer, asize);
+		int rc = serial_read (device->port, answer, asize);
 		if (rc != asize) {
 			WARNING ("Failed to receive the answer.");
-			if (rc == -1)
-				return OCEANIC_ERROR_IO;
-			if (i < MAXRETRIES)
-				continue; // Retry.
-			return OCEANIC_ERROR_TIMEOUT;
+			return EXITCODE (rc);
 		}
 
-		// Verify the header of the package.
-		unsigned char header = (handshake ? 0xA5 : 0x5A);
-		if (answer[0] != header) {
-			WARNING ("Unexpected answer start byte(s).");
-			return OCEANIC_ERROR_PROTOCOL;
-		}
-
-		// Verify the checksum of the package.
+		// Verify the checksum of the answer.
 		unsigned char crc = answer[asize - 1];
-		unsigned char ccrc = oceanic_atom2_checksum (answer + 1, asize - 2, 0x00);
+		unsigned char ccrc = oceanic_atom2_checksum (answer, asize - 1, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return OCEANIC_ERROR_PROTOCOL;
 		}
-
-		return OCEANIC_SUCCESS;
 	}
+
+	return OCEANIC_SUCCESS;
 }
 
 
@@ -186,16 +208,25 @@ oceanic_atom2_handshake (atom2 *device)
 	if (device == NULL)
 		return OCEANIC_ERROR;
 
-	// Send the handshake to connect to the device.
-	unsigned char answer[3] = {0};
+	// Send the command to the dive computer.
 	unsigned char command[3] = {0xA8, 0x99, 0x00};
-	int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
-	if (rc != OCEANIC_SUCCESS)
+	int rc = oceanic_atom2_send (device, command, sizeof (command));
+	if (rc != OCEANIC_SUCCESS) {
+		WARNING ("Failed to send the command.");
 		return rc;
+	}
 
-	// Verify the handshake.
-	if (answer[1] != 0xA5) {
-		WARNING ("Unexpected handshake byte(s).");
+	// Receive the answer of the dive computer.
+	unsigned char answer[3] = {0};
+	rc = serial_read (device->port, answer, sizeof (answer));
+	if (rc != sizeof (answer)) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (rc);
+	}
+
+	// Verify the answer.
+	if (answer[0] != NAK || answer[1] != NAK || answer[2] != NAK) {
+		WARNING ("Unexpected answer byte(s).");
 		return OCEANIC_ERROR_PROTOCOL;
 	}
 
@@ -222,9 +253,7 @@ oceanic_atom2_quit (atom2 *device)
 	rc = serial_read (device->port, answer, sizeof (answer));
 	if (rc != sizeof (answer)) {
 		WARNING ("Failed to receive the answer.");
-		if (rc == -1)
-			return OCEANIC_ERROR_IO;
-		return OCEANIC_ERROR_TIMEOUT;
+		return EXITCODE (rc);
 	}
 
 	// Verify the answer.
@@ -246,17 +275,17 @@ oceanic_atom2_read_version (atom2 *device, unsigned char data[], unsigned int si
 	if (size < OCEANIC_ATOM2_PACKET_SIZE)
 		return OCEANIC_ERROR_MEMORY;
 
-	unsigned char answer[OCEANIC_ATOM2_PACKET_SIZE + 2] = {0};
+	unsigned char answer[OCEANIC_ATOM2_PACKET_SIZE + 1] = {0};
 	unsigned char command[2] = {0x84, 0x00};
-	int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+	int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != OCEANIC_SUCCESS)
 		return rc;
 
-	memcpy (data, answer + 1, OCEANIC_ATOM2_PACKET_SIZE);
+	memcpy (data, answer, OCEANIC_ATOM2_PACKET_SIZE);
 
 #ifndef NDEBUG
-	answer[OCEANIC_ATOM2_PACKET_SIZE + 1] = 0;
-	message ("ATOM2ReadVersion()=\"%s\"\n", answer + 1);
+	answer[OCEANIC_ATOM2_PACKET_SIZE] = 0;
+	message ("ATOM2ReadVersion()=\"%s\"\n", answer);
 #endif
 
 	return OCEANIC_SUCCESS;
@@ -279,16 +308,16 @@ oceanic_atom2_read_memory (atom2 *device, unsigned int address, unsigned char da
 	while (nbytes < size) {
 		// Read the package.
 		unsigned int number = address / OCEANIC_ATOM2_PACKET_SIZE;
-		unsigned char answer[OCEANIC_ATOM2_PACKET_SIZE + 2] = {0};
+		unsigned char answer[OCEANIC_ATOM2_PACKET_SIZE + 1] = {0};
 		unsigned char command[4] = {0xB1, 
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
 				0};
-		int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+		int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
 		if (rc != OCEANIC_SUCCESS)
 			return rc;
 
-		memcpy (data, answer + 1, OCEANIC_ATOM2_PACKET_SIZE);
+		memcpy (data, answer, OCEANIC_ATOM2_PACKET_SIZE);
 
 #ifndef NDEBUG
 		message ("ATOM2Read(0x%04x,%d)=\"", address, OCEANIC_ATOM2_PACKET_SIZE);
