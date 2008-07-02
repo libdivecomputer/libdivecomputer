@@ -361,7 +361,7 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 	// Keep send the command to the device, 
 	// until the ACK answer is received.
 	unsigned char answer = NAK;
-	while (answer != ACK) {
+	while (answer == NAK) {
 		// Flush the input buffer.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 		
@@ -380,6 +380,17 @@ uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int siz
 			WARNING ("Failed to recieve the answer.");
 			return EXITCODE (rc);
 		}
+
+#ifndef NDEBUG
+		if (answer != ACK)
+			message ("Received unexpected response (%02x).\n", answer);
+#endif
+	}
+
+	// Verify the answer.
+	if (answer != ACK) {
+		WARNING ("Unexpected answer start byte(s).");
+		return UWATEC_ERROR_PROTOCOL;
 	}
 
 	// Wait for the transfer and read the data.
