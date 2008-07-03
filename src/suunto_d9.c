@@ -17,7 +17,9 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-#define DISTANCE(a,b) ringbuffer_distance (a, b, 0x019A, SUUNTO_D9_MEMORY_SIZE - 2)
+#define RB_PROFILE_BEGIN			0x019A
+#define RB_PROFILE_END				SUUNTO_D9_MEMORY_SIZE - 2
+#define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 struct d9 {
 	struct serial *port;
@@ -357,11 +359,11 @@ suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
 
 	// Memory buffer to store all the dives.
 
-	unsigned char data[SUUNTO_D9_MEMORY_SIZE - 0x019A - 2] = {0};
+	unsigned char data[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 
 	// Calculate the total amount of bytes.
 
-	unsigned int remaining = DISTANCE (begin, end);
+	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end);
 
 	// To reduce the number of read operations, we always try to read 
 	// packages with the largest possible size. As a consequence, the 
@@ -382,7 +384,7 @@ suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
 	unsigned int previous = last;
 	while (current != begin) {
 		// Calculate the size of the current dive.
-		unsigned int size = DISTANCE (previous, current);
+		unsigned int size = RB_PROFILE_DISTANCE (previous, current);
 		message ("Pointers: dive=%u, current=%04x, previous=%04x, size=%u, remaining=%u, available=%u\n",
 			ndives + 1, current, previous, size, remaining, available);
 
@@ -395,8 +397,8 @@ suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
 			// size first, and adjust when the end of the ringbuffer or  
 			// the end of the profile data is reached.
 			unsigned int len = SUUNTO_D9_PACKET_SIZE;
-			if (0x019A + len > address)
-				len = address - 0x019A; // End of ringbuffer.
+			if (RB_PROFILE_BEGIN + len > address)
+				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.
 			if (nbytes + len > remaining)
 				len = remaining - nbytes; // End of profile.
 			/*if (nbytes + len > size)
@@ -415,8 +417,8 @@ suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
 			// Next package.
 			nbytes += len;
 			address -= len;
-			if (address <= 0x019A)
-				address = SUUNTO_D9_MEMORY_SIZE - 2;		
+			if (address <= RB_PROFILE_BEGIN)
+				address = RB_PROFILE_END;		
 		}
 
 		message ("Pointers: nbytes=%u\n", nbytes);
