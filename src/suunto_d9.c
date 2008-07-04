@@ -2,7 +2,8 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include "suunto.h"
+#include "device-private.h"
+#include "suunto_d9.h"
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
@@ -21,25 +22,41 @@
 #define RB_PROFILE_END				SUUNTO_D9_MEMORY_SIZE - 2
 #define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
-struct d9 {
+
+typedef struct suunto_d9_device_t suunto_d9_device_t;
+
+struct suunto_d9_device_t {
+	device_t base;
 	struct serial *port;
 };
 
+static const device_backend_t suunto_d9_device_backend;
 
-int
-suunto_d9_open (d9 **out, const char* name)
+static int
+device_is_suunto_d9 (device_t *abstract)
+{
+	if (abstract == NULL)
+		return 0;
+
+    return abstract->backend == &suunto_d9_device_backend;
+}
+
+
+device_status_t
+suunto_d9_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return SUUNTO_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	struct d9 *device = malloc (sizeof (struct d9));
+	suunto_d9_device_t *device = malloc (sizeof (suunto_d9_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return SUUNTO_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Set the default values.
+	device->base.backend = &suunto_d9_device_backend;
 	device->port = NULL;
 
 	// Open the device.
@@ -47,7 +64,7 @@ suunto_d9_open (d9 **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
@@ -56,7 +73,7 @@ suunto_d9_open (d9 **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
@@ -64,7 +81,7 @@ suunto_d9_open (d9 **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the DTR line (power supply for the interface).
@@ -72,7 +89,7 @@ suunto_d9_open (d9 **out, const char* name)
 		WARNING ("Failed to set the DTR line.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -81,28 +98,30 @@ suunto_d9_open (d9 **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = device;
+	*out = (device_t*) device;
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_d9_close (d9 *device)
+static device_status_t
+suunto_d9_device_close (device_t *abstract)
 {
-	if (device == NULL)
-		return SUUNTO_SUCCESS;
+	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
+
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -117,8 +136,8 @@ suunto_d9_checksum (const unsigned char data[], unsigned int size, unsigned char
 }
 
 
-static int
-suunto_d9_send (d9 *device, const unsigned char command[], unsigned int csize)
+static device_status_t
+suunto_d9_send (suunto_d9_device_t *device, const unsigned char command[], unsigned int csize)
 {
 	// Clear RTS to send the command.
 	serial_set_rts (device->port, 0);
@@ -135,25 +154,25 @@ suunto_d9_send (d9 *device, const unsigned char command[], unsigned int csize)
 	if (rc != csize) {
 		WARNING ("Failed to receive the echo.");
 		if (rc == -1)
-			return SUUNTO_ERROR_IO;
-		return SUUNTO_ERROR_TIMEOUT;
+			return DEVICE_STATUS_IO;
+		return DEVICE_STATUS_TIMEOUT;
 	}
 
 	// Verify the echo.
 	if (memcmp (command, echo, csize) != 0) {
 		WARNING ("Unexpected echo.");
-		return SUUNTO_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
 	// Set RTS to receive the reply.
 	serial_set_rts (device->port, 1);
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-static int
-suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
+static device_status_t
+suunto_d9_transfer (suunto_d9_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	assert (asize >= size + 4);
 
@@ -165,7 +184,7 @@ suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csiz
 	for (unsigned int i = 0;; ++i) {
 		// Send the command to the dive computer.
 		int rc = suunto_d9_send (device, command, csize);
-		if (rc != SUUNTO_SUCCESS) {
+		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Failed to send the command.");
 			return rc;
 		}
@@ -175,17 +194,17 @@ suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csiz
 		if (rc != asize) {
 			WARNING ("Failed to receive the answer.");
 			if (rc == -1)
-				return SUUNTO_ERROR_IO;
+				return DEVICE_STATUS_IO;
 			if (i < MAXRETRIES)
 				continue; // Retry.
-			return SUUNTO_ERROR_TIMEOUT;
+			return DEVICE_STATUS_TIMEOUT;
 		}
 
 		// Verify the header of the package.
 		answer[2] -= size; // Adjust the package size for the comparision.
 		if (memcmp (command, answer, asize - size - 1) != 0) {
 			WARNING ("Unexpected answer start byte(s).");
-			return SUUNTO_ERROR_PROTOCOL;
+			return DEVICE_STATUS_PROTOCOL;
 		}
 		answer[2] += size; // Restore the package size again.
 
@@ -194,27 +213,29 @@ suunto_d9_transfer (d9 *device, const unsigned char command[], unsigned int csiz
 		unsigned char ccrc = suunto_d9_checksum (answer, asize - 1, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
-			return SUUNTO_ERROR_PROTOCOL;
+			return DEVICE_STATUS_PROTOCOL;
 		}
 
-		return SUUNTO_SUCCESS;
+		return DEVICE_STATUS_SUCCESS;
 	}
 }
 
 
-int
-suunto_d9_read_version (d9 *device, unsigned char data[], unsigned int size)
+static device_status_t
+suunto_d9_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
+
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	if (size < SUUNTO_D9_VERSION_SIZE)
-		return SUUNTO_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 
 	unsigned char answer[SUUNTO_D9_VERSION_SIZE + 4] = {0};
 	unsigned char command[4] = {0x0F, 0x00, 0x00, 0x0F};
 	int rc = suunto_d9_transfer (device, command, sizeof (command), answer, sizeof (answer), 4);
-	if (rc != SUUNTO_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	memcpy (data, answer + 3, SUUNTO_D9_VERSION_SIZE);
@@ -223,35 +244,39 @@ suunto_d9_read_version (d9 *device, unsigned char data[], unsigned int size)
 	message ("D9ReadVersion()=\"%02x %02x %02x %02x\"\n", data[0], data[1], data[2], data[3]);
 #endif
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_d9_reset_maxdepth (d9 *device)
+device_status_t
+suunto_d9_device_reset_maxdepth (device_t *abstract)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
+
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	unsigned char answer[4] = {0};
 	unsigned char command[4] = {0x20, 0x00, 0x00, 0x20};
 	int rc = suunto_d9_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
-	if (rc != SUUNTO_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 #ifndef NDEBUG
 	message ("D9ResetMaxDepth()\n");
 #endif
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_d9_read_memory (d9 *device, unsigned int address, unsigned char data[], unsigned int size)
+static device_status_t
+suunto_d9_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
+
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// The data transmission is split in packages
 	// of maximum $SUUNTO_D9_PACKET_SIZE bytes.
@@ -270,7 +295,7 @@ suunto_d9_read_memory (d9 *device, unsigned int address, unsigned char data[], u
 				0};  // CRC
 		command[6] = suunto_d9_checksum (command, 6, 0x00);
 		int rc = suunto_d9_transfer (device, command, sizeof (command), answer, len + 7, len);
-		if (rc != SUUNTO_SUCCESS)
+		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
 		memcpy (data, answer + 6, len);
@@ -288,15 +313,17 @@ suunto_d9_read_memory (d9 *device, unsigned int address, unsigned char data[], u
 		data += len;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char data[], unsigned int size)
+static device_status_t
+suunto_d9_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
+
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// The data transmission is split in packages
 	// of maximum $SUUNTO_D9_PACKET_SIZE bytes.
@@ -316,7 +343,7 @@ suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char da
 		memcpy (command + 6, data, len);
 		command[len + 6] = suunto_d9_checksum (command, len + 6, 0x00);
 		int rc = suunto_d9_transfer (device, command, len + 7, answer, sizeof (answer), 0);
-		if (rc != SUUNTO_SUCCESS)
+		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
 #ifndef NDEBUG
@@ -332,20 +359,20 @@ suunto_d9_write_memory (d9 *device, unsigned int address, const unsigned char da
 		data += len;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
+static device_status_t
+suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Read the header bytes.
 	unsigned char header[8] = {0};
-	int rc = suunto_d9_read_memory (device, 0x0190, header, sizeof (header));
-	if (rc != SUUNTO_SUCCESS) {
+	int rc = suunto_d9_device_read (abstract, 0x0190, header, sizeof (header));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;
 	}
@@ -408,8 +435,8 @@ suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
 
 			// Read the package.
 			unsigned char *p = data + remaining - nbytes;
-			rc = suunto_d9_read_memory (device, address - len, p - len, len);
-			if (rc != SUUNTO_SUCCESS) {
+			rc = suunto_d9_device_read (abstract, address - len, p - len, len);
+			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Cannot read memory.");
 				return rc;
 			}
@@ -455,5 +482,17 @@ suunto_d9_read_dives (d9 *device, dive_callback_t callback, void *userdata)
 	assert (remaining == 0);
 	assert (available == 0);
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
+
+
+static const device_backend_t suunto_d9_device_backend = {
+	DEVICE_TYPE_SUUNTO_D9,
+	NULL, /* handshake */
+	suunto_d9_device_version, /* version */
+	suunto_d9_device_read, /* read */
+	suunto_d9_device_write, /* write */
+	NULL, /* download */
+	suunto_d9_device_foreach, /* foreach */
+	suunto_d9_device_close /* close */
+};

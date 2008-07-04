@@ -1,6 +1,6 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "suunto.h"
+#include "suunto_d9.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -10,68 +10,68 @@
 
 int test_dump_sdm (const char* name)
 {
-	d9 *device = NULL;
+	device_t *device = NULL;
 
-	message ("suunto_d9_open\n");
-	int rc = suunto_d9_open (&device, name);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_d9_device_open\n");
+	int rc = suunto_d9_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	message ("suunto_d9_read_version\n");
+	message ("device_version\n");
 	unsigned char version[SUUNTO_D9_VERSION_SIZE] = {0};
-	rc = suunto_d9_read_version (device, version, sizeof (version));
-	if (rc != SUUNTO_SUCCESS) {
+	rc = device_version (device, version, sizeof (version));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
-		suunto_d9_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("suunto_d9_read_dives\n");
-	rc = suunto_d9_read_dives (device, NULL, NULL);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_foreach\n");
+	rc = device_foreach (device, NULL, NULL);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read dives.");
-		suunto_d9_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("suunto_d9_close\n");
-	rc = suunto_d9_close (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 int test_dump_memory (const char* name, const char* filename)
 {
 	unsigned char data[SUUNTO_D9_MEMORY_SIZE] = {0};
-	d9 *device = NULL;
+	device_t *device = NULL;
 
-	message ("suunto_d9_open\n");
-	int rc = suunto_d9_open (&device, name);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_d9_device_open\n");
+	int rc = suunto_d9_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	message ("suunto_d9_read_version\n");
+	message ("device_version\n");
 	unsigned char version[SUUNTO_D9_VERSION_SIZE] = {0};
-	rc = suunto_d9_read_version (device, version, sizeof (version));
-	if (rc != SUUNTO_SUCCESS) {
+	rc = device_version (device, version, sizeof (version));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
-		suunto_d9_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("suunto_d9_read_memory\n");
-	rc = suunto_d9_read_memory (device, 0x00, data, sizeof (data));
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_read\n");
+	rc = device_read (device, 0x00, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
-		suunto_d9_close (device);
+		device_close (device);
 		return rc;
 	}
 
@@ -82,30 +82,34 @@ int test_dump_memory (const char* name, const char* filename)
 		fclose (fp);
 	}
 
-	message ("suunto_d9_close\n");
-	rc = suunto_d9_close (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case SUUNTO_SUCCESS:
+	case DEVICE_STATUS_SUCCESS:
 		return "Success";
-	case SUUNTO_ERROR:
+	case DEVICE_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DEVICE_STATUS_TYPE_MISMATCH:
+		return "Device type mismatch";
+	case DEVICE_STATUS_ERROR:
 		return "Generic error";
-	case SUUNTO_ERROR_IO:
+	case DEVICE_STATUS_IO:
 		return "Input/output error";
-	case SUUNTO_ERROR_MEMORY:
+	case DEVICE_STATUS_MEMORY:
 		return "Memory error";
-	case SUUNTO_ERROR_PROTOCOL:
+	case DEVICE_STATUS_PROTOCOL:
 		return "Protocol error";
-	case SUUNTO_ERROR_TIMEOUT:
+	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";
