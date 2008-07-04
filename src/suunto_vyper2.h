@@ -5,25 +5,17 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct vyper2 vyper2;
+#include "device.h"
 
 #define SUUNTO_VYPER2_MEMORY_SIZE 0x8000
 #define SUUNTO_VYPER2_PACKET_SIZE 0x78
 #define SUUNTO_VYPER2_VERSION_SIZE 0x04
 
-int suunto_vyper2_open (vyper2 **device, const char* name);
+device_status_t
+suunto_vyper2_device_open (device_t **device, const char* name);
 
-int suunto_vyper2_close (vyper2 *device);
-
-int suunto_vyper2_read_version (vyper2 *device, unsigned char data[], unsigned int size);
-
-int suunto_vyper2_reset_maxdepth (vyper2 *device);
-
-int suunto_vyper2_read_memory (vyper2 *device, unsigned int address, unsigned char data[], unsigned int size);
-
-int suunto_vyper2_write_memory (vyper2 *device, unsigned int address, const unsigned char data[], unsigned int size);
-
-int suunto_vyper2_read_dives (vyper2 *device, dive_callback_t callback, void *userdata);
+device_status_t
+suunto_vyper2_device_reset_maxdepth (device_t *device);
 
 #ifdef __cplusplus
 }

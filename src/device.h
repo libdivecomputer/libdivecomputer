@@ -8,6 +8,7 @@ extern "C" {
 typedef enum device_type_t {
 	DEVICE_TYPE_NULL = 0,
 	DEVICE_TYPE_SUUNTO_VYPER,
+	DEVICE_TYPE_SUUNTO_VYPER2,
 	DEVICE_TYPE_SUUNTO_D9
 } device_type_t;
 
