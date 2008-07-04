@@ -9,6 +9,7 @@ typedef struct vyper2 vyper2;
 
 #define SUUNTO_VYPER2_MEMORY_SIZE 0x8000
 #define SUUNTO_VYPER2_PACKET_SIZE 0x78
+#define SUUNTO_VYPER2_VERSION_SIZE 0x04
 
 int suunto_vyper2_open (vyper2 **device, const char* name);
 

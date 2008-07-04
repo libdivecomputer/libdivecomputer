@@ -20,7 +20,7 @@ int test_dump_sdm (const char* name)
 	}
 
 	message ("suunto_vyper2_read_version\n");
-	unsigned char version[4] = {0};
+	unsigned char version[SUUNTO_VYPER2_VERSION_SIZE] = {0};
 	rc = suunto_vyper2_read_version (device, version, sizeof (version));
 	if (rc != SUUNTO_SUCCESS) {
 		WARNING ("Cannot identify computer.");
@@ -59,7 +59,7 @@ int test_dump_memory (const char* name, const char* filename)
 	}
 
 	message ("suunto_vyper2_read_version\n");
-	unsigned char version[4] = {0};
+	unsigned char version[SUUNTO_VYPER2_VERSION_SIZE] = {0};
 	rc = suunto_vyper2_read_version (device, version, sizeof (version));
 	if (rc != SUUNTO_SUCCESS) {
 		WARNING ("Cannot identify computer.");

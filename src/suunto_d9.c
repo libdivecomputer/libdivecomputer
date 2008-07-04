@@ -208,16 +208,16 @@ suunto_d9_read_version (d9 *device, unsigned char data[], unsigned int size)
 	if (device == NULL)
 		return SUUNTO_ERROR;
 
-	if (size < 4)
+	if (size < SUUNTO_D9_VERSION_SIZE)
 		return SUUNTO_ERROR_MEMORY;
 
-	unsigned char answer[4 + 4] = {0};
+	unsigned char answer[SUUNTO_D9_VERSION_SIZE + 4] = {0};
 	unsigned char command[4] = {0x0F, 0x00, 0x00, 0x0F};
 	int rc = suunto_d9_transfer (device, command, sizeof (command), answer, sizeof (answer), 4);
 	if (rc != SUUNTO_SUCCESS)
 		return rc;
 
-	memcpy (data, answer + 3, 4);
+	memcpy (data, answer + 3, SUUNTO_D9_VERSION_SIZE);
 
 #ifndef NDEBUG
 	message ("D9ReadVersion()=\"%02x %02x %02x %02x\"\n", data[0], data[1], data[2], data[3]);

@@ -9,6 +9,7 @@ typedef struct d9 d9;
 
 #define SUUNTO_D9_MEMORY_SIZE 0x8000
 #define SUUNTO_D9_PACKET_SIZE 0x78
+#define SUUNTO_D9_VERSION_SIZE 0x04
 
 int suunto_d9_open (d9 **device, const char* name);
 
