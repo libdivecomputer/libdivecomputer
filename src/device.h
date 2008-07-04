@@ -6,7 +6,8 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum device_type_t {
-	DEVICE_TYPE_NULL = 0
+	DEVICE_TYPE_NULL = 0,
+	DEVICE_TYPE_SUUNTO_VYPER
 } device_type_t;
 
 typedef enum device_status_t {

@@ -5,30 +5,28 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct vyper vyper;
+#include "device.h"
 
 #define SUUNTO_VYPER_MEMORY_SIZE 0x2000
 #define SUUNTO_VYPER_PACKET_SIZE 32
 
-int suunto_vyper_open (vyper **device, const char* name);
+device_status_t
+suunto_vyper_device_open (device_t **device, const char* name);
 
-int suunto_vyper_close (vyper *device);
+device_status_t
+suunto_vyper_device_set_delay (device_t *device, unsigned int delay);
 
-int suunto_vyper_set_delay (vyper *device, unsigned int delay);
+device_status_t
+suunto_vyper_device_detect_interface (device_t *device);
 
-int suunto_vyper_detect_interface (vyper *device);
+device_status_t
+suunto_vyper_device_read_dive (device_t *device, unsigned char data[], unsigned int size, int init);
 
-int suunto_vyper_read_dive (vyper *device, unsigned char data[], unsigned int size, int init);
+device_status_t
+suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-int suunto_vyper_read_memory (vyper *device, unsigned int address, unsigned char data[], unsigned int size);
-
-int suunto_vyper_write_memory (vyper *device, unsigned int address, const unsigned char data[], unsigned int size);
-
-int suunto_vyper_read_dives (vyper *device, dive_callback_t callback, void *userdata);
-
-int suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
-
-int suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+device_status_t
+suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

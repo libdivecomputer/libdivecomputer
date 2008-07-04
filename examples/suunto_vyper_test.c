@@ -1,8 +1,7 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 #include <stdlib.h>	// atoi
 
-#include "suunto.h"
-#include "serial.h"
+#include "suunto_vyper.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -12,70 +11,70 @@
 
 int test_dump_sdm (const char* name, unsigned int delay)
 {
-	vyper *device = NULL;
+	device_t *device = NULL;
 
-	message ("suunto_vyper_open\n");
-	int rc = suunto_vyper_open (&device, name);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_vyper_device_open\n");
+	int rc = suunto_vyper_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	suunto_vyper_set_delay (device, delay);
+	suunto_vyper_device_set_delay (device, delay);
 
-	message ("suunto_vyper_detect_interface\n");
-	rc = suunto_vyper_detect_interface (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_vyper_device_detect_interface\n");
+	rc = suunto_vyper_device_detect_interface (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Interface not found.");
-		suunto_vyper_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("suunto_vyper_read_dives\n");
-	rc = suunto_vyper_read_dives (device, NULL, NULL);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_foreach\n");
+	rc = device_foreach (device, NULL, NULL);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read dives.");
-		suunto_vyper_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("suunto_vyper_close\n");
-	rc = suunto_vyper_close (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 int test_dump_memory (const char* name, unsigned int delay, const char* filename)
 {
 	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE] = {0};
-	vyper *device = NULL;
+	device_t *device = NULL;
 
-	message ("suunto_vyper_open\n");
-	int rc = suunto_vyper_open (&device, name);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_vyper_device_open\n");
+	int rc = suunto_vyper_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	suunto_vyper_set_delay (device, delay);
+	suunto_vyper_device_set_delay (device, delay);
 
-	message ("suunto_vyper_detect_interface\n");
-	rc = suunto_vyper_detect_interface (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_vyper_device_detect_interface\n");
+	rc = suunto_vyper_device_detect_interface (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Interface not found.");
-		suunto_vyper_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("suunto_vyper_read_memory\n");
-	rc = suunto_vyper_read_memory (device, 0x00, data, sizeof (data));
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_read\n");
+	rc = device_read (device, 0x00, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
-		suunto_vyper_close (device);
+		device_close (device);
 		return rc;
 	}
 
@@ -86,30 +85,34 @@ int test_dump_memory (const char* name, unsigned int delay, const char* filename
 		fclose (fp);
 	}
 
-	message ("suunto_vyper_close\n");
-	rc = suunto_vyper_close (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case SUUNTO_SUCCESS:
+	case DEVICE_STATUS_SUCCESS:
 		return "Success";
-	case SUUNTO_ERROR:
+	case DEVICE_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DEVICE_STATUS_TYPE_MISMATCH:
+		return "Device type mismatch";
+	case DEVICE_STATUS_ERROR:
 		return "Generic error";
-	case SUUNTO_ERROR_IO:
+	case DEVICE_STATUS_IO:
 		return "Input/output error";
-	case SUUNTO_ERROR_MEMORY:
+	case DEVICE_STATUS_MEMORY:
 		return "Memory error";
-	case SUUNTO_ERROR_PROTOCOL:
+	case DEVICE_STATUS_PROTOCOL:
 		return "Protocol error";
-	case SUUNTO_ERROR_TIMEOUT:
+	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";
