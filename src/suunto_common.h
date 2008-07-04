@@ -5,9 +5,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include "suunto.h"
+#include "device.h"
 
-int suunto_common_extract_dives (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, dive_callback_t callback, void *userdata);
+device_status_t
+suunto_common_extract_dives (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

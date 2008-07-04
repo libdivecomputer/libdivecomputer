@@ -5,7 +5,7 @@
 #include "ringbuffer.h"
 
 
-int
+device_status_t
 suunto_common_extract_dives (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, dive_callback_t callback, void *userdata)
 {
 	assert (eop >= begin && eop < end);
@@ -49,5 +49,5 @@ suunto_common_extract_dives (const unsigned char data[], unsigned int begin, uns
 
 	assert (data[current] == 0x82);
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
