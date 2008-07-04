@@ -2,7 +2,8 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include "suunto.h"
+#include "device-private.h"
+#include "suunto_eon.h"
 #include "suunto_common.h"
 #include "serial.h"
 #include "utils.h"
@@ -14,28 +15,43 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? SUUNTO_ERROR_IO : SUUNTO_ERROR_TIMEOUT \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-struct eon {
+typedef struct suunto_eon_device_t suunto_eon_device_t;
+
+struct suunto_eon_device_t {
+	device_t base;
 	struct serial *port;
 };
 
+static const device_backend_t suunto_eon_device_backend;
 
-int
-suunto_eon_open (eon **out, const char* name)
+static int
+device_is_suunto_eon (device_t *abstract)
+{
+	if (abstract == NULL)
+		return 0;
+
+    return abstract->backend == &suunto_eon_device_backend;
+}
+
+
+device_status_t
+suunto_eon_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return SUUNTO_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	struct eon *device = malloc (sizeof (struct eon));
+	suunto_eon_device_t *device = malloc (sizeof (suunto_eon_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return SUUNTO_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Set the default values.
+	device->base.backend = &suunto_eon_device_backend;
 	device->port = NULL;
 
 	// Open the device.
@@ -43,7 +59,7 @@ suunto_eon_open (eon **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (1200 8N2).
@@ -52,7 +68,7 @@ suunto_eon_open (eon **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (1000ms).
@@ -60,7 +76,7 @@ suunto_eon_open (eon **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Clear the RTS line.
@@ -68,35 +84,37 @@ suunto_eon_open (eon **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
-	*out = device;
+	*out = (device_t*) device;
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_eon_close (eon *device)
+static device_status_t
+suunto_eon_device_close (device_t *abstract)
 {
-	if (device == NULL)
-		return SUUNTO_SUCCESS;
+	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
+
+	if (! device_is_suunto_eon (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return SUUNTO_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-unsigned char
+static unsigned char
 suunto_eon_checksum (unsigned char data[], unsigned int size)
 {
 	unsigned char crc = 0x00;
@@ -107,11 +125,13 @@ suunto_eon_checksum (unsigned char data[], unsigned int size)
 }
 
 
-int
-suunto_eon_read (eon *device, unsigned char data[], unsigned int size)
+static device_status_t
+suunto_eon_device_download (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
+
+	if (! device_is_suunto_eon (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the command.
 	unsigned char command[1] = {'P'};
@@ -134,28 +154,30 @@ suunto_eon_read (eon *device, unsigned char data[], unsigned int size)
 	unsigned char ccrc = suunto_eon_checksum (answer, sizeof (answer) - 1);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return SUUNTO_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
 	if (size >= SUUNTO_EON_MEMORY_SIZE) {
 		memcpy (data, answer, SUUNTO_EON_MEMORY_SIZE);
 	} else {
 		WARNING ("Insufficient buffer space available.");
-		return SUUNTO_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_eon_write_name (eon *device, unsigned char data[], unsigned int size)
+device_status_t
+suunto_eon_device_write_name (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
+
+	if (! device_is_suunto_eon (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	if (size > 20)
-		return SUUNTO_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// Send the command.
 	unsigned char command[21] = {'N'};
@@ -166,15 +188,17 @@ suunto_eon_write_name (eon *device, unsigned char data[], unsigned int size)
 		return EXITCODE (rc);
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-suunto_eon_write_interval (eon *device, unsigned char interval)
+device_status_t
+suunto_eon_device_write_interval (device_t *abstract, unsigned char interval)
 {
-	if (device == NULL)
-		return SUUNTO_ERROR;
+	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
+
+	if (! device_is_suunto_eon (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the command.
 	unsigned char command[2] = {'T', interval};
@@ -184,11 +208,11 @@ suunto_eon_write_interval (eon *device, unsigned char interval)
 		return EXITCODE (rc);
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
+device_status_t
 suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	assert (size >= SUUNTO_EON_MEMORY_SIZE);
@@ -204,3 +228,15 @@ suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 
 	return suunto_common_extract_dives (data, 0x100, SUUNTO_EON_MEMORY_SIZE, eop, 3, callback, userdata);
 }
+
+
+static const device_backend_t suunto_eon_device_backend = {
+	DEVICE_TYPE_SUUNTO_EON,
+	NULL, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	suunto_eon_device_download, /* download */
+	NULL, /* foreach */
+	suunto_eon_device_close /* close */
+};

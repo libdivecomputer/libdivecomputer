@@ -5,21 +5,21 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct eon eon;
+#include "device.h"
 
 #define SUUNTO_EON_MEMORY_SIZE 0x900
 
-int suunto_eon_open (eon **device, const char* name);
+device_status_t
+suunto_eon_device_open (device_t **device, const char* name);
 
-int suunto_eon_close (eon *device);
+device_status_t
+suunto_eon_device_write_name (device_t *device, unsigned char data[], unsigned int size);
 
-int suunto_eon_read (eon *device, unsigned char data[], unsigned int size);
+device_status_t
+suunto_eon_device_write_interval (device_t *device, unsigned char interval);
 
-int suunto_eon_write_name (eon *device, unsigned char data[], unsigned int size);
-
-int suunto_eon_write_interval (eon *device, unsigned char interval);
-
-int suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+device_status_t
+suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

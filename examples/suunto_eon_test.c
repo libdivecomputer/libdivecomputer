@@ -1,6 +1,6 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "suunto.h"
+#include "suunto_eon.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -10,21 +10,21 @@
 
 int test_dump_memory (const char* name, const char* filename)
 {
-	eon *device = NULL;
+	device_t *device = NULL;
 	unsigned char data[SUUNTO_EON_MEMORY_SIZE] = {0};
 
-	message ("suunto_eon_open\n");
-	int rc = suunto_eon_open (&device, name);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("suunto_eon_device_open\n");
+	int rc = suunto_eon_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	message ("suunto_eon_read\n");
-	rc = suunto_eon_read (device, data, sizeof (data));
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_download\n");
+	rc = device_download (device, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
-		suunto_eon_close (device);
+		device_close (device);
 		return rc;
 	}
 
@@ -35,30 +35,34 @@ int test_dump_memory (const char* name, const char* filename)
 		fclose (fp);
 	}
 
-	message ("suunto_eon_close\n");
-	rc = suunto_eon_close (device);
-	if (rc != SUUNTO_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return SUUNTO_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case SUUNTO_SUCCESS:
+	case DEVICE_STATUS_SUCCESS:
 		return "Success";
-	case SUUNTO_ERROR:
+	case DEVICE_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DEVICE_STATUS_TYPE_MISMATCH:
+		return "Device type mismatch";
+	case DEVICE_STATUS_ERROR:
 		return "Generic error";
-	case SUUNTO_ERROR_IO:
+	case DEVICE_STATUS_IO:
 		return "Input/output error";
-	case SUUNTO_ERROR_MEMORY:
+	case DEVICE_STATUS_MEMORY:
 		return "Memory error";
-	case SUUNTO_ERROR_PROTOCOL:
+	case DEVICE_STATUS_PROTOCOL:
 		return "Protocol error";
-	case SUUNTO_ERROR_TIMEOUT:
+	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";
