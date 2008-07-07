@@ -10,7 +10,8 @@ typedef enum device_type_t {
 	DEVICE_TYPE_SUUNTO_EON,
 	DEVICE_TYPE_SUUNTO_VYPER,
 	DEVICE_TYPE_SUUNTO_VYPER2,
-	DEVICE_TYPE_SUUNTO_D9
+	DEVICE_TYPE_SUUNTO_D9,
+	DEVICE_TYPE_REEFNET_SENSUSPRO
 } device_type_t;
 
 typedef enum device_status_t {

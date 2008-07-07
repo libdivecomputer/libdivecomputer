@@ -5,22 +5,19 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct sensuspro sensuspro;
+#include "device.h"
 
 #define REEFNET_SENSUSPRO_MEMORY_SIZE 56320
 #define REEFNET_SENSUSPRO_HANDSHAKE_SIZE 10
 
-int reefnet_sensuspro_open (sensuspro **device, const char* name);
+device_status_t
+reefnet_sensuspro_device_open (device_t **device, const char* name);
 
-int reefnet_sensuspro_close (sensuspro *device);
+device_status_t
+reefnet_sensuspro_write_interval (device_t *device, unsigned char interval);
 
-int reefnet_sensuspro_handshake (sensuspro *device, unsigned char data[], unsigned int size);
-
-int reefnet_sensuspro_read (sensuspro *device, unsigned char data[], unsigned int size);
-
-int reefnet_sensuspro_write_interval (sensuspro *device, unsigned char interval);
-
-int reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+device_status_t
+reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
