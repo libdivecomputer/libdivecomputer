@@ -5,17 +5,16 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct memomouse memomouse;
+#include "device.h"
 
-int uwatec_memomouse_open (memomouse **device, const char* name);
+device_status_t
+uwatec_memomouse_device_open (device_t **device, const char* name);
 
-int uwatec_memomouse_close (memomouse *device);
+device_status_t
+uwatec_memomouse_device_set_timestamp (device_t *device, unsigned int timestamp);
 
-int uwatec_memomouse_set_timestamp (memomouse *device, unsigned int timestamp);
-
-int uwatec_memomouse_read (memomouse *device, unsigned char data[], unsigned int size);
-
-int uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+device_status_t
+uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
