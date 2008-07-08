@@ -1,6 +1,6 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "uwatec.h"
+#include "uwatec_aladin.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -11,21 +11,21 @@
 
 int test_dump_memory (const char* name, const char* filename)
 {
-	aladin *device = NULL;
+	device_t *device = NULL;
 	unsigned char data[UWATEC_ALADIN_MEMORY_SIZE] = {0};
 
-	message ("uwatec_aladin_open\n");
-	int rc = uwatec_aladin_open (&device, name);
-	if (rc != UWATEC_SUCCESS) {
+	message ("uwatec_aladin_device_open\n");
+	int rc = uwatec_aladin_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	message ("uwatec_aladin_read\n");
-	rc = uwatec_aladin_read (device, data, sizeof (data));
-	if (rc != UWATEC_SUCCESS) {
+	message ("device_download\n");
+	rc = device_download (device, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
-		uwatec_aladin_close (device);
+		device_close (device);
 		return rc;
 	}
 
@@ -36,31 +36,35 @@ int test_dump_memory (const char* name, const char* filename)
 		fclose (fp);
 	}
 
-	message ("uwatec_aladin_close\n");
-	rc = uwatec_aladin_close (device);
-	if (rc != UWATEC_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case UWATEC_SUCCESS:
+	case DEVICE_STATUS_SUCCESS:
 		return "Success";
-	case UWATEC_ERROR:
+	case DEVICE_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DEVICE_STATUS_TYPE_MISMATCH:
+		return "Device type mismatch";
+	case DEVICE_STATUS_ERROR:
 		return "Generic error";
-	case UWATEC_ERROR_IO:
+	case DEVICE_STATUS_IO:
 		return "Input/output error";
-	case UWATEC_ERROR_MEMORY:
+	case DEVICE_STATUS_MEMORY:
 		return "Memory error";
-	case UWATEC_ERROR_PROTOCOL:
+	case DEVICE_STATUS_PROTOCOL:
 		return "Protocol error";
-	case UWATEC_ERROR_TIMEOUT:
+	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";

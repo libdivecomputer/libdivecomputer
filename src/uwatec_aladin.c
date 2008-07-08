@@ -1,7 +1,8 @@
 #include <stdlib.h> // malloc, free
 #include <memory.h> // memcpy
 
-#include "uwatec.h"
+#include "device-private.h"
+#include "uwatec_aladin.h"
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
@@ -13,30 +14,46 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? UWATEC_ERROR_IO : UWATEC_ERROR_TIMEOUT \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
 #define DISTANCE(a,b) ringbuffer_distance (a, b, 0, 0x600)
 
-struct aladin {
+
+typedef struct uwatec_aladin_device_t uwatec_aladin_device_t;
+
+struct uwatec_aladin_device_t {
+	device_t base;
 	struct serial *port;
 };
 
+static const device_backend_t uwatec_aladin_device_backend;
 
-int
-uwatec_aladin_open (aladin **out, const char* name)
+static int
+device_is_uwatec_aladin (device_t *abstract)
+{
+	if (abstract == NULL)
+		return 0;
+
+    return abstract->backend == &uwatec_aladin_device_backend;
+}
+
+
+device_status_t
+uwatec_aladin_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return UWATEC_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	struct aladin *device = malloc (sizeof (struct aladin));
+	uwatec_aladin_device_t *device = malloc (sizeof (uwatec_aladin_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Set the default values.
+	device->base.backend = &uwatec_aladin_device_backend;
 	device->port = NULL;
 
 	// Open the device.
@@ -44,7 +61,7 @@ uwatec_aladin_open (aladin **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (19200 8N1).
@@ -53,7 +70,7 @@ uwatec_aladin_open (aladin **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (INFINITE).
@@ -61,7 +78,7 @@ uwatec_aladin_open (aladin **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Clear the RTS line and set the DTR line.
@@ -70,31 +87,33 @@ uwatec_aladin_open (aladin **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
-	*out = device;
+	*out = (device_t*) device;
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-uwatec_aladin_close (aladin *device)
+static device_status_t
+uwatec_aladin_device_close (device_t *abstract)
 {
-	if (device == NULL)
-		return UWATEC_SUCCESS;
+	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
+
+	if (! device_is_uwatec_aladin (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -138,11 +157,13 @@ uwatec_aladin_checksum (unsigned char data[], unsigned int size)
 }
 
 
-int
-uwatec_aladin_read (aladin *device, unsigned char data[], unsigned int size)
+static device_status_t
+uwatec_aladin_device_download (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return UWATEC_ERROR;
+	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
+
+	if (! device_is_uwatec_aladin (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	unsigned char answer[UWATEC_ALADIN_MEMORY_SIZE + 2] = {0};
 
@@ -177,27 +198,27 @@ uwatec_aladin_read (aladin *device, unsigned char data[], unsigned int size)
 	unsigned short ccrc = uwatec_aladin_checksum (answer, UWATEC_ALADIN_MEMORY_SIZE);
 	if (ccrc != crc) {
 		WARNING ("Unexpected answer CRC.");
-		return UWATEC_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
 	if (size >= UWATEC_ALADIN_MEMORY_SIZE) {
 		memcpy (data, answer, UWATEC_ALADIN_MEMORY_SIZE);
 	} else {
 		WARNING ("Insufficient buffer space available.");
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
 #define HEADER 4
 
-int
+device_status_t
 uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata)
 {
 	if (size < UWATEC_ALADIN_MEMORY_SIZE)
-		return UWATEC_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// The logbook ring buffer can store up to 37 dives. But
 	// if the total number of dives is less, not all logbook
@@ -291,5 +312,17 @@ uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_
 			callback (buffer, len + 18, userdata);
 	}
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
+
+
+static const device_backend_t uwatec_aladin_device_backend = {
+	DEVICE_TYPE_UWATEC_ALADIN,
+	NULL, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	uwatec_aladin_device_download, /* download */
+	NULL, /* foreach */
+	uwatec_aladin_device_close /* close */
+};
