@@ -5,24 +5,19 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct atom2 atom2;
+#include "device.h"
 
 #define OCEANIC_ATOM2_MEMORY_SIZE 0xFFF0
 #define OCEANIC_ATOM2_PACKET_SIZE 0x10
 
-int oceanic_atom2_open (atom2 **device, const char* name);
+device_status_t
+oceanic_atom2_device_open (device_t **device, const char* name);
 
-int oceanic_atom2_close (atom2 *device);
+device_status_t
+oceanic_atom2_device_handshake (device_t *device);
 
-int oceanic_atom2_handshake (atom2 *device);
-
-int oceanic_atom2_quit (atom2 *device);
-
-int oceanic_atom2_read_version (atom2 *device, unsigned char data[], unsigned int size);
-
-int oceanic_atom2_read_memory (atom2 *device, unsigned int address, unsigned char data[], unsigned int size);
-
-int oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdata);
+device_status_t
+oceanic_atom2_device_quit (device_t *device);
 
 #ifdef __cplusplus
 }

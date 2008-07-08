@@ -1,6 +1,6 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "oceanic.h"
+#include "oceanic_atom2.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -11,37 +11,37 @@
 int test_dump_memory (const char* name, const char* filename)
 {
 	unsigned char data[OCEANIC_ATOM2_MEMORY_SIZE] = {0};
-	atom2 *device = NULL;
+	device_t *device = NULL;
 
-	message ("oceanic_atom2_open\n");
-	int rc = oceanic_atom2_open (&device, name);
-	if (rc != OCEANIC_SUCCESS) {
+	message ("oceanic_atom2_device_open\n");
+	int rc = oceanic_atom2_device_open (&device, name);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
 	}
 
-	message ("oceanic_atom2_handshake\n");
-	rc = oceanic_atom2_handshake (device);
-	if (rc != OCEANIC_SUCCESS) {
+	message ("oceanic_atom2_device_handshake\n");
+	rc = oceanic_atom2_device_handshake (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Handshake failed.");
-		oceanic_atom2_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("oceanic_atom2_read_version\n");
+	message ("device_version\n");
 	unsigned char version[OCEANIC_ATOM2_PACKET_SIZE] = {0};
-	rc = oceanic_atom2_read_version (device, version, sizeof (version));
-	if (rc != OCEANIC_SUCCESS) {
+	rc = device_version (device, version, sizeof (version));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
-		oceanic_atom2_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("oceanic_atom2_read_memory\n");
-	rc = oceanic_atom2_read_memory (device, 0x00, data, sizeof (data));
-	if (rc != OCEANIC_SUCCESS) {
+	message ("device_read\n");
+	rc = device_read (device, 0x00, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
-		oceanic_atom2_close (device);
+		device_close (device);
 		return rc;
 	}
 
@@ -52,46 +52,50 @@ int test_dump_memory (const char* name, const char* filename)
 		fclose (fp);
 	}
 
-	message ("oceanic_atom2_read_dives\n");
-	rc = oceanic_atom2_read_dives (device, NULL, NULL);
-	if (rc != OCEANIC_SUCCESS) {
+	message ("device_foreach\n");
+	rc = device_foreach (device, NULL, NULL);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read dives.");
-		oceanic_atom2_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("oceanic_atom2_quit\n");
-	rc = oceanic_atom2_quit (device);
-	if (rc != OCEANIC_SUCCESS) {
+	message ("oceanic_atom2_device_quit\n");
+	rc = oceanic_atom2_device_quit (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Quit failed.");
-		oceanic_atom2_close (device);
+		device_close (device);
 		return rc;
 	}
 
-	message ("oceanic_atom2_close\n");
-	rc = oceanic_atom2_close (device);
-	if (rc != OCEANIC_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case OCEANIC_SUCCESS:
+	case DEVICE_STATUS_SUCCESS:
 		return "Success";
-	case OCEANIC_ERROR:
+	case DEVICE_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DEVICE_STATUS_TYPE_MISMATCH:
+		return "Device type mismatch";
+	case DEVICE_STATUS_ERROR:
 		return "Generic error";
-	case OCEANIC_ERROR_IO:
+	case DEVICE_STATUS_IO:
 		return "Input/output error";
-	case OCEANIC_ERROR_MEMORY:
+	case DEVICE_STATUS_MEMORY:
 		return "Memory error";
-	case OCEANIC_ERROR_PROTOCOL:
+	case DEVICE_STATUS_PROTOCOL:
 		return "Protocol error";
-	case OCEANIC_ERROR_TIMEOUT:
+	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";

@@ -2,7 +2,8 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include "oceanic.h"
+#include "device-private.h"
+#include "oceanic_atom2.h"
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
@@ -16,7 +17,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? OCEANIC_ERROR_IO : OCEANIC_ERROR_TIMEOUT \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
 #define ACK 0x5A
@@ -39,9 +40,23 @@
 #define PT_PROFILE_LAST(x)			( ((x)[6] >> 4) + ((x)[7] << 4) )
 
 
-struct atom2 {
+typedef struct oceanic_atom2_device_t oceanic_atom2_device_t;
+
+struct oceanic_atom2_device_t {
+	device_t base;
 	struct serial *port;
 };
+
+static const device_backend_t oceanic_atom2_device_backend;
+
+static int
+device_is_oceanic_atom2 (device_t *abstract)
+{
+	if (abstract == NULL)
+		return 0;
+
+    return abstract->backend == &oceanic_atom2_device_backend;
+}
 
 
 static unsigned char
@@ -55,20 +70,20 @@ oceanic_atom2_checksum (const unsigned char data[], unsigned int size, unsigned 
 }
 
 
-static int
-oceanic_atom2_send (atom2 *device, const unsigned char command[], unsigned int csize)
+static device_status_t
+oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize)
 {
 	// Send the command to the dive computer and 
 	// wait until all data has been transmitted.
 	serial_write (device->port, command, csize);
 	serial_drain (device->port);
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-static int
-oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+static device_status_t
+oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
 	// Send the command to the device. If the device responds with an
 	// ACK byte, the command was received successfully and the answer
@@ -81,7 +96,7 @@ oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned i
 	while (response == NAK) {
 		// Send the command to the dive computer.
 		int rc = oceanic_atom2_send (device, command, csize);
-		if (rc != OCEANIC_SUCCESS) {
+		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Failed to send the command.");
 			return rc;
 		}
@@ -106,7 +121,7 @@ oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned i
 	// Verify the response of the dive computer.
 	if (response != ACK) {
 		WARNING ("Unexpected answer start byte(s).");
-		return OCEANIC_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
 	if (asize) {
@@ -122,28 +137,29 @@ oceanic_atom2_transfer (atom2 *device, const unsigned char command[], unsigned i
 		unsigned char ccrc = oceanic_atom2_checksum (answer, asize - 1, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
-			return OCEANIC_ERROR_PROTOCOL;
+			return DEVICE_STATUS_PROTOCOL;
 		}
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_open (atom2 **out, const char* name)
+device_status_t
+oceanic_atom2_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return OCEANIC_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	struct atom2 *device = malloc (sizeof (struct atom2));
+	oceanic_atom2_device_t *device = malloc (sizeof (oceanic_atom2_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return OCEANIC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Set the default values.
+	device->base.backend = &oceanic_atom2_device_backend;
 	device->port = NULL;
 
 	// Open the device.
@@ -151,7 +167,7 @@ oceanic_atom2_open (atom2 **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return OCEANIC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (38400 8N1).
@@ -160,7 +176,7 @@ oceanic_atom2_open (atom2 **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return OCEANIC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
@@ -168,7 +184,7 @@ oceanic_atom2_open (atom2 **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return OCEANIC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -177,41 +193,45 @@ oceanic_atom2_open (atom2 **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = device;
+	*out = (device_t*) device;
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_close (atom2 *device)
+static device_status_t
+oceanic_atom2_device_close (device_t *abstract)
 {
-	if (device == NULL)
-		return OCEANIC_SUCCESS;
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return OCEANIC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_handshake (atom2 *device)
+device_status_t
+oceanic_atom2_device_handshake (device_t *abstract)
 {
-	if (device == NULL)
-		return OCEANIC_ERROR;
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the command to the dive computer.
 	unsigned char command[3] = {0xA8, 0x99, 0x00};
 	int rc = oceanic_atom2_send (device, command, sizeof (command));
-	if (rc != OCEANIC_SUCCESS) {
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Failed to send the command.");
 		return rc;
 	}
@@ -227,23 +247,25 @@ oceanic_atom2_handshake (atom2 *device)
 	// Verify the answer.
 	if (answer[0] != NAK || answer[1] != NAK || answer[2] != NAK) {
 		WARNING ("Unexpected answer byte(s).");
-		return OCEANIC_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_quit (atom2 *device)
+device_status_t
+oceanic_atom2_device_quit (device_t *abstract)
 {
-	if (device == NULL)
-		return OCEANIC_ERROR;
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the command to the dive computer.
 	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
 	int rc = oceanic_atom2_send (device, command, sizeof (command));
-	if (rc != OCEANIC_SUCCESS) {
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Failed to send the command.");
 		return rc;
 	}
@@ -259,26 +281,28 @@ oceanic_atom2_quit (atom2 *device)
 	// Verify the answer.
 	if (answer[0] != 0xA5) {
 		WARNING ("Unexpected answer byte(s).");
-		return OCEANIC_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_read_version (atom2 *device, unsigned char data[], unsigned int size)
+static device_status_t
+oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return OCEANIC_ERROR;
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	if (size < OCEANIC_ATOM2_PACKET_SIZE)
-		return OCEANIC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 
 	unsigned char answer[OCEANIC_ATOM2_PACKET_SIZE + 1] = {0};
 	unsigned char command[2] = {0x84, 0x00};
 	int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
-	if (rc != OCEANIC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	memcpy (data, answer, OCEANIC_ATOM2_PACKET_SIZE);
@@ -288,15 +312,17 @@ oceanic_atom2_read_version (atom2 *device, unsigned char data[], unsigned int si
 	message ("ATOM2ReadVersion()=\"%s\"\n", answer);
 #endif
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_read_memory (atom2 *device, unsigned int address, unsigned char data[], unsigned int size)
+static device_status_t
+oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return OCEANIC_ERROR;
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	assert (address % OCEANIC_ATOM2_PACKET_SIZE == 0);
 	assert (size    % OCEANIC_ATOM2_PACKET_SIZE == 0);
@@ -314,7 +340,7 @@ oceanic_atom2_read_memory (atom2 *device, unsigned int address, unsigned char da
 				(number     ) & 0xFF, // low
 				0};
 		int rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
-		if (rc != OCEANIC_SUCCESS)
+		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
 		memcpy (data, answer, OCEANIC_ATOM2_PACKET_SIZE);
@@ -332,12 +358,12 @@ oceanic_atom2_read_memory (atom2 *device, unsigned int address, unsigned char da
 		data += OCEANIC_ATOM2_PACKET_SIZE;
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-static int
-oceanic_atom2_read_ringbuffer (atom2 *device, unsigned int address, unsigned char data[], unsigned int size, unsigned int begin, unsigned int end)
+static device_status_t
+oceanic_atom2_read_ringbuffer (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, unsigned int begin, unsigned int end)
 {
 	assert (address >= begin && address < end);
 	assert (size <= end - begin);
@@ -346,33 +372,33 @@ oceanic_atom2_read_ringbuffer (atom2 *device, unsigned int address, unsigned cha
 		unsigned int a = end - address;
 		unsigned int b = size - a;
 
-		int rc = oceanic_atom2_read_memory (device, address, data, a);
-		if (rc != OCEANIC_SUCCESS)
+		int rc = oceanic_atom2_device_read (abstract, address, data, a);
+		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
-		rc = oceanic_atom2_read_memory (device, begin, data + a, b);
-		if (rc != OCEANIC_SUCCESS) 
+		rc = oceanic_atom2_device_read (abstract, begin, data + a, b);
+		if (rc != DEVICE_STATUS_SUCCESS) 
 			return rc;
 	} else {
-		int rc = oceanic_atom2_read_memory (device, address, data, size);
-		if (rc != OCEANIC_SUCCESS) 
+		int rc = oceanic_atom2_device_read (abstract, address, data, size);
+		if (rc != DEVICE_STATUS_SUCCESS) 
 			return rc;
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdata)
+static device_status_t
+oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	if (device == NULL)
-		return OCEANIC_ERROR;
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Read the pointer data.
 	unsigned char pointers[OCEANIC_ATOM2_PACKET_SIZE] = {0};
-	int rc = oceanic_atom2_read_memory (device, 0x0040, pointers, OCEANIC_ATOM2_PACKET_SIZE);
-	if (rc != OCEANIC_SUCCESS) {
+	int rc = oceanic_atom2_device_read (abstract, 0x0040, pointers, OCEANIC_ATOM2_PACKET_SIZE);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read pointers.");
 		return rc;
 	}
@@ -389,7 +415,7 @@ oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdat
 	// to indicate an empty buffer. With this knowledge, we can detect
 	// the difference between both cases correctly.
 	if (logbook_first == RB_LOGBOOK_EMPTY && logbook_last == RB_LOGBOOK_EMPTY)
-		return OCEANIC_SUCCESS;
+		return DEVICE_STATUS_SUCCESS;
 
 	unsigned int logbook_count = RB_LOGBOOK_DISTANCE (logbook_first, logbook_last) / 
 		(OCEANIC_ATOM2_PACKET_SIZE / 2) + 1;
@@ -405,8 +431,8 @@ oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdat
 
 	// Read the logbook data.
 	unsigned char logbooks[RB_LOGBOOK_END - RB_LOGBOOK_BEGIN] = {0};
-	rc = oceanic_atom2_read_ringbuffer (device, logbook_page_first, logbooks, logbook_page_len, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END);
-	if (rc != OCEANIC_SUCCESS) {
+	rc = oceanic_atom2_read_ringbuffer (abstract, logbook_page_first, logbooks, logbook_page_len, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read dive logbooks.");
 		return rc;
 	}
@@ -427,8 +453,8 @@ oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdat
 
 		// Read the profile data.
 		unsigned char profile[RB_PROFILE_END - RB_PROFILE_BEGIN + 8] = {0};
-		rc = oceanic_atom2_read_ringbuffer (device, profile_first, profile + 8, profile_len, RB_PROFILE_BEGIN, RB_PROFILE_END);
-		if (rc != OCEANIC_SUCCESS) {
+		rc = oceanic_atom2_read_ringbuffer (abstract, profile_first, profile + 8, profile_len, RB_PROFILE_BEGIN, RB_PROFILE_END);
+		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Cannot read dive profiles.");
 			return rc;
 		}
@@ -443,5 +469,17 @@ oceanic_atom2_read_dives (atom2 *device, dive_callback_t callback, void *userdat
 		current -= (OCEANIC_ATOM2_PACKET_SIZE / 2);
 	}
 
-	return OCEANIC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
+
+
+static const device_backend_t oceanic_atom2_device_backend = {
+	DEVICE_TYPE_OCEANIC_ATOM2,
+	NULL, /* handshake */
+	oceanic_atom2_device_version, /* version */
+	oceanic_atom2_device_read, /* read */
+	NULL, /* write */
+	NULL, /* download */
+	oceanic_atom2_device_foreach, /* foreach */
+	oceanic_atom2_device_close /* close */
+};
