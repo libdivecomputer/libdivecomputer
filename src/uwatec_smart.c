@@ -3,7 +3,8 @@
 #include <time.h>	// time, strftime
 #include <assert.h>	// assert
 
-#include "uwatec.h"
+#include "device-private.h"
+#include "uwatec_smart.h"
 #include "irda.h"
 #include "utils.h"
 
@@ -14,14 +15,28 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? UWATEC_ERROR_IO : UWATEC_ERROR_TIMEOUT \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-struct smart {
+typedef struct uwatec_smart_device_t uwatec_smart_device_t;
+
+struct uwatec_smart_device_t {
+	device_t base;
 	struct irda *socket;
 	unsigned int address;
 	unsigned int timestamp;
 };
+
+static const device_backend_t uwatec_smart_device_backend;
+
+static int
+device_is_uwatec_smart (device_t *abstract)
+{
+	if (abstract == NULL)
+		return 0;
+
+    return abstract->backend == &uwatec_smart_device_backend;
+}
 
 
 static void
@@ -29,7 +44,7 @@ uwatec_smart_discovery (unsigned int address, const char *name, unsigned int cha
 {
 	message ("device: address=%08x, name=%s, charset=%02x, hints=%04x\n", address, name, charset, hints);
 
-	smart *device = (smart *) userdata;
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) userdata;
 	if (device == NULL)
 		return;
 
@@ -49,20 +64,21 @@ uwatec_smart_discovery (unsigned int address, const char *name, unsigned int cha
 }
 
 
-int
-uwatec_smart_open (smart **out)
+device_status_t
+uwatec_smart_device_open (device_t **out)
 {
 	if (out == NULL)
-		return UWATEC_ERROR;
+		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	struct smart *device = malloc (sizeof (struct smart));
+	uwatec_smart_device_t *device = malloc (sizeof (uwatec_smart_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Set the default values.
+	device->base.backend = &uwatec_smart_device_backend;
 	device->socket = NULL;
 	device->address = 0;
 	device->timestamp = 0;
@@ -75,7 +91,7 @@ uwatec_smart_open (smart **out)
 		WARNING ("Failed to open the irda socket.");
 		irda_cleanup ();
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	// Discover the device.
@@ -85,7 +101,7 @@ uwatec_smart_open (smart **out)
 		irda_socket_close (device->socket);
 		irda_cleanup ();
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	if (device->address == 0) {
@@ -93,7 +109,7 @@ uwatec_smart_open (smart **out)
 		irda_socket_close (device->socket);
 		irda_cleanup ();
 		free (device);
-		return UWATEC_ERROR;
+		return DEVICE_STATUS_ERROR;
 	}
 
 	// Connect the device.
@@ -103,26 +119,28 @@ uwatec_smart_open (smart **out)
 		irda_socket_close (device->socket);
 		irda_cleanup ();
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
-	*out = device;
+	*out = (device_t*) device;
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-uwatec_smart_close (smart *device)
+static device_status_t
+uwatec_smart_device_close (device_t *abstract)
 {
-	if (device == NULL)
-		return UWATEC_SUCCESS;
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Close the device.
 	if (irda_socket_close (device->socket) == -1) {
 		irda_cleanup ();
 		free (device);
-		return UWATEC_ERROR_IO;
+		return DEVICE_STATUS_IO;
 	}
 
 	irda_cleanup ();
@@ -130,24 +148,26 @@ uwatec_smart_close (smart *device)
 	// Free memory.	
 	free (device);
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-uwatec_smart_set_timestamp (smart *device, unsigned int timestamp)
+device_status_t
+uwatec_smart_device_set_timestamp (device_t *abstract, unsigned int timestamp)
 {
-	if (device == NULL)
-		return UWATEC_ERROR;
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	device->timestamp = timestamp;
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-static int
-uwatec_smart_transfer (smart *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+static device_status_t
+uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
 	int rc = irda_socket_write (device->socket, command, csize);
 	if (rc != csize) {
@@ -161,15 +181,17 @@ uwatec_smart_transfer (smart *device, const unsigned char command[], unsigned in
 		return EXITCODE (rc);
 	}
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-uwatec_smart_handshake (smart *device)
+device_status_t
+uwatec_smart_device_handshake (device_t *abstract)
 {
-	if (device == NULL)
-		return UWATEC_ERROR;
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	unsigned char command[5] = {0};
 	unsigned char answer[1] = {0};
@@ -179,14 +201,14 @@ uwatec_smart_handshake (smart *device)
 	command[0] = 0x1B;
 
 	int rc = uwatec_smart_transfer (device, command, 1, answer, 1);
-	if (rc != UWATEC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	message ("handshake: header=%02x\n", answer[0]);
 
 	if (answer[0] != 0x01) {
 		WARNING ("Unexpected answer byte(s).");
-		return UWATEC_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
 	// Handshake (stage 2).
@@ -198,25 +220,27 @@ uwatec_smart_handshake (smart *device)
 	command[4] = 0;
 
 	rc = uwatec_smart_transfer (device, command, 5, answer, 1);
-	if (rc != UWATEC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	message ("handshake: header=%02x\n", answer[0]);
 
 	if (answer[0] != 0x01) {
 		WARNING ("Unexpected answer byte(s).");
-		return UWATEC_ERROR_PROTOCOL;
+		return DEVICE_STATUS_PROTOCOL;
 	}
 	
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-uwatec_smart_version (smart *device, unsigned char data[], unsigned int size)
+device_status_t
+uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return UWATEC_ERROR;
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	unsigned char command[1] = {0};
 	unsigned char answer[UWATEC_SMART_VERSION_SIZE] = {0};
@@ -226,7 +250,7 @@ uwatec_smart_version (smart *device, unsigned char data[], unsigned int size)
 	command[0] = 0x1A;
 
 	int rc = uwatec_smart_transfer (device, command, 1, answer + 0, 4);
-	if (rc != UWATEC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	time_t device_time = answer[0] + (answer[1] << 8) + 
@@ -245,7 +269,7 @@ uwatec_smart_version (smart *device, unsigned char data[], unsigned int size)
 	command[0] = 0x14;
 
 	rc = uwatec_smart_transfer (device, command, 1, answer + 4, 4);
-	if (rc != UWATEC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	unsigned int serial = answer[4] + (answer[5] << 8) + 
@@ -257,7 +281,7 @@ uwatec_smart_version (smart *device, unsigned char data[], unsigned int size)
 	command[0] = 0x10;
 
 	rc = uwatec_smart_transfer (device, command, 1, answer + 8, 1);
-	if (rc != UWATEC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	message ("handshake: model=0x%02x\n", answer[8]);
@@ -266,18 +290,20 @@ uwatec_smart_version (smart *device, unsigned char data[], unsigned int size)
 		memcpy (data, answer, UWATEC_SMART_VERSION_SIZE);
 	} else {
 		WARNING ("Insufficient buffer space available.");
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
-int
-uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
+static device_status_t
+uwatec_smart_device_download (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (device == NULL)
-		return UWATEC_ERROR;
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	unsigned char command[9] = {0};
 	unsigned char answer[4] = {0};
@@ -295,7 +321,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	command[8] = 0;
 
 	int rc = uwatec_smart_transfer (device, command, 9, answer, 4);
-	if (rc != UWATEC_SUCCESS)
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	unsigned int length = answer[0] + (answer[1] << 8) + 
@@ -308,7 +334,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	unsigned char *package = malloc (length * sizeof (unsigned char));
 	if (package == NULL) {
 		WARNING ("Memory allocation error.");
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Data.
@@ -324,7 +350,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 	command[8] = 0;
 
 	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
-	if (rc != UWATEC_SUCCESS) {
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		free (package);
 		return rc;
 	}
@@ -354,7 +380,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 		memcpy (data, package, length);
 	} else {
 		WARNING ("Insufficient buffer space available.");
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	free (package);
@@ -363,7 +389,7 @@ uwatec_smart_read (smart *device, unsigned char data[], unsigned int size)
 }
 
 
-int
+device_status_t
 uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	const unsigned char header[4] = {0xa5, 0xa5, 0x5a, 0x5a};
@@ -380,7 +406,7 @@ uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_
 
 			// Check for a buffer overflow.
 			if (current + len > previous)
-				return UWATEC_ERROR;
+				return DEVICE_STATUS_ERROR;
 
 			if (callback)
 				callback (data + current, len, userdata);
@@ -391,5 +417,17 @@ uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_
 		}
 	}
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
+
+
+static const device_backend_t uwatec_smart_device_backend = {
+	DEVICE_TYPE_UWATEC_SMART,
+	NULL, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	uwatec_smart_device_download, /* download */
+	NULL, /* foreach */
+	uwatec_smart_device_close /* close */
+};

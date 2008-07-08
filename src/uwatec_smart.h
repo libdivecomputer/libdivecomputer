@@ -5,23 +5,24 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct smart smart;
+#include "device.h"
 
 #define UWATEC_SMART_VERSION_SIZE 9
 
-int uwatec_smart_open (smart **device);
+device_status_t
+uwatec_smart_device_open (device_t **device);
 
-int uwatec_smart_close (smart *device);
+device_status_t
+uwatec_smart_device_set_timestamp (device_t *device, unsigned int timestamp);
 
-int uwatec_smart_set_timestamp (smart *device, unsigned int timestamp);
+device_status_t
+uwatec_smart_device_handshake (device_t *device);
 
-int uwatec_smart_handshake (smart *device);
+device_status_t
+uwatec_smart_device_version (device_t *device, unsigned char data[], unsigned int size);
 
-int uwatec_smart_version (smart *device, unsigned char data[], unsigned int size);
-
-int uwatec_smart_read (smart *device, unsigned char data[], unsigned int size);
-
-int uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+device_status_t
+uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

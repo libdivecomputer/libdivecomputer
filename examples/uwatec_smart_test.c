@@ -2,7 +2,7 @@
 #include <stdlib.h>	// malloc, free
 #include <string.h>	// memset
 
-#include "uwatec.h"
+#include "uwatec_smart.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -13,46 +13,46 @@
 
 int test_dump_memory (const char* filename)
 {
-	smart *device = NULL;
+	device_t *device = NULL;
 
 	const unsigned int size = 2 * 1024 * 1024;
 	unsigned char *data = malloc (size * sizeof (unsigned char));
 	if (data == NULL)
-		return UWATEC_ERROR_MEMORY;
+		return DEVICE_STATUS_MEMORY;
 	memset (data, 0, size * sizeof (unsigned char));
 
-	message ("uwatec_smart_open\n");
-	int rc = uwatec_smart_open (&device);
-	if (rc != UWATEC_SUCCESS) {
+	message ("uwatec_smart_device_open\n");
+	int rc = uwatec_smart_device_open (&device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot open device.");
 		free (data);
 		return rc;
 	}
 
-	message ("uwatec_smart_handshake\n");
-	rc = uwatec_smart_handshake (device);
-	if (rc != UWATEC_SUCCESS) {
+	message ("uwatec_smart_device_handshake\n");
+	rc = uwatec_smart_device_handshake (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Handshake failed.");
-		uwatec_smart_close (device);
+		device_close (device);
 		free (data);
 		return rc;
 	}
 
-	message ("uwatec_smart_version\n");
+	message ("uwatec_smart_device_version\n");
 	unsigned char version[UWATEC_SMART_VERSION_SIZE] = {0};
-	rc = uwatec_smart_version (device, version, sizeof (version));
-	if (rc != UWATEC_SUCCESS) {
+	rc = uwatec_smart_device_version (device, version, sizeof (version));
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
-		uwatec_smart_close (device);
+		device_close (device);
 		free (data);
 		return rc;
 	}
 
-	message ("uwatec_smart_read\n");
-	rc = uwatec_smart_read (device, data, size);
+	message ("device_download\n");
+	rc = device_download (device, data, size);
 	if (rc < 0) {
 		WARNING ("Cannot read data.");
-		uwatec_smart_close (device);
+		device_close (device);
 		free (data);
 		return rc;
 	}
@@ -64,9 +64,9 @@ int test_dump_memory (const char* filename)
 		fclose (fp);
 	}
 
-	message ("uwatec_smart_close\n");
-	rc = uwatec_smart_close (device);
-	if (rc != UWATEC_SUCCESS) {
+	message ("device_close\n");
+	rc = device_close (device);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		free (data);
 		return rc;
@@ -74,24 +74,28 @@ int test_dump_memory (const char* filename)
 
 	free (data);
 
-	return UWATEC_SUCCESS;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
 const char* errmsg (int rc)
 {
 	switch (rc) {
-	case UWATEC_SUCCESS:
+	case DEVICE_STATUS_SUCCESS:
 		return "Success";
-	case UWATEC_ERROR:
+	case DEVICE_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DEVICE_STATUS_TYPE_MISMATCH:
+		return "Device type mismatch";
+	case DEVICE_STATUS_ERROR:
 		return "Generic error";
-	case UWATEC_ERROR_IO:
+	case DEVICE_STATUS_IO:
 		return "Input/output error";
-	case UWATEC_ERROR_MEMORY:
+	case DEVICE_STATUS_MEMORY:
 		return "Memory error";
-	case UWATEC_ERROR_PROTOCOL:
+	case DEVICE_STATUS_PROTOCOL:
 		return "Protocol error";
-	case UWATEC_ERROR_TIMEOUT:
+	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
 	default:
 		return "Unknown error";
