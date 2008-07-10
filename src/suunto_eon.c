@@ -164,7 +164,7 @@ suunto_eon_device_download (device_t *abstract, unsigned char data[], unsigned i
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return SUUNTO_EON_MEMORY_SIZE;
 }
 
 

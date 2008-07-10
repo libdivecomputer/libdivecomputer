@@ -260,7 +260,7 @@ reefnet_sensuspro_device_download (device_t *abstract, unsigned char *data, unsi
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return REEFNET_SENSUSPRO_MEMORY_SIZE;
 }
 
 

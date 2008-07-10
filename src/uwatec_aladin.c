@@ -208,7 +208,7 @@ uwatec_aladin_device_download (device_t *abstract, unsigned char data[], unsigne
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return UWATEC_ALADIN_MEMORY_SIZE;
 }
 
 

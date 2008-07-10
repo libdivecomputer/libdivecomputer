@@ -402,7 +402,7 @@ reefnet_sensusultra_device_download (device_t *abstract, unsigned char *data, un
 		npages++;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
 }
 
 
