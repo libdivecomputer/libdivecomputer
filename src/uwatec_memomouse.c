@@ -381,6 +381,10 @@ uwatec_memomouse_device_download (device_t *abstract, unsigned char data[], unsi
 	command[8] = uwatec_memomouse_checksum (command, 8, 0x00);
 	uwatec_memomouse_reverse (command, sizeof (command));
 
+	// Wait a small amount of time before sending the command.
+	// Without this delay, the transfer will fail most of the time.
+	serial_sleep (50);
+
 	// Keep send the command to the device, 
 	// until the ACK answer is received.
 	unsigned char answer = NAK;
