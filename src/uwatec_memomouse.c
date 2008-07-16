@@ -329,7 +329,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 
 	// Copy the package to the output buffer.
 	if (total - 3 <= size) {
-		memcpy (data, buffer + 1, total - 3);
+		memcpy (data, buffer + 2, total - 3);
 	} else {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
