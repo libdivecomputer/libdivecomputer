@@ -126,7 +126,7 @@ suunto_eon_checksum (unsigned char data[], unsigned int size)
 
 
 static device_status_t
-suunto_eon_device_download (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
@@ -236,7 +236,7 @@ static const device_backend_t suunto_eon_device_backend = {
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
-	suunto_eon_device_download, /* download */
+	suunto_eon_device_dump, /* dump */
 	NULL, /* foreach */
 	suunto_eon_device_close /* close */
 };

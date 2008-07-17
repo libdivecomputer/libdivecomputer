@@ -298,7 +298,7 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 
 
 static device_status_t
-uwatec_smart_device_download (device_t *abstract, unsigned char data[], unsigned int size)
+uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
 
@@ -427,7 +427,7 @@ static const device_backend_t uwatec_smart_device_backend = {
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
-	uwatec_smart_device_download, /* download */
+	uwatec_smart_device_dump, /* dump */
 	NULL, /* foreach */
 	uwatec_smart_device_close /* close */
 };

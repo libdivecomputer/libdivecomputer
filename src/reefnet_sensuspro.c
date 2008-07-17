@@ -214,7 +214,7 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 
 
 static device_status_t
-reefnet_sensuspro_device_download (device_t *abstract, unsigned char *data, unsigned int size)
+reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned int size)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
@@ -343,7 +343,7 @@ static const device_backend_t reefnet_sensuspro_device_backend = {
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
-	reefnet_sensuspro_device_download, /* download */
+	reefnet_sensuspro_device_dump, /* dump */
 	NULL, /* foreach */
 	reefnet_sensuspro_device_close /* close */
 };

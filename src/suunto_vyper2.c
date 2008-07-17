@@ -479,7 +479,7 @@ static const device_backend_t suunto_vyper2_device_backend = {
 	suunto_vyper2_device_version, /* version */
 	suunto_vyper2_device_read, /* read */
 	suunto_vyper2_device_write, /* write */
-	NULL, /* download */
+	NULL, /* dump */
 	suunto_vyper2_device_foreach, /* foreach */
 	suunto_vyper2_device_close /* close */
 };

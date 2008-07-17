@@ -65,15 +65,15 @@ device_write (device_t *device, unsigned int address, const unsigned char data[]
 
 
 device_status_t
-device_download (device_t *device, unsigned char data[], unsigned int size)
+device_dump (device_t *device, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
 		return DEVICE_STATUS_UNSUPPORTED;
 
-	if (device->backend->download == NULL)
+	if (device->backend->dump == NULL)
 		return DEVICE_STATUS_UNSUPPORTED;
 
-	return device->backend->download (device, data, size);
+	return device->backend->dump (device, data, size);
 }
 
 

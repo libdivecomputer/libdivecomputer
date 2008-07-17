@@ -158,7 +158,7 @@ uwatec_aladin_checksum (unsigned char data[], unsigned int size)
 
 
 static device_status_t
-uwatec_aladin_device_download (device_t *abstract, unsigned char data[], unsigned int size)
+uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
@@ -322,7 +322,7 @@ static const device_backend_t uwatec_aladin_device_backend = {
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
-	uwatec_aladin_device_download, /* download */
+	uwatec_aladin_device_dump, /* dump */
 	NULL, /* foreach */
 	uwatec_aladin_device_close /* close */
 };

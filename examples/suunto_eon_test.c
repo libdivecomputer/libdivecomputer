@@ -20,8 +20,8 @@ int test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
-	message ("device_download\n");
-	rc = device_download (device, data, sizeof (data));
+	message ("device_dump\n");
+	rc = device_dump (device, data, sizeof (data));
 	if (rc < 0) {
 		WARNING ("Cannot read memory.");
 		device_close (device);

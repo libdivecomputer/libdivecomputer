@@ -492,7 +492,7 @@ static const device_backend_t suunto_d9_device_backend = {
 	suunto_d9_device_version, /* version */
 	suunto_d9_device_read, /* read */
 	suunto_d9_device_write, /* write */
-	NULL, /* download */
+	NULL, /* dump */
 	suunto_d9_device_foreach, /* foreach */
 	suunto_d9_device_close /* close */
 };

@@ -368,7 +368,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 
 
 static device_status_t
-reefnet_sensusultra_device_download (device_t *abstract, unsigned char *data, unsigned int size)
+reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -714,7 +714,7 @@ static const device_backend_t reefnet_sensusultra_device_backend = {
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
-	reefnet_sensusultra_device_download, /* download */
+	reefnet_sensusultra_device_dump, /* dump */
 	reefnet_sensusultra_device_foreach, /* foreach */
 	reefnet_sensusultra_device_close /* close */
 };

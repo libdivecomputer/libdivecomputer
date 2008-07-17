@@ -479,7 +479,7 @@ static const device_backend_t oceanic_atom2_device_backend = {
 	oceanic_atom2_device_version, /* version */
 	oceanic_atom2_device_read, /* read */
 	NULL, /* write */
-	NULL, /* download */
+	NULL, /* dump */
 	oceanic_atom2_device_foreach, /* foreach */
 	oceanic_atom2_device_close /* close */
 };
