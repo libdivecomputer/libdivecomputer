@@ -14,7 +14,7 @@ device_status_t
 reefnet_sensuspro_device_open (device_t **device, const char* name);
 
 device_status_t
-reefnet_sensuspro_write_interval (device_t *device, unsigned char interval);
+reefnet_sensuspro_device_write_interval (device_t *device, unsigned char interval);
 
 device_status_t
 reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
