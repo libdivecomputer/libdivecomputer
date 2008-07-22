@@ -214,6 +214,19 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 }
 
 
+static device_status_t
+uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	unsigned char data[UWATEC_ALADIN_MEMORY_SIZE] = {0};
+
+	int rc = uwatec_aladin_device_dump (abstract, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return uwatec_aladin_extract_dives (data, sizeof (data), callback, userdata);
+}
+
+
 #define HEADER 4
 
 device_status_t
@@ -325,6 +338,6 @@ static const device_backend_t uwatec_aladin_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	uwatec_aladin_device_dump, /* dump */
-	NULL, /* foreach */
+	uwatec_aladin_device_foreach, /* foreach */
 	uwatec_aladin_device_close /* close */
 };

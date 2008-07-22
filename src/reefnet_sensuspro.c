@@ -266,6 +266,19 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 }
 
 
+static device_status_t
+reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	unsigned char data[REEFNET_SENSUSPRO_MEMORY_SIZE] = {0};
+
+	int rc = reefnet_sensuspro_device_dump (abstract, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return reefnet_sensuspro_extract_dives (data, sizeof (data), callback, userdata);
+}
+
+
 device_status_t
 reefnet_sensuspro_device_write_interval (device_t *abstract, unsigned char interval)
 {
@@ -346,6 +359,6 @@ static const device_backend_t reefnet_sensuspro_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	reefnet_sensuspro_device_dump, /* dump */
-	NULL, /* foreach */
+	reefnet_sensuspro_device_foreach, /* foreach */
 	reefnet_sensuspro_device_close /* close */
 };

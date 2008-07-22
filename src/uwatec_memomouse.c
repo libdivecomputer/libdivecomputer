@@ -268,7 +268,7 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 
 
 static device_status_t
-uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size)
+uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
 {
 	// Read the first package.
 	unsigned char package[126] = {0};
@@ -329,28 +329,16 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	// Copy the package to the output buffer.
-	if (total - 3 <= size) {
-		memcpy (data, buffer + 2, total - 3);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	*data = buffer;
+	*size = total;
 
-	free (buffer);
-
-	return total - 3;
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
 static device_status_t
-uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
 {
-	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
-
-	if (! device_is_uwatec_memomouse (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
 	// Waiting for greeting message.
 	while (serial_get_received (device->port) == 0) {
 		// Flush the input buffer.
@@ -365,10 +353,13 @@ uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned
 	}
 
 	// Read the ID string.
-	unsigned char id[7] = {0};
-	int rc = uwatec_memomouse_read_packet_inner (device, id, sizeof (id));
-	if (rc < 0)
+	unsigned int id_length = 0;
+	unsigned char *id_buffer = NULL;
+	int rc = uwatec_memomouse_read_packet_inner (device, &id_buffer, &id_length);
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
+
+	free (id_buffer);
 
 	// Prepare the command.
 	unsigned char command [9] = {
@@ -424,6 +415,60 @@ uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned
 
 	// Wait for the transfer and read the data.
 	return uwatec_memomouse_read_packet_inner (device, data, size);
+}
+
+
+static device_status_t
+uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
+
+	if (! device_is_uwatec_memomouse (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned int length = 0;
+	unsigned char *buffer = NULL;
+	int rc = uwatec_memomouse_dump (device, &buffer, &length);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	if (length - 3 <= size) {
+		memcpy (data, buffer + 2, length - 3);
+	} else {
+		WARNING ("Insufficient buffer space available.");
+		free (buffer); 
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	free (buffer);
+
+	return length - 3;
+}
+
+
+static device_status_t
+uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
+
+	if (! device_is_uwatec_memomouse (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned int length = 0;
+	unsigned char *buffer = NULL;
+	int rc = uwatec_memomouse_dump (device, &buffer, &length);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	rc = uwatec_memomouse_extract_dives (buffer + 2, length - 3, callback, userdata);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		free (buffer);
+		return rc;
+	}
+
+	free (buffer);
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -492,6 +537,6 @@ static const device_backend_t uwatec_memomouse_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	uwatec_memomouse_device_dump, /* dump */
-	NULL, /* foreach */
+	uwatec_memomouse_device_foreach, /* foreach */
 	uwatec_memomouse_device_close /* close */
 };

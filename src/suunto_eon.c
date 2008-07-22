@@ -170,6 +170,19 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 }
 
 
+static device_status_t
+suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	unsigned char data[SUUNTO_EON_MEMORY_SIZE] = {0};
+
+	int rc = suunto_eon_device_dump (abstract, data, sizeof (data));
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return suunto_eon_extract_dives (data, sizeof (data), callback, userdata);
+}
+
+
 device_status_t
 suunto_eon_device_write_name (device_t *abstract, unsigned char data[], unsigned int size)
 {
@@ -239,6 +252,6 @@ static const device_backend_t suunto_eon_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	suunto_eon_device_dump, /* dump */
-	NULL, /* foreach */
+	suunto_eon_device_foreach, /* foreach */
 	suunto_eon_device_close /* close */
 };

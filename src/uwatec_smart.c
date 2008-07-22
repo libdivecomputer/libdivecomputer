@@ -300,13 +300,8 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 
 
 static device_status_t
-uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigned int *size)
 {
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-
-	if (! device_is_uwatec_smart (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
 	unsigned char command[9] = {0};
 	unsigned char answer[4] = {0};
 
@@ -331,7 +326,7 @@ uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	message ("handshake: length=%u\n", length);
 
   	if (length == 0)
-  		return 0;
+  		return DEVICE_STATUS_SUCCESS;
 
 	unsigned char *package = malloc (length * sizeof (unsigned char));
 	if (package == NULL) {
@@ -378,16 +373,64 @@ uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int
 		message ("len=%u, rc=%i, nbytes=%u\n", len, rc, nbytes);
 	}
 
+	*data = package;
+	*size = length;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned int length = 0;
+	unsigned char *buffer = NULL;
+	int rc = uwatec_smart_dump (device, &buffer, &length);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
 	if (length <= size) {
-		memcpy (data, package, length);
+		memcpy (data, buffer, length);
 	} else {
 		WARNING ("Insufficient buffer space available.");
+		free (buffer); 
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	free (package);
+	free (buffer);
 
 	return length;
+}
+
+
+static device_status_t
+uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned int length = 0;
+	unsigned char *buffer = NULL;
+	int rc = uwatec_smart_dump (device, &buffer, &length);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	rc = uwatec_smart_extract_dives (buffer, length, callback, userdata);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		free (buffer);
+		return rc;
+	}
+
+	free (buffer);
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -430,6 +473,6 @@ static const device_backend_t uwatec_smart_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	uwatec_smart_device_dump, /* dump */
-	NULL, /* foreach */
+	uwatec_smart_device_foreach, /* foreach */
 	uwatec_smart_device_close /* close */
 };
