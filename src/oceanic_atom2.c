@@ -390,6 +390,22 @@ oceanic_atom2_read_ringbuffer (device_t *abstract, unsigned int address, unsigne
 	return DEVICE_STATUS_SUCCESS;
 }
 
+static device_status_t
+oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < OCEANIC_ATOM2_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	int rc = oceanic_atom2_device_read (abstract, 0x00, data, OCEANIC_ATOM2_MEMORY_SIZE);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return OCEANIC_ATOM2_MEMORY_SIZE;
+}
+
 
 static device_status_t
 oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
@@ -481,7 +497,7 @@ static const device_backend_t oceanic_atom2_device_backend = {
 	oceanic_atom2_device_version, /* version */
 	oceanic_atom2_device_read, /* read */
 	NULL, /* write */
-	NULL, /* dump */
+	oceanic_atom2_device_dump, /* dump */
 	oceanic_atom2_device_foreach, /* foreach */
 	oceanic_atom2_device_close /* close */
 };

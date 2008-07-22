@@ -366,6 +366,23 @@ suunto_d9_device_write (device_t *abstract, unsigned int address, const unsigned
 
 
 static device_status_t
+suunto_d9_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	if (! device_is_suunto_d9 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < SUUNTO_D9_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	int rc = suunto_d9_device_read (abstract, 0x00, data, SUUNTO_D9_MEMORY_SIZE);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return SUUNTO_D9_MEMORY_SIZE;
+}
+
+
+static device_status_t
 suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	if (! device_is_suunto_d9 (abstract))
@@ -494,7 +511,7 @@ static const device_backend_t suunto_d9_device_backend = {
 	suunto_d9_device_version, /* version */
 	suunto_d9_device_read, /* read */
 	suunto_d9_device_write, /* write */
-	NULL, /* dump */
+	suunto_d9_device_dump, /* dump */
 	suunto_d9_device_foreach, /* foreach */
 	suunto_d9_device_close /* close */
 };

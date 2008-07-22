@@ -535,6 +535,23 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 
 
 static device_status_t
+suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	if (! device_is_suunto_vyper (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < SUUNTO_VYPER_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	int rc = suunto_vyper_device_read (abstract, 0x00, data, SUUNTO_VYPER_MEMORY_SIZE);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return SUUNTO_VYPER_MEMORY_SIZE;
+}
+
+
+static device_status_t
 suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	if (! device_is_suunto_vyper (abstract))
@@ -593,7 +610,7 @@ static const device_backend_t suunto_vyper_device_backend = {
 	NULL, /* version */
 	suunto_vyper_device_read, /* read */
 	suunto_vyper_device_write, /* write */
-	NULL, /* dump */
+	suunto_vyper_device_dump, /* dump */
 	suunto_vyper_device_foreach, /* foreach */
 	suunto_vyper_device_close /* close */
 };
