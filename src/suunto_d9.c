@@ -478,8 +478,8 @@ suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *us
 		message ("\"\n");
 #endif
 
-		if (callback)
-			callback (data + remaining + 4, size - 4, userdata);
+		if (callback && !callback (data + remaining + 4, size - 4, userdata))
+			return DEVICE_STATUS_SUCCESS;
 	}
 	assert (remaining == 0);
 	assert (available == 0);

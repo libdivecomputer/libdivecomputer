@@ -410,8 +410,8 @@ uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_
 			if (current + len > previous)
 				return DEVICE_STATUS_ERROR;
 
-			if (callback)
-				callback (data + current, len, userdata);
+			if (callback && !callback (data + current, len, userdata))
+				return DEVICE_STATUS_SUCCESS;
 
 			// Prepare for the next dive.
 			previous = current;

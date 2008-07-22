@@ -315,8 +315,8 @@ reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, 
 			unsigned int offset = current + 10; // Skip non-sample data.
 			while (offset + 2 <= previous) {
 				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
-					if (callback)
-						callback (data + current, offset + 2 - current, userdata);
+					if (callback && !callback (data + current, offset + 2 - current, userdata))
+						return DEVICE_STATUS_SUCCESS;
 
 					found = 1;
 					break;

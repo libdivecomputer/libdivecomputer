@@ -551,8 +551,8 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	unsigned int ndives = 0;
 	unsigned int offset = 0;
 	while ((rc = suunto_vyper_device_read_dive (abstract, data + offset, sizeof (data) - offset, (ndives == 0))) > 0) {
-		if (callback)
-			callback (data + offset, rc, userdata);
+		if (callback && !callback (data + offset, rc, userdata))
+			return DEVICE_STATUS_SUCCESS;
 
 		ndives++;
 		offset += rc;

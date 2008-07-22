@@ -40,8 +40,8 @@ suunto_common_extract_dives (const unsigned char data[], unsigned int begin, uns
 				memcpy (buffer, data + current, len);
 			}
 
-			if (callback)
-				callback (buffer, len, userdata);
+			if (callback && !callback (buffer, len, userdata))
+				return DEVICE_STATUS_SUCCESS;
 
 			previous = current;
 		}

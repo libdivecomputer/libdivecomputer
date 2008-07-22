@@ -310,8 +310,8 @@ uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_
 				profiles = 0;
 		}
 
-		if (callback)
-			callback (buffer, len + 18, userdata);
+		if (callback && !callback (buffer, len + 18, userdata))
+			return DEVICE_STATUS_SUCCESS;
 	}
 
 	return DEVICE_STATUS_SUCCESS;

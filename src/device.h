@@ -32,7 +32,7 @@ typedef enum device_status_t {
 
 typedef struct device_t device_t;
 
-typedef void (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
+typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
 
 device_type_t device_get_type (device_t *device);
 

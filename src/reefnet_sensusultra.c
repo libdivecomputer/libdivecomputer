@@ -639,8 +639,10 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 					return DEVICE_STATUS_ERROR;
 				}
 
-				if (callback)
-					callback (data + current, offset + 4 - current, userdata);
+				if (callback && !callback (data + current, offset + 4 - current, userdata)) {
+					free (data);
+					return DEVICE_STATUS_SUCCESS;
+				}
 
 				// Prepare for the next dive.
 				previous = current;

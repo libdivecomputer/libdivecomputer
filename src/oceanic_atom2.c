@@ -464,8 +464,8 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		// Copy the logbook data to the profile.
 		memcpy (profile, current, 8);
 
-		if (callback)
-			callback (profile, profile_len + 8, userdata);
+		if (callback && !callback (profile, profile_len + 8, userdata))
+			return DEVICE_STATUS_SUCCESS;
 
 		// Advance to the next logbook entry.
 		current -= (OCEANIC_ATOM2_PACKET_SIZE / 2);

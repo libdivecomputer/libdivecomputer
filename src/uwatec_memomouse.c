@@ -477,8 +477,8 @@ uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, d
 		// Get the length of the profile data.
 		unsigned int length = data[offset + 16] + (data[offset + 17] << 8);
 
-		if (callback)
-			callback (data + offset, length + 18, userdata);
+		if (callback && !callback (data + offset, length + 18, userdata))
+			return DEVICE_STATUS_SUCCESS;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
