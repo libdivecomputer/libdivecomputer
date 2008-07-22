@@ -52,8 +52,10 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Initialize the base class.
+	device_init (&device->base, &uwatec_aladin_device_backend);
+
 	// Set the default values.
-	device->base.backend = &uwatec_aladin_device_backend;
 	device->port = NULL;
 
 	// Open the device.

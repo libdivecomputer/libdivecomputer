@@ -54,8 +54,10 @@ reefnet_sensusultra_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Initialize the base class.
+	device_init (&device->base, &reefnet_sensusultra_device_backend);
+
 	// Set the default values.
-	device->base.backend = &reefnet_sensusultra_device_backend;
 	device->port = NULL;
 	device->maxretries = 2;
 

@@ -2,6 +2,14 @@
 
 #define NULL 0
 
+
+void
+device_init (device_t *device, const device_backend_t *backend)
+{
+	device->backend = backend;
+}
+
+
 device_type_t
 device_get_type (device_t *device)
 {

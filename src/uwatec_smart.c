@@ -77,8 +77,10 @@ uwatec_smart_device_open (device_t **out)
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Initialize the base class.
+	device_init (&device->base, &uwatec_smart_device_backend);
+
 	// Set the default values.
-	device->base.backend = &uwatec_smart_device_backend;
 	device->socket = NULL;
 	device->address = 0;
 	device->timestamp = 0;

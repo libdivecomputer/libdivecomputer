@@ -34,6 +34,9 @@ struct device_backend_t {
 	device_status_t (*close) (device_t *device);
 };
 
+void
+device_init (device_t *device, const device_backend_t *backend);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
