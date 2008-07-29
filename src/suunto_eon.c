@@ -176,7 +176,7 @@ suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	unsigned char data[SUUNTO_EON_MEMORY_SIZE] = {0};
 
 	int rc = suunto_eon_device_dump (abstract, data, sizeof (data));
-	if (rc != DEVICE_STATUS_SUCCESS)
+	if (rc < 0)
 		return rc;
 
 	return suunto_eon_extract_dives (data, sizeof (data), callback, userdata);
