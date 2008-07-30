@@ -6,6 +6,7 @@
 #include "suunto_eon.h"
 #include "suunto_common.h"
 #include "serial.h"
+#include "checksum.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -116,17 +117,6 @@ suunto_eon_device_close (device_t *abstract)
 }
 
 
-static unsigned char
-suunto_eon_checksum (unsigned char data[], unsigned int size)
-{
-	unsigned char crc = 0x00;
-	for (unsigned int i = 0; i < size; ++i)
-		crc += data[i];
-
-	return crc;
-}
-
-
 static device_status_t
 suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
@@ -153,7 +143,7 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[sizeof (answer) - 1];
-	unsigned char ccrc = suunto_eon_checksum (answer, sizeof (answer) - 1);
+	unsigned char ccrc = checksum_add_uint8 (answer, sizeof (answer) - 1, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;

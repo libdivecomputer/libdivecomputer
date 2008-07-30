@@ -6,6 +6,7 @@
 #include "suunto_vyper.h"
 #include "suunto_common.h"
 #include "serial.h"
+#include "checksum.h"
 #include "utils.h"
 
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
@@ -125,17 +126,6 @@ suunto_vyper_device_close (device_t *abstract)
 	free (device);
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static unsigned char
-suunto_vyper_checksum (const unsigned char data[], unsigned int size, unsigned char init)
-{
-	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
-		crc ^= data[i];
-
-	return crc;
 }
 
 
@@ -301,7 +291,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[asize - 1];
-	unsigned char ccrc = suunto_vyper_checksum (answer, asize - 1, 0x00);
+	unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;
@@ -334,7 +324,7 @@ suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned cha
 				(address     ) & 0xFF, // low
 				len, // count
 				0};  // CRC
-		command[4] = suunto_vyper_checksum (command, 4, 0x00);
+		command[4] = checksum_xor_uint8 (command, 4, 0x00);
 		int rc = suunto_vyper_transfer (device, command, sizeof (command), answer, len + 5, len);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
@@ -393,7 +383,7 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 				len, // count
 				0};  // data + CRC
 		memcpy (wcommand + 4, data, len);
-		wcommand[len + 4] = suunto_vyper_checksum (wcommand, len + 4, 0x00);
+		wcommand[len + 4] = checksum_xor_uint8 (wcommand, len + 4, 0x00);
 		rc = suunto_vyper_transfer (device, wcommand, len + 5, wanswer, sizeof (wanswer), 0);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
@@ -425,7 +415,7 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 
 	// Send the command to the dive computer.
 	unsigned char command[3] = {init ? 0x08 : 0x09, 0xA5, 0x00};
-	command[2] = suunto_vyper_checksum (command, 2, 0x00);
+	command[2] = checksum_xor_uint8 (command, 2, 0x00);
 	int rc = suunto_vyper_send (device, command, 3);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Failed to send the command.");
@@ -476,7 +466,7 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 
 		// Verify the checksum of the package.
 		unsigned char crc = answer[len + 2];
-		unsigned char ccrc = suunto_vyper_checksum (answer, len + 2, 0x00);
+		unsigned char ccrc = checksum_xor_uint8 (answer, len + 2, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;

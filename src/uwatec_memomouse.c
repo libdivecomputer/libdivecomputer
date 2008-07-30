@@ -5,6 +5,7 @@
 #include "device-private.h"
 #include "uwatec_memomouse.h"
 #include "serial.h"
+#include "checksum.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -157,17 +158,6 @@ uwatec_memomouse_reverse (unsigned char data[], unsigned int size)
 }
 
 
-static unsigned char
-uwatec_memomouse_checksum (unsigned char data[], unsigned int size, unsigned char init)
-{
-	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
-		crc ^= data[i];
-
-	return crc;
-}
-
-
 static device_status_t
 uwatec_memomouse_confirm (uwatec_memomouse_device_t *device, unsigned char value)
 {
@@ -218,7 +208,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 
 	// Verify the checksum of the package.
 	unsigned char crc = data[len + 1];
-	unsigned char ccrc = uwatec_memomouse_checksum (data, len + 1, 0x00);
+	unsigned char ccrc = checksum_xor_uint8 (data, len + 1, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;
@@ -323,7 +313,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 
 	// Verify the checksum.
 	unsigned char crc = buffer[total - 1];
-	unsigned char ccrc = uwatec_memomouse_checksum (buffer, total - 1, 0x00);
+	unsigned char ccrc = checksum_xor_uint8 (buffer, total - 1, 0x00);
 	if (crc != ccrc) {
 		free (buffer);
 		return DEVICE_STATUS_PROTOCOL;
@@ -371,7 +361,7 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		(device->timestamp >> 16) & 0xFF,
 		(device->timestamp >> 24) & 0xFF,
 		0x00}; 					// Outer packet checksum.
-	command[8] = uwatec_memomouse_checksum (command, 8, 0x00);
+	command[8] = checksum_xor_uint8 (command, 8, 0x00);
 	uwatec_memomouse_reverse (command, sizeof (command));
 
 	// Wait a small amount of time before sending the command.

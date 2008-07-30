@@ -7,6 +7,7 @@
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
+#include "checksum.h"
 
 #define MAXRETRIES 2
 
@@ -56,17 +57,6 @@ device_is_oceanic_atom2 (device_t *abstract)
 		return 0;
 
     return abstract->backend == &oceanic_atom2_device_backend;
-}
-
-
-static unsigned char
-oceanic_atom2_checksum (const unsigned char data[], unsigned int size, unsigned char init)
-{
-	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
-		crc += data[i];
-
-	return crc;
 }
 
 
@@ -134,7 +124,7 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 
 		// Verify the checksum of the answer.
 		unsigned char crc = answer[asize - 1];
-		unsigned char ccrc = oceanic_atom2_checksum (answer, asize - 1, 0x00);
+		unsigned char ccrc = checksum_add_uint8 (answer, asize - 1, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;

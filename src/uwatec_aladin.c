@@ -6,6 +6,7 @@
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
+#include "checksum.h"
 
 #define WARNING(expr) \
 { \
@@ -148,17 +149,6 @@ uwatec_aladin_reverse_bytes (unsigned char data[], unsigned int size)
 }
 
 
-static unsigned short
-uwatec_aladin_checksum (unsigned char data[], unsigned int size)
-{
-	unsigned short crc = 0x00;
-	for (unsigned int i = 0; i < size; ++i)
-		crc += data[i];
-
-	return crc;
-}
-
-
 static device_status_t
 uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
@@ -197,7 +187,7 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	unsigned short crc = 
 		 answer[UWATEC_ALADIN_MEMORY_SIZE + 0] + 
 		(answer[UWATEC_ALADIN_MEMORY_SIZE + 1] << 8);
-	unsigned short ccrc = uwatec_aladin_checksum (answer, UWATEC_ALADIN_MEMORY_SIZE);
+	unsigned short ccrc = checksum_add_uint16 (answer, UWATEC_ALADIN_MEMORY_SIZE, 0x0000);
 	if (ccrc != crc) {
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;

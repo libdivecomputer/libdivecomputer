@@ -7,6 +7,7 @@
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
+#include "checksum.h"
 
 #define MAXRETRIES 2
 
@@ -127,17 +128,6 @@ suunto_vyper2_device_close (device_t *abstract)
 }
 
 
-static unsigned char
-suunto_vyper2_checksum (const unsigned char data[], unsigned int size, unsigned char init)
-{
-	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
-		crc ^= data[i];
-
-	return crc;
-}
-
-
 static device_status_t
 suunto_vyper2_send (suunto_vyper2_device_t *device, const unsigned char command[], unsigned int csize)
 {
@@ -199,7 +189,7 @@ suunto_vyper2_transfer (suunto_vyper2_device_t *device, const unsigned char comm
 
 		// Verify the checksum of the package.
 		unsigned char crc = answer[asize - 1];
-		unsigned char ccrc = suunto_vyper2_checksum (answer, asize - 1, 0x00);
+		unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
@@ -282,7 +272,7 @@ suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned ch
 				(address     ) & 0xFF, // low
 				len, // count
 				0};  // CRC
-		command[6] = suunto_vyper2_checksum (command, 6, 0x00);
+		command[6] = checksum_xor_uint8 (command, 6, 0x00);
 		int rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, len + 7, len);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
@@ -330,7 +320,7 @@ suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsi
 				len, // count
 				0};  // data + CRC
 		memcpy (command + 6, data, len);
-		command[len + 6] = suunto_vyper2_checksum (command, len + 6, 0x00);
+		command[len + 6] = checksum_xor_uint8 (command, len + 6, 0x00);
 		int rc = suunto_vyper2_transfer (device, command, len + 7, answer, sizeof (answer), 0);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
