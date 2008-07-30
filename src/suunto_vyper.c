@@ -7,6 +7,7 @@
 #include "suunto_common.h"
 #include "serial.h"
 #include "checksum.h"
+#include "array.h"
 #include "utils.h"
 
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
@@ -126,17 +127,6 @@ suunto_vyper_device_close (device_t *abstract)
 	free (device);
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static void
-suunto_vyper_reverse (unsigned char data[], unsigned int size)
-{
-	for (unsigned int i = 0; i < size / 2; ++i) {
-		unsigned char hlp = data[i];
-		data[i] = data[size-1-i];
-		data[size-1-i] = hlp;
-	}
 }
 
 
@@ -488,7 +478,7 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 		if (len == 0) {
 			WARNING ("Null package received.");
 #ifndef NDEBUG
-			suunto_vyper_reverse (data, nbytes);
+			array_reverse_bytes (data, nbytes);
 			message ("Vyper%sProfile=\"", init ? "First" : "");
 			for (unsigned int i = 0; i < nbytes; ++i) {
 				message("%02x", data[i]);
@@ -510,7 +500,7 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 	// dive is send first (which allows you to download only the new dives), 
 	// but also the contents of each dive is reversed. Therefore, we reverse 
 	// the bytes again before returning them to the application.
-	suunto_vyper_reverse (data, nbytes);
+	array_reverse_bytes (data, nbytes);
 
 #ifndef NDEBUG
 	message ("Vyper%sProfile=\"", init ? "First" : "");

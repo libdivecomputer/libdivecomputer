@@ -47,6 +47,7 @@ libdivecomputer_la_SOURCES = \
 	oceanic_atom2.h oceanic_atom2.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
+	array.h array.c \
 	utils.h utils.c
 
 if OS_WIN32

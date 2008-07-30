@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "ringbuffer.h"
 #include "checksum.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -120,35 +121,6 @@ uwatec_aladin_device_close (device_t *abstract)
 }
 
 
-static void
-uwatec_aladin_reverse_bits (unsigned char data[], unsigned int size)
-{
-	for (unsigned int i = 0; i < size; ++i) {
-		unsigned char j = 0;
-		j  = (data[i] & 0x01) << 7;
-		j += (data[i] & 0x02) << 5;
-		j += (data[i] & 0x04) << 3;
-		j += (data[i] & 0x08) << 1;
-		j += (data[i] & 0x10) >> 1;
-		j += (data[i] & 0x20) >> 3;
-		j += (data[i] & 0x40) >> 5;
-		j += (data[i] & 0x80) >> 7;
-		data[i] = j;
-	}
-}
-
-
-static void
-uwatec_aladin_reverse_bytes (unsigned char data[], unsigned int size)
-{
-	for (unsigned int i = 0; i < size / 2; ++i) {
-		unsigned char hlp = data[i];
-		data[i] = data[size-1-i];
-		data[size-1-i] = hlp;
-	}
-}
-
-
 static device_status_t
 uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
@@ -181,7 +153,7 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	}
 
 	// Reverse the bit order.
-	uwatec_aladin_reverse_bits (answer, sizeof (answer));
+	array_reverse_bits (answer, sizeof (answer));
 
 	// Verify the checksum of the package.
 	unsigned short crc = 
@@ -270,7 +242,7 @@ uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_
 
 		// Convert the timestamp from the Aladin (big endian)
 		// to the Memomouse format (little endian).
-		uwatec_aladin_reverse_bytes (buffer + 11, 4);
+		array_reverse_bytes (buffer + 11, 4);
 
 		unsigned int len = 0;
 		if (profiles) {

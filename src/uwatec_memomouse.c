@@ -6,6 +6,7 @@
 #include "uwatec_memomouse.h"
 #include "serial.h"
 #include "checksum.h"
+#include "array.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -140,24 +141,6 @@ uwatec_memomouse_device_set_timestamp (device_t *abstract, unsigned int timestam
 }
 
 
-static void
-uwatec_memomouse_reverse (unsigned char data[], unsigned int size)
-{
-	for (unsigned int i = 0; i < size; ++i) {
-		unsigned char j = 0;
-		j  = (data[i] & 0x01) << 7;
-		j += (data[i] & 0x02) << 5;
-		j += (data[i] & 0x04) << 3;
-		j += (data[i] & 0x08) << 1;
-		j += (data[i] & 0x10) >> 1;
-		j += (data[i] & 0x20) >> 3;
-		j += (data[i] & 0x40) >> 5;
-		j += (data[i] & 0x80) >> 7;
-		data[i] = j;
-	}
-}
-
-
 static device_status_t
 uwatec_memomouse_confirm (uwatec_memomouse_device_t *device, unsigned char value)
 {
@@ -187,7 +170,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 	}
 
 	// Reverse the bits.
-	uwatec_memomouse_reverse (data, 1);
+	array_reverse_bits (data, 1);
 
 	// Verify the header of the package.
 	unsigned int len = data[0];
@@ -204,7 +187,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 	}
 
 	// Reverse the bits.
-	uwatec_memomouse_reverse (data + 1, len + 1);
+	array_reverse_bits (data + 1, len + 1);
 
 	// Verify the checksum of the package.
 	unsigned char crc = data[len + 1];
@@ -362,7 +345,7 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		(device->timestamp >> 24) & 0xFF,
 		0x00}; 					// Outer packet checksum.
 	command[8] = checksum_xor_uint8 (command, 8, 0x00);
-	uwatec_memomouse_reverse (command, sizeof (command));
+	array_reverse_bits (command, sizeof (command));
 
 	// Wait a small amount of time before sending the command.
 	// Without this delay, the transfer will fail most of the time.
