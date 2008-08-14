@@ -526,6 +526,60 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 
 
 static device_status_t
+reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int *pprevious,
+	dive_callback_t callback, void *userdata)
+{
+	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
+	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+
+	// Initialize the data stream offsets.
+	unsigned int previous = (pprevious ? *pprevious : end);
+	unsigned int current = end;
+	if (current + 4 > previous)
+		current = (previous >= 4 ? previous - 4 : 0);
+
+	// Search the data stream for start markers.
+	while (current > begin) {
+		current--;
+		if (memcmp (data + current, header, sizeof (header)) == 0) {
+			// Once a start marker is found, start searching
+			// for the corresponding stop marker. The search is 
+			// now limited to the start of the previous dive.
+			int found = 0;
+			unsigned int offset = current + 16; // Skip non-sample data.
+			while (offset + 4 <= previous) {
+				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
+					found = 1;
+					break;
+				} else {
+					offset++;
+				}
+			}
+
+			// Report an error if no stop marker was found.
+			if (!found) {
+				WARNING ("No stop marker present.");
+				return DEVICE_STATUS_ERROR;
+			}
+
+			if (callback && !callback (data + current, offset + 4 - current, userdata))
+				return 1;
+
+			// Prepare for the next dive.
+			previous = current;
+			current = (previous >= 4 ? previous - 4 : 0);
+		}
+	}
+
+	// Return the offset to the last dive.
+	if (pprevious)
+		*pprevious = previous;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
 reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
@@ -539,13 +593,8 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
-	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-
 	// Initialize the state for the parsing code.
 	unsigned int previous = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
-	unsigned int current = (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE >= 4 ? 
-			REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 4 : 0);
 
 	// Send the instruction code to the device.
 	int rc = reefnet_sensusultra_send_ushort (device, 0xB421);
@@ -570,40 +619,13 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		if (reefnet_sensusultra_isempty (data + index, REEFNET_SENSUSULTRA_PACKET_SIZE))
 			break;
 
-		// Search the page data for a start marker.
-		while (current > index) {
-			current--;
-			if (memcmp (data + current, header, sizeof (header)) == 0) {
-				// Once a start marker is found, start searching
-				// for the corresponding stop marker. The search is 
-				// now limited to the start of the previous dive.
-				int found = 0;
-				unsigned int offset = current + 16; // Skip non-sample data.
-				while (offset + 4 <= previous) {
-					if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
-						found = 1;
-						break;
-					} else {
-						offset++;
-					}
-				}
-
-				// Report an error if no stop marker was found.
-				if (!found) {
-					WARNING ("No stop marker present.");
-					free (data);
-					return DEVICE_STATUS_ERROR;
-				}
-
-				if (callback && !callback (data + current, offset + 4 - current, userdata)) {
-					free (data);
-					return DEVICE_STATUS_SUCCESS;
-				}
-
-				// Prepare for the next dive.
-				previous = current;
-				current = (current >= 4 ? current - 4 : 0);
-			}
+		// Parse the page data.
+		rc = reefnet_sensusultra_parse (data, index, index + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, callback, userdata);
+		if (rc != DEVICE_STATUS_SUCCESS) {
+			if (rc > 0)
+				break; // Aborted.
+			free (data);
+			return rc;
 		}
 
 		// Accept the packet.
@@ -626,42 +648,11 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 device_status_t
 reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
-	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-
-	// Search the entire data stream for start markers.
-	unsigned int previous = size;
-	unsigned int current = (size >= 4 ? size - 4 : 0);
-	while (current > 0) {
-		current--;
-		if (memcmp (data + current, header, sizeof (header)) == 0) {
-			// Once a start marker is found, start searching
-			// for the corresponding stop marker. The search is 
-			// now limited to the start of the previous dive.
-			int found = 0;
-			unsigned int offset = current + 16; // Skip non-sample data.
-			while (offset + 4 <= previous) {
-				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
-					found = 1;
-					break;
-				} else {
-					offset++;
-				}
-			}
-
-			// Report an error if no stop marker was found.
-			if (!found) {
-				WARNING ("No stop marker present.");
-				return DEVICE_STATUS_ERROR;
-			}
-
-			if (callback)
-				callback (data + current, offset + 4 - current, userdata);
-
-			// Prepare for the next dive.
-			previous = current;
-			current = (current >= 4 ? current - 4 : 0);
-		}
+	int rc = reefnet_sensusultra_parse (data, 0, size, NULL, callback, userdata);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		if (rc > 0)
+			return DEVICE_STATUS_SUCCESS; // Aborted.
+		return rc;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
