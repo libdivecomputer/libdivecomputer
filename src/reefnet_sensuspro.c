@@ -23,6 +23,7 @@ typedef struct reefnet_sensuspro_device_t reefnet_sensuspro_device_t;
 struct reefnet_sensuspro_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned int timestamp;
 };
 
 static const device_backend_t reefnet_sensuspro_device_backend;
@@ -55,6 +56,7 @@ reefnet_sensuspro_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->timestamp = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -106,6 +108,20 @@ reefnet_sensuspro_device_close (device_t *abstract)
 
 	// Free memory.	
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+reefnet_sensuspro_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+{
+	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
+
+	if (! device_is_reefnet_sensuspro (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	device->timestamp = timestamp;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -224,13 +240,18 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 static device_status_t
 reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
+	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
+
+	if (! device_is_reefnet_sensuspro (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	unsigned char data[REEFNET_SENSUSPRO_MEMORY_SIZE] = {0};
 
 	int rc = reefnet_sensuspro_device_dump (abstract, data, sizeof (data));
 	if (rc < 0)
 		return rc;
 
-	return reefnet_sensuspro_extract_dives (data, sizeof (data), callback, userdata);
+	return reefnet_sensuspro_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
 }
 
 
@@ -265,7 +286,7 @@ reefnet_sensuspro_device_write_interval (device_t *abstract, unsigned char inter
 
 
 device_status_t
-reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[2] = {0xFF, 0xFF};
@@ -283,9 +304,6 @@ reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, 
 			unsigned int offset = current + 10; // Skip non-sample data.
 			while (offset + 2 <= previous) {
 				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
-					if (callback && !callback (data + current, offset + 2 - current, userdata))
-						return DEVICE_STATUS_SUCCESS;
-
 					found = 1;
 					break;
 				} else {
@@ -296,6 +314,15 @@ reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, 
 			// Report an error if no stop marker was found.
 			if (!found)
 				return DEVICE_STATUS_ERROR;
+
+			// Automatically abort when a dive is older than the provided timestamp.
+			unsigned int datetime = data[current + 6] + (data[current + 7] << 8) + 
+				(data[current + 8] << 16) + (data[current + 9] << 24);
+			if (datetime <= timestamp)
+				return DEVICE_STATUS_SUCCESS;
+		
+			if (callback && !callback (data + current, offset + 2 - current, userdata))
+				return DEVICE_STATUS_SUCCESS;
 
 			// Prepare for the next dive.
 			previous = current;

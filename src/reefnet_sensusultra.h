@@ -21,6 +21,9 @@ device_status_t
 reefnet_sensusultra_device_set_maxretries (device_t *device, unsigned int maxretries);
 
 device_status_t
+reefnet_sensusultra_device_set_timestamp (device_t *device, unsigned int timestamp);
+
+device_status_t
 reefnet_sensusultra_device_read_user (device_t *device, unsigned char *data, unsigned int size);
 
 device_status_t
@@ -42,7 +45,7 @@ device_status_t
 reefnet_sensusultra_device_sense (device_t *device, unsigned char *data, unsigned int size);
 
 device_status_t
-reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp);
 
 #ifdef __cplusplus
 }

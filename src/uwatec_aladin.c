@@ -27,6 +27,7 @@ typedef struct uwatec_aladin_device_t uwatec_aladin_device_t;
 struct uwatec_aladin_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned int timestamp;
 };
 
 static const device_backend_t uwatec_aladin_device_backend;
@@ -59,6 +60,7 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->timestamp = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -116,6 +118,20 @@ uwatec_aladin_device_close (device_t *abstract)
 
 	// Free memory.	
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+uwatec_aladin_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+{
+	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
+
+	if (! device_is_uwatec_aladin (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	device->timestamp = timestamp;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -179,20 +195,25 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 static device_status_t
 uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
+	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
+
+	if (! device_is_uwatec_aladin (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	unsigned char data[UWATEC_ALADIN_MEMORY_SIZE] = {0};
 
 	int rc = uwatec_aladin_device_dump (abstract, data, sizeof (data));
 	if (rc < 0)
 		return rc;
 
-	return uwatec_aladin_extract_dives (data, sizeof (data), callback, userdata);
+	return uwatec_aladin_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
 }
 
 
 #define HEADER 4
 
 device_status_t
-uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata)
+uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
 	if (size < UWATEC_ALADIN_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
@@ -284,6 +305,12 @@ uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_
 			if (current == eop)
 				profiles = 0;
 		}
+
+		// Automatically abort when a dive is older than the provided timestamp.
+		unsigned int datetime = buffer[11] + (buffer[12] << 8) + 
+			(buffer[13] << 16) + (buffer[14] << 24);
+		if (datetime <= timestamp)
+			return DEVICE_STATUS_SUCCESS;
 
 		if (callback && !callback (buffer, len + 18, userdata))
 			return DEVICE_STATUS_SUCCESS;

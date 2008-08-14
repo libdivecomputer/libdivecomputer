@@ -28,6 +28,7 @@ struct reefnet_sensusultra_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int maxretries;
+	unsigned int timestamp;
 };
 
 static const device_backend_t reefnet_sensusultra_device_backend;
@@ -61,6 +62,7 @@ reefnet_sensusultra_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->maxretries = 2;
+	device->timestamp = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -126,6 +128,20 @@ reefnet_sensusultra_device_set_maxretries (device_t *abstract, unsigned int maxr
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	device->maxretries = maxretries;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+reefnet_sensusultra_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+{
+	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
+
+	if (! device_is_reefnet_sensusultra (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	device->timestamp = timestamp;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -527,7 +543,7 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 
 static device_status_t
 reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int *pprevious,
-	dive_callback_t callback, void *userdata)
+	dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -561,6 +577,12 @@ reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsig
 				WARNING ("No stop marker present.");
 				return DEVICE_STATUS_ERROR;
 			}
+
+			// Automatically abort when a dive is older than the provided timestamp.
+			unsigned int datetime = data[current + 4] + (data[current + 5] << 8) + 
+				(data[current + 6] << 16) + (data[current + 7] << 24);
+			if (datetime <= timestamp)
+				return 1;
 
 			if (callback && !callback (data + current, offset + 4 - current, userdata))
 				return 1;
@@ -620,7 +642,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 			break;
 
 		// Parse the page data.
-		rc = reefnet_sensusultra_parse (data, index, index + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, callback, userdata);
+		rc = reefnet_sensusultra_parse (data, index, index + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, callback, userdata, device->timestamp);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			if (rc > 0)
 				break; // Aborted.
@@ -646,9 +668,9 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 
 
 device_status_t
-reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
-	int rc = reefnet_sensusultra_parse (data, 0, size, NULL, callback, userdata);
+	int rc = reefnet_sensusultra_parse (data, 0, size, NULL, callback, userdata, timestamp);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		if (rc > 0)
 			return DEVICE_STATUS_SUCCESS; // Aborted.
