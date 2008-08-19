@@ -145,6 +145,10 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (! device_is_uwatec_aladin (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, UWATEC_ALADIN_MEMORY_SIZE + 2);
+
 	unsigned char answer[UWATEC_ALADIN_MEMORY_SIZE + 2] = {0};
 
 	// Receive the header of the package.
@@ -158,8 +162,11 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 			i++; // Continue.
 		} else {
 			i = 0; // Reset.
+			progress_event (&progress, DEVICE_EVENT_WAITING, 0);
 		}
 	}
+
+	progress_event (&progress, DEVICE_EVENT_PROGRESS, 4);
 
 	// Receive the remaining part of the package.
 	int rc = serial_read (device->port, answer + 4, sizeof (answer) - 4);
@@ -167,6 +174,8 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		WARNING ("Unexpected EOF in answer.");
 		return EXITCODE (rc);
 	}
+
+	progress_event (&progress, DEVICE_EVENT_PROGRESS, sizeof (answer) - 4);
 
 	// Reverse the bit order.
 	array_reverse_bits (answer, sizeof (answer));
