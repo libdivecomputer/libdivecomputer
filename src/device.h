@@ -30,11 +30,19 @@ typedef enum device_status_t {
 	DEVICE_STATUS_MEMORY = -7
 } device_status_t;
 
+typedef enum device_event_t {
+	DEVICE_EVENT_WAITING,
+	DEVICE_EVENT_PROGRESS
+} device_event_t;
+
 typedef struct device_t device_t;
 
 typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
+typedef void (*progress_callback_t) (device_event_t event, unsigned int current, unsigned int maximum, void *userdata);
 
 device_type_t device_get_type (device_t *device);
+
+device_status_t device_set_progress (device_t *device, progress_callback_t callback, void *userdata);
 
 device_status_t device_handshake (device_t *device, unsigned char data[], unsigned int size);
 
