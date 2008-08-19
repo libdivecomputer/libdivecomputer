@@ -302,6 +302,10 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 static device_status_t
 uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigned int *size)
 {
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, &device->base, INFINITE);
+
 	unsigned char command[9] = {0};
 	unsigned char answer[4] = {0};
 
@@ -334,6 +338,9 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	progress_set_maximum (&progress, length + 8);
+	progress_event (&progress, DEVICE_EVENT_PROGRESS, 4);
+
 	// Data.
 
 	command[0] = 0xC4;
@@ -356,6 +363,8 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 						(answer[2] << 16) + (answer[3] << 24);
 	message ("handshake: total=%u\n", total);
 
+	progress_event (&progress, DEVICE_EVENT_PROGRESS, 4);
+
 	assert (total == length + 4);
 
 	unsigned int nbytes = 0;
@@ -369,8 +378,10 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 			free (package);
 			return EXITCODE (rc);
 		}
+
+		progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
+
 		nbytes += rc;
-		message ("len=%u, rc=%i, nbytes=%u\n", len, rc, nbytes);
 	}
 
 	*data = package;
