@@ -194,6 +194,10 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 	if (! device_is_reefnet_sensuspro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, REEFNET_SENSUSPRO_MEMORY_SIZE + 2);
+
 	unsigned char command = 0xB4;
 	int rc = serial_write (device->port, &command, 1);
 	if (rc != 1) {
@@ -213,6 +217,8 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 			WARNING ("Failed to receive the answer.");
 			return EXITCODE (rc);
 		}
+
+		progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
 
 		nbytes += len;
 	}
