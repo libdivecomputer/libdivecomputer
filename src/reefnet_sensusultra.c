@@ -352,6 +352,10 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 	if (size < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)
 		return DEVICE_STATUS_ERROR;
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE);
+
 	// Send the instruction code to the device.
 	int rc = reefnet_sensusultra_send_ushort (device, 0xB421);
 	if (rc != DEVICE_STATUS_SUCCESS)
@@ -366,6 +370,8 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 		rc = reefnet_sensusultra_page (device, data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
+
+		progress_event (&progress, DEVICE_EVENT_PROGRESS, REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 		// Accept the packet.
 		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
@@ -615,6 +621,10 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE);
+
 	// Initialize the state for the parsing code.
 	unsigned int previous = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
 
@@ -636,6 +646,8 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 			free (data);
 			return rc;
 		}
+
+		progress_event (&progress, DEVICE_EVENT_PROGRESS, REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 		// Abort the transfer if the page contains no useful data.
 		if (reefnet_sensusultra_isempty (data + index, REEFNET_SENSUSULTRA_PACKET_SIZE))
