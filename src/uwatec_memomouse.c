@@ -241,7 +241,7 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 
 
 static device_status_t
-uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
+uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size, device_progress_state_t *progress)
 {
 	// Read the first package.
 	unsigned char package[126] = {0};
@@ -263,6 +263,9 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 
 	// Calculate the total size of the inner package.
 	unsigned int total = package[0] + (package[1] << 8) + 3;
+
+	progress_set_maximum (progress, total);
+	progress_event (progress, DEVICE_EVENT_PROGRESS, rca);
 
 	// Allocate memory for the entire package.
 	unsigned char *buffer = malloc (total * sizeof (unsigned char));
@@ -291,6 +294,8 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 			return rcb;
 		}
 
+		progress_event (progress, DEVICE_EVENT_PROGRESS, rca);
+
 		nbytes += rca;
 	}
 
@@ -312,6 +317,10 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 static device_status_t
 uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
 {
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, &device->base, INFINITE);
+
 	// Waiting for greeting message.
 	while (serial_get_received (device->port) == 0) {
 		// Flush the input buffer.
@@ -328,7 +337,7 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 	// Read the ID string.
 	unsigned int id_length = 0;
 	unsigned char *id_buffer = NULL;
-	int rc = uwatec_memomouse_read_packet_inner (device, &id_buffer, &id_length);
+	int rc = uwatec_memomouse_read_packet_inner (device, &id_buffer, &id_length, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -386,8 +395,10 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
+	progress_event (&progress, DEVICE_EVENT_WAITING, 0);
+
 	// Wait for the transfer and read the data.
-	return uwatec_memomouse_read_packet_inner (device, data, size);
+	return uwatec_memomouse_read_packet_inner (device, data, size, &progress);
 }
 
 
