@@ -125,6 +125,10 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 	if (! device_is_suunto_eon (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, SUUNTO_EON_MEMORY_SIZE + 1);
+
 	// Send the command.
 	unsigned char command[1] = {'P'};
 	int rc = serial_write (device->port, command, sizeof (command));
@@ -140,6 +144,8 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		WARNING ("Failed to receive the answer.");
 		return EXITCODE (rc);
 	}
+
+	progress_event (&progress, DEVICE_EVENT_PROGRESS, sizeof (answer));
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[sizeof (answer) - 1];
