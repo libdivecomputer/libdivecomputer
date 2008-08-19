@@ -250,7 +250,7 @@ suunto_vyper2_device_reset_maxdepth (device_t *abstract)
 
 
 static device_status_t
-suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+suunto_vyper2_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_state_t *progress)
 {
 	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
 
@@ -287,12 +287,21 @@ suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned ch
 		message("\"\n");
 #endif
 
+		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
+
 		nbytes += len;
 		address += len;
 		data += len;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+{
+	return suunto_vyper2_read (abstract, address, data, size, NULL);
 }
 
 
@@ -351,7 +360,11 @@ suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (size < SUUNTO_VYPER2_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
 
-	int rc = suunto_vyper2_device_read (abstract, 0x00, data, SUUNTO_VYPER2_MEMORY_SIZE);
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, SUUNTO_VYPER2_MEMORY_SIZE);
+
+	int rc = suunto_vyper2_read (abstract, 0x00, data, SUUNTO_VYPER2_MEMORY_SIZE, &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -365,9 +378,13 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	if (! device_is_suunto_vyper2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, RB_PROFILE_END - RB_PROFILE_BEGIN + 8);
+
 	// Read the header bytes.
 	unsigned char header[8] = {0};
-	int rc = suunto_vyper2_device_read (abstract, 0x0190, header, sizeof (header));
+	int rc = suunto_vyper2_read (abstract, 0x0190, header, sizeof (header), NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;
@@ -387,6 +404,9 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	// Calculate the total amount of bytes.
 
 	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end);
+
+	progress_set_maximum (&progress, remaining + 8);
+	progress_event (&progress, DEVICE_EVENT_PROGRESS, 8);
 
 	// To reduce the number of read operations, we always try to read 
 	// packages with the largest possible size. As a consequence, the 
@@ -431,7 +451,7 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 			// Read the package.
 			unsigned char *p = data + remaining - nbytes;
-			rc = suunto_vyper2_device_read (abstract, address - len, p - len, len);
+			rc = suunto_vyper2_read (abstract, address - len, p - len, len, &progress);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Cannot read memory.");
 				return rc;
