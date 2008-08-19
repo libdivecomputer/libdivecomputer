@@ -292,7 +292,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 
 
 static device_status_t
-suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+suunto_vyper_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_state_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -329,12 +329,21 @@ suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned cha
 		message("\"\n");
 #endif
 
+		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
+
 		nbytes += len;
 		address += len;
 		data += len;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+{
+	return suunto_vyper_read (abstract, address, data, size, NULL);
 }
 
 
@@ -396,7 +405,7 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 
 
 device_status_t
-suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigned int size, int init)
+suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, int init, device_progress_state_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -488,6 +497,8 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 			return 0;
 		}
 
+		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
+
 		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
 		// we assume it's the last packet and the transmission can be 
 		// finished early. However, this approach does not work if the 
@@ -514,6 +525,13 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 }
 
 
+device_status_t
+suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigned int size, int init)
+{
+	return suunto_vyper_read_dive (abstract, data, size, init, NULL);
+}
+
+
 static device_status_t
 suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
 {
@@ -523,7 +541,11 @@ suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	if (size < SUUNTO_VYPER_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
 
-	int rc = suunto_vyper_device_read (abstract, 0x00, data, SUUNTO_VYPER_MEMORY_SIZE);
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, SUUNTO_VYPER_MEMORY_SIZE);
+
+	int rc = suunto_vyper_read (abstract, 0x00, data, SUUNTO_VYPER_MEMORY_SIZE, &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -537,6 +559,10 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	if (! device_is_suunto_vyper (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_state_t progress;
+	progress_init (&progress, abstract, SUUNTO_VYPER_MEMORY_SIZE - 0x4C);
+
 	// The memory layout of the Spyder is different from the Vyper
 	// (and all other compatible dive computers). The Spyder has
 	// the largest ring buffer for the profile memory, so we use
@@ -547,7 +573,7 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	int rc = 0;
 	unsigned int ndives = 0;
 	unsigned int offset = 0;
-	while ((rc = suunto_vyper_device_read_dive (abstract, data + offset, sizeof (data) - offset, (ndives == 0))) > 0) {
+	while ((rc = suunto_vyper_read_dive (abstract, data + offset, sizeof (data) - offset, (ndives == 0), &progress)) > 0) {
 		if (callback && !callback (data + offset, rc, userdata))
 			return DEVICE_STATUS_SUCCESS;
 
