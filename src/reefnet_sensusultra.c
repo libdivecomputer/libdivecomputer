@@ -552,7 +552,7 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 
 static device_status_t
 reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int *pprevious,
-	dive_callback_t callback, void *userdata, unsigned int timestamp)
+	int *aborted, dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -590,11 +590,17 @@ reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsig
 			// Automatically abort when a dive is older than the provided timestamp.
 			unsigned int datetime = data[current + 4] + (data[current + 5] << 8) + 
 				(data[current + 6] << 16) + (data[current + 7] << 24);
-			if (datetime <= timestamp)
-				return 1;
+			if (datetime <= timestamp) {
+				if (aborted)
+					*aborted = 1;
+				return DEVICE_STATUS_SUCCESS;
+			}
 
-			if (callback && !callback (data + current, offset + 4 - current, userdata))
-				return 1;
+			if (callback && !callback (data + current, offset + 4 - current, userdata)) {
+				if (aborted)
+					*aborted = 1;
+				return DEVICE_STATUS_SUCCESS;
+			}
 
 			// Prepare for the next dive.
 			previous = current;
@@ -605,6 +611,9 @@ reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsig
 	// Return the offset to the last dive.
 	if (pprevious)
 		*pprevious = previous;
+
+	if (aborted)
+		*aborted = 0;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -657,13 +666,14 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 			break;
 
 		// Parse the page data.
-		rc = reefnet_sensusultra_parse (data, index, index + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, callback, userdata, device->timestamp);
+		int aborted = 0;
+		rc = reefnet_sensusultra_parse (data, index, index + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata, device->timestamp);
 		if (rc != DEVICE_STATUS_SUCCESS) {
-			if (rc > 0)
-				break; // Aborted.
 			free (data);
 			return rc;
 		}
+		if (aborted)
+			break;
 
 		// Accept the packet.
 		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
@@ -685,14 +695,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 device_status_t
 reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
-	int rc = reefnet_sensusultra_parse (data, 0, size, NULL, callback, userdata, timestamp);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		if (rc > 0)
-			return DEVICE_STATUS_SUCCESS; // Aborted.
-		return rc;
-	}
-
-	return DEVICE_STATUS_SUCCESS;
+	return reefnet_sensusultra_parse (data, 0, size, NULL, NULL, callback, userdata, timestamp);
 }
 
 
