@@ -138,7 +138,7 @@ uwatec_aladin_device_set_timestamp (device_t *abstract, unsigned int timestamp)
 
 
 static device_status_t
-uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
@@ -197,7 +197,10 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	return UWATEC_ALADIN_MEMORY_SIZE;
+	if (result)
+		*result = UWATEC_ALADIN_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -211,8 +214,8 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	unsigned char data[UWATEC_ALADIN_MEMORY_SIZE] = {0};
 
-	int rc = uwatec_aladin_device_dump (abstract, data, sizeof (data));
-	if (rc < 0)
+	int rc = uwatec_aladin_device_dump (abstract, data, sizeof (data), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	return uwatec_aladin_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);

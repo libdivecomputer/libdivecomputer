@@ -365,7 +365,7 @@ suunto_d9_device_write (device_t *abstract, unsigned int address, const unsigned
 
 
 static device_status_t
-suunto_d9_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_d9_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	if (! device_is_suunto_d9 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
@@ -381,7 +381,10 @@ suunto_d9_device_dump (device_t *abstract, unsigned char data[], unsigned int si
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return SUUNTO_D9_MEMORY_SIZE;
+	if (result)
+		*result = SUUNTO_D9_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 

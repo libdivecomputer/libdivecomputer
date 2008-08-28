@@ -405,7 +405,7 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 
 
 device_status_t
-suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, int init, device_progress_state_t *progress)
+suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init, device_progress_state_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -494,7 +494,9 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 			}
 			message("\"\n");
 #endif
-			return 0;
+			if (result)
+				*result = 0;
+			return DEVICE_STATUS_SUCCESS;
 		}
 
 		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
@@ -521,19 +523,22 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 	message("\"\n");
 #endif
 
-	return nbytes;
+	if (result)
+		*result = nbytes;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
 device_status_t
-suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigned int size, int init)
+suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init)
 {
-	return suunto_vyper_read_dive (abstract, data, size, init, NULL);
+	return suunto_vyper_read_dive (abstract, data, size, result, init, NULL);
 }
 
 
 static device_status_t
-suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	if (! device_is_suunto_vyper (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
@@ -549,7 +554,10 @@ suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return SUUNTO_VYPER_MEMORY_SIZE;
+	if (result)
+		*result = SUUNTO_VYPER_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -573,18 +581,19 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	int rc = 0;
 	unsigned int ndives = 0;
 	unsigned int offset = 0;
-	while ((rc = suunto_vyper_read_dive (abstract, data + offset, sizeof (data) - offset, (ndives == 0), &progress)) > 0) {
-		if (callback && !callback (data + offset, rc, userdata))
+	unsigned int nbytes = 0;
+	while ((rc = suunto_vyper_read_dive (abstract, data + offset, sizeof (data) - offset, &nbytes, (ndives == 0), &progress)) == DEVICE_STATUS_SUCCESS) {
+		if (nbytes == 0)
+			return DEVICE_STATUS_SUCCESS;
+
+		if (callback && !callback (data + offset, nbytes, userdata))
 			return DEVICE_STATUS_SUCCESS;
 
 		ndives++;
-		offset += rc;
+		offset += nbytes;
 	}
 
-	if (rc != 0)
-		return rc;
-
-	return DEVICE_STATUS_SUCCESS;
+	return rc;
 }
 
 

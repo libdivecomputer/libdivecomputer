@@ -352,7 +352,7 @@ suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsi
 
 
 static device_status_t
-suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	if (! device_is_suunto_vyper2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
@@ -368,7 +368,10 @@ suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return SUUNTO_VYPER2_MEMORY_SIZE;
+	if (result)
+		*result = SUUNTO_VYPER2_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 

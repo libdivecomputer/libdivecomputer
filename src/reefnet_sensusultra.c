@@ -342,7 +342,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 
 
 static device_status_t
-reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsigned int size)
+reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -382,7 +382,10 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 		npages++;
 	}
 
-	return REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
+	if (result)
+		*result = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 

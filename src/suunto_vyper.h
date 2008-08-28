@@ -20,7 +20,7 @@ device_status_t
 suunto_vyper_device_detect_interface (device_t *device);
 
 device_status_t
-suunto_vyper_device_read_dive (device_t *device, unsigned char data[], unsigned int size, int init);
+suunto_vyper_device_read_dive (device_t *device, unsigned char data[], unsigned int size, unsigned int *result, int init);
 
 device_status_t
 suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);

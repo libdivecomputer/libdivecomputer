@@ -381,7 +381,7 @@ oceanic_atom2_read_ringbuffer (device_t *abstract, unsigned int address, unsigne
 }
 
 static device_status_t
-oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
@@ -393,7 +393,10 @@ oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return OCEANIC_ATOM2_MEMORY_SIZE;
+	if (result)
+		*result = OCEANIC_ATOM2_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 

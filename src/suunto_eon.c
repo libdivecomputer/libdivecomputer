@@ -118,7 +118,7 @@ suunto_eon_device_close (device_t *abstract)
 
 
 static device_status_t
-suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
@@ -162,7 +162,10 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	return SUUNTO_EON_MEMORY_SIZE;
+	if (result)
+		*result = SUUNTO_EON_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -171,8 +174,8 @@ suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 {
 	unsigned char data[SUUNTO_EON_MEMORY_SIZE] = {0};
 
-	int rc = suunto_eon_device_dump (abstract, data, sizeof (data));
-	if (rc < 0)
+	int rc = suunto_eon_device_dump (abstract, data, sizeof (data), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	return suunto_eon_extract_dives (data, sizeof (data), callback, userdata);

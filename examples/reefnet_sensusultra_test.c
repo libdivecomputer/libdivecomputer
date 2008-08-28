@@ -81,8 +81,9 @@ int test_dump_memory_data (const char* name, const char* filename)
 	message ("time=%lu (%s)\n", (unsigned long)now, datetime);
 
 	message ("device_dump\n");
-	rc = device_dump (device, data, sizeof (data));
-	if (rc < 0) {
+	unsigned int nbytes = 0;
+	rc = device_dump (device, data, sizeof (data), &nbytes);
+	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
 		device_close (device);
 		return rc;
@@ -91,7 +92,7 @@ int test_dump_memory_data (const char* name, const char* filename)
 	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
-		fwrite (data, sizeof (unsigned char), rc, fp);
+		fwrite (data, sizeof (unsigned char), nbytes, fp);
 		fclose (fp);
 	}
 

@@ -392,7 +392,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 
 
 static device_status_t
-uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size)
+uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
 
@@ -415,7 +415,10 @@ uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int
 
 	free (buffer);
 
-	return length;
+	if (result)
+		*result = length;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
