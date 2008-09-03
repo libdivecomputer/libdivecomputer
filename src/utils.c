@@ -2,6 +2,8 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "utils.h"
+
 static FILE* g_logfile = NULL;
 
 static unsigned char g_lastchar = '\n';
