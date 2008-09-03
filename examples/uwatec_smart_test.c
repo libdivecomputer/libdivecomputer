@@ -17,7 +17,7 @@ test_dump_memory (const char* filename)
 	device_t *device = NULL;
 
 	const unsigned int size = 2 * 1024 * 1024;
-	unsigned char *data = malloc (size * sizeof (unsigned char));
+	unsigned char *data = (unsigned char *) malloc (size * sizeof (unsigned char));
 	if (data == NULL)
 		return DEVICE_STATUS_MEMORY;
 	memset (data, 0, size * sizeof (unsigned char));

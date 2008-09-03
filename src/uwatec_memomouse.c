@@ -49,7 +49,7 @@ uwatec_memomouse_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	uwatec_memomouse_device_t *device = malloc (sizeof (uwatec_memomouse_device_t));
+	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t *) malloc (sizeof (uwatec_memomouse_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return DEVICE_STATUS_MEMORY;
@@ -276,7 +276,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 	progress_event (progress, DEVICE_EVENT_PROGRESS, length);
 
 	// Allocate memory for the entire package.
-	unsigned char *buffer = malloc (total * sizeof (unsigned char));
+	unsigned char *buffer = (unsigned char *) malloc (total * sizeof (unsigned char));
 	if (package == NULL) {
 		WARNING ("Memory allocation error.");
 		return DEVICE_STATUS_MEMORY;

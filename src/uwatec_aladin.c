@@ -49,7 +49,7 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	uwatec_aladin_device_t *device = malloc (sizeof (uwatec_aladin_device_t));
+	uwatec_aladin_device_t *device = (uwatec_aladin_device_t *) malloc (sizeof (uwatec_aladin_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return DEVICE_STATUS_MEMORY;

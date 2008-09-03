@@ -71,7 +71,7 @@ uwatec_smart_device_open (device_t **out)
 		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	uwatec_smart_device_t *device = malloc (sizeof (uwatec_smart_device_t));
+	uwatec_smart_device_t *device = (uwatec_smart_device_t *) malloc (sizeof (uwatec_smart_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return DEVICE_STATUS_MEMORY;
@@ -332,7 +332,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
   	if (length == 0)
   		return DEVICE_STATUS_SUCCESS;
 
-	unsigned char *package = malloc (length * sizeof (unsigned char));
+	unsigned char *package = (unsigned char *) malloc (length * sizeof (unsigned char));
 	if (package == NULL) {
 		WARNING ("Memory allocation error.");
 		return DEVICE_STATUS_MEMORY;

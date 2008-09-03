@@ -63,7 +63,7 @@ serial_open (serial** out, const char* name)
 		return -1; // EINVAL (Invalid argument)
 
 	// Allocate memory.
-	struct serial *device = malloc (sizeof (struct serial));
+	struct serial *device = (struct serial *) malloc (sizeof (struct serial));
 	if (device == NULL) {
 		TRACE ("malloc");
 		return -1; // ENOMEM (Not enough space)

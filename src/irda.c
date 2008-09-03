@@ -133,7 +133,7 @@ irda_socket_open (irda **out)
 		return -1; // EINVAL (Invalid argument)
 
 	// Allocate memory.
-	struct irda *device = malloc (sizeof (struct irda));
+	struct irda *device = (struct irda *) malloc (sizeof (struct irda));
 	if (device == NULL) {
 		TRACE ("malloc");
 		return -1; // ENOMEM (Not enough space)

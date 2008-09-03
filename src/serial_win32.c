@@ -71,7 +71,7 @@ serial_open (serial** out, const char* name)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
 	// Allocate memory.
-	struct serial *device = malloc (sizeof (struct serial));
+	struct serial *device = (struct serial *) malloc (sizeof (struct serial));
 	if (device == NULL) {
 		TRACE ("malloc");
 		return -1; // ERROR_OUTOFMEMORY (Not enough storage is available to complete this operation)

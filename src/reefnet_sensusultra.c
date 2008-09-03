@@ -50,7 +50,7 @@ reefnet_sensusultra_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	reefnet_sensusultra_device_t *device = malloc (sizeof (reefnet_sensusultra_device_t));
+	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t *) malloc (sizeof (reefnet_sensusultra_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return DEVICE_STATUS_MEMORY;
@@ -627,7 +627,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char *data = malloc (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE * sizeof (unsigned char));
+	unsigned char *data = (unsigned char *) malloc (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE * sizeof (unsigned char));
 	if (data == NULL) {
 		WARNING ("Memory allocation error.");
 		return DEVICE_STATUS_MEMORY;
