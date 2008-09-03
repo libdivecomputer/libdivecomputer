@@ -31,7 +31,23 @@ struct suunto_vyper2_device_t {
 	struct serial *port;
 };
 
-static const device_backend_t suunto_vyper2_device_backend;
+static device_status_t suunto_vyper2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
+static device_status_t suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static device_status_t suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
+static device_status_t suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t suunto_vyper2_device_close (device_t *abstract);
+
+static const device_backend_t suunto_vyper2_device_backend = {
+	DEVICE_TYPE_SUUNTO_VYPER2,
+	NULL, /* handshake */
+	suunto_vyper2_device_version, /* version */
+	suunto_vyper2_device_read, /* read */
+	suunto_vyper2_device_write, /* write */
+	suunto_vyper2_device_dump, /* dump */
+	suunto_vyper2_device_foreach, /* foreach */
+	suunto_vyper2_device_close /* close */
+};
 
 static int
 device_is_suunto_vyper2 (device_t *abstract)
@@ -503,15 +519,3 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	return DEVICE_STATUS_SUCCESS;
 }
-
-
-static const device_backend_t suunto_vyper2_device_backend = {
-	DEVICE_TYPE_SUUNTO_VYPER2,
-	NULL, /* handshake */
-	suunto_vyper2_device_version, /* version */
-	suunto_vyper2_device_read, /* read */
-	suunto_vyper2_device_write, /* write */
-	suunto_vyper2_device_dump, /* dump */
-	suunto_vyper2_device_foreach, /* foreach */
-	suunto_vyper2_device_close /* close */
-};

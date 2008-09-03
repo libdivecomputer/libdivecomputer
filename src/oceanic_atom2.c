@@ -48,7 +48,22 @@ struct oceanic_atom2_device_t {
 	struct serial *port;
 };
 
-static const device_backend_t oceanic_atom2_device_backend;
+static device_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
+static device_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static device_status_t oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t oceanic_atom2_device_close (device_t *abstract);
+
+static const device_backend_t oceanic_atom2_device_backend = {
+	DEVICE_TYPE_OCEANIC_ATOM2,
+	NULL, /* handshake */
+	oceanic_atom2_device_version, /* version */
+	oceanic_atom2_device_read, /* read */
+	NULL, /* write */
+	oceanic_atom2_device_dump, /* dump */
+	oceanic_atom2_device_foreach, /* foreach */
+	oceanic_atom2_device_close /* close */
+};
 
 static int
 device_is_oceanic_atom2 (device_t *abstract)
@@ -482,15 +497,3 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	return DEVICE_STATUS_SUCCESS;
 }
-
-
-static const device_backend_t oceanic_atom2_device_backend = {
-	DEVICE_TYPE_OCEANIC_ATOM2,
-	NULL, /* handshake */
-	oceanic_atom2_device_version, /* version */
-	oceanic_atom2_device_read, /* read */
-	NULL, /* write */
-	oceanic_atom2_device_dump, /* dump */
-	oceanic_atom2_device_foreach, /* foreach */
-	oceanic_atom2_device_close /* close */
-};

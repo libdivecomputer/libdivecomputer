@@ -26,7 +26,20 @@ struct suunto_eon_device_t {
 	struct serial *port;
 };
 
-static const device_backend_t suunto_eon_device_backend;
+static device_status_t suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t suunto_eon_device_close (device_t *abstract);
+
+static const device_backend_t suunto_eon_device_backend = {
+	DEVICE_TYPE_SUUNTO_EON,
+	NULL, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	suunto_eon_device_dump, /* dump */
+	suunto_eon_device_foreach, /* foreach */
+	suunto_eon_device_close /* close */
+};
 
 static int
 device_is_suunto_eon (device_t *abstract)
@@ -242,15 +255,3 @@ suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 
 	return suunto_common_extract_dives (data, 0x100, SUUNTO_EON_MEMORY_SIZE, eop, 3, callback, userdata);
 }
-
-
-static const device_backend_t suunto_eon_device_backend = {
-	DEVICE_TYPE_SUUNTO_EON,
-	NULL, /* handshake */
-	NULL, /* version */
-	NULL, /* read */
-	NULL, /* write */
-	suunto_eon_device_dump, /* dump */
-	suunto_eon_device_foreach, /* foreach */
-	suunto_eon_device_close /* close */
-};

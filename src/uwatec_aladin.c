@@ -30,7 +30,20 @@ struct uwatec_aladin_device_t {
 	unsigned int timestamp;
 };
 
-static const device_backend_t uwatec_aladin_device_backend;
+static device_status_t uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t uwatec_aladin_device_close (device_t *abstract);
+
+static const device_backend_t uwatec_aladin_device_backend = {
+	DEVICE_TYPE_UWATEC_ALADIN,
+	NULL, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	uwatec_aladin_device_dump, /* dump */
+	uwatec_aladin_device_foreach, /* foreach */
+	uwatec_aladin_device_close /* close */
+};
 
 static int
 device_is_uwatec_aladin (device_t *abstract)
@@ -330,15 +343,3 @@ uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_
 
 	return DEVICE_STATUS_SUCCESS;
 }
-
-
-static const device_backend_t uwatec_aladin_device_backend = {
-	DEVICE_TYPE_UWATEC_ALADIN,
-	NULL, /* handshake */
-	NULL, /* version */
-	NULL, /* read */
-	NULL, /* write */
-	uwatec_aladin_device_dump, /* dump */
-	uwatec_aladin_device_foreach, /* foreach */
-	uwatec_aladin_device_close /* close */
-};

@@ -26,7 +26,21 @@ struct reefnet_sensuspro_device_t {
 	unsigned int timestamp;
 };
 
-static const device_backend_t reefnet_sensuspro_device_backend;
+static device_status_t reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);
+static device_status_t reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result);
+static device_status_t reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t reefnet_sensuspro_device_close (device_t *abstract);
+
+static const device_backend_t reefnet_sensuspro_device_backend = {
+	DEVICE_TYPE_REEFNET_SENSUSPRO,
+	reefnet_sensuspro_device_handshake, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	reefnet_sensuspro_device_dump, /* dump */
+	reefnet_sensuspro_device_foreach, /* foreach */
+	reefnet_sensuspro_device_close /* close */
+};
 
 static int
 device_is_reefnet_sensuspro (device_t *abstract)
@@ -341,15 +355,3 @@ reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, 
 
 	return DEVICE_STATUS_SUCCESS;
 }
-
-
-static const device_backend_t reefnet_sensuspro_device_backend = {
-	DEVICE_TYPE_REEFNET_SENSUSPRO,
-	reefnet_sensuspro_device_handshake, /* handshake */
-	NULL, /* version */
-	NULL, /* read */
-	NULL, /* write */
-	reefnet_sensuspro_device_dump, /* dump */
-	reefnet_sensuspro_device_foreach, /* foreach */
-	reefnet_sensuspro_device_close /* close */
-};

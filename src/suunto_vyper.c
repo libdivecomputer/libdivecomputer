@@ -29,7 +29,22 @@ struct suunto_vyper_device_t {
 	unsigned int delay;
 };
 
-static const device_backend_t suunto_vyper_device_backend;
+static device_status_t suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static device_status_t suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
+static device_status_t suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t suunto_vyper_device_close (device_t *abstract);
+
+static const device_backend_t suunto_vyper_device_backend = {
+	DEVICE_TYPE_SUUNTO_VYPER,
+	NULL, /* handshake */
+	NULL, /* version */
+	suunto_vyper_device_read, /* read */
+	suunto_vyper_device_write, /* write */
+	suunto_vyper_device_dump, /* dump */
+	suunto_vyper_device_foreach, /* foreach */
+	suunto_vyper_device_close /* close */
+};
 
 static int
 device_is_suunto_vyper (device_t *abstract)
@@ -618,15 +633,3 @@ suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive
 
 	return suunto_common_extract_dives (data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, callback, userdata);
 }
-
-
-static const device_backend_t suunto_vyper_device_backend = {
-	DEVICE_TYPE_SUUNTO_VYPER,
-	NULL, /* handshake */
-	NULL, /* version */
-	suunto_vyper_device_read, /* read */
-	suunto_vyper_device_write, /* write */
-	suunto_vyper_device_dump, /* dump */
-	suunto_vyper_device_foreach, /* foreach */
-	suunto_vyper_device_close /* close */
-};
