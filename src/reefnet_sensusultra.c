@@ -192,7 +192,7 @@ reefnet_sensusultra_send_ushort (reefnet_sensusultra_device_t *device, unsigned 
 {
 	// Send the least-significant byte.
 	unsigned char lsb = value & 0xFF;
-	int rc = reefnet_sensusultra_send_uchar (device, lsb);
+	device_status_t rc = reefnet_sensusultra_send_uchar (device, lsb);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -241,7 +241,7 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 	// Flush the input and output buffers.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	int rc = 0;
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
 	unsigned int nretries = 0;
 	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE + 2] = {0};
 	while ((rc = reefnet_sensusultra_packet (device, handshake, sizeof (handshake), 0)) != DEVICE_STATUS_SUCCESS) {
@@ -304,7 +304,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 	if (device == NULL)
 		return DEVICE_STATUS_ERROR;
 
-	int rc = 0;
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
 	unsigned int nretries = 0;
 	unsigned char package[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
 	while ((rc = reefnet_sensusultra_packet (device, package, sizeof (package), 2)) != DEVICE_STATUS_SUCCESS) {
@@ -357,7 +357,7 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 	progress_init (&progress, abstract, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE);
 
 	// Send the instruction code to the device.
-	int rc = reefnet_sensusultra_send_ushort (device, 0xB421);
+	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB421);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -401,7 +401,7 @@ reefnet_sensusultra_device_read_user (device_t *abstract, unsigned char *data, u
 		return DEVICE_STATUS_ERROR;
 
 	// Send the instruction code to the device.
-	int rc = reefnet_sensusultra_send_ushort (device, 0xB420);
+	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB420);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -437,7 +437,7 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 	assert (size >= REEFNET_SENSUSULTRA_MEMORY_USER_SIZE);
 
 	// Send the instruction code to the device.
-	int rc = reefnet_sensusultra_send_ushort (device, 0xB430);
+	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB430);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -467,7 +467,7 @@ reefnet_sensusultra_write_internal (device_t *abstract, unsigned int code, unsig
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the instruction code to the device.
-	int rc = reefnet_sensusultra_send_ushort (device, code);
+	device_status_t rc = reefnet_sensusultra_send_ushort (device, code);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -529,7 +529,7 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the instruction code to the device.
-	int rc = reefnet_sensusultra_send_ushort (device, 0xB440);
+	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB440);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -641,7 +641,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	unsigned int previous = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
 
 	// Send the instruction code to the device.
-	int rc = reefnet_sensusultra_send_ushort (device, 0xB421);
+	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB421);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		free (data);
 		return rc;

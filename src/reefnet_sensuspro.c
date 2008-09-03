@@ -256,7 +256,7 @@ reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, 
 
 	unsigned char data[REEFNET_SENSUSPRO_MEMORY_SIZE] = {0};
 
-	int rc = reefnet_sensuspro_device_dump (abstract, data, sizeof (data), NULL);
+	device_status_t rc = reefnet_sensuspro_device_dump (abstract, data, sizeof (data), NULL);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 

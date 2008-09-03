@@ -9,14 +9,15 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-int test_dump_memory (const char* name, const char* filename)
+device_status_t
+test_dump_memory (const char* name, const char* filename)
 {
 	device_t *device = NULL;
 	unsigned char data[REEFNET_SENSUSPRO_MEMORY_SIZE] = {0};
 	unsigned char handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE] = {0};
 
 	message ("reefnet_sensuspro_device_open\n");
-	int rc = reefnet_sensuspro_device_open (&device, name);
+	device_status_t rc = reefnet_sensuspro_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
@@ -62,7 +63,8 @@ int test_dump_memory (const char* name, const char* filename)
 }
 
 
-const char* errmsg (int rc)
+const char*
+errmsg (device_status_t rc)
 {
 	switch (rc) {
 	case DEVICE_STATUS_SUCCESS:
@@ -103,7 +105,7 @@ int main(int argc, char *argv[])
 
 	message ("DEVICE=%s\n", name);
 
-	int a = test_dump_memory (name, "SENSUSPRO.DMP");
+	device_status_t a = test_dump_memory (name, "SENSUSPRO.DMP");
 
 	message ("SUMMARY\n");
 	message ("-------\n");

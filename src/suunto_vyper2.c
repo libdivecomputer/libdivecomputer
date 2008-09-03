@@ -162,17 +162,17 @@ suunto_vyper2_transfer (suunto_vyper2_device_t *device, const unsigned char comm
 
 	for (unsigned int i = 0;; ++i) {
 		// Send the command to the dive computer.
-		int rc = suunto_vyper2_send (device, command, csize);
+		device_status_t rc = suunto_vyper2_send (device, command, csize);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Failed to send the command.");
 			return rc;
 		}
 
 		// Receive the answer of the dive computer.
-		rc = serial_read (device->port, answer, asize);
-		if (rc != asize) {
+		int n = serial_read (device->port, answer, asize);
+		if (n != asize) {
 			WARNING ("Failed to receive the answer.");
-			if (rc == -1)
+			if (n == -1)
 				return DEVICE_STATUS_IO;
 			if (i < MAXRETRIES)
 				continue; // Retry.
@@ -213,7 +213,7 @@ suunto_vyper2_device_version (device_t *abstract, unsigned char data[], unsigned
 
 	unsigned char answer[SUUNTO_VYPER2_VERSION_SIZE + 4] = {0};
 	unsigned char command[4] = {0x0F, 0x00, 0x00, 0x0F};
-	int rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, sizeof (answer), 4);
+	device_status_t rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, sizeof (answer), 4);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -237,7 +237,7 @@ suunto_vyper2_device_reset_maxdepth (device_t *abstract)
 
 	unsigned char answer[4] = {0};
 	unsigned char command[4] = {0x20, 0x00, 0x00, 0x20};
-	int rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+	device_status_t rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -273,7 +273,7 @@ suunto_vyper2_read (device_t *abstract, unsigned int address, unsigned char data
 				len, // count
 				0};  // CRC
 		command[6] = checksum_xor_uint8 (command, 6, 0x00);
-		int rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, len + 7, len);
+		device_status_t rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, len + 7, len);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
@@ -330,7 +330,7 @@ suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsi
 				0};  // data + CRC
 		memcpy (command + 6, data, len);
 		command[len + 6] = checksum_xor_uint8 (command, len + 6, 0x00);
-		int rc = suunto_vyper2_transfer (device, command, len + 7, answer, sizeof (answer), 0);
+		device_status_t rc = suunto_vyper2_transfer (device, command, len + 7, answer, sizeof (answer), 0);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
@@ -364,7 +364,7 @@ suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	device_progress_state_t progress;
 	progress_init (&progress, abstract, SUUNTO_VYPER2_MEMORY_SIZE);
 
-	int rc = suunto_vyper2_read (abstract, 0x00, data, SUUNTO_VYPER2_MEMORY_SIZE, &progress);
+	device_status_t rc = suunto_vyper2_read (abstract, 0x00, data, SUUNTO_VYPER2_MEMORY_SIZE, &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -387,7 +387,7 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	// Read the header bytes.
 	unsigned char header[8] = {0};
-	int rc = suunto_vyper2_read (abstract, 0x0190, header, sizeof (header), NULL);
+	device_status_t rc = suunto_vyper2_read (abstract, 0x0190, header, sizeof (header), NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;

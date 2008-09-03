@@ -207,9 +207,9 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 static device_status_t
 uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
-	int rc = 0;
 	unsigned int length = 0;
 	unsigned char package[126 + 2] = {0};
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
 	while ((rc = uwatec_memomouse_read_packet (device, package, sizeof (package), &length)) != DEVICE_STATUS_SUCCESS) {
 		// Automatically discard a corrupted packet, 
 		// and request a new one.
@@ -253,7 +253,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 	// Read the first package.
 	unsigned int length = 0;
 	unsigned char package[126] = {0};
-	int rc = uwatec_memomouse_read_packet_outer (device, package, sizeof (package), &length);
+	device_status_t rc = uwatec_memomouse_read_packet_outer (device, package, sizeof (package), &length);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -335,7 +335,7 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
 		// Reject the packet.
-		int rc = uwatec_memomouse_confirm (device, NAK);
+		device_status_t rc = uwatec_memomouse_confirm (device, NAK);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
@@ -345,7 +345,7 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 	// Read the ID string.
 	unsigned int id_length = 0;
 	unsigned char *id_buffer = NULL;
-	int rc = uwatec_memomouse_read_packet_inner (device, &id_buffer, &id_length, NULL);
+	device_status_t rc = uwatec_memomouse_read_packet_inner (device, &id_buffer, &id_length, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -376,19 +376,19 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 		
 		// Send the command to the device.
-		rc = serial_write (device->port, command, sizeof (command));
-		if (rc != sizeof (command)) {
+		int n = serial_write (device->port, command, sizeof (command));
+		if (n != sizeof (command)) {
 			WARNING ("Failed to send the command.");
-			return EXITCODE (rc);
+			return EXITCODE (n);
 		}
 
 		serial_drain (device->port);
 
 		// Wait for the answer (ACK).
-		rc = serial_read (device->port, &answer, 1);
-		if (rc != 1) {
+		n = serial_read (device->port, &answer, 1);
+		if (n != 1) {
 			WARNING ("Failed to recieve the answer.");
-			return EXITCODE (rc);
+			return EXITCODE (n);
 		}
 
 #ifndef NDEBUG
@@ -420,7 +420,7 @@ uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned
 
 	unsigned int length = 0;
 	unsigned char *buffer = NULL;
-	int rc = uwatec_memomouse_dump (device, &buffer, &length);
+	device_status_t rc = uwatec_memomouse_dump (device, &buffer, &length);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -451,7 +451,7 @@ uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, v
 
 	unsigned int length = 0;
 	unsigned char *buffer = NULL;
-	int rc = uwatec_memomouse_dump (device, &buffer, &length);
+	device_status_t rc = uwatec_memomouse_dump (device, &buffer, &length);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 

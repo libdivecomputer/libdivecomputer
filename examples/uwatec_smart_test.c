@@ -11,7 +11,8 @@
 }
 
 
-int test_dump_memory (const char* filename)
+device_status_t
+test_dump_memory (const char* filename)
 {
 	device_t *device = NULL;
 
@@ -22,7 +23,7 @@ int test_dump_memory (const char* filename)
 	memset (data, 0, size * sizeof (unsigned char));
 
 	message ("uwatec_smart_device_open\n");
-	int rc = uwatec_smart_device_open (&device);
+	device_status_t rc = uwatec_smart_device_open (&device);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot open device.");
 		free (data);
@@ -79,7 +80,8 @@ int test_dump_memory (const char* filename)
 }
 
 
-const char* errmsg (int rc)
+const char*
+errmsg (device_status_t rc)
 {
 	switch (rc) {
 	case DEVICE_STATUS_SUCCESS:
@@ -108,7 +110,7 @@ int main(int argc, char *argv[])
 {
 	message_set_logfile ("SMART.LOG");
 
-	int a = test_dump_memory ("SMART.DMP");
+	device_status_t a = test_dump_memory ("SMART.DMP");
 
 	message ("\nSUMMARY\n");
 	message ("-------\n");

@@ -202,7 +202,7 @@ uwatec_smart_device_handshake (device_t *abstract)
 
 	command[0] = 0x1B;
 
-	int rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -251,7 +251,7 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 
 	command[0] = 0x1A;
 
-	int rc = uwatec_smart_transfer (device, command, 1, answer + 0, 4);
+	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer + 0, 4);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -321,7 +321,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	command[7] = 0;
 	command[8] = 0;
 
-	int rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	device_status_t rc = uwatec_smart_transfer (device, command, 9, answer, 4);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -372,16 +372,16 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 		unsigned int len = length - nbytes;
 		if (len > 32)
 			len = 32;
-		rc = irda_socket_read (device->socket, package + nbytes, len);
-		if (rc < 0) {
+		int n = irda_socket_read (device->socket, package + nbytes, len);
+		if (n < 0) {
 			WARNING ("Failed to receive the answer.");
 			free (package);
-			return EXITCODE (rc);
+			return EXITCODE (n);
 		}
 
 		progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
 
-		nbytes += rc;
+		nbytes += n;
 	}
 
 	*data = package;
@@ -401,7 +401,7 @@ uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int
 
 	unsigned int length = 0;
 	unsigned char *buffer = NULL;
-	int rc = uwatec_smart_dump (device, &buffer, &length);
+	device_status_t rc = uwatec_smart_dump (device, &buffer, &length);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -432,7 +432,7 @@ uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	unsigned int length = 0;
 	unsigned char *buffer = NULL;
-	int rc = uwatec_smart_dump (device, &buffer, &length);
+	device_status_t rc = uwatec_smart_dump (device, &buffer, &length);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 

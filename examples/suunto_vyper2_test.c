@@ -8,12 +8,14 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
-int test_dump_sdm (const char* name)
+
+device_status_t
+test_dump_sdm (const char* name)
 {
 	device_t *device = NULL;
 
 	message ("suunto_vyper2_device_open\n");
-	int rc = suunto_vyper2_device_open (&device, name);
+	device_status_t rc = suunto_vyper2_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
@@ -46,13 +48,15 @@ int test_dump_sdm (const char* name)
 	return DEVICE_STATUS_SUCCESS;
 }
 
-int test_dump_memory (const char* name, const char* filename)
+
+device_status_t
+test_dump_memory (const char* name, const char* filename)
 {
 	unsigned char data[SUUNTO_VYPER2_MEMORY_SIZE] = {0};
 	device_t *device = NULL;
 
 	message ("suunto_vyper2_device_open\n");
-	int rc = suunto_vyper2_device_open (&device, name);
+	device_status_t rc = suunto_vyper2_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;
@@ -92,7 +96,9 @@ int test_dump_memory (const char* name, const char* filename)
 	return DEVICE_STATUS_SUCCESS;
 }
 
-const char* errmsg (int rc)
+
+const char*
+errmsg (device_status_t rc)
 {
 	switch (rc) {
 	case DEVICE_STATUS_SUCCESS:
@@ -132,8 +138,8 @@ int main(int argc, char *argv[])
 
 	message ("DEVICE=%s\n", name);
 
-	int a = test_dump_memory (name, "VYPER2.DMP");
-	int b = test_dump_sdm (name);
+	device_status_t a = test_dump_memory (name, "VYPER2.DMP");
+	device_status_t b = test_dump_sdm (name);
 
 	message ("\nSUMMARY\n");
 	message ("-------\n");
