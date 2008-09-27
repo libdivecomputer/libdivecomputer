@@ -420,7 +420,7 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 }
 
 
-device_status_t
+static device_status_t
 suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init, device_progress_state_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
