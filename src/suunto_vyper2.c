@@ -19,6 +19,8 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define MINIMUM 8
+
 #define RB_PROFILE_BEGIN			0x019A
 #define RB_PROFILE_END				SUUNTO_VYPER2_MEMORY_SIZE - 2
 #define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
@@ -418,7 +420,7 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	// Memory buffer to store all the dives.
 
-	unsigned char data[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
+	unsigned char data[MINIMUM + RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 
 	// Calculate the total amount of bytes.
 
@@ -468,13 +470,25 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 			message ("Pointers: address=%04x, len=%u\n", address - len, len);
 
+			// Always read at least the minimum amount of bytes, because 
+			// reading fewer bytes is unreliable. The memory buffer is 
+			// large enough to prevent buffer overflows, and the extra 
+			// bytes are automatically ignored (due to reading backwards).
+			unsigned int extra = 0;
+			if (len < MINIMUM)
+				extra = MINIMUM - len;
+
+			message ("Pointers: extra=%u\n", extra);
+
 			// Read the package.
-			unsigned char *p = data + remaining - nbytes;
-			rc = suunto_vyper2_read (abstract, address - len, p - len, len, &progress);
+			unsigned char *p = data + MINIMUM + remaining - nbytes;
+			rc = suunto_vyper2_read (abstract, address - (len + extra), p - (len + extra), len + extra, NULL);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Cannot read memory.");
 				return rc;
 			}
+
+			progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
 
 			// Next package.
 			nbytes += len;
@@ -493,8 +507,8 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		remaining -= size;
 		available = nbytes - size;
 
-		unsigned int oprevious = data[remaining + 0] + (data[remaining + 1] << 8);
-		unsigned int onext     = data[remaining + 2] + (data[remaining + 3] << 8);
+		unsigned int oprevious = data[MINIMUM + remaining + 0] + (data[MINIMUM + remaining + 1] << 8);
+		unsigned int onext     = data[MINIMUM + remaining + 2] + (data[MINIMUM + remaining + 3] << 8);
 		message ("Pointers: previous=%04x, next=%04x\n", oprevious, onext);
 		assert (current == onext);
 
@@ -506,12 +520,12 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 #ifndef NDEBUG
 		message ("Vyper2Profile()=\"");
 		for (unsigned int i = 0; i < size - 4; ++i) {
-			message ("%02x", data[remaining + 4 + i]);
+			message ("%02x", data[MINIMUM + remaining + 4 + i]);
 		}
 		message ("\"\n");
 #endif
 
-		if (callback && !callback (data + remaining + 4, size - 4, userdata))
+		if (callback && !callback (data + MINIMUM + remaining + 4, size - 4, userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
 	assert (remaining == 0);
