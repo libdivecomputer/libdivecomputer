@@ -27,7 +27,9 @@ libdivecomputer_HEADERS = 	\
 
 lib_LTLIBRARIES = libdivecomputer.la
 
-libdivecomputer_la_LDFLAGS = -no-undefined
+libdivecomputer_la_LDFLAGS = \
+	-no-undefined \
+	-export-symbols libdivecomputer.exp
 
 libdivecomputer_la_SOURCES = \
 	device.h device-private.h device.c \
@@ -64,3 +66,15 @@ libdivecomputer_la_SOURCES += \
 	irda.h irda.c \
 	uwatec_smart.h uwatec_smart.c
 endif
+
+libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp 
+
+libdivecomputer.exp: libdivecomputer.symbols
+if IRDA
+	$(CPP) -P -DSERIAL -DIRDA - < $< | sed -e '/^$$/d' > $@
+else
+	$(CPP) -P -DSERIAL - < $< | sed -e '/^$$/d' > $@
+endif
+
+CLEANFILES = libdivecomputer.exp 
+EXTRA_DIST = libdivecomputer.symbols
