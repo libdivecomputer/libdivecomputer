@@ -23,9 +23,6 @@ typedef struct suunto_vyper_device_t suunto_vyper_device_t;
 struct suunto_vyper_device_t {
 	device_t base;
 	struct serial *port;
-	int extraanswertime;
-	int ifacealwaysechos;
-	int breakprofreadearly;
 	unsigned int delay;
 };
 
@@ -74,9 +71,6 @@ suunto_vyper_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
-	device->extraanswertime = 0;
-	device->ifacealwaysechos = 0;
-	device->breakprofreadearly = 0;
 	device->delay = 500;
 
 	// Open the device.
@@ -141,81 +135,6 @@ suunto_vyper_device_close (device_t *abstract)
 	// Free memory.	
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper_send_testcmd (suunto_vyper_device_t *device, const unsigned char* data, unsigned int size)
-{
-	if (serial_write (device->port, data, size) != size) {
-		WARNING ("Failed to send the test sequence.");
-		return DEVICE_STATUS_IO;
-	}
-	serial_drain (device->port);
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-device_status_t
-suunto_vyper_device_detect_interface (device_t *abstract)
-{
-	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
-
-	if (! device_is_suunto_vyper (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	device_status_t rc;
-	int detectmode_worked = 1;
-	unsigned char command[3] = {'A', 'T', '\r'}, reply[3] = {0}, extra = 0;
-
-	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
-
-	// Charge power supply?
-	serial_set_rts (device->port, 1);
-	serial_sleep (300);
-
-	// Try detection mode first.
-
-	serial_set_rts (device->port, 0);
-	rc = suunto_vyper_send_testcmd (device, command, 3);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-	int n = serial_read (device->port, reply, 3);
-	if (n != 3 || memcmp (command, reply, 3) != 0) {
-		WARNING ("Interface not responding in probe mode.");
-    	detectmode_worked = 0;
-	}
-	if (serial_read (device->port, &extra, 1) == 1) {
-		WARNING ("Got an extraneous character in the detection phase. Maybe the line is connected to a modem?");
-	}
-
-	// Try transfer mode now.
-
-	serial_set_rts (device->port, 1);
-	rc = suunto_vyper_send_testcmd (device, command, 3);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-	serial_set_rts (device->port, 0);
-	n = serial_read (device->port, reply, 3);
-	if (n == 0) {
-		if (detectmode_worked) {
-			WARNING ("Detected an original suunto interface with RTS-switching.");
-		} else {
-			WARNING ("Can't detect the interface. Hoping it's an original suunto interface with the DC already attached.");
-		}
-		device->ifacealwaysechos = 0;
-		return DEVICE_STATUS_SUCCESS;
-	}
-	if (n != 3 || memcmp (command, reply, 3) != 0) {
-		WARNING ("Interface not responding in transfer mode.");
-	}
-	if (serial_read (device->port, &extra, 1) == 1) {
-		WARNING ("Got an extraneous character in the detection phase. Maybe the line is connected to a modem?");
-	}
-	WARNING ("Detected a clone interface without RTS-switching.");
-	device->ifacealwaysechos = 1;
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -521,8 +440,10 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 		// we assume it's the last packet and the transmission can be 
 		// finished early. However, this approach does not work if the 
 		// last packet is exactly $SUUNTO_VYPER_PACKET_SIZE bytes long!
-		if (device->breakprofreadearly && len != SUUNTO_VYPER_PACKET_SIZE) 
+#if 0
+		if (len != SUUNTO_VYPER_PACKET_SIZE) 
 			break;
+#endif
 	}
 
 	// The DC traverses its internal ring buffer backwards. The most recent 

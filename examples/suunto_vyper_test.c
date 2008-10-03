@@ -23,14 +23,6 @@ test_dump_sdm (const char* name, unsigned int delay)
 
 	suunto_vyper_device_set_delay (device, delay);
 
-	message ("suunto_vyper_device_detect_interface\n");
-	rc = suunto_vyper_device_detect_interface (device);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Interface not found.");
-		device_close (device);
-		return rc;
-	}
-
 	message ("device_foreach\n");
 	rc = device_foreach (device, NULL, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
@@ -64,14 +56,6 @@ test_dump_memory (const char* name, unsigned int delay, const char* filename)
 	}
 
 	suunto_vyper_device_set_delay (device, delay);
-
-	message ("suunto_vyper_device_detect_interface\n");
-	rc = suunto_vyper_device_detect_interface (device);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Interface not found.");
-		device_close (device);
-		return rc;
-	}
 
 	message ("device_read\n");
 	rc = device_read (device, 0x00, data, sizeof (data));
