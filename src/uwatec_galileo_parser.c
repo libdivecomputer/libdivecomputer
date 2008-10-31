@@ -294,7 +294,7 @@ uwatec_galileo_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		offset += table[id].extrabytes + 1;
 
 		// Fix the sign bit.
-		value = uwatec_galileo_fixsignbit (value, nbits);
+		signed int svalue = uwatec_galileo_fixsignbit (value, nbits);
 
 		if (complete && table[id].type != TIME) {
 			complete = 0;
@@ -305,8 +305,8 @@ uwatec_galileo_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		// Parse the value.
 		switch (table[id].type) {
 		case DELTA_TANK_PRESSURE_DEPTH:
-			pressure += ((signed char) ((value >> NBITS) & 0xFF)) / 4.0;
-			depth += ((signed char) (value & 0xFF)) / 50.0;
+			pressure += ((signed char) ((svalue >> NBITS) & 0xFF)) / 4.0;
+			depth += ((signed char) (svalue & 0xFF)) / 50.0;
 			sample.pressure.tank = tank;
 			sample.pressure.value = pressure;
 			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
@@ -316,30 +316,30 @@ uwatec_galileo_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 			time += 4;
 			break;
 		case DELTA_RBT:
-			rbt += (signed int) value;
+			rbt += svalue;
 			sample.rbt = rbt;
 			if (callback) callback (SAMPLE_TYPE_RBT, sample, userdata);
 			break;
 		case DELTA_TEMPERATURE:
-			temperature += ((signed int)value) / 2.5;
+			temperature += svalue / 2.5;
 			sample.temperature = temperature;
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			break;
 		case DELTA_TANK_PRESSURE:
-			pressure += ((signed int)value) / 4.0;
+			pressure += svalue / 4.0;
 			sample.pressure.tank = tank;
 			sample.pressure.value = pressure;
 			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
 			break;
 		case DELTA_DEPTH:
-			depth += ((signed int)value) / 50.0;
+			depth += svalue / 50.0;
 			sample.depth = depth - depth_calibration;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 			complete = 1;
 			time += 4;
 			break;
 		case DELTA_HEARTRATE:
-			heartrate += (signed int) value;
+			heartrate += svalue;
 			sample.heartbeat = heartrate;
 			if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
 			break;
