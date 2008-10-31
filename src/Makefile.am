@@ -7,6 +7,7 @@ libdivecomputer_HEADERS = 	\
 	utils.h \
 	device.h \
 	parser.h \
+	units.h \
 	suunto.h \
 	suunto_eon.h \
 	suunto_vyper.h \
