@@ -47,7 +47,8 @@ typedef enum parser_sample_type_t {
 	SAMPLE_TYPE_TEMPERATURE,
 	SAMPLE_TYPE_EVENT,
 	SAMPLE_TYPE_RBT,
-	SAMPLE_TYPE_HEARTBEAT
+	SAMPLE_TYPE_HEARTBEAT,
+	SAMPLE_TYPE_VENDOR
 } parser_sample_type_t;
 
 typedef enum parser_sample_event_t {
@@ -57,6 +58,10 @@ typedef enum parser_sample_event_t {
 typedef enum parser_sample_flags_t {
 	SAMPLE_FLAGS_NONE
 } parser_sample_flags_t;
+
+typedef enum parser_sample_vendor_t {
+	SAMPLE_VENDOR_NONE
+} parser_sample_vendor_t;
 
 typedef union parser_sample_value_t {
 	unsigned int time;
@@ -74,6 +79,11 @@ typedef union parser_sample_value_t {
 	} event;
 	unsigned int rbt;
 	unsigned int heartbeat;
+	struct {
+		unsigned int type;
+		unsigned int size;
+		const void *data;
+	} vendor;
 } parser_sample_value_t;
 
 typedef struct parser_t parser_t;
