@@ -282,6 +282,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	double depth = 0, depth_calibration = 0;
 	double temperature = 0;
 	double pressure = 0;
+	unsigned char alarms = 0;
 
 	unsigned int offset = header;
 	while (offset < size) {
@@ -360,9 +361,10 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			time += 4;
 			break;
 		case ALARMS:
+			alarms = value;
 			sample.vendor.type = SAMPLE_VENDOR_UWATEC_SMART;
-			sample.vendor.size = sizeof (value);
-			sample.vendor.data = &value;
+			sample.vendor.size = sizeof (alarms);
+			sample.vendor.data = &alarms;
 			if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
 			break;
 		case TIME:
