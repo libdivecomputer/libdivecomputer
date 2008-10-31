@@ -27,7 +27,8 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum parser_type_t {
-	PARSER_TYPE_NULL = 0
+	PARSER_TYPE_NULL = 0,
+	PARSER_TYPE_REEFNET_SENSUSPRO
 } parser_type_t;
 
 typedef enum parser_status_t {
