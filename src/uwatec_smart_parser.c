@@ -167,66 +167,67 @@ typedef enum {
 
 typedef struct uwatec_smart_sample_info_t {
 	uwatec_smart_sample_t type;
+	unsigned int ignoretype;
 	unsigned int extrabytes;
 } uwatec_smart_sample_info_t;
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_pro_table [] = {
-	{DELTA_DEPTH, 				0}, // 0ddddddd
-	{DELTA_TEMPERATURE, 		0}, // 10dddddd
-	{TIME, 						0}, // 110ddddd
-	{ALARMS, 					0}, // 1110dddd
-	{DELTA_DEPTH, 				1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		1}, // 111110dd dddddddd
-	{ABSOLUTE_DEPTH, 			2}, // 1111110d dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		2}, // 11111110 dddddddd dddddddd
+	{DELTA_DEPTH, 				0, 0}, // 0ddddddd
+	{DELTA_TEMPERATURE, 		0, 0}, // 10dddddd
+	{TIME, 						0, 0}, // 110ddddd
+	{ALARMS, 					0, 0}, // 1110dddd
+	{DELTA_DEPTH, 				0, 1}, // 11110ddd dddddddd
+	{DELTA_TEMPERATURE, 		0, 1}, // 111110dd dddddddd
+	{ABSOLUTE_DEPTH, 			1, 2}, // 1111110d dddddddd dddddddd
+	{ABSOLUTE_TEMPERATURE, 		1, 2}, // 11111110 dddddddd dddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_aladin_table [] = {
-	{DELTA_DEPTH, 				0}, // 0ddddddd
-	{DELTA_TEMPERATURE, 		0}, // 10dddddd
-	{TIME, 						0}, // 110ddddd
-	{ALARMS, 					0}, // 1110dddd
-	{DELTA_DEPTH, 				1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		1}, // 111110dd dddddddd
-	{ABSOLUTE_DEPTH, 			2}, // 1111110d dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		2}, // 11111110 dddddddd dddddddd
-	{ALARMS, 					0}, // 11111111 0ddddddd
+	{DELTA_DEPTH, 				0, 0}, // 0ddddddd
+	{DELTA_TEMPERATURE, 		0, 0}, // 10dddddd
+	{TIME, 						0, 0}, // 110ddddd
+	{ALARMS, 					0, 0}, // 1110dddd
+	{DELTA_DEPTH, 				0, 1}, // 11110ddd dddddddd
+	{DELTA_TEMPERATURE, 		0, 1}, // 111110dd dddddddd
+	{ABSOLUTE_DEPTH, 			1, 2}, // 1111110d dddddddd dddddddd
+	{ABSOLUTE_TEMPERATURE, 		1, 2}, // 11111110 dddddddd dddddddd
+	{ALARMS, 					0, 0}, // 11111111 0ddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_com_table [] = {
-	{DELTA_TANK_PRESSURE_DEPTH, 1}, // 0ddddddd dddddddd
-	{DELTA_RBT, 				0}, // 10dddddd
-	{DELTA_TEMPERATURE, 		0}, // 110ddddd
-	{DELTA_TANK_PRESSURE, 		1}, // 1110dddd dddddddd
-	{DELTA_DEPTH, 				1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		1}, // 111110dd dddddddd
-	{ALARMS, 					1}, // 1111110d dddddddd
-	{TIME, 						1}, // 11111110 dddddddd
-	{ABSOLUTE_DEPTH, 			2}, // 11111111 0ddddddd dddddddd dddddddd
-	{ABSOLUTE_TANK_1_PRESSURE, 	2}, // 11111111 10dddddd dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		2}, // 11111111 110ddddd dddddddd dddddddd
-	{ABSOLUTE_RBT, 				1}, // 11111111 1110dddd dddddddd
+	{DELTA_TANK_PRESSURE_DEPTH, 0, 1}, // 0ddddddd dddddddd
+	{DELTA_RBT, 				0, 0}, // 10dddddd
+	{DELTA_TEMPERATURE, 		0, 0}, // 110ddddd
+	{DELTA_TANK_PRESSURE, 		0, 1}, // 1110dddd dddddddd
+	{DELTA_DEPTH, 				0, 1}, // 11110ddd dddddddd
+	{DELTA_TEMPERATURE, 		0, 1}, // 111110dd dddddddd
+	{ALARMS, 					1, 1}, // 1111110d dddddddd
+	{TIME, 						1, 1}, // 11111110 dddddddd
+	{ABSOLUTE_DEPTH, 			1, 2}, // 11111111 0ddddddd dddddddd dddddddd
+	{ABSOLUTE_TANK_1_PRESSURE, 	1, 2}, // 11111111 10dddddd dddddddd dddddddd
+	{ABSOLUTE_TEMPERATURE, 		1, 2}, // 11111111 110ddddd dddddddd dddddddd
+	{ABSOLUTE_RBT, 				1, 1}, // 11111111 1110dddd dddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_tec_table [] = {
-	{DELTA_TANK_PRESSURE_DEPTH,	1}, // 0ddddddd dddddddd
-	{DELTA_RBT, 				0}, // 10dddddd
-	{DELTA_TEMPERATURE, 		0}, // 110ddddd
-	{DELTA_TANK_PRESSURE, 		1}, // 1110dddd dddddddd
-	{DELTA_DEPTH, 				1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		1}, // 111110dd dddddddd
-	{ALARMS, 					1}, // 1111110d dddddddd
-	{TIME, 						1}, // 11111110 dddddddd
-	{ABSOLUTE_DEPTH, 			2}, // 11111111 0ddddddd dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		2}, // 11111111 10dddddd dddddddd dddddddd
-	{ABSOLUTE_TANK_1_PRESSURE, 	2}, // 11111111 110ddddd dddddddd dddddddd
-	{ABSOLUTE_TANK_2_PRESSURE, 	2}, // 11111111 1110dddd dddddddd dddddddd
-	{ABSOLUTE_TANK_D_PRESSURE, 	2}, // 11111111 11110ddd dddddddd dddddddd
-	{ABSOLUTE_RBT, 				1}, // 11111111 111110dd dddddddd
+	{DELTA_TANK_PRESSURE_DEPTH,	0, 1}, // 0ddddddd dddddddd
+	{DELTA_RBT, 				0, 0}, // 10dddddd
+	{DELTA_TEMPERATURE, 		0, 0}, // 110ddddd
+	{DELTA_TANK_PRESSURE, 		0, 1}, // 1110dddd dddddddd
+	{DELTA_DEPTH, 				0, 1}, // 11110ddd dddddddd
+	{DELTA_TEMPERATURE, 		0, 1}, // 111110dd dddddddd
+	{ALARMS, 					1, 1}, // 1111110d dddddddd
+	{TIME, 						1, 1}, // 11111110 dddddddd
+	{ABSOLUTE_DEPTH, 			1, 2}, // 11111111 0ddddddd dddddddd dddddddd
+	{ABSOLUTE_TEMPERATURE, 		1, 2}, // 11111111 10dddddd dddddddd dddddddd
+	{ABSOLUTE_TANK_1_PRESSURE, 	1, 2}, // 11111111 110ddddd dddddddd dddddddd
+	{ABSOLUTE_TANK_2_PRESSURE, 	1, 2}, // 11111111 1110dddd dddddddd dddddddd
+	{ABSOLUTE_TANK_D_PRESSURE, 	1, 2}, // 11111111 11110ddd dddddddd dddddddd
+	{ABSOLUTE_RBT, 				1, 1}, // 11111111 111110dd dddddddd
 };
 
 
@@ -297,6 +298,12 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		unsigned int n = id % NBITS;
 		unsigned int nbits = NBITS - n - 1;
 		unsigned int value = data[offset] & (0xFF >> n);
+		if (table[id].ignoretype) {
+			// Ignore any data bits that are stored in
+			// the last type byte for certain samples.
+			nbits = 0;
+			value = 0;
+		}
 		assert (offset + table[id].extrabytes + 1 <= size);
 		for (unsigned int i = 0; i < table[id].extrabytes; ++i) {
 			nbits += NBITS;
