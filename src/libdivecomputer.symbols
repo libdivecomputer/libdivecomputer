@@ -5,6 +5,8 @@ parser_destroy
 
 reefnet_sensuspro_parser_create
 reefnet_sensuspro_parser_set_calibration
+reefnet_sensusultra_parser_create
+reefnet_sensusultra_parser_set_calibration
 
 device_close
 device_dump

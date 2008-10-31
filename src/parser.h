@@ -28,7 +28,8 @@ extern "C" {
 
 typedef enum parser_type_t {
 	PARSER_TYPE_NULL = 0,
-	PARSER_TYPE_REEFNET_SENSUSPRO
+	PARSER_TYPE_REEFNET_SENSUSPRO,
+	PARSER_TYPE_REEFNET_SENSUSULTRA
 } parser_type_t;
 
 typedef enum parser_status_t {

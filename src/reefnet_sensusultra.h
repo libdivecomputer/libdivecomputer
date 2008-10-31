@@ -22,11 +22,12 @@
 #ifndef REEFNET_SENSUSULTRA_H
 #define REEFNET_SENSUSULTRA_H
 
+#include "device.h"
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "device.h"
 
 #define REEFNET_SENSUSULTRA_PACKET_SIZE 512
 #define REEFNET_SENSUSULTRA_MEMORY_USER_SIZE 16384 /* 32 PAGES */
@@ -67,6 +68,12 @@ reefnet_sensusultra_device_sense (device_t *device, unsigned char *data, unsigne
 
 device_status_t
 reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp);
+
+parser_status_t
+reefnet_sensusultra_parser_create (parser_t **parser);
+
+parser_status_t
+reefnet_sensusultra_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus
 }
