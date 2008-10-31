@@ -53,6 +53,7 @@ typedef enum parser_sample_type_t {
 	SAMPLE_TYPE_EVENT,
 	SAMPLE_TYPE_RBT,
 	SAMPLE_TYPE_HEARTBEAT,
+	SAMPLE_TYPE_BEARING,
 	SAMPLE_TYPE_VENDOR
 } parser_sample_type_t;
 
@@ -111,6 +112,7 @@ typedef union parser_sample_value_t {
 	} event;
 	unsigned int rbt;
 	unsigned int heartbeat;
+	unsigned int bearing;
 	struct {
 		unsigned int type;
 		unsigned int size;
