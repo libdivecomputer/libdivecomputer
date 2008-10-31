@@ -50,6 +50,9 @@ suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive
 parser_status_t
 suunto_vyper_parser_create (parser_t **parser);
 
+parser_status_t
+suunto_spyder_parser_create (parser_t **parser);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
