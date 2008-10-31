@@ -6,6 +6,7 @@ libdivecomputerdir = $(includedir)/libdivecomputer
 libdivecomputer_HEADERS = 	\
 	utils.h \
 	device.h \
+	parser.h \
 	suunto.h \
 	suunto_eon.h \
 	suunto_vyper.h \
@@ -33,6 +34,7 @@ libdivecomputer_la_LDFLAGS = \
 
 libdivecomputer_la_SOURCES = \
 	device.h device-private.h device.c \
+	parser.h parser-private.h parser.c \
 	suunto.h \
 	suunto_common.h suunto_common.c \
 	suunto_eon.h suunto_eon.c \

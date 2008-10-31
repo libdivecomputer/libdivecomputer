@@ -1,3 +1,8 @@
+parser_get_type
+parser_set_data
+parser_samples_foreach
+parser_destroy 
+
 device_close
 device_dump
 device_foreach
