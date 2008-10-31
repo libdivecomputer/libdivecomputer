@@ -39,7 +39,7 @@ libdivecomputer_la_SOURCES = \
 	suunto.h \
 	suunto_common.h suunto_common.c \
 	suunto_eon.h suunto_eon.c \
-	suunto_vyper.h suunto_vyper.c \
+	suunto_vyper.h suunto_vyper.c suunto_vyper_parser.c \
 	suunto_vyper2.h suunto_vyper2.c \
 	suunto_d9.h suunto_d9.c \
 	reefnet.h \
