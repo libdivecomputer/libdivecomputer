@@ -47,7 +47,7 @@ libdivecomputer_la_SOURCES = \
 	reefnet_sensusultra.h reefnet_sensusultra.c reefnet_sensusultra_parser.c \
 	uwatec.h \
 	uwatec_aladin.h uwatec_aladin.c \
-	uwatec_memomouse.h uwatec_memomouse.c \
+	uwatec_memomouse.h uwatec_memomouse.c uwatec_memomouse_parser.c \
 	oceanic.h \
 	oceanic_atom2.h oceanic_atom2.c \
 	ringbuffer.h ringbuffer.c \
