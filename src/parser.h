@@ -33,7 +33,8 @@ typedef enum parser_type_t {
 	PARSER_TYPE_SUUNTO_D9,
 	PARSER_TYPE_REEFNET_SENSUSPRO,
 	PARSER_TYPE_REEFNET_SENSUSULTRA,
-	PARSER_TYPE_UWATEC_MEMOMOUSE
+	PARSER_TYPE_UWATEC_MEMOMOUSE,
+	PARSER_TYPE_UWATEC_SMART
 } parser_type_t;
 
 typedef enum parser_status_t {
@@ -90,7 +91,8 @@ typedef enum parser_sample_flags_t {
 
 typedef enum parser_sample_vendor_t {
 	SAMPLE_VENDOR_NONE,
-	SAMPLE_VENDOR_UWATEC_ALADIN
+	SAMPLE_VENDOR_UWATEC_ALADIN,
+	SAMPLE_VENDOR_UWATEC_SMART
 } parser_sample_vendor_t;
 
 typedef union parser_sample_value_t {

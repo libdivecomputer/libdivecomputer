@@ -22,11 +22,12 @@
 #ifndef UWATEC_SMART_H
 #define UWATEC_SMART_H
 
+#include "device.h"
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "device.h"
 
 #define UWATEC_SMART_VERSION_SIZE 9
 
@@ -44,6 +45,9 @@ uwatec_smart_device_version (device_t *device, unsigned char data[], unsigned in
 
 device_status_t
 uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
+parser_status_t
+uwatec_smart_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }
