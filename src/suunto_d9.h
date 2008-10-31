@@ -22,11 +22,12 @@
 #ifndef SUUNTO_D9_H
 #define SUUNTO_D9_H
 
+#include "device.h"
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "device.h"
 
 #define SUUNTO_D9_MEMORY_SIZE 0x8000
 #define SUUNTO_D9_PACKET_SIZE 0x78
@@ -37,6 +38,9 @@ suunto_d9_device_open (device_t **device, const char* name);
 
 device_status_t
 suunto_d9_device_reset_maxdepth (device_t *device);
+
+parser_status_t
+suunto_d9_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }
