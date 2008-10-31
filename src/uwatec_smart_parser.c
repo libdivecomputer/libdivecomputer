@@ -277,7 +277,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	int calibrated = 0;
 
 	unsigned int time = 0;
-	unsigned int rbt = 0;
+	unsigned int rbt = 99;
 	unsigned int tank = 0;
 	double depth = 0, depth_calibration = 0;
 	double temperature = 0;
