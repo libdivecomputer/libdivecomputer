@@ -125,23 +125,30 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	if (size < 0x4E - SKIP)
 		return PARSER_STATUS_ERROR;
 
-	unsigned int pressure_code = data[0x11 - SKIP] + (data[0x12 - SKIP] << 8);
+	unsigned int pressure_samples = 1;
 	unsigned int pressure_offset = 0;
-	if (pressure_code == 0xFFFF)
-		pressure_offset = 3;
 
 	switch (parser->model) {
 	case 0x0E: // D9
 	case 0x0F: // D6
 	case 0x10: // Vyper 2
 	case 0x11: // Cobra 2
+		if (data[0x3E - SKIP] == 0x03 && data[0x3F - SKIP] == 0x07) {
+			pressure_samples = 1;
+			pressure_offset = 0;
+		} else if (data[0x3E - SKIP] == 0x02 && data[0x3F - SKIP] == 0x05) {
+			pressure_samples = 0;
+			pressure_offset = 3;
+		} else {
+			return PARSER_STATUS_ERROR;
+		}
 		break;
 	case 0x12: // D4
-		pressure_code = 0xFFFF;
+		pressure_samples = 0;
 		pressure_offset = 2;
 		break;
 	default:
-		break;
+		return PARSER_STATUS_ERROR;
 	}
 
 	// Sample recording interval.
@@ -170,8 +177,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 		offset += 2;
 
-		// Tank pressure (bar * 100).
-		if (pressure_code != 0xFFFF) {
+		// Tank pressure (1/100 bar).
+		if (pressure_samples) {
 			assert (offset + 2 <= size);
 			unsigned int pressure = data[offset + 0] + (data[offset + 1] << 8);
 			sample.pressure.tank = 0;
