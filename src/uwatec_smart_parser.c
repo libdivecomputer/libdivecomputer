@@ -134,6 +134,62 @@ uwatec_smart_identify (const unsigned char data[], unsigned int size)
 
 
 static unsigned int
+uwatec_galileo_identify (const unsigned char data[], unsigned int size)
+{
+	assert (size > 0);
+
+	unsigned char value = data[0];
+
+	if ((value & 0x80) == 0) // Delta Depth
+		return 0;
+
+	if ((value & 0xE0) == 0x80) // Delta RBT
+		return 1;
+
+	switch (value & 0xF0) {
+	case 0xA0: // Delta Tank Pressure
+		return 2;
+	case 0xB0: // Delta Temperature
+		return 3;
+	case 0xC0: // Time
+		return 4;
+	case 0xD0: // Delta Heart Rate
+		return 5;
+	case 0xE0: // Alarms
+		return 6;
+	case 0xF0:
+		switch (value & 0xFF) {
+		case 0xF0: // More Alarms
+			return 7;
+		case 0xF1: // Absolute Depth
+			return 8;
+		case 0xF2: // Absolute RBT
+			return 9;
+		case 0xF3: // Absolute Temperature
+			return 10;
+		case 0xF4: // Absolute Pressure T1
+			return 11;
+		case 0xF5: // Absolute Pressure T2
+			return 12;
+		case 0xF6: // Absolute Pressure T3
+			return 13;
+		case 0xF7: // Absolute Heart Rate
+			return 14;
+		case 0xF8: // Compass Bearing
+			return 15;
+		case 0xF9: // Even More Alarms
+			return 16;
+		}
+		break;
+	}
+
+	assert (0);
+
+	return (unsigned int) -1;
+}
+
+
+static unsigned int
 uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
 {
 	assert (n > 0);
@@ -157,6 +213,8 @@ typedef enum {
 	DELTA_TEMPERATURE,
 	DELTA_TANK_PRESSURE,
 	DELTA_DEPTH,
+	DELTA_HEARTRATE,
+	BEARING,
 	ALARMS,
 	TIME,
 	ABSOLUTE_DEPTH,
@@ -164,7 +222,8 @@ typedef enum {
 	ABSOLUTE_TANK_1_PRESSURE,
 	ABSOLUTE_TANK_2_PRESSURE,
 	ABSOLUTE_TANK_D_PRESSURE,
-	ABSOLUTE_RBT
+	ABSOLUTE_RBT,
+	ABSOLUTE_HEARTRATE
 } uwatec_smart_sample_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -233,6 +292,26 @@ uwatec_smart_sample_info_t uwatec_smart_tec_table [] = {
 	{ABSOLUTE_RBT, 				14, 1, 1}, // 11111111 111110dd dddddddd
 };
 
+static const
+uwatec_smart_sample_info_t uwatec_galileo_sol_table [] = {
+	{DELTA_DEPTH,				1, 0, 0}, // 0ddd dddd
+	{DELTA_RBT,					3, 0, 0}, // 100d dddd
+	{DELTA_TANK_PRESSURE,		4, 0, 0}, // 1010 dddd
+	{DELTA_TEMPERATURE,			4, 0, 0}, // 1011 dddd
+	{TIME,						4, 0, 0}, // 1100 dddd
+	{DELTA_HEARTRATE,			4, 0, 0}, // 1101 dddd
+	{ALARMS,					4, 0, 0}, // 1110 dddd
+	{ALARMS,					8, 0, 1}, // 1111 0000 dddddddd
+	{ABSOLUTE_DEPTH,			8, 0, 2}, // 1111 0001 dddddddd dddddddd
+	{ABSOLUTE_RBT,				8, 0, 1}, // 1111 0010 dddddddd
+	{ABSOLUTE_TEMPERATURE,		8, 0, 2}, // 1111 0011 dddddddd dddddddd
+	{ABSOLUTE_TANK_1_PRESSURE,	8, 0, 2}, // 1111 0100 dddddddd dddddddd
+	{ABSOLUTE_TANK_2_PRESSURE,	8, 0, 2}, // 1111 0101 dddddddd dddddddd
+	{ABSOLUTE_TANK_D_PRESSURE,	8, 0, 2}, // 1111 0110 dddddddd dddddddd
+	{ABSOLUTE_HEARTRATE,		8, 0, 1}, // 1111 0111 dddddddd
+	{BEARING,					8, 0, 2}, // 1111 1000 dddddddd dddddddd
+	{ALARMS,					8, 0, 1}, // 1111 1001 dddddddd
+};
 
 static parser_status_t
 uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
@@ -255,6 +334,11 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		header = 92;
 		table = uwatec_smart_pro_table;
 		entries = NELEMENTS (uwatec_smart_pro_table);
+		break;
+	case 0x11: // Galileo Sol
+		header = 152;
+		table = uwatec_galileo_sol_table;
+		entries = NELEMENTS (uwatec_galileo_sol_table);
 		break;
 	case 0x12: // Aladin Tec, Prime
 		header = 108;
@@ -285,15 +369,23 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	double depth = 0, depth_calibration = 0;
 	double temperature = 0;
 	double pressure = 0;
+	unsigned int heartrate = 0;
 	unsigned char alarms = 0;
 
 	unsigned int offset = header;
 	while (offset < size) {
 		parser_sample_value_t sample = {0};
 
-		// Count the number of type bits in the bitstream.
-		unsigned int id = uwatec_smart_identify (data + offset, size - offset);
-		assert (id < entries);	
+		// Process the type bits in the bitstream.
+		unsigned int id = 0;
+		if (parser->model == 0x11) {
+			// Uwatec Galileo
+			id = uwatec_galileo_identify (data + offset, size - offset);
+		} else {
+			// Uwatec Smart
+			id = uwatec_smart_identify (data + offset, size - offset);
+		}
+		assert (id < entries);
 
 		// Skip the processed type bytes.
 		offset += table[id].ntypebits / NBITS;
@@ -368,6 +460,15 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			complete = 1;
 			time += 4;
 			break;
+		case DELTA_HEARTRATE:
+			heartrate += svalue;
+			sample.heartbeat = heartrate;
+			if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
+			break;
+		case BEARING:
+			sample.bearing = value;
+			if (callback) callback (SAMPLE_TYPE_BEARING, sample, userdata);
+			break;
 		case ALARMS:
 			alarms = value;
 			sample.vendor.type = SAMPLE_VENDOR_UWATEC_SMART;
@@ -420,6 +521,11 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			rbt = value;
 			sample.rbt = rbt;
 			if (callback) callback (SAMPLE_TYPE_RBT, sample, userdata);
+			break;
+		case ABSOLUTE_HEARTRATE:
+			heartrate = value;
+			sample.heartbeat = heartrate;
+			if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
 			break;
 		default:
 			WARNING ("Unknown sample type.");

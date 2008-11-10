@@ -67,7 +67,7 @@ libdivecomputer_la_LIBADD = -lws2_32
 endif
 libdivecomputer_la_SOURCES += \
 	irda.h irda.c \
-	uwatec_smart.h uwatec_smart.c uwatec_smart_parser.c uwatec_galileo_parser.c
+	uwatec_smart.h uwatec_smart.c uwatec_smart_parser.c
 endif
 
 libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp 

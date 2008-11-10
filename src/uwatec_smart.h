@@ -49,9 +49,6 @@ uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_
 parser_status_t
 uwatec_smart_parser_create (parser_t **parser, unsigned int model);
 
-parser_status_t
-uwatec_galileo_parser_create (parser_t **parser, unsigned int model);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
