@@ -208,29 +208,29 @@ typedef enum {
 
 typedef struct uwatec_galileo_sample_info_t {
 	uwatec_galileo_sample_t type;
-	unsigned int nbits;
+	unsigned int ntypebits;
 	unsigned int extrabytes;
 } uwatec_galileo_sample_info_t;
 
 static const
 uwatec_galileo_sample_info_t uwatec_galileo_sol_table [] = {
-	{DELTA_DEPTH,				7, 0}, // 0ddd dddd
-	{DELTA_RBT,					5, 0}, // 100d dddd
+	{DELTA_DEPTH,				1, 0}, // 0ddd dddd
+	{DELTA_RBT,					3, 0}, // 100d dddd
 	{DELTA_TANK_PRESSURE,		4, 0}, // 1010 dddd
 	{DELTA_TEMPERATURE,			4, 0}, // 1011 dddd
 	{TIME,						4, 0}, // 1100 dddd
 	{DELTA_HEARTRATE,			4, 0}, // 1101 dddd
 	{ALARMS,					4, 0}, // 1110 dddd
-	{ALARMS,					0, 1}, // 1111 0000 dddddddd
-	{ABSOLUTE_DEPTH,			0, 2}, // 1111 0001 dddddddd dddddddd
-	{ABSOLUTE_RBT,				0, 1}, // 1111 0010 dddddddd
-	{ABSOLUTE_TEMPERATURE,		0, 2}, // 1111 0011 dddddddd dddddddd
-	{ABSOLUTE_TANK_1_PRESSURE,	0, 2}, // 1111 0100 dddddddd dddddddd
-	{ABSOLUTE_TANK_2_PRESSURE,	0, 2}, // 1111 0101 dddddddd dddddddd
-	{ABSOLUTE_TANK_D_PRESSURE,	0, 2}, // 1111 0110 dddddddd dddddddd
-	{ABSOLUTE_HEARTRATE,		0, 1}, // 1111 0111 dddddddd
-	{BEARING,					0, 2}, // 1111 1000 dddddddd dddddddd
-	{ALARMS,					0, 1}, // 1111 1001 dddddddd
+	{ALARMS,					8, 1}, // 1111 0000 dddddddd
+	{ABSOLUTE_DEPTH,			8, 2}, // 1111 0001 dddddddd dddddddd
+	{ABSOLUTE_RBT,				8, 1}, // 1111 0010 dddddddd
+	{ABSOLUTE_TEMPERATURE,		8, 2}, // 1111 0011 dddddddd dddddddd
+	{ABSOLUTE_TANK_1_PRESSURE,	8, 2}, // 1111 0100 dddddddd dddddddd
+	{ABSOLUTE_TANK_2_PRESSURE,	8, 2}, // 1111 0101 dddddddd dddddddd
+	{ABSOLUTE_TANK_D_PRESSURE,	8, 2}, // 1111 0110 dddddddd dddddddd
+	{ABSOLUTE_HEARTRATE,		8, 1}, // 1111 0111 dddddddd
+	{BEARING,					8, 2}, // 1111 1000 dddddddd dddddddd
+	{ALARMS,					8, 1}, // 1111 1001 dddddddd
 };
 
 static parser_status_t
@@ -279,19 +279,27 @@ uwatec_galileo_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		unsigned int id = uwatec_galileo_identify (data + offset, size - offset);
 		assert (id < entries);
 
-		// Process the remaining data bytes.
-		unsigned int nbits = table[id].nbits;
-		unsigned int n = NBITS - nbits;
-		unsigned int value = data[offset] & (0xFF >> n);
-		assert (offset + table[id].extrabytes + 1 <= size);
+		// Skip the processed type bytes.
+		offset += table[id].ntypebits / NBITS;
+
+		// Process the remaining data bits.
+		unsigned int nbits = 0;
+		unsigned int value = 0;
+		unsigned int n = table[id].ntypebits % NBITS;
+		if (n > 0) {
+			nbits = NBITS - n;
+			value = data[offset] & (0xFF >> n);
+			offset++;
+		}
+
+		// Process the extra data bytes.
+		assert (offset + table[id].extrabytes <= size);
 		for (unsigned int i = 0; i < table[id].extrabytes; ++i) {
 			nbits += NBITS;
 			value <<= NBITS;
-			value += data[offset + i + 1];
+			value += data[offset];
+			offset++;
 		}
-
-		// Skip the processed data bytes.
-		offset += table[id].extrabytes + 1;
 
 		// Fix the sign bit.
 		signed int svalue = uwatec_galileo_fixsignbit (value, nbits);
