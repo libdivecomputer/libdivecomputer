@@ -34,6 +34,9 @@ extern "C" {
 device_status_t
 oceanic_veo250_device_open (device_t **device, const char* name);
 
+device_status_t
+oceanic_veo250_device_keepalive (device_t *device);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

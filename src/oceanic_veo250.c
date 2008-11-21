@@ -303,6 +303,40 @@ oceanic_veo250_device_close (device_t *abstract)
 }
 
 
+device_status_t
+oceanic_veo250_device_keepalive (device_t *abstract)
+{
+	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
+
+	if (! device_is_oceanic_veo250 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Send the command to the dive computer.
+	unsigned char command[4] = {0x91, 0x00, 0x00, 0x00};
+	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to send the command.");
+		return rc;
+	}
+
+	// Receive the answer of the dive computer.
+	unsigned char answer[3] = {0};
+	int n = serial_read (device->port, answer, sizeof (answer));
+	if (n != sizeof (answer)) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (n);
+	}
+
+	// Verify the answer.
+	if (answer[0] != ACK || answer[1] != NAK || answer[2] != NAK) {
+		WARNING ("Unexpected answer byte(s).");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
 static device_status_t
 oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
