@@ -21,7 +21,8 @@ libdivecomputer_HEADERS = 	\
 	uwatec_memomouse.h \
 	uwatec_smart.h \
 	oceanic.h \
-	oceanic_atom2.h
+	oceanic_atom2.h \
+	oceanic_veo250.h
 
 #
 # Source files.
@@ -50,6 +51,7 @@ libdivecomputer_la_SOURCES = \
 	uwatec_memomouse.h uwatec_memomouse.c uwatec_memomouse_parser.c \
 	oceanic.h \
 	oceanic_atom2.h oceanic_atom2.c \
+	oceanic_veo250.h oceanic_veo250.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \
