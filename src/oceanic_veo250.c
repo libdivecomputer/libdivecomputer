@@ -51,6 +51,7 @@ typedef struct oceanic_veo250_device_t oceanic_veo250_device_t;
 struct oceanic_veo250_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned int last;
 };
 
 static device_status_t oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigned int size);
@@ -228,6 +229,7 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->last = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -312,7 +314,10 @@ oceanic_veo250_device_keepalive (device_t *abstract)
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the command to the dive computer.
-	unsigned char command[4] = {0x91, 0x00, 0x00, 0x00};
+	unsigned char command[4] = {0x91,
+		(device->last     ) & 0xFF, // low
+		(device->last >> 8) & 0xFF, // high
+		0x00};
 	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Failed to send the command.");
@@ -395,6 +400,8 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 			return rc;
 
 		memcpy (data, answer, OCEANIC_VEO250_PACKET_SIZE);
+
+		device->last = number;
 
 #ifndef NDEBUG
 		message ("VEO250Read(0x%04x,%d)=\"", address, OCEANIC_VEO250_PACKET_SIZE);
