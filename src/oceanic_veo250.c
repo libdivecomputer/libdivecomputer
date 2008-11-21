@@ -82,6 +82,9 @@ device_is_oceanic_veo250 (device_t *abstract)
 static device_status_t
 oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize)
 {
+	// Discard garbage bytes.
+	serial_flush (device->port, SERIAL_QUEUE_INPUT);
+
 	// Send the command to the dive computer and 
 	// wait until all data has been transmitted.
 	serial_write (device->port, command, csize);
