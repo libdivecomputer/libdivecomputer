@@ -45,6 +45,8 @@
 #define ACK 0x5A
 #define NAK 0xA5
 
+#define CF_POINTERS					0x0040
+
 #define RB_LOGBOOK_EMPTY			0x0230
 #define RB_LOGBOOK_BEGIN			0x0240
 #define RB_LOGBOOK_END				0x0A40
@@ -444,7 +446,7 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	// Read the pointer data.
 	unsigned char pointers[OCEANIC_ATOM2_PACKET_SIZE] = {0};
-	device_status_t rc = oceanic_atom2_device_read (abstract, 0x0040, pointers, OCEANIC_ATOM2_PACKET_SIZE);
+	device_status_t rc = oceanic_atom2_device_read (abstract, CF_POINTERS, pointers, OCEANIC_ATOM2_PACKET_SIZE);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read pointers.");
 		return rc;
