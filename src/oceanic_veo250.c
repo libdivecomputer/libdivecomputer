@@ -193,21 +193,6 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 		return rc;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-oceanic_veo250_handshake (oceanic_veo250_device_t *device)
-{
-	// Send the command to the dive computer.
-	unsigned char command[2] = {0x98, 0x00};
-	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Failed to send the command.");
-		return rc;
-	}
-
 	// Receive the answer of the dive computer.
 	unsigned char answer[14] = {0};
 	int n = serial_read (device->port, answer, sizeof (answer));
@@ -223,6 +208,21 @@ oceanic_veo250_handshake (oceanic_veo250_device_t *device)
 	if (memcmp (answer, response, sizeof (response)) != 0) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+oceanic_veo250_handshake (oceanic_veo250_device_t *device)
+{
+	// Send the command to the dive computer.
+	unsigned char command[2] = {0x98, 0x00};
+	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to send the command.");
+		return rc;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
