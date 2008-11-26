@@ -66,6 +66,14 @@ test_dump_memory (const char* name, const char* filename)
 		fclose (fp);
 	}
 
+	message ("device_foreach\n");
+	rc = device_foreach (device, NULL, NULL);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Cannot read dives.");
+		device_close (device);
+		return rc;
+	}
+
 	message ("device_close\n");
 	rc = device_close (device);
 	if (rc != DEVICE_STATUS_SUCCESS) {
