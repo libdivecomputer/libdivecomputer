@@ -215,7 +215,7 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 
 
 static device_status_t
-oceanic_veo250_handshake (oceanic_veo250_device_t *device)
+oceanic_veo250_quit (oceanic_veo250_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[2] = {0x98, 0x00};
@@ -289,9 +289,9 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the init and handshake commands.
+	// Send the init and quit commands.
 	oceanic_veo250_init (device);
-	oceanic_veo250_handshake (device);
+	oceanic_veo250_quit (device);
 
 	*out = (device_t*) device;
 
@@ -307,8 +307,8 @@ oceanic_veo250_device_close (device_t *abstract)
 	if (! device_is_oceanic_veo250 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	// Send the handshake command again.
-	oceanic_veo250_handshake (device);
+	// Send the quit command.
+	oceanic_veo250_quit (device);
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
