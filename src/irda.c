@@ -58,6 +58,9 @@
 }
 #endif
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
 
 struct irda {
 #ifdef _WIN32
