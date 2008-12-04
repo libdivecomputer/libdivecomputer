@@ -89,7 +89,7 @@ const char* irda_errmsg ()
 	unsigned int size = sizeof (buffer) / sizeof (char);
 
 	DWORD errcode = WSAGetLastError ();
-	DWORD rc = FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+	DWORD rc = FormatMessageA (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 			NULL, errcode, 0, buffer, size, NULL);
 	// Remove certain characters ('\r', '\n' and '.')
 	// at the end of the error message.

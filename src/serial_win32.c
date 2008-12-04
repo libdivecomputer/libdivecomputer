@@ -63,7 +63,7 @@ const char* serial_errmsg ()
 	unsigned int size = sizeof (buffer) / sizeof (char);
 
 	DWORD errcode = GetLastError ();
-	DWORD rc = FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+	DWORD rc = FormatMessageA (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 			NULL, errcode, 0, buffer, size, NULL);
 	// Remove certain characters ('\r', '\n' and '.')
 	// at the end of the error message.
@@ -99,7 +99,7 @@ serial_open (serial** out, const char* name)
 	}
 
 	// Open the device.
-	device->hFile = CreateFile (name, 
+	device->hFile = CreateFileA (name, 
 			GENERIC_READ | GENERIC_WRITE, 0,
 			NULL, // No security attributes.
 			OPEN_EXISTING,
