@@ -72,7 +72,7 @@ uwatec_smart_parser_create (parser_t **out, unsigned int model)
 		return PARSER_STATUS_ERROR;
 
 	// Allocate memory.
-	uwatec_smart_parser_t *parser = malloc (sizeof (uwatec_smart_parser_t));
+	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) malloc (sizeof (uwatec_smart_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return PARSER_STATUS_MEMORY;

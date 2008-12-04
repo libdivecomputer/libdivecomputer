@@ -71,7 +71,7 @@ reefnet_sensuspro_parser_create (parser_t **out)
 		return PARSER_STATUS_ERROR;
 
 	// Allocate memory.
-	reefnet_sensuspro_parser_t *parser = malloc (sizeof (reefnet_sensuspro_parser_t));
+	reefnet_sensuspro_parser_t *parser = (reefnet_sensuspro_parser_t *) malloc (sizeof (reefnet_sensuspro_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return PARSER_STATUS_MEMORY;

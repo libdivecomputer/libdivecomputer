@@ -70,7 +70,7 @@ suunto_d9_parser_create (parser_t **out, unsigned int model)
 		return PARSER_STATUS_ERROR;
 
 	// Allocate memory.
-	suunto_d9_parser_t *parser = malloc (sizeof (suunto_d9_parser_t));
+	suunto_d9_parser_t *parser = (suunto_d9_parser_t *) malloc (sizeof (suunto_d9_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return PARSER_STATUS_MEMORY;
