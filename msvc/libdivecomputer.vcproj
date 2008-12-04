@@ -63,7 +63,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="2"
-				ModuleDefinitionFile=""
+				ModuleDefinitionFile="$(OutDir)/libdivecomputer.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="1"
@@ -138,7 +138,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="1"
-				ModuleDefinitionFile=""
+				ModuleDefinitionFile="$(OutDir)/libdivecomputer.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -408,6 +408,28 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+			<File
+				RelativePath="..\src\libdivecomputer.symbols"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						CommandLine="echo EXPORTS &gt; &quot;$(OutDir)/libdivecomputer.def&quot; &amp;&amp; cl /nologo /EP -DSERIAL -DIRDA &quot;$(InputPath)&quot; &gt;&gt; &quot;$(OutDir)/libdivecomputer.def&quot;"
+						Outputs="$(OutDir)/libdivecomputer.def"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						CommandLine="echo EXPORTS &gt; &quot;$(OutDir)/libdivecomputer.def&quot; &amp;&amp; cl /nologo /EP -DSERIAL -DIRDA &quot;$(InputPath)&quot; &gt;&gt; &quot;$(OutDir)/libdivecomputer.def&quot;"
+						Outputs="$(OutDir)/libdivecomputer.def"
+					/>
+				</FileConfiguration>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>
