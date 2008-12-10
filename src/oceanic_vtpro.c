@@ -332,6 +332,49 @@ oceanic_vtpro_device_keepalive (device_t *abstract)
 }
 
 
+device_status_t
+oceanic_vtpro_device_calibrate (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
+
+	if (! device_is_oceanic_vtpro (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < 1)
+		return DEVICE_STATUS_MEMORY;
+
+	// Send the command to the dive computer.
+	unsigned char command[2] = {0x18, 0x00};
+	device_status_t rc = oceanic_vtpro_send (device, command, sizeof (command));
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to send the command.");
+		return rc;
+	}
+
+	// Receive the answer of the dive computer. The timeout
+	// is temporary increased, because the device needs
+	// approximately 6 seconds to respond.
+	unsigned char answer[3] = {0};
+	serial_set_timeout (device->port, 9000);
+	int n = serial_read (device->port, answer, sizeof (answer));
+	serial_set_timeout (device->port, 3000);
+	if (n != sizeof (answer)) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (n);
+	}
+
+	// Verify the answer.
+	if (answer[0] != 0x5A || answer[2] != 0x00) {
+		WARNING ("Unexpected answer byte(s).");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	memcpy (data, answer + 1, 1);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
 static device_status_t
 oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {

@@ -51,6 +51,15 @@ test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
+	message ("oceanic_vtpro_device_calibrate\n");
+	unsigned char calibration = 0;
+	rc = oceanic_vtpro_device_calibrate (device, &calibration, 1);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Cannot calibrate computer.");
+		device_close (device);
+		return rc;
+	}
+
 	message ("device_read\n");
 	rc = device_read (device, 0x00, data, sizeof (data));
 	if (rc != DEVICE_STATUS_SUCCESS) {
