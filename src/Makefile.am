@@ -22,7 +22,8 @@ libdivecomputer_HEADERS = 	\
 	uwatec_smart.h \
 	oceanic.h \
 	oceanic_atom2.h \
-	oceanic_veo250.h
+	oceanic_veo250.h \
+	oceanic_vtpro.h
 
 #
 # Source files.
