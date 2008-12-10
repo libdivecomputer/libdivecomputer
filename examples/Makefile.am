@@ -11,7 +11,8 @@ bin_PROGRAMS = \
 	aladin \
 	memomouse \
 	atom2 \
-	veo250
+	veo250 \
+	vtpro
 
 if IRDA
 bin_PROGRAMS += smart
@@ -36,6 +37,8 @@ memomouse_SOURCES = uwatec_memomouse_test.c
 atom2_SOURCES = oceanic_atom2_test.c
 
 veo250_SOURCES = oceanic_veo250_test.c
+
+vtpro_SOURCES = oceanic_vtpro_test.c
 
 if IRDA
 smart_SOURCES = uwatec_smart_test.c

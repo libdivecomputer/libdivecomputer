@@ -52,6 +52,7 @@ libdivecomputer_la_SOURCES = \
 	oceanic.h \
 	oceanic_atom2.h oceanic_atom2.c \
 	oceanic_veo250.h oceanic_veo250.c \
+	oceanic_vtpro.h oceanic_vtpro.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \
