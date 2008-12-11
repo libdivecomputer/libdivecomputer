@@ -37,6 +37,9 @@ oceanic_vtpro_device_open (device_t **device, const char* name);
 device_status_t
 oceanic_vtpro_device_keepalive (device_t *device);
 
+device_status_t
+oceanic_vtpro_device_calibrate (device_t *abstract, unsigned char data[], unsigned int size);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
