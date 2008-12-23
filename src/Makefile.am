@@ -9,6 +9,7 @@ libdivecomputer_HEADERS = 	\
 	parser.h \
 	units.h \
 	suunto.h \
+	suunto_solution.h \
 	suunto_eon.h \
 	suunto_vyper.h \
 	suunto_vyper2.h  \
@@ -42,6 +43,7 @@ libdivecomputer_la_SOURCES = \
 	parser.h parser-private.h parser.c \
 	suunto.h \
 	suunto_common.h suunto_common.c \
+	suunto_solution.h suunto_solution.c \
 	suunto_eon.h suunto_eon.c \
 	suunto_vyper.h suunto_vyper.c suunto_vyper_parser.c suunto_spyder_parser.c \
 	suunto_vyper2.h suunto_vyper2.c \

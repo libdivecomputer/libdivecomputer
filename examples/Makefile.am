@@ -2,6 +2,7 @@ AM_CFLAGS = -I$(top_srcdir)/src
 LDADD = $(top_builddir)/src/libdivecomputer.la
 
 bin_PROGRAMS = \
+	solution \
 	eon \
 	vyper \
 	vyper2 \
@@ -18,6 +19,8 @@ bin_PROGRAMS = \
 if IRDA
 bin_PROGRAMS += smart
 endif
+
+solution_SOURCES = suunto_solution_test.c
 
 eon_SOURCES = suunto_eon_test.c
 

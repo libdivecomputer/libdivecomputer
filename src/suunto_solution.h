@@ -19,13 +19,21 @@
  * MA 02110-1301 USA
  */
 
-#ifndef SUUNTO_H
-#define SUUNTO_H
+#ifndef SUUNTO_SOLUTION_H
+#define SUUNTO_SOLUTION_H
 
-#include "suunto_solution.h"
-#include "suunto_eon.h"
-#include "suunto_vyper.h"
-#include "suunto_vyper2.h"
-#include "suunto_d9.h"
+#include "device.h"
 
-#endif /* SUUNTO_H */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+#define SUUNTO_SOLUTION_MEMORY_SIZE 256
+
+device_status_t
+suunto_solution_device_open (device_t **device, const char* name);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* SUUNTO_SOLUTION_H */

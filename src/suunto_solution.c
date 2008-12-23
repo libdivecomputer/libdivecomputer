@@ -1,0 +1,230 @@
+/* 
+ * libdivecomputer
+ * 
+ * Copyright (C) 2008 Jef Driesen
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301 USA
+ */
+
+#include <stdlib.h> // malloc, free
+
+#include "device-private.h"
+#include "suunto_solution.h"
+#include "serial.h"
+#include "utils.h"
+
+#define WARNING(expr) \
+{ \
+	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
+}
+
+#define EXITCODE(rc) \
+( \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+)
+
+typedef struct suunto_solution_device_t suunto_solution_device_t;
+
+struct suunto_solution_device_t {
+	device_t base;
+	struct serial *port;
+};
+
+static device_status_t suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_solution_device_close (device_t *abstract);
+
+static const device_backend_t suunto_solution_device_backend = {
+	DEVICE_TYPE_SUUNTO_SOLUTION,
+	NULL, /* handshake */
+	NULL, /* version */
+	NULL, /* read */
+	NULL, /* write */
+	suunto_solution_device_dump, /* dump */
+	NULL, /* foreach */
+	suunto_solution_device_close /* close */
+};
+
+static int
+device_is_suunto_solution (device_t *abstract)
+{
+	if (abstract == NULL)
+		return 0;
+
+    return abstract->backend == &suunto_solution_device_backend;
+}
+
+
+device_status_t
+suunto_solution_device_open (device_t **out, const char* name)
+{
+	if (out == NULL)
+		return DEVICE_STATUS_ERROR;
+
+	// Allocate memory.
+	suunto_solution_device_t *device = (suunto_solution_device_t *) malloc (sizeof (suunto_solution_device_t));
+	if (device == NULL) {
+		WARNING ("Failed to allocate memory.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	// Initialize the base class.
+	device_init (&device->base, &suunto_solution_device_backend);
+
+	// Set the default values.
+	device->port = NULL;
+
+	// Open the device.
+	int rc = serial_open (&device->port, name);
+	if (rc == -1) {
+		WARNING ("Failed to open the serial port.");
+		free (device);
+		return DEVICE_STATUS_IO;
+	}
+
+	// Set the serial communication protocol (1200 8N2).
+	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
+	if (rc == -1) {
+		WARNING ("Failed to set the terminal attributes.");
+		serial_close (device->port);
+		free (device);
+		return DEVICE_STATUS_IO;
+	}
+
+	// Set the timeout for receiving data (1000ms).
+	if (serial_set_timeout (device->port, 1000) == -1) {
+		WARNING ("Failed to set the timeout.");
+		serial_close (device->port);
+		free (device);
+		return DEVICE_STATUS_IO;
+	}
+
+	// Clear the RTS line.
+	if (serial_set_rts (device->port, 0)) {
+		WARNING ("Failed to set the DTR/RTS line.");
+		serial_close (device->port);
+		free (device);
+		return DEVICE_STATUS_IO;
+	}
+
+	*out = (device_t*) device;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+suunto_solution_device_close (device_t *abstract)
+{
+	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
+
+	if (! device_is_suunto_solution (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Close the device.
+	if (serial_close (device->port) == -1) {
+		free (device);
+		return DEVICE_STATUS_IO;
+	}
+
+	// Free memory.
+	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+{
+	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
+
+	if (! device_is_suunto_solution (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < SUUNTO_SOLUTION_MEMORY_SIZE)
+		return DEVICE_STATUS_MEMORY;
+
+	int n = 0;
+	unsigned char command[3] = {0};
+	unsigned char answer[3] = {0};
+
+	// Assert DTR
+	serial_set_dtr (device->port, 1);
+
+	// Send: 0xFF
+	command[0] = 0xFF;
+	serial_write (device->port, command, 1);
+
+	// Receive: 0x3F
+	n = serial_read (device->port, answer, 1);
+	if (n != 1) return EXITCODE (n);
+	if (answer[0] != 0x3F) WARNING ("Unexpected answer byte.");
+
+	// Send: 0x4D, 0x01, 0x01
+	command[0] = 0x4D;
+	command[1] = 0x01;
+	command[2] = 0x01;
+	serial_write (device->port, command, 3);
+
+	data[0] = 0x00;
+	for (unsigned int i = 1; i < SUUNTO_SOLUTION_MEMORY_SIZE; ++i) {
+		// Receive: 0x01, i, data[i]
+		n = serial_read (device->port, answer, 3);
+		if (n != 3) return EXITCODE (n);
+		if (answer[0] != 0x01 || answer[1] != i) WARNING ("Unexpected answer byte.");
+
+		// Send: i
+		command[0] = i;
+		serial_write (device->port, command, 1);
+
+		// Receive: data[i]
+		n = serial_read (device->port, data + i, 1);
+		if (n != 1) return EXITCODE (n);
+		if (data[i] != answer[2]) WARNING ("Unexpected answer byte.");
+
+		// Send: 0x0D
+		command[0] = 0x0D;
+		serial_write (device->port, command, 1);
+	}
+
+	// Receive: 0x02, 0x00, 0x80
+	n = serial_read (device->port, answer, 3);
+	if (n != 3) return EXITCODE (n);
+	if (answer[0] != 0x02 || answer[1] != 0x00 || answer[2] != 0x80) WARNING ("Unexpected answer byte.");
+
+	// Send: 0x80
+	command[0] = 0x80;
+	serial_write (device->port, command, 1);
+
+	// Receive: 0x80
+	n = serial_read (device->port, answer, 1);
+	if (n != 1) return EXITCODE (n);
+	if (answer[0] != 0x80) WARNING ("Unexpected answer byte.");
+
+	// Send: 0x20
+	command[0] = 0x20;
+	serial_write (device->port, command, 1);
+
+	// Receive: 0x3F
+	n = serial_read (device->port, answer, 1);
+	if (n != 1) return EXITCODE (n);
+	if (answer[0] != 0x3F) WARNING ("Unexpected answer byte.");
+
+	if (result)
+		*result = SUUNTO_SOLUTION_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
+}
