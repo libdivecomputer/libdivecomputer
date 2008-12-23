@@ -27,6 +27,7 @@ message
 message_set_logfile
 
 #ifdef SERIAL
+mares_nemo_device_open
 oceanic_atom2_device_handshake
 oceanic_atom2_device_open
 oceanic_atom2_device_quit
