@@ -57,7 +57,7 @@ libdivecomputer_la_SOURCES = \
 	oceanic_veo250.h oceanic_veo250.c \
 	oceanic_vtpro.h oceanic_vtpro.c \
 	mares.h \
-	mares_nemo.h mares_nemo.c \
+	mares_nemo.h mares_nemo.c mares_nemo_parser.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \

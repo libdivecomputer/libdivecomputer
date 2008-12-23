@@ -23,6 +23,7 @@
 #define MARES_NEMO_H
 
 #include "device.h"
+#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,9 @@ mares_nemo_device_open (device_t **device, const char* name);
 
 device_status_t
 mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
+parser_status_t
+mares_nemo_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }
