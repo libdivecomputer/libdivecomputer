@@ -56,6 +56,7 @@ reefnet_sensusultra_extract_dives
 suunto_d9_device_open
 suunto_d9_device_reset_maxdepth
 suunto_solution_device_open
+suunto_solution_extract_dives
 suunto_eon_device_open
 suunto_eon_device_write_interval
 suunto_eon_device_write_name

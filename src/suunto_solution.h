@@ -33,6 +33,9 @@ extern "C" {
 device_status_t
 suunto_solution_device_open (device_t **device, const char* name);
 
+device_status_t
+suunto_solution_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

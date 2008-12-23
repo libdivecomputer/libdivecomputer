@@ -20,9 +20,11 @@
  */
 
 #include <stdlib.h> // malloc, free
+#include <assert.h> // assert
 
 #include "device-private.h"
 #include "suunto_solution.h"
+#include "ringbuffer.h"
 #include "serial.h"
 #include "utils.h"
 
@@ -36,6 +38,9 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define RB_PROFILE_BEGIN			0x020
+#define RB_PROFILE_END				0x100
+
 typedef struct suunto_solution_device_t suunto_solution_device_t;
 
 struct suunto_solution_device_t {
@@ -44,6 +49,7 @@ struct suunto_solution_device_t {
 };
 
 static device_status_t suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t suunto_solution_device_close (device_t *abstract);
 
 static const device_backend_t suunto_solution_device_backend = {
@@ -53,7 +59,7 @@ static const device_backend_t suunto_solution_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	suunto_solution_device_dump, /* dump */
-	NULL, /* foreach */
+	suunto_solution_device_foreach, /* foreach */
 	suunto_solution_device_close /* close */
 };
 
@@ -225,6 +231,75 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 
 	if (result)
 		*result = SUUNTO_SOLUTION_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	if (! device_is_suunto_solution (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned char data[SUUNTO_SOLUTION_MEMORY_SIZE] = {0};
+
+	device_status_t rc = suunto_solution_device_dump (abstract, data, sizeof (data), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return suunto_solution_extract_dives (data, sizeof (data), callback, userdata);
+}
+
+
+device_status_t
+suunto_solution_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	assert (size >= SUUNTO_SOLUTION_MEMORY_SIZE);
+
+	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
+
+	// Get the end of the profile ring buffer.
+	unsigned int eop = data[0x18];
+	assert (eop >= RB_PROFILE_BEGIN && eop < RB_PROFILE_END);
+	assert (data[eop] == 0x82);
+
+	// The profile data is stored backwards in the ringbuffer. To locate
+	// the most recent dive, we start from the end of profile marker and
+	// traverse the ringbuffer in the opposite direction (forwards).
+	// Since the profile data is now processed in the "wrong" direction,
+	// it needs to be reversed again.
+	unsigned int previous = eop;
+	unsigned int current = eop;
+	for (unsigned int i = 0; i < RB_PROFILE_END - RB_PROFILE_BEGIN; ++i) {
+		// Move forwards through the ringbuffer.
+		current++;
+		if (current == RB_PROFILE_END)
+			current = RB_PROFILE_BEGIN;
+
+		// Check for an end of profile marker.
+		if (data[current] == 0x82)
+			break;
+
+		// Store the current byte into the buffer. By starting at the
+		// end of the buffer, the data is automatically reversed.
+		unsigned int idx = RB_PROFILE_END - RB_PROFILE_BEGIN - i - 1;
+		buffer[idx] = data[current];
+
+		// Check for an end of dive marker (of the next dive),
+		// to find the start of the current dive.
+		unsigned int peek = ringbuffer_increment (current, 2, RB_PROFILE_BEGIN, RB_PROFILE_END);
+		if (data[peek] == 0x80) {
+			unsigned int len = ringbuffer_distance (previous, current, RB_PROFILE_BEGIN, RB_PROFILE_END);
+
+			if (callback && !callback (buffer + idx, len, userdata))
+				return DEVICE_STATUS_SUCCESS;
+
+			previous = current;
+		}
+	}
+
+	assert (data[current] == 0x82);
 
 	return DEVICE_STATUS_SUCCESS;
 }
