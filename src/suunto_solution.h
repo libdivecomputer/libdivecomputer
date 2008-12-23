@@ -23,6 +23,7 @@
 #define SUUNTO_SOLUTION_H
 
 #include "device.h"
+#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,6 +36,9 @@ suunto_solution_device_open (device_t **device, const char* name);
 
 device_status_t
 suunto_solution_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
+parser_status_t
+suunto_solution_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }
