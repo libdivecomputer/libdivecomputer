@@ -292,13 +292,12 @@ mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 		unsigned int nsamples = buffer[offset - 3] + (buffer[offset - 2] << 8);
 
 		// Calculate the total number of bytes for this dive.
-		// If the buffer does not contain that much bytes, something
-		// is wrong and an error is returned.
+		// If the buffer does not contain that much bytes, we reached the
+		// end of the ringbuffer. The current dive is incomplete (partially
+		// overwritten with newer data), and processing should stop.
 		unsigned int nbytes = 2 + nsamples * sample_size + header_size;
-		if (offset < nbytes) {
-			WARNING ("Ringbuffer contains fewer bytes than required.");
-			return DEVICE_STATUS_ERROR;
-		}
+		if (offset < nbytes)
+			break;
 
 		// Move to the start of the dive.
 		offset -= nbytes;
