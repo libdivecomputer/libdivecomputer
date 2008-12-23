@@ -42,6 +42,8 @@
 
 #define RB_PROFILE_BEGIN			0x0070
 #define RB_PROFILE_END				0x3400
+#define RB_FREEDIVES_BEGIN			0x3400
+#define RB_FREEDIVES_END			0x4000
 
 typedef struct mares_nemo_device_t mares_nemo_device_t;
 
@@ -251,10 +253,19 @@ mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 	unsigned int eop = data[0x6B] + (data[0x6C] << 8);
 
 	// Make the ringbuffer linear, to avoid having to deal
-	// with the wrap point.
-	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
+	// with the wrap point. The buffer has extra space to
+	// store the profile data for the freedives.
+	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN + RB_FREEDIVES_END - RB_FREEDIVES_BEGIN] = {0};
 	memcpy (buffer + 0, data + eop, RB_PROFILE_END - eop);
 	memcpy (buffer + RB_PROFILE_END - eop, data + RB_PROFILE_BEGIN, eop - RB_PROFILE_BEGIN);
+
+	// For a freedive session, the Mares Nemo stores all the freedives of
+	// that session in a single logbook entry, and each sample is actually
+	// a summary for each individual freedive in the session. The profile
+	// data is stored in a separate memory area. Since only the most recent
+	// recent freediving session can have profile data, we keep track of the
+	// number of freedives.
+	unsigned int nfreedives = 0;
 
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
 	while (offset >= 3) {
@@ -274,6 +285,7 @@ mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 		if (mode == 2) {
 			header_size = 28;
 			sample_size = 6;
+			nfreedives++;
 		}
 
 		// Get the number of samples in the profile data.
@@ -298,6 +310,37 @@ mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 		if (length != nbytes) {
 			WARNING ("Calculated and stored size are not equal.");
 			return DEVICE_STATUS_ERROR;
+		}
+
+		// Process the profile data for the most recent freedive entry.
+		// Since we are processing the entries backwards (newest to oldest),
+		// this entry will always be the first one.
+		if (mode == 2 && nfreedives == 1) {
+			// Count the number of freedives in the profile data.
+			unsigned int count = 0;
+			unsigned int idx = RB_FREEDIVES_BEGIN;
+			while (idx + 2 <= RB_FREEDIVES_END &&
+				count != nsamples)
+			{
+				// Each freedive in the session ends with a zero sample.
+				unsigned int sample = data[idx] + (data[idx + 1] << 8);
+				if (sample == 0)
+					count++;
+
+				// Move to the next sample.
+				idx += 2;
+			}
+
+			// Verify that the number of freedive entries in the session
+			// equals the number of freedives in the profile data. If
+			// both values are different, the profile data is incomplete.
+			assert (count == nsamples);
+
+			// Append the profile data to the main logbook entry. The
+			// buffer is guaranteed to have enough space, and the dives
+			// that will be overwritten have already been processed.
+			memcpy (buffer + offset + nbytes, data + RB_FREEDIVES_BEGIN, idx - RB_FREEDIVES_BEGIN);
+			nbytes += idx - RB_FREEDIVES_BEGIN;
 		}
 
 		if (callback && !callback (buffer + offset, nbytes, userdata))
