@@ -40,6 +40,9 @@
 )
 
 
+#define RB_PROFILE_BEGIN			0x0070
+#define RB_PROFILE_END				0x3400
+
 typedef struct mares_nemo_device_t mares_nemo_device_t;
 
 struct mares_nemo_device_t {
@@ -48,6 +51,7 @@ struct mares_nemo_device_t {
 };
 
 static device_status_t mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_nemo_device_close (device_t *abstract);
 
 static const device_backend_t mares_nemo_device_backend = {
@@ -57,7 +61,7 @@ static const device_backend_t mares_nemo_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	mares_nemo_device_dump, /* dump */
-	NULL, /* foreach */
+	mares_nemo_device_foreach, /* foreach */
 	mares_nemo_device_close /* close */
 };
 
@@ -217,6 +221,88 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 
 	if (result)
 		*result = MARES_NEMO_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	if (! device_is_mares_nemo (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned char data[MARES_NEMO_MEMORY_SIZE] = {0};
+
+	device_status_t rc = mares_nemo_device_dump (abstract, data, sizeof (data), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return mares_nemo_extract_dives (data, sizeof (data), callback, userdata);
+}
+
+
+device_status_t
+mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	assert (size >= MARES_NEMO_MEMORY_SIZE);
+
+	// Get the end of the profile ring buffer.
+	unsigned int eop = data[0x6B] + (data[0x6C] << 8);
+
+	// Make the ringbuffer linear, to avoid having to deal
+	// with the wrap point.
+	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
+	memcpy (buffer + 0, data + eop, RB_PROFILE_END - eop);
+	memcpy (buffer + RB_PROFILE_END - eop, data + RB_PROFILE_BEGIN, eop - RB_PROFILE_BEGIN);
+
+	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
+	while (offset >= 3) {
+		// Check the dive mode of the logbook entry. Valid modes are
+		// 0 (air), 1 (EANx), 2 (freedive) or 3 (bottom timer).
+		// If the ringbuffer has never reached the wrap point before,
+		// there will be "empty" memory (filled with 0xFF) and
+		// processing should stop at this point.
+		unsigned int mode = buffer[offset - 1];
+		if (mode == 0xFF)
+			break;
+
+		// The header and sample size are dependant on the dive mode. Only
+		// in freedive mode, the sizes are different from the other modes.
+		unsigned int header_size = 53;
+		unsigned int sample_size = 2;
+		if (mode == 2) {
+			header_size = 28;
+			sample_size = 6;
+		}
+
+		// Get the number of samples in the profile data.
+		unsigned int nsamples = buffer[offset - 3] + (buffer[offset - 2] << 8);
+
+		// Calculate the total number of bytes for this dive.
+		// If the buffer does not contain that much bytes, something
+		// is wrong and an error is returned.
+		unsigned int nbytes = 2 + nsamples * sample_size + header_size;
+		if (offset < nbytes) {
+			WARNING ("Ringbuffer contains fewer bytes than required.");
+			return DEVICE_STATUS_ERROR;
+		}
+
+		// Move to the start of the dive.
+		offset -= nbytes;
+
+		// Verify that the length that is stored in the profile data
+		// equals the calculated length. If both values are different,
+		// something is wrong and an error is returned.
+		unsigned int length = buffer[offset] + (buffer[offset + 1] << 8);
+		if (length != nbytes) {
+			WARNING ("Calculated and stored size are not equal.");
+			return DEVICE_STATUS_ERROR;
+		}
+
+		if (callback && !callback (buffer + offset, nbytes, userdata))
+			return DEVICE_STATUS_SUCCESS;
+	}
 
 	return DEVICE_STATUS_SUCCESS;
 }

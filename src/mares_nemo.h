@@ -34,6 +34,9 @@ extern "C" {
 device_status_t
 mares_nemo_device_open (device_t **device, const char* name);
 
+device_status_t
+mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
