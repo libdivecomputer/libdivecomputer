@@ -42,14 +42,6 @@ test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
-	message ("oceanic_atom2_device_handshake\n");
-	rc = oceanic_atom2_device_handshake (device);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Handshake failed.");
-		device_close (device);
-		return rc;
-	}
-
 	message ("device_version\n");
 	unsigned char version[OCEANIC_ATOM2_PACKET_SIZE] = {0};
 	rc = device_version (device, version, sizeof (version));
@@ -78,14 +70,6 @@ test_dump_memory (const char* name, const char* filename)
 	rc = device_foreach (device, NULL, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read dives.");
-		device_close (device);
-		return rc;
-	}
-
-	message ("oceanic_atom2_device_quit\n");
-	rc = oceanic_atom2_device_quit (device);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Quit failed.");
 		device_close (device);
 		return rc;
 	}
