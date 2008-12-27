@@ -73,6 +73,7 @@ struct oceanic_atom2_device_t {
 
 static device_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static device_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
 static device_status_t oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t oceanic_atom2_device_close (device_t *abstract);
@@ -82,7 +83,7 @@ static const device_backend_t oceanic_atom2_device_backend = {
 	NULL, /* handshake */
 	oceanic_atom2_device_version, /* version */
 	oceanic_atom2_device_read, /* read */
-	NULL, /* write */
+	oceanic_atom2_device_write, /* write */
 	oceanic_atom2_device_dump, /* dump */
 	oceanic_atom2_device_foreach, /* foreach */
 	oceanic_atom2_device_close /* close */
@@ -391,6 +392,61 @@ oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned ch
 
 #ifndef NDEBUG
 		message ("ATOM2Read(0x%04x,%d)=\"", address, OCEANIC_ATOM2_PACKET_SIZE);
+		for (unsigned int i = 0; i < OCEANIC_ATOM2_PACKET_SIZE; ++i) {
+			message("%02x", data[i]);
+		}
+		message("\"\n");
+#endif
+
+		nbytes += OCEANIC_ATOM2_PACKET_SIZE;
+		address += OCEANIC_ATOM2_PACKET_SIZE;
+		data += OCEANIC_ATOM2_PACKET_SIZE;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
+{
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	assert (address % OCEANIC_ATOM2_PACKET_SIZE == 0);
+	assert (size    % OCEANIC_ATOM2_PACKET_SIZE == 0);
+
+	// The data transmission is split in packages
+	// of maximum $OCEANIC_ATOM2_PACKET_SIZE bytes.
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		// Prepare to write the package.
+		unsigned int number = address / OCEANIC_ATOM2_PACKET_SIZE;
+		unsigned char prepare[4] = {0xB2,
+				(number >> 8) & 0xFF, // high
+				(number     ) & 0xFF, // low
+				0x00};
+		device_status_t rc = oceanic_atom2_transfer (device, prepare, sizeof (prepare), NULL, 0);
+		if (rc != DEVICE_STATUS_SUCCESS)
+			return rc;
+
+#ifndef NDEBUG
+		message ("ATOM2PrepareWrite(0x%04x,%d)\n", address, OCEANIC_ATOM2_PACKET_SIZE);
+#endif
+
+		// Write the package.
+		unsigned char command[OCEANIC_ATOM2_PACKET_SIZE + 2] = {0};
+		memcpy (command, data, OCEANIC_ATOM2_PACKET_SIZE);
+		command[OCEANIC_ATOM2_PACKET_SIZE] = checksum_add_uint8 (command, OCEANIC_ATOM2_PACKET_SIZE, 0x00);
+		rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
+		if (rc != DEVICE_STATUS_SUCCESS)
+			return rc;
+
+#ifndef NDEBUG
+		message ("ATOM2Write(0x%04x,%d)=\"", address, OCEANIC_ATOM2_PACKET_SIZE);
 		for (unsigned int i = 0; i < OCEANIC_ATOM2_PACKET_SIZE; ++i) {
 			message("%02x", data[i]);
 		}
