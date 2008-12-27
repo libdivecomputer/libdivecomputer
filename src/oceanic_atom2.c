@@ -314,6 +314,24 @@ oceanic_atom2_device_close (device_t *abstract)
 }
 
 
+device_status_t
+oceanic_atom2_device_keepalive (device_t *abstract)
+{
+	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+
+	if (! device_is_oceanic_atom2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Send the command to the dive computer.
+	unsigned char command[4] = {0x91, 0x05, 0xA5, 0x00};
+	device_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
 static device_status_t
 oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
