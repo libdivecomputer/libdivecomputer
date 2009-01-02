@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="libdivecomputer"
 	ProjectGUID="{CEA7215A-D6B5-4840-8086-3C854F371997}"
 	RootNamespace="libdivecomputer"
@@ -193,11 +193,23 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\mares_nemo.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_nemo_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\oceanic_atom2.c"
 				>
 			</File>
 			<File
 				RelativePath="..\src\oceanic_veo250.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\oceanic_vtpro.c"
 				>
 			</File>
 			<File
@@ -242,6 +254,14 @@
 			</File>
 			<File
 				RelativePath="..\src\suunto_eon.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_solution.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_solution_parser.c"
 				>
 			</File>
 			<File
@@ -311,6 +331,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\mares_nemo.h"
+				>
+			</File>
+			<File
 				RelativePath="..\src\oceanic.h"
 				>
 			</File>
@@ -324,6 +348,10 @@
 			</File>
 			<File
 				RelativePath="..\src\oceanic_veo250.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\oceanic_vtpro.h"
 				>
 			</File>
 			<File
@@ -368,6 +396,10 @@
 			</File>
 			<File
 				RelativePath="..\src\suunto_eon.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_solution.h"
 				>
 			</File>
 			<File
