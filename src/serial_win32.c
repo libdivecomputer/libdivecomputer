@@ -171,7 +171,7 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
 	// Retrieve the current settings.
-	DCB dcb = {0};
+	DCB dcb;
 	if (!GetCommState (device->hFile, &dcb)) {
 		TRACE ("GetCommState");
 		return -1;
@@ -285,7 +285,7 @@ serial_set_timeout (serial* device, long timeout)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
 	// Retrieve the current timeouts.
-	COMMTIMEOUTS timeouts = {0};
+	COMMTIMEOUTS timeouts;
 	if (!GetCommTimeouts (device->hFile, &timeouts)) {
 		TRACE ("GetCommTimeouts");
 		return -1;
@@ -501,7 +501,7 @@ serial_get_received (serial* device)
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
-	COMSTAT stats = {0};
+	COMSTAT stats;
 
 	if (!ClearCommError (device->hFile, NULL, &stats)) {
 		TRACE ("ClearCommError");
@@ -518,7 +518,7 @@ serial_get_transmitted (serial* device)
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
-	COMSTAT stats = {0};
+	COMSTAT stats;
 
 	if (!ClearCommError (device->hFile, NULL, &stats)) {
 		TRACE ("ClearCommError");

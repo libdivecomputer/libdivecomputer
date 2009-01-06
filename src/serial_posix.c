@@ -160,7 +160,7 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 		return -1; // EINVAL (Invalid argument)
 
 	// Retrieve the current settings.
-	struct termios tty = {0};
+	struct termios tty;
 	if (tcgetattr (device->fd, &tty) != 0) {
 		TRACE ("tcgetattr");
 		return -1;
@@ -310,7 +310,7 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 	// it may be necessary to follow this call with a further call to
 	// tcgetattr() to check that all changes have been performed successfully.
 
-	struct termios active = {0};
+	struct termios active;
 	if (tcgetattr (device->fd, &active) != 0) {
 		TRACE ("tcgetattr");
 		return -1;
@@ -365,14 +365,14 @@ serial_poll_internal (int fd, int queue, long timeout, const struct timeval *tim
 	// Calculate the initial timeout, and obtain
 	// a timestamp for updating the timeout.
 
-	struct timeval tvt = {0}, tve = {0};
+	struct timeval tvt, tve;
 	if (timeout > 0) {
 		// Calculate the initial timeout.
 		tvt.tv_sec  = (timeout / 1000);
 		tvt.tv_usec = (timeout % 1000) * 1000;
 		// Calculate the timestamp.
 		if (timestamp == NULL) {
-			struct timeval now = {0};
+			struct timeval now;
 			if (gettimeofday (&now, NULL) != 0) {
 				TRACE ("gettimeofday");
 				return -1;
@@ -381,6 +381,8 @@ serial_poll_internal (int fd, int queue, long timeout, const struct timeval *tim
 		} else {
 			timeradd (timestamp, &tvt, &tve);
 		}
+	} else if (timeout == 0) {
+		timerclear (&tvt);
 	}
 
 	// Wait until the file descriptor is ready for reading/writing, or 
@@ -410,7 +412,7 @@ serial_poll_internal (int fd, int queue, long timeout, const struct timeval *tim
 		// Calculate the remaining timeout.
 
 		if (timeout > 0) {
-			struct timeval now = {0};
+			struct timeval now;
 			if (gettimeofday (&now, NULL) != 0) {
 				TRACE ("gettimeofday");
 				return -1;
@@ -436,7 +438,7 @@ serial_read (serial* device, void* data, unsigned int size)
 
 	long timeout = device->timeout;
 
-	struct timeval timestamp = {0};
+	struct timeval timestamp;
 	if (timeout > 0) {
 		if (gettimeofday (&timestamp, NULL) != 0) {
 			TRACE ("gettimeofday");
@@ -462,7 +464,7 @@ serial_read (serial* device, void* data, unsigned int size)
 		}
 
 		// Wait until the file descriptor is ready for reading, or the timeout expires.
-		int rc = serial_poll_internal (device->fd, SERIAL_QUEUE_INPUT, timeout, &timestamp);
+		int rc = serial_poll_internal (device->fd, SERIAL_QUEUE_INPUT, timeout, timeout > 0 ? &timestamp : NULL);
 		if (rc < 0) {
 			return -1; // Error during select/poll call.
 		} else if (rc == 0)
@@ -470,7 +472,7 @@ serial_read (serial* device, void* data, unsigned int size)
 
 		// Calculate the remaining timeout.
 		if (timeout > 0) {
-			struct timeval now = {0}, delta = {0};
+			struct timeval now, delta;
 			if (gettimeofday (&now, NULL) != 0) {
 				TRACE ("gettimeofday");
 				return -1;
@@ -671,7 +673,7 @@ serial_get_transmitted (serial *device)
 int
 serial_sleep (unsigned long timeout)
 {
-	struct timespec ts = {0};   
+	struct timespec ts;
 	ts.tv_sec  = (timeout / 1000);
 	ts.tv_nsec = (timeout % 1000) * 1000000;
 
@@ -689,7 +691,7 @@ serial_sleep (unsigned long timeout)
 int
 serial_timer (void)
 {
-	struct timeval tv = {0};
+	struct timeval tv;
 	if (gettimeofday (&tv, NULL) != 0) {
 		TRACE ("gettimeofday");
 		return 0;

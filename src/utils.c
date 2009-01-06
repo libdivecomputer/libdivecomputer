@@ -48,7 +48,7 @@ int message (const char* fmt, ...)
 			unsigned long sec = timestamp / 1000L, msec = timestamp % 1000L;
 			fprintf (g_logfile, "[%li.%03li] ", sec, msec);
 #else
-			struct timeval now = {0}, timestamp = {0};
+			struct timeval now, timestamp;
 			gettimeofday (&now, NULL);
 			timersub (&now, &g_timestamp, &timestamp);
 			fprintf (g_logfile, "[%lli.%06lli] ", (long long)timestamp.tv_sec, (long long)timestamp.tv_usec);

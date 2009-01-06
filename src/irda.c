@@ -114,7 +114,7 @@ const char* irda_errmsg (void)
 int irda_init (void)
 {
 #ifdef _WIN32
-	WSADATA wsaData = {0};
+	WSADATA wsaData;
 	WORD wVersionRequested = MAKEWORD (2, 2);
 	if (WSAStartup (wVersionRequested, &wsaData) != 0) {
 		TRACE ("WSAStartup");
@@ -313,7 +313,7 @@ irda_socket_connect_name (irda *device, unsigned int address, const char *name)
 		return -1;
 
 #ifdef _WIN32
-	SOCKADDR_IRDA peer = {0};
+	SOCKADDR_IRDA peer;
 	peer.irdaAddressFamily = AF_IRDA;
 	peer.irdaDeviceID[0] = (address >> 24) & 0xFF;
 	peer.irdaDeviceID[1] = (address >> 16) & 0xFF;
@@ -324,7 +324,7 @@ irda_socket_connect_name (irda *device, unsigned int address, const char *name)
 	else
 		memset (peer.irdaServiceName, 0x00, 25);
 #else
-	struct sockaddr_irda peer = {0};
+	struct sockaddr_irda peer;
 	peer.sir_family = AF_IRDA;
 	peer.sir_addr = address;
 	if (name)
@@ -348,7 +348,7 @@ irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap)
 		return -1;
 
 #ifdef _WIN32
-	SOCKADDR_IRDA peer = {0};
+	SOCKADDR_IRDA peer;
 	peer.irdaAddressFamily = AF_IRDA;
 	peer.irdaDeviceID[0] = (address >> 24) & 0xFF;
 	peer.irdaDeviceID[1] = (address >> 16) & 0xFF;
@@ -356,7 +356,7 @@ irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap)
 	peer.irdaDeviceID[3] = (address      ) & 0xFF;
 	snprintf (peer.irdaServiceName, 25, "LSAP-SEL%u", lsap);
 #else
-	struct sockaddr_irda peer = {0};
+	struct sockaddr_irda peer;
 	peer.sir_family = AF_IRDA;
 	peer.sir_addr = address;
 	peer.sir_lsap_sel = lsap;
@@ -400,7 +400,7 @@ irda_socket_read (irda* device, void* data, unsigned int size)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-	struct timeval tv = {0};
+	struct timeval tv;
 	if (device->timeout >= 0) {
 		tv.tv_sec  = (device->timeout / 1000);
 		tv.tv_usec = (device->timeout % 1000) * 1000;
