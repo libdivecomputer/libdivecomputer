@@ -72,7 +72,7 @@ struct irda {
 };
 
 
-int irda_errcode ()
+int irda_errcode (void)
 {
 #ifdef _WIN32
 	return WSAGetLastError ();
@@ -82,7 +82,7 @@ int irda_errcode ()
 }
 
 
-const char* irda_errmsg ()
+const char* irda_errmsg (void)
 {
 #ifdef _WIN32
 	static char buffer[256] = {0};
@@ -111,7 +111,7 @@ const char* irda_errmsg ()
 }
 
 
-int irda_init ()
+int irda_init (void)
 {
 #ifdef _WIN32
 	WSADATA wsaData = {0};
@@ -137,7 +137,7 @@ int irda_init ()
 }
 
 
-int irda_cleanup ()
+int irda_cleanup (void)
 {
 #ifdef _WIN32
 	if (WSACleanup () != 0) {

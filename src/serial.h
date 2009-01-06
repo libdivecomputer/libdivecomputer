@@ -46,8 +46,8 @@ enum queue_t {
 	SERIAL_QUEUE_BOTH = SERIAL_QUEUE_INPUT | SERIAL_QUEUE_OUTPUT
 };
 
-int serial_errcode ();
-const char* serial_errmsg ();
+int serial_errcode (void);
+const char* serial_errmsg (void);
 
 int serial_open (serial **device, const char* name);
 
@@ -98,7 +98,7 @@ int serial_get_transmitted (serial *device);
 
 int serial_sleep (unsigned long timeout /* milliseconds */);
 
-int serial_timer ();
+int serial_timer (void);
 
 #ifdef __cplusplus
 }

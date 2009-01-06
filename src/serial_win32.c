@@ -51,13 +51,13 @@ struct serial {
 // Error reporting.
 //
 
-int serial_errcode ()
+int serial_errcode (void)
 {
 	return GetLastError ();
 }
 
 
-const char* serial_errmsg ()
+const char* serial_errmsg (void)
 {
 	static char buffer[256] = {0};
 	unsigned int size = sizeof (buffer) / sizeof (char);
@@ -539,7 +539,7 @@ serial_sleep (unsigned long timeout)
 
 
 int
-serial_timer ()
+serial_timer (void)
 {
 	return GetTickCount ();
 }

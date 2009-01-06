@@ -62,13 +62,13 @@ struct serial {
 // Error reporting.
 //
 
-int serial_errcode ()
+int serial_errcode (void)
 {
 	return errno;
 }
 
 
-const char* serial_errmsg ()
+const char* serial_errmsg (void)
 {
 	return strerror (errno);
 }
@@ -687,7 +687,7 @@ serial_sleep (unsigned long timeout)
 
 
 int
-serial_timer ()
+serial_timer (void)
 {
 	struct timeval tv = {0};
 	if (gettimeofday (&tv, NULL) != 0) {
