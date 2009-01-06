@@ -23,5 +23,7 @@
 #define OCEANIC_H
 
 #include "oceanic_atom2.h"
+#include "oceanic_veo250.h"
+#include "oceanic_vtpro.h"
 
 #endif /* OCEANIC_H */
