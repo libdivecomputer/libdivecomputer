@@ -311,7 +311,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 
 	// Allocate memory for the entire package.
 	unsigned char *buffer = (unsigned char *) malloc (total * sizeof (unsigned char));
-	if (package == NULL) {
+	if (buffer == NULL) {
 		WARNING ("Memory allocation error.");
 		return DEVICE_STATUS_MEMORY;
 	}
