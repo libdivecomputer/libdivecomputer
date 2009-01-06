@@ -686,9 +686,9 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	unsigned int npages = 0;
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
 		// Receive the packet.
-		unsigned int index = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
+		unsigned int offset = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
 			nbytes - REEFNET_SENSUSULTRA_PACKET_SIZE;
-		rc = reefnet_sensusultra_page (device, data + index, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		rc = reefnet_sensusultra_page (device, data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			free (data);
 			return rc;
@@ -697,12 +697,12 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		progress_event (&progress, DEVICE_EVENT_PROGRESS, REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 		// Abort the transfer if the page contains no useful data.
-		if (reefnet_sensusultra_isempty (data + index, REEFNET_SENSUSULTRA_PACKET_SIZE))
+		if (reefnet_sensusultra_isempty (data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE))
 			break;
 
 		// Parse the page data.
 		int aborted = 0;
-		rc = reefnet_sensusultra_parse (data, index, index + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata, device->timestamp);
+		rc = reefnet_sensusultra_parse (data, offset, offset + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata, device->timestamp);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			free (data);
 			return rc;

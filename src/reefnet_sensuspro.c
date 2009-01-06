@@ -247,7 +247,7 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 		if (len > 256)
 			len = 256;
 
-		int rc = serial_read (device->port, answer + nbytes, len);
+		rc = serial_read (device->port, answer + nbytes, len);
 		if (rc != len) {
 			WARNING ("Failed to receive the answer.");
 			return EXITCODE (rc);
