@@ -113,8 +113,8 @@ uwatec_memomouse_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_IO;
 	}
 
-	// Set the timeout for receiving data (60s).
-	if (serial_set_timeout (device->port, 60000) == -1) {
+	// Set the timeout for receiving data (1000 ms).
+	if (serial_set_timeout (device->port, 1000) == -1) {
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
@@ -437,9 +437,13 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	progress_event (&progress, DEVICE_EVENT_WAITING, 0);
+	// Wait for the data packet.
+	while (serial_get_received (device->port) == 0) {
+		progress_event (&progress, DEVICE_EVENT_WAITING, 0);
+		serial_sleep (100);
+	}
 
-	// Wait for the transfer and read the data.
+	// Read the data packet.
 	return uwatec_memomouse_read_packet_inner (device, data, size, &progress);
 }
 
