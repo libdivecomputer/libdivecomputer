@@ -7,6 +7,7 @@ bin_PROGRAMS = \
 	vyper \
 	vyper2 \
 	d9 \
+	sensus \
 	sensuspro \
 	sensusultra \
 	aladin \
@@ -29,6 +30,8 @@ vyper_SOURCES = suunto_vyper_test.c
 vyper2_SOURCES = suunto_vyper2_test.c
 
 d9_SOURCES = suunto_d9_test.c
+
+sensus_SOURCES = reefnet_sensus_test.c
 
 sensuspro_SOURCES = reefnet_sensuspro_test.c
 

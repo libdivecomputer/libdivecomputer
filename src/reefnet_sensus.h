@@ -19,11 +19,25 @@
  * MA 02110-1301 USA
  */
 
-#ifndef REEFNET_H
-#define REEFNET_H
+#ifndef REEFNET_SENSUS_H
+#define REEFNET_SENSUS_H
 
-#include "reefnet_sensus.h"
-#include "reefnet_sensuspro.h"
-#include "reefnet_sensusultra.h"
+#include "device.h"
 
-#endif /* REEFNET_H */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+#define REEFNET_SENSUS_MEMORY_SIZE 32768
+#define REEFNET_SENSUS_HANDSHAKE_SIZE 10
+
+device_status_t
+reefnet_sensus_device_open (device_t **device, const char* name);
+
+device_status_t
+reefnet_sensus_device_cancel (device_t *device);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* REEFNET_SENSUS_H */
