@@ -34,9 +34,6 @@ extern "C" {
 device_status_t
 reefnet_sensus_device_open (device_t **device, const char* name);
 
-device_status_t
-reefnet_sensus_device_cancel (device_t *device);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

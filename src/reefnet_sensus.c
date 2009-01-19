@@ -44,6 +44,7 @@ typedef struct reefnet_sensus_device_t reefnet_sensus_device_t;
 struct reefnet_sensus_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned int waiting;
 };
 
 static device_status_t reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);
@@ -71,6 +72,24 @@ device_is_reefnet_sensus (device_t *abstract)
 }
 
 
+static device_status_t
+reefnet_sensus_cancel (reefnet_sensus_device_t *device)
+{
+	// Send the command to the device.
+	unsigned char command = 0x00;
+	int n = serial_write (device->port, &command, 1);
+	if (n != 1) {
+		WARNING ("Failed to send the cancel command.");
+		return EXITCODE (n);
+	}
+
+	// The device leaves the waiting state.
+	device->waiting = 0;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
 device_status_t
 reefnet_sensus_device_open (device_t **out, const char* name)
 {
@@ -89,6 +108,7 @@ reefnet_sensus_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->waiting = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -131,6 +151,11 @@ reefnet_sensus_device_close (device_t *abstract)
 
 	if (! device_is_reefnet_sensus (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Safely close the connection if the last handshake was
+	// successful, but no data transfer was ever initiated.
+	if (device->waiting)
+		reefnet_sensus_cancel (device);
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
@@ -175,6 +200,9 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
+	// The device is now waiting for a data request.
+	device->waiting = 1;
+
 #ifndef NDEBUG
 	message (
 		"Response Header: %c%c\n"
@@ -207,26 +235,6 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 }
 
 
-device_status_t
-reefnet_sensus_device_cancel (device_t *abstract)
-{
-	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
-
-	if (! device_is_reefnet_sensus (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	// Send the command to the device.
-	unsigned char command = 0x00;
-	int n = serial_write (device->port, &command, 1);
-	if (n != 1) {
-		WARNING ("Failed to send the cancel command.");
-		return EXITCODE (n);
-	}
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
 static device_status_t
 reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result)
 {
@@ -246,6 +254,9 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 		WARNING ("Failed to send the command.");
 		return EXITCODE (n);
 	}
+
+	// The device leaves the waiting state.
+	device->waiting = 0;
 
 	// Receive the answer from the device.
 	unsigned int nbytes = 0;
