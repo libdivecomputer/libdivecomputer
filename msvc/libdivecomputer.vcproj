@@ -217,6 +217,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\reefnet_sensus.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\reefnet_sensuspro.c"
 				>
 			</File>
@@ -364,6 +368,10 @@
 			</File>
 			<File
 				RelativePath="..\src\reefnet.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\reefnet_sensus.h"
 				>
 			</File>
 			<File
