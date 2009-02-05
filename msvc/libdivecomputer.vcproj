@@ -221,6 +221,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\reefnet_sensus_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\reefnet_sensuspro.c"
 				>
 			</File>

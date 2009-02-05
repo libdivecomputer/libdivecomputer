@@ -23,6 +23,7 @@
 #define REEFNET_SENSUS_H
 
 #include "device.h"
+#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,12 @@ reefnet_sensus_device_open (device_t **device, const char* name);
 
 device_status_t
 reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
+parser_status_t
+reefnet_sensus_parser_create (parser_t **parser);
+
+parser_status_t
+reefnet_sensus_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus
 }

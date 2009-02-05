@@ -3,6 +3,8 @@ parser_set_data
 parser_samples_foreach
 parser_destroy 
 
+reefnet_sensus_parser_create
+reefnet_sensus_parser_set_calibration
 reefnet_sensuspro_parser_create
 reefnet_sensuspro_parser_set_calibration
 reefnet_sensusultra_parser_create
