@@ -21,6 +21,7 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
+#include <assert.h> // assert
 
 #include "device-private.h"
 #include "reefnet_sensus.h"
@@ -49,6 +50,7 @@ struct reefnet_sensus_device_t {
 
 static device_status_t reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);
 static device_status_t reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result);
+static device_status_t reefnet_sensus_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t reefnet_sensus_device_close (device_t *abstract);
 
 static const device_backend_t reefnet_sensus_device_backend = {
@@ -58,7 +60,7 @@ static const device_backend_t reefnet_sensus_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	reefnet_sensus_device_dump, /* dump */
-	NULL, /* foreach */
+	reefnet_sensus_device_foreach, /* foreach */
 	reefnet_sensus_device_close /* close */
 };
 
@@ -303,6 +305,84 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 
 	if (result)
 		*result = REEFNET_SENSUS_MEMORY_SIZE;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+reefnet_sensus_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
+
+	if (! device_is_reefnet_sensus (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	unsigned char data[REEFNET_SENSUS_MEMORY_SIZE] = {0};
+
+	device_status_t rc = reefnet_sensus_device_dump (abstract, data, sizeof (data), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	return reefnet_sensus_extract_dives (data, sizeof (data), callback, userdata);
+}
+
+
+device_status_t
+reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	// Search the entire data stream for start markers.
+	unsigned int previous = size;
+	unsigned int current = (size >= 7 ? size - 7 : 0);
+	while (current > 0) {
+		current--;
+		if (data[current] == 0xFF && data[current + 6] == 0xFE) {
+			// Once a start marker is found, start searching
+			// for the end of the dive. The search is now
+			// limited to the start of the previous dive.
+			int found = 0;
+			unsigned int nsamples = 0, count = 0;
+			unsigned int offset = current + 7; // Skip non-sample data.
+			while (offset + 1 <= previous) {
+				// Depth (adjusted feet of seawater).
+				unsigned char depth = data[offset++];
+
+				// Temperature (degrees Fahrenheit)
+				if ((nsamples % 6) == 0) {
+					assert (offset + 1 <= previous);
+					offset++;
+				}
+
+				// Current sample is complete.
+				nsamples++;
+
+				// The end of a dive is reached when 17 consecutive  
+				// depth samples of less than 3 feet have been found.
+				if (depth < 13 + 3) {
+					count++;
+					if (count == 17) {
+						found = 1;
+						break;
+					}
+				} else {
+					count = 0;
+				}
+			}
+
+			// Report an error if no end of dive was found.
+			if (!found) {
+				WARNING ("No end of dive found.");
+				return DEVICE_STATUS_ERROR;
+			}
+
+			if (callback && !callback (data + current, offset - current, userdata))
+				return DEVICE_STATUS_SUCCESS;
+
+			// Prepare for the next dive.
+			previous = current;
+			current = (current >= 7 ? current - 7 : 0);
+		}
+	}
 
 	return DEVICE_STATUS_SUCCESS;
 }
