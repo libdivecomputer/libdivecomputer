@@ -27,6 +27,9 @@ extern "C" {
 #endif /* __cplusplus */
 
 unsigned char
+checksum_add_uint4 (const unsigned char data[], unsigned int size, unsigned char init);
+
+unsigned char
 checksum_add_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
 
 unsigned short

@@ -21,6 +21,20 @@
 
 #include "checksum.h"
 
+
+unsigned char
+checksum_add_uint4 (const unsigned char data[], unsigned int size, unsigned char init)
+{
+	unsigned char crc = init;
+	for (unsigned int i = 0; i < size; ++i) {
+		crc += (data[i] & 0xF0) >> 4;
+		crc += (data[i] & 0x0F);
+	}
+
+	return crc;
+}
+
+
 unsigned char
 checksum_add_uint8 (const unsigned char data[], unsigned int size, unsigned char init)
 {

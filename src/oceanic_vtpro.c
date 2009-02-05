@@ -396,8 +396,13 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	// FIXME: The answer seems to contain a checksum byte,
-	// but the correct checksum function is not known.
+	// Verify the checksum of the answer.
+	unsigned char crc = ans[OCEANIC_VTPRO_PACKET_SIZE / 2];
+	unsigned char ccrc = checksum_add_uint4 (ans, OCEANIC_VTPRO_PACKET_SIZE / 2, 0x00);
+	if (crc != ccrc) {
+		WARNING ("Unexpected answer CRC.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
 
 #ifndef NDEBUG
 	ans[OCEANIC_VTPRO_PACKET_SIZE / 2] = 0;
@@ -414,8 +419,13 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
-		// FIXME: The answer seems to contain a checksum byte,
-		// but the correct checksum function is not known.
+		// Verify the checksum of the answer.
+		unsigned char crc = answer[OCEANIC_VTPRO_PACKET_SIZE / 2];
+		unsigned char ccrc = checksum_add_uint4 (answer, OCEANIC_VTPRO_PACKET_SIZE / 2, 0x00);
+		if (crc != ccrc) {
+			WARNING ("Unexpected answer CRC.");
+			return DEVICE_STATUS_PROTOCOL;
+		}
 
 		// Verify the last byte of the answer.
 		if (answer[OCEANIC_VTPRO_PACKET_SIZE / 2 + 1] != 0x51) {
