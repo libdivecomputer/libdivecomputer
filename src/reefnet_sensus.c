@@ -46,6 +46,7 @@ struct reefnet_sensus_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int waiting;
+	unsigned int timestamp;
 };
 
 static device_status_t reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);
@@ -111,6 +112,7 @@ reefnet_sensus_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->waiting = 0;
+	device->timestamp = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -167,6 +169,20 @@ reefnet_sensus_device_close (device_t *abstract)
 
 	// Free memory.
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+reefnet_sensus_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+{
+	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
+
+	if (! device_is_reefnet_sensus (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	device->timestamp = timestamp;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -324,12 +340,12 @@ reefnet_sensus_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return reefnet_sensus_extract_dives (data, sizeof (data), callback, userdata);
+	return reefnet_sensus_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
 }
 
 
 device_status_t
-reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
 {
 	// Search the entire data stream for start markers.
 	unsigned int previous = size;
@@ -374,6 +390,12 @@ reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, div
 				WARNING ("No end of dive found.");
 				return DEVICE_STATUS_ERROR;
 			}
+
+			// Automatically abort when a dive is older than the provided timestamp.
+			unsigned int datetime = data[current + 2] + (data[current + 3] << 8) +
+				(data[current + 4] << 16) + (data[current + 5] << 24);
+			if (datetime <= timestamp)
+				return DEVICE_STATUS_SUCCESS;
 
 			if (callback && !callback (data + current, offset - current, userdata))
 				return DEVICE_STATUS_SUCCESS;

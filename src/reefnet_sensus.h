@@ -36,7 +36,10 @@ device_status_t
 reefnet_sensus_device_open (device_t **device, const char* name);
 
 device_status_t
-reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+reefnet_sensus_device_set_timestamp (device_t *device, unsigned int timestamp);
+
+device_status_t
+reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp);
 
 parser_status_t
 reefnet_sensus_parser_create (parser_t **parser);
