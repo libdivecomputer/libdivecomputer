@@ -427,14 +427,15 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
-		// Append the package to the output buffer.
-		if (nbytes + len <= size) {
-			memcpy (data + nbytes, answer + 2, len);
-			nbytes += len;
-		} else {
+		// Check for a buffer overflow.
+		if (size < nbytes + len) {
 			WARNING ("Insufficient buffer space available.");
 			return DEVICE_STATUS_MEMORY;
 		}
+
+		// Append the package to the output buffer.
+		memcpy (data + nbytes, answer + 2, len);
+		nbytes += len;
 
 		// The DC sends a null package (a package with length zero) when it 
 		// has reached the end of its internal ring buffer. From this point on, 
@@ -501,8 +502,10 @@ suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	if (! device_is_suunto_vyper (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_VYPER_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < SUUNTO_VYPER_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Enable progress notifications.
 	device_progress_state_t progress;

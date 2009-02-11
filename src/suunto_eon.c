@@ -159,6 +159,11 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 	if (! device_is_suunto_eon (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	if (size < SUUNTO_EON_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Enable progress notifications.
 	device_progress_state_t progress;
 	progress_init (&progress, abstract, SUUNTO_EON_MEMORY_SIZE + 1);
@@ -189,12 +194,7 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	if (size >= SUUNTO_EON_MEMORY_SIZE) {
-		memcpy (data, answer, SUUNTO_EON_MEMORY_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, answer, SUUNTO_EON_MEMORY_SIZE);
 
 	if (result)
 		*result = SUUNTO_EON_MEMORY_SIZE;

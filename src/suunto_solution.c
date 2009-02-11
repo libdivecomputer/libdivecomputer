@@ -160,8 +160,10 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 	if (! device_is_suunto_solution (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_SOLUTION_MEMORY_SIZE)
+	if (size < SUUNTO_SOLUTION_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
+	}
 
 	int n = 0;
 	unsigned char command[3] = {0};

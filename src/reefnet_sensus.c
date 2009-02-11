@@ -196,6 +196,11 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 	if (! device_is_reefnet_sensus (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	if (size < REEFNET_SENSUS_HANDSHAKE_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Send the command to the device.
 	unsigned char command = 0x0A;
 	int n = serial_write (device->port, &command, 1);
@@ -237,12 +242,7 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 		handshake[8] + (handshake[9] << 8) + (handshake[10] << 16) + (handshake[11] << 24));
 #endif
 
-	if (size >= REEFNET_SENSUS_HANDSHAKE_SIZE) {
-		memcpy (data, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);
 
 	// Wait at least 10 ms to ensures the data line is
 	// clear before transmission from the host begins.
@@ -260,6 +260,11 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 
 	if (! device_is_reefnet_sensus (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < REEFNET_SENSUS_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Enable progress notifications.
 	device_progress_state_t progress;
@@ -312,12 +317,7 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	if (size >= REEFNET_SENSUS_MEMORY_SIZE) {
-		memcpy (data, answer + 4, REEFNET_SENSUS_MEMORY_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, answer + 4, REEFNET_SENSUS_MEMORY_SIZE);
 
 	if (result)
 		*result = REEFNET_SENSUS_MEMORY_SIZE;

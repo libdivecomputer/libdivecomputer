@@ -322,12 +322,12 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 
 	message ("handshake: model=0x%02x\n", answer[8]);
 
-	if (size >= UWATEC_SMART_VERSION_SIZE) {
-		memcpy (data, answer, UWATEC_SMART_VERSION_SIZE);
-	} else {
+	if (size < UWATEC_SMART_VERSION_SIZE) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
+
+	memcpy (data, answer, UWATEC_SMART_VERSION_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -439,14 +439,13 @@ uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	if (length <= size) {
-		memcpy (data, buffer, length);
-	} else {
+	if (size < length) {
 		WARNING ("Insufficient buffer space available.");
 		free (buffer); 
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	memcpy (data, buffer, length);
 	free (buffer);
 
 	if (result)

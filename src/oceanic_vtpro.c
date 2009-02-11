@@ -508,8 +508,10 @@ oceanic_vtpro_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (! device_is_oceanic_vtpro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < OCEANIC_VTPRO_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < OCEANIC_VTPRO_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	device_status_t rc = oceanic_vtpro_device_read (abstract, 0x00, data, OCEANIC_VTPRO_MEMORY_SIZE);
 	if (rc != DEVICE_STATUS_SUCCESS)

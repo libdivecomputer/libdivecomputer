@@ -494,8 +494,10 @@ oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < OCEANIC_ATOM2_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < OCEANIC_ATOM2_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	device_status_t rc = oceanic_atom2_device_read (abstract, 0x00, data, OCEANIC_ATOM2_MEMORY_SIZE);
 	if (rc != DEVICE_STATUS_SUCCESS)

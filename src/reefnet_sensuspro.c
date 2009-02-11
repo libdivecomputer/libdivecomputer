@@ -170,6 +170,11 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 	if (! device_is_reefnet_sensuspro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	if (size < REEFNET_SENSUSPRO_HANDSHAKE_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Assert a break condition.
 	serial_set_break (device->port, 1);
 
@@ -208,12 +213,7 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 		handshake[6] + (handshake[7] << 8) + (handshake[8] << 16) + (handshake[9] << 24));
 #endif
 
-	if (size >= REEFNET_SENSUSPRO_HANDSHAKE_SIZE) {
-		memcpy (data, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 
 	serial_sleep (10);
 
@@ -228,6 +228,11 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 
 	if (! device_is_reefnet_sensuspro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < REEFNET_SENSUSPRO_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Enable progress notifications.
 	device_progress_state_t progress;
@@ -267,12 +272,7 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	if (size >= REEFNET_SENSUSPRO_MEMORY_SIZE) {
-		memcpy (data, answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
 
 	if (result)
 		*result = REEFNET_SENSUSPRO_MEMORY_SIZE;

@@ -273,6 +273,11 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	if (size < REEFNET_SENSUSULTRA_HANDSHAKE_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Flush the input and output buffers.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
@@ -322,12 +327,7 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 		handshake[22] + (handshake[23] << 8));
 #endif
 
-	if (size >= REEFNET_SENSUSULTRA_HANDSHAKE_SIZE) {
-		memcpy (data, handshake, REEFNET_SENSUSULTRA_HANDSHAKE_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, handshake, REEFNET_SENSUSULTRA_HANDSHAKE_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -336,8 +336,7 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 static device_status_t
 reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *data, unsigned int size, unsigned int pagenum)
 {
-	if (device == NULL)
-		return DEVICE_STATUS_ERROR;
+	assert (size >= REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
 	unsigned int nretries = 0;
@@ -365,12 +364,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	if (size >= REEFNET_SENSUSULTRA_PACKET_SIZE) {
-		memcpy (data, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -384,8 +378,10 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Enable progress notifications.
 	device_progress_state_t progress;
@@ -432,8 +428,10 @@ reefnet_sensusultra_device_read_user (device_t *abstract, unsigned char *data, u
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Send the instruction code to the device.
 	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB420);
@@ -469,7 +467,10 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	assert (size >= REEFNET_SENSUSULTRA_MEMORY_USER_SIZE);
+	if (size < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Send the instruction code to the device.
 	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB430);
@@ -563,6 +564,11 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	if (size < REEFNET_SENSUSULTRA_SENSE_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Send the instruction code to the device.
 	device_status_t rc = reefnet_sensusultra_send_ushort (device, 0xB440);
 	if (rc != DEVICE_STATUS_SUCCESS)
@@ -574,12 +580,7 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	if (size >= REEFNET_SENSUSULTRA_SENSE_SIZE) {
-		memcpy (data, package, REEFNET_SENSUSULTRA_SENSE_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, package, REEFNET_SENSUSULTRA_SENSE_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }

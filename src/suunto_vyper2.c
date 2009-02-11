@@ -247,8 +247,10 @@ suunto_vyper2_device_version (device_t *abstract, unsigned char data[], unsigned
 	if (! device_is_suunto_vyper2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_VYPER2_VERSION_SIZE)
+	if (size < SUUNTO_VYPER2_VERSION_SIZE) {
+		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
+	}
 
 	unsigned char answer[SUUNTO_VYPER2_VERSION_SIZE + 4] = {0};
 	unsigned char command[4] = {0x0F, 0x00, 0x00, 0x0F};
@@ -396,8 +398,10 @@ suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (! device_is_suunto_vyper2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_VYPER2_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < SUUNTO_VYPER2_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Enable progress notifications.
 	device_progress_state_t progress;

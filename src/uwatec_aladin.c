@@ -179,6 +179,11 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	if (! device_is_uwatec_aladin (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	if (size < UWATEC_ALADIN_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Enable progress notifications.
 	device_progress_state_t progress;
 	progress_init (&progress, abstract, UWATEC_ALADIN_MEMORY_SIZE + 2);
@@ -224,12 +229,7 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	if (size >= UWATEC_ALADIN_MEMORY_SIZE) {
-		memcpy (data, answer, UWATEC_ALADIN_MEMORY_SIZE);
-	} else {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
+	memcpy (data, answer, UWATEC_ALADIN_MEMORY_SIZE);
 
 	if (result)
 		*result = UWATEC_ALADIN_MEMORY_SIZE;

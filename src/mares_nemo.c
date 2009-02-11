@@ -165,8 +165,10 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 	if (! device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < MARES_NEMO_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+	if (size < MARES_NEMO_MEMORY_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Receive the header of the package.
 	unsigned char header = 0x00;

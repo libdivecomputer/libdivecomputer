@@ -267,12 +267,12 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 	message ("\"\n");
 #endif
 
-	if (size >= length) {
-		memcpy (data, package + 1, length);
-	} else {
+	if (size < length) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
+
+	memcpy (data, package + 1, length);
 
 	if (result)
 		*result = length;
@@ -462,14 +462,13 @@ uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	if (length - 3 <= size) {
-		memcpy (data, buffer + 2, length - 3);
-	} else {
+	if (size < length - 3) {
 		WARNING ("Insufficient buffer space available.");
 		free (buffer); 
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	memcpy (data, buffer + 2, length - 3);
 	free (buffer);
 
 	if (result)
