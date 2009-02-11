@@ -20,10 +20,9 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "device-private.h"
-
-#define NULL 0
 
 
 void

@@ -19,9 +19,10 @@
  * MA 02110-1301 USA
  */
 
+#include <stdlib.h>
+
 #include "parser-private.h"
 
-#define NULL 0
 
 void
 parser_init (parser_t *parser, const parser_backend_t *backend)
