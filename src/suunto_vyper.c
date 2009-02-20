@@ -39,6 +39,11 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define HDR_DEVINFO_VYPER   0x24
+#define HDR_DEVINFO_SPYDER  0x16
+#define HDR_DEVINFO_BEGIN   (HDR_DEVINFO_SPYDER)
+#define HDR_DEVINFO_END     (HDR_DEVINFO_VYPER + 6)
+
 typedef struct suunto_vyper_device_t suunto_vyper_device_t;
 
 struct suunto_vyper_device_t {
@@ -539,8 +544,44 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE - 0x4C;
+	progress.maximum = (SUUNTO_VYPER_MEMORY_SIZE - 0x4C) +
+		(HDR_DEVINFO_END - HDR_DEVINFO_BEGIN);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Read the device info. The Vyper and the Spyder store this data
+	// in a different location. To minimize the number of (slow) reads,
+	// we read a larger block of memory that always contains the data
+	// for both devices.
+	unsigned char header[HDR_DEVINFO_END - HDR_DEVINFO_BEGIN] = {0};
+	device_status_t rc = suunto_vyper_read (abstract, HDR_DEVINFO_BEGIN, header, sizeof (header), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Identify the connected device as a Vyper or a Spyder, by inspecting
+	// the Vyper model code. For a Spyder, this value will contain the
+	// sample interval (20, 30 or 60s) instead of the model code.
+	unsigned int vyper = 1;
+	unsigned int hoffset = HDR_DEVINFO_VYPER - HDR_DEVINFO_BEGIN;
+	if (header[hoffset] == 20 || header[hoffset] == 30 || header[hoffset] == 60) {
+		vyper = 0;
+		hoffset = HDR_DEVINFO_SPYDER - HDR_DEVINFO_BEGIN;
+	}
+
+	// Update and emit a progress event.
+	if (vyper)
+		progress.maximum -= 0x71 - 0x4C;
+	progress.current += sizeof (header);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = header[hoffset + 0];
+	devinfo.firmware = header[hoffset + 1];
+	devinfo.serial = (header[hoffset + 2] << 24) +
+		(header[hoffset + 3] << 16) +
+		(header[hoffset + 4] << 8) +
+		header[hoffset + 5];
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// The memory layout of the Spyder is different from the Vyper
 	// (and all other compatible dive computers). The Spyder has
@@ -549,7 +590,6 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE - 0x4C] = {0};
 
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
 	unsigned int ndives = 0;
 	unsigned int offset = 0;
 	unsigned int nbytes = 0;
