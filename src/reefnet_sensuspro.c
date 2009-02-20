@@ -215,6 +215,13 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 
 	memcpy (data, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = handshake[0];
+	devinfo.firmware = handshake[1];
+	devinfo.serial = handshake[4] + (handshake[5] << 8);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	serial_sleep (10);
 
 	return DEVICE_STATUS_SUCCESS;

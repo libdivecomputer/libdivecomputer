@@ -244,6 +244,13 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 
 	memcpy (data, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);
 
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = handshake[2] - '0';
+	devinfo.firmware = handshake[3] - '0';
+	devinfo.serial = handshake[6] + (handshake[7] << 8);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	// Wait at least 10 ms to ensures the data line is
 	// clear before transmission from the host begins.
 

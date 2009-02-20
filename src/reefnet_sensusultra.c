@@ -329,6 +329,13 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 
 	memcpy (data, handshake, REEFNET_SENSUSULTRA_HANDSHAKE_SIZE);
 
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = handshake[1];
+	devinfo.firmware = handshake[0];
+	devinfo.serial = handshake[2] + (handshake[3] << 8);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	return DEVICE_STATUS_SUCCESS;
 }
 
