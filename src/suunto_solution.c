@@ -165,6 +165,11 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = SUUNTO_SOLUTION_MEMORY_SIZE - 1 + 2;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	int n = 0;
 	unsigned char command[3] = {0};
 	unsigned char answer[3] = {0};
@@ -187,6 +192,10 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 	command[2] = 0x01;
 	serial_write (device->port, command, 3);
 
+	// Update and emit a progress event.
+	progress.current += 1;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	data[0] = 0x00;
 	for (unsigned int i = 1; i < SUUNTO_SOLUTION_MEMORY_SIZE; ++i) {
 		// Receive: 0x01, i, data[i]
@@ -206,6 +215,10 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 		// Send: 0x0D
 		command[0] = 0x0D;
 		serial_write (device->port, command, 1);
+
+		// Update and emit a progress event.
+		progress.current += 1;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 	}
 
 	// Receive: 0x02, 0x00, 0x80
@@ -230,6 +243,10 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 	n = serial_read (device->port, answer, 1);
 	if (n != 1) return EXITCODE (n);
 	if (answer[0] != 0x3F) WARNING ("Unexpected answer byte.");
+
+	// Update and emit a progress event.
+	progress.current += 1;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	if (result)
 		*result = SUUNTO_SOLUTION_MEMORY_SIZE;
