@@ -215,6 +215,13 @@ suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = 0;
+	devinfo.firmware = 0;
+	devinfo.serial = (data[244 + 0] << 16) + (data[244 + 1] << 8) + data[244 + 2];
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	return suunto_eon_extract_dives (data, sizeof (data), callback, userdata);
 }
 
