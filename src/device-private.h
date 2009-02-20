@@ -22,11 +22,15 @@
 #ifndef DEVICE_PRIVATE_H
 #define DEVICE_PRIVATE_H
 
+#include <limits.h>
+
+#include "device.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#include "device.h"
+#define DEVICE_PROGRESS_INITIALIZER {0, UINT_MAX}
 
 struct device_t;
 struct device_backend_t;
@@ -38,6 +42,10 @@ struct device_t {
 	// Progress callback data.
 	progress_callback_t progress;
 	void *userdata;
+	// Event notifications.
+	unsigned int event_mask;
+	device_event_callback_t event_callback;
+	void *event_userdata;
 };
 
 struct device_backend_t {
@@ -77,6 +85,9 @@ progress_set_maximum (device_progress_state_t *progress, unsigned int value);
 
 void
 device_init (device_t *device, const device_backend_t *backend);
+
+void
+device_event_emit (device_t *device, device_event_t event, const void *data);
 
 #ifdef __cplusplus
 }

@@ -57,11 +57,18 @@ typedef enum device_status_t {
 } device_status_t;
 
 typedef enum device_event_t {
-	DEVICE_EVENT_WAITING,
-	DEVICE_EVENT_PROGRESS
+	DEVICE_EVENT_WAITING = (1 << 0),
+	DEVICE_EVENT_PROGRESS = (1 << 1)
 } device_event_t;
 
 typedef struct device_t device_t;
+
+typedef struct device_progress_t {
+	unsigned int current;
+	unsigned int maximum;
+} device_progress_t;
+
+typedef void (*device_event_callback_t) (device_t *device, device_event_t event, const void *data, void *userdata);
 
 typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
 typedef void (*progress_callback_t) (device_event_t event, unsigned int current, unsigned int maximum, void *userdata);
@@ -69,6 +76,8 @@ typedef void (*progress_callback_t) (device_event_t event, unsigned int current,
 device_type_t device_get_type (device_t *device);
 
 device_status_t device_set_progress (device_t *device, progress_callback_t callback, void *userdata);
+
+device_status_t device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata);
 
 device_status_t device_handshake (device_t *device, unsigned char data[], unsigned int size);
 

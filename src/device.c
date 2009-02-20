@@ -31,6 +31,10 @@ device_init (device_t *device, const device_backend_t *backend)
 	device->backend = backend;
 	device->progress = NULL;
 	device->userdata = NULL;
+
+	device->event_mask = 0;
+	device->event_callback = NULL;
+	device->event_userdata = NULL;
 }
 
 
@@ -52,6 +56,20 @@ device_set_progress (device_t *device, progress_callback_t callback, void *userd
 
 	device->progress = callback;
 	device->userdata = userdata;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata)
+{
+	if (device == NULL)
+		return DEVICE_STATUS_UNSUPPORTED;
+
+	device->event_mask = events;
+	device->event_callback = callback;
+	device->event_userdata = userdata;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -195,4 +213,35 @@ progress_set_maximum (device_progress_state_t *progress, unsigned int value)
 	assert (value >= progress->current);
 
 	progress->maximum = value;
+}
+
+
+void
+device_event_emit (device_t *device, device_event_t event, const void *data)
+{
+	device_progress_t *progress = (device_progress_t *) data;
+
+	// Check the event data for errors.
+	switch (event) {
+	case DEVICE_EVENT_WAITING:
+		assert (data == NULL);
+		break;
+	case DEVICE_EVENT_PROGRESS:
+		assert (progress != NULL);
+		assert (progress->maximum != 0);
+		assert (progress->maximum >= progress->current);
+		break;
+	default:
+		break;
+	}
+
+	// Check if there is a callback function registered.
+	if (device == NULL || device->event_callback == NULL)
+		return;
+
+	// Check the event mask.
+	if ((event & device->event_mask) == 0)
+		return;
+
+	device->event_callback (device, event, data, device->event_userdata);
 }
