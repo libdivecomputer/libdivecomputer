@@ -343,6 +343,47 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	unsigned char command[9] = {0};
 	unsigned char answer[4] = {0};
 
+	// Model Number.
+
+	command[0] = 0x10;
+	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	unsigned int model = answer[0];
+	message ("handshake: model=0x%02x\n", model);
+
+	// Serial Number.
+
+	command[0] = 0x14;
+	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	unsigned int serial = answer[0] + (answer[1] << 8) + (answer[2] << 16) + (answer[3] << 24);
+	message ("handshake: serial=0x%08x\n", serial);
+
+	// Current Timestamp.
+
+	command[0] = 0x1A;
+	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	unsigned int timestamp = answer[0] + (answer[1] << 8) + (answer[2] << 16) + (answer[3] << 24);
+	message ("handshake: timestamp=0x%08x\n", timestamp);
+
+	// Update and emit a progress event.
+	progress.current += 9;
+	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = model;
+	devinfo.firmware = 0;
+	devinfo.serial = serial;
+	device_event_emit (&device->base, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	// Data Length.
 
 	command[0] = 0xC6;
@@ -355,7 +396,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	command[7] = 0;
 	command[8] = 0;
 
-	device_status_t rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
@@ -364,7 +405,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	message ("handshake: length=%u\n", length);
 
 	// Update and emit a progress event.
-	progress.maximum = 4 + (length ? length + 4 : 0);
+	progress.maximum = 4 + 9 + (length ? length + 4 : 0);
 	progress.current += 4;
 	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
