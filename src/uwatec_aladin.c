@@ -42,6 +42,7 @@
 
 #define DISTANCE(a,b) ringbuffer_distance (a, b, 0, 0x600)
 
+#define HEADER 4
 
 typedef struct uwatec_aladin_device_t uwatec_aladin_device_t;
 
@@ -257,11 +258,16 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = data[HEADER + 0x7bc];
+	devinfo.firmware = 0;
+	devinfo.serial = (data[HEADER + 0x7ed] << 16) + (data[HEADER + 0x7ee] << 8) + data[HEADER + 0x7ef];
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	return uwatec_aladin_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
 }
 
-
-#define HEADER 4
 
 device_status_t
 uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
