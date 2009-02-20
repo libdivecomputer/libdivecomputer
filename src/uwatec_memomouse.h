@@ -36,7 +36,7 @@ device_status_t
 uwatec_memomouse_device_set_timestamp (device_t *device, unsigned int timestamp);
 
 device_status_t
-uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+uwatec_memomouse_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
 uwatec_memomouse_parser_create (parser_t **parser);

@@ -500,7 +500,7 @@ uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, v
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	rc = uwatec_memomouse_extract_dives (buffer + 2, length - 3, callback, userdata);
+	rc = uwatec_memomouse_extract_dives (abstract, buffer + 2, length - 3, callback, userdata);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		free (buffer);
 		return rc;
@@ -513,8 +513,13 @@ uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, v
 
 
 device_status_t
-uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
+
+	if (abstract && !device_is_uwatec_memomouse (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	// Parse the data stream to find the total number of dives.
 	unsigned int ndives = 0;
 	unsigned int previous = 0;
@@ -536,6 +541,19 @@ uwatec_memomouse_extract_dives (const unsigned char data[], unsigned int size, d
 		// Check for a buffer overflow.
 		if (current + len + 18 > size)
 			return DEVICE_STATUS_ERROR;
+
+		// A memomouse can store data from several dive computers, but only
+		// the data of the connected dive computer can be transferred.
+		// Therefore, the device info will be the same for all dives, and
+		// only needs to be reported once.
+		if (abstract && ndives == 0) {
+			// Emit a device info event.
+			device_devinfo_t devinfo;
+			devinfo.model = data[current + 3];
+			devinfo.firmware = 0;
+			devinfo.serial = (data[current + 0] << 16) + (data[current + 1] << 8) + data[current + 2];
+			device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+		}
 
 		// Move to the next dive.
 		previous = current;
