@@ -44,9 +44,6 @@ suunto_vyper_device_read_dive (device_t *device, unsigned char data[], unsigned 
 device_status_t
 suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-device_status_t
-suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
-
 parser_status_t
 suunto_vyper_parser_create (parser_t **parser);
 

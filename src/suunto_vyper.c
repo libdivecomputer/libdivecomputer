@@ -613,18 +613,15 @@ suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_
 {
 	assert (size >= SUUNTO_VYPER_MEMORY_SIZE);
 
-	unsigned int eop = (data[0x51] << 8) + data[0x52];
+	unsigned int vyper = 1;
+	if (data[HDR_DEVINFO_VYPER] == 20 || data[HDR_DEVINFO_VYPER] == 30 || data[HDR_DEVINFO_VYPER] == 60)
+		vyper = 0;
 
-	return suunto_common_extract_dives (data, 0x71, SUUNTO_VYPER_MEMORY_SIZE, eop, 5, callback, userdata);
-}
-
-
-device_status_t
-suunto_spyder_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
-{
-	assert (size >= SUUNTO_VYPER_MEMORY_SIZE);
-
-	unsigned int eop = (data[0x1C] << 8) + data[0x1D];
-
-	return suunto_common_extract_dives (data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, callback, userdata);
+	if (vyper) {
+		unsigned int eop = (data[0x51] << 8) + data[0x52];
+		return suunto_common_extract_dives (data, 0x71, SUUNTO_VYPER_MEMORY_SIZE, eop, 5, callback, userdata);
+	} else {
+		unsigned int eop = (data[0x1C] << 8) + data[0x1D];
+		return suunto_common_extract_dives (data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, callback, userdata);
+	}
 }

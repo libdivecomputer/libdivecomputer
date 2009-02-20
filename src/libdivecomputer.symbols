@@ -66,7 +66,6 @@ suunto_eon_device_open
 suunto_eon_device_write_interval
 suunto_eon_device_write_name
 suunto_eon_extract_dives
-suunto_spyder_extract_dives
 suunto_vyper2_device_open
 suunto_vyper2_device_reset_maxdepth
 suunto_vyper_device_open
