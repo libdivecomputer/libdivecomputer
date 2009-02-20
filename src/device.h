@@ -58,7 +58,8 @@ typedef enum device_status_t {
 
 typedef enum device_event_t {
 	DEVICE_EVENT_WAITING = (1 << 0),
-	DEVICE_EVENT_PROGRESS = (1 << 1)
+	DEVICE_EVENT_PROGRESS = (1 << 1),
+	DEVICE_EVENT_DEVINFO = (1 << 2)
 } device_event_t;
 
 typedef struct device_t device_t;
@@ -67,6 +68,12 @@ typedef struct device_progress_t {
 	unsigned int current;
 	unsigned int maximum;
 } device_progress_t;
+
+typedef struct device_devinfo_t {
+	unsigned int model;
+	unsigned int firmware;
+	unsigned int serial;
+} device_devinfo_t;
 
 typedef void (*device_event_callback_t) (device_t *device, device_event_t event, const void *data, void *userdata);
 
