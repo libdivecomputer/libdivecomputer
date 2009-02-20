@@ -267,8 +267,9 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 	}
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, 4 + REEFNET_SENSUS_MEMORY_SIZE + 2 + 3);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = 4 + REEFNET_SENSUS_MEMORY_SIZE + 2 + 3;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Send the command to the device.
 	unsigned char command = 0x40;
@@ -295,7 +296,9 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 			return EXITCODE (n);
 		}
 
-		progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
+		// Update and emit a progress event.
+		progress.current += len;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		nbytes += len;
 	}
