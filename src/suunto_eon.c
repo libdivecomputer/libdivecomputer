@@ -165,8 +165,9 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 	}
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, SUUNTO_EON_MEMORY_SIZE + 1);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = SUUNTO_EON_MEMORY_SIZE + 1;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Send the command.
 	unsigned char command[1] = {'P'};
@@ -184,7 +185,9 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		return EXITCODE (rc);
 	}
 
-	progress_event (&progress, DEVICE_EVENT_PROGRESS, sizeof (answer));
+	// Update and emit a progress event.
+	progress.current += sizeof (answer);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[sizeof (answer) - 1];

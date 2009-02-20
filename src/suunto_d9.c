@@ -304,7 +304,7 @@ suunto_d9_device_reset_maxdepth (device_t *abstract)
 
 
 static device_status_t
-suunto_d9_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_state_t *progress)
+suunto_d9_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_t *progress)
 {
 	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
 
@@ -341,7 +341,11 @@ suunto_d9_read (device_t *abstract, unsigned int address, unsigned char data[], 
 		message("\"\n");
 #endif
 
-		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += len;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
+		}
 
 		nbytes += len;
 		address += len;
@@ -417,8 +421,9 @@ suunto_d9_device_dump (device_t *abstract, unsigned char data[], unsigned int si
 	}
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, SUUNTO_D9_MEMORY_SIZE);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = SUUNTO_D9_MEMORY_SIZE;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	device_status_t rc = suunto_d9_read (abstract, 0x00, data, SUUNTO_D9_MEMORY_SIZE, &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
@@ -438,8 +443,9 @@ suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *us
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, RB_PROFILE_END - RB_PROFILE_BEGIN + 8);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = RB_PROFILE_END - RB_PROFILE_BEGIN + 8;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Read the header bytes.
 	unsigned char header[8] = {0};
@@ -464,8 +470,11 @@ suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *us
 
 	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end);
 
-	progress_set_maximum (&progress, remaining + 8);
-	progress_event (&progress, DEVICE_EVENT_PROGRESS, 8);
+	// Update and emit a progress event.
+
+	progress.maximum = remaining + 8;
+	progress.current += 8;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// To reduce the number of read operations, we always try to read 
 	// packages with the largest possible size. As a consequence, the 
@@ -526,7 +535,9 @@ suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *us
 				return rc;
 			}
 
-			progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
+			// Update and emit a progress event.
+			progress.current += len;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 			// Next package.
 			nbytes += len;

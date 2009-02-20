@@ -248,7 +248,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 
 
 static device_status_t
-suunto_vyper_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_state_t *progress)
+suunto_vyper_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -285,7 +285,11 @@ suunto_vyper_read (device_t *abstract, unsigned int address, unsigned char data[
 		message("\"\n");
 #endif
 
-		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += len;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
+		}
 
 		nbytes += len;
 		address += len;
@@ -361,7 +365,7 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 
 
 static device_status_t
-suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init, device_progress_state_t *progress)
+suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init, device_progress_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -456,7 +460,11 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 			return DEVICE_STATUS_SUCCESS;
 		}
 
-		progress_event (progress, DEVICE_EVENT_PROGRESS, len);
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += len;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
+		}
 
 		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
 		// we assume it's the last packet and the transmission can be 
@@ -508,8 +516,9 @@ suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	}
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, SUUNTO_VYPER_MEMORY_SIZE);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	device_status_t rc = suunto_vyper_read (abstract, 0x00, data, SUUNTO_VYPER_MEMORY_SIZE, &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
@@ -529,8 +538,9 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, SUUNTO_VYPER_MEMORY_SIZE - 0x4C);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE - 0x4C;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// The memory layout of the Spyder is different from the Vyper
 	// (and all other compatible dive computers). The Spyder has
