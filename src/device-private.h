@@ -39,9 +39,6 @@ typedef struct device_backend_t device_backend_t;
 
 struct device_t {
 	const device_backend_t *backend;
-	// Progress callback data.
-	progress_callback_t progress;
-	void *userdata;
 	// Event notifications.
 	unsigned int event_mask;
 	device_event_callback_t event_callback;
@@ -65,23 +62,6 @@ struct device_backend_t {
 
 	device_status_t (*close) (device_t *device);
 };
-
-#define INFINITE ((unsigned int)-1)
-
-typedef struct device_progress_state_t {
-	progress_callback_t callback;
-	void *userdata;
-	unsigned int current, maximum;
-} device_progress_state_t;
-
-void
-progress_init (device_progress_state_t *progress, device_t *device, unsigned int maximum);
-
-void
-progress_event (device_progress_state_t *progress, device_event_t event, unsigned int value);
-
-void
-progress_set_maximum (device_progress_state_t *progress, unsigned int value);
 
 void
 device_init (device_t *device, const device_backend_t *backend);

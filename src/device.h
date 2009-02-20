@@ -71,11 +71,8 @@ typedef struct device_progress_t {
 typedef void (*device_event_callback_t) (device_t *device, device_event_t event, const void *data, void *userdata);
 
 typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
-typedef void (*progress_callback_t) (device_event_t event, unsigned int current, unsigned int maximum, void *userdata);
 
 device_type_t device_get_type (device_t *device);
-
-device_status_t device_set_progress (device_t *device, progress_callback_t callback, void *userdata);
 
 device_status_t device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata);
 

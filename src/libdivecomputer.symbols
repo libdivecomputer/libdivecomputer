@@ -23,7 +23,6 @@ device_foreach
 device_get_type
 device_handshake
 device_read
-device_set_progress
 device_set_events
 device_version
 device_write

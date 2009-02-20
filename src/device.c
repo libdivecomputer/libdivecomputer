@@ -29,8 +29,6 @@ void
 device_init (device_t *device, const device_backend_t *backend)
 {
 	device->backend = backend;
-	device->progress = NULL;
-	device->userdata = NULL;
 
 	device->event_mask = 0;
 	device->event_callback = NULL;
@@ -45,19 +43,6 @@ device_get_type (device_t *device)
 		return DEVICE_TYPE_NULL;
 
 	return device->backend->type;
-}
-
-
-device_status_t
-device_set_progress (device_t *device, progress_callback_t callback, void *userdata)
-{
-	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
-
-	device->progress = callback;
-	device->userdata = userdata;
-
-	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -163,56 +148,6 @@ device_close (device_t *device)
 		return DEVICE_STATUS_UNSUPPORTED;
 
 	return device->backend->close (device);
-}
-
-
-void
-progress_init (device_progress_state_t *progress, device_t *device, unsigned int maximum)
-{
-	if (progress == NULL)
-		return;
-
-	progress->callback = (device ? device->progress : NULL);
-	progress->userdata = (device ? device->userdata : NULL);
-	progress->maximum = maximum;
-	progress->current = 0;
-}
-
-
-void
-progress_event (device_progress_state_t *progress, device_event_t event, unsigned int value)
-{
-	if (progress == NULL)
-		return;
-
-	switch (event) {
-	case DEVICE_EVENT_WAITING:
-		break;
-	case DEVICE_EVENT_PROGRESS:
-		progress->current += value;
-		break;
-	default:
-		return;
-	}
-
-	assert (progress->maximum != 0);
-	assert (progress->maximum >= progress->current);
-
-	if (progress->callback)
-		progress->callback (event, progress->current, progress->maximum, progress->userdata);
-}
-
-
-void
-progress_set_maximum (device_progress_state_t *progress, unsigned int value)
-{
-	if (progress == NULL)
-		return;
-
-	assert (value <= progress->maximum);
-	assert (value >= progress->current);
-
-	progress->maximum = value;
 }
 
 
