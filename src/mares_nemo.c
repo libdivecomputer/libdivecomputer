@@ -170,6 +170,11 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = MARES_NEMO_MEMORY_SIZE + 20;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	// Receive the header of the package.
 	unsigned char header = 0x00;
 	for (unsigned int i = 0; i < 20;) {
@@ -184,6 +189,10 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 			i = 0; // Reset.
 		}
 	}
+
+	// Update and emit a progress event.
+	progress.current += 20;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	unsigned int nbytes = 0;
 	while (nbytes < MARES_NEMO_MEMORY_SIZE) {
@@ -219,6 +228,10 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
 		}
+
+		// Update and emit a progress event.
+		progress.current += MARES_NEMO_PACKET_SIZE;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		nbytes += MARES_NEMO_PACKET_SIZE;
 	}
