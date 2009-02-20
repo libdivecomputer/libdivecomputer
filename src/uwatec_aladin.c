@@ -185,8 +185,9 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	}
 
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, abstract, UWATEC_ALADIN_MEMORY_SIZE + 2);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = UWATEC_ALADIN_MEMORY_SIZE + 2;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	unsigned char answer[UWATEC_ALADIN_MEMORY_SIZE + 2] = {0};
 
@@ -201,11 +202,13 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 			i++; // Continue.
 		} else {
 			i = 0; // Reset.
-			progress_event (&progress, DEVICE_EVENT_WAITING, 0);
+			device_event_emit (abstract, DEVICE_EVENT_WAITING, NULL);
 		}
 	}
 
-	progress_event (&progress, DEVICE_EVENT_PROGRESS, 4);
+	// Update and emit a progress event.
+	progress.current += 4;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Receive the remaining part of the package.
 	int rc = serial_read (device->port, answer + 4, sizeof (answer) - 4);
@@ -214,7 +217,9 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		return EXITCODE (rc);
 	}
 
-	progress_event (&progress, DEVICE_EVENT_PROGRESS, sizeof (answer) - 4);
+	// Update and emit a progress event.
+	progress.current += sizeof (answer) - 4;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Reverse the bit order.
 	array_reverse_bits (answer, sizeof (answer));

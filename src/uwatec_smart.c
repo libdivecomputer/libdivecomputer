@@ -337,8 +337,8 @@ static device_status_t
 uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigned int *size)
 {
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, &device->base, INFINITE);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
 	unsigned char command[9] = {0};
 	unsigned char answer[4] = {0};
@@ -363,6 +363,11 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 						(answer[2] << 16) + (answer[3] << 24);
 	message ("handshake: length=%u\n", length);
 
+	// Update and emit a progress event.
+	progress.maximum = 4 + (length ? length + 4 : 0);
+	progress.current += 4;
+	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
+
   	if (length == 0)
   		return DEVICE_STATUS_SUCCESS;
 
@@ -371,9 +376,6 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 		WARNING ("Memory allocation error.");
 		return DEVICE_STATUS_MEMORY;
 	}
-
-	progress_set_maximum (&progress, length + 8);
-	progress_event (&progress, DEVICE_EVENT_PROGRESS, 4);
 
 	// Data.
 
@@ -397,7 +399,9 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 						(answer[2] << 16) + (answer[3] << 24);
 	message ("handshake: total=%u\n", total);
 
-	progress_event (&progress, DEVICE_EVENT_PROGRESS, 4);
+	// Update and emit a progress event.
+	progress.current += 4;
+	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
 	assert (total == length + 4);
 
@@ -413,7 +417,9 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 			return EXITCODE (n);
 		}
 
-		progress_event (&progress, DEVICE_EVENT_PROGRESS, len);
+		// Update and emit a progress event.
+		progress.current += n;
+		device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
 		nbytes += n;
 	}

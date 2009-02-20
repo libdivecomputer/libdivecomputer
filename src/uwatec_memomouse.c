@@ -282,7 +282,7 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 
 
 static device_status_t
-uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size, device_progress_state_t *progress)
+uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size, device_progress_t *progress)
 {
 	// Read the first package.
 	unsigned int length = 0;
@@ -306,8 +306,12 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 	// Calculate the total size of the inner package.
 	unsigned int total = package[0] + (package[1] << 8) + 3;
 
-	progress_set_maximum (progress, total);
-	progress_event (progress, DEVICE_EVENT_PROGRESS, length);
+	// Update and emit a progress event.
+	if (progress) {
+		progress->maximum = total;
+		progress->current += length;
+		device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, progress);
+	}
 
 	// Allocate memory for the entire package.
 	unsigned char *buffer = (unsigned char *) malloc (total * sizeof (unsigned char));
@@ -336,7 +340,11 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 			return rc;
 		}
 
-		progress_event (progress, DEVICE_EVENT_PROGRESS, length);
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += length;
+			device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, progress);
+		}
 
 		nbytes += length;
 	}
@@ -360,8 +368,8 @@ static device_status_t
 uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
 {
 	// Enable progress notifications.
-	device_progress_state_t progress;
-	progress_init (&progress, &device->base, INFINITE);
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Waiting for greeting message.
 	while (serial_get_received (device->port) == 0) {
@@ -439,7 +447,7 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 
 	// Wait for the data packet.
 	while (serial_get_received (device->port) == 0) {
-		progress_event (&progress, DEVICE_EVENT_WAITING, 0);
+		device_event_emit (&device->base, DEVICE_EVENT_WAITING, NULL);
 		serial_sleep (100);
 	}
 
