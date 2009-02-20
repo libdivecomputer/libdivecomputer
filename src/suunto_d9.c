@@ -444,12 +444,43 @@ suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *us
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = RB_PROFILE_END - RB_PROFILE_BEGIN + 8;
+	progress.maximum = RB_PROFILE_END - RB_PROFILE_BEGIN + 8 + 4 + (MINIMUM > 4 ? MINIMUM : 4);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Read the version info.
+	unsigned char version[4] = {0};
+	device_status_t rc = suunto_d9_device_version (abstract, version, sizeof (version));
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Cannot read memory header.");
+		return rc;
+	}
+
+	// Update and emit a progress event.
+	progress.current += sizeof (version);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Read the serial number.
+	unsigned char serial[MINIMUM > 4 ? MINIMUM : 4] = {0};
+	rc = suunto_d9_read (abstract, 0x0023, serial, sizeof (serial), NULL);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Cannot read memory header.");
+		return rc;
+	}
+
+	// Update and emit a progress event.
+	progress.current += sizeof (serial);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = version[0];
+	devinfo.firmware = (version[1] << 16) + (version[2] << 8) + version[3];
+	devinfo.serial = (serial[0] << 24) + (serial[1] << 16) + (serial[2] << 8) + serial[3];
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Read the header bytes.
 	unsigned char header[8] = {0};
-	device_status_t rc = suunto_d9_read (abstract, 0x0190, header, sizeof (header), NULL);
+	rc = suunto_d9_read (abstract, 0x0190, header, sizeof (header), NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;
@@ -472,8 +503,8 @@ suunto_d9_device_foreach (device_t *abstract, dive_callback_t callback, void *us
 
 	// Update and emit a progress event.
 
-	progress.maximum = remaining + 8;
-	progress.current += 8;
+	progress.maximum -= (RB_PROFILE_END - RB_PROFILE_BEGIN) - remaining;
+	progress.current += sizeof (header);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// To reduce the number of read operations, we always try to read 
