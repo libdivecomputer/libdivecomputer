@@ -61,6 +61,19 @@ device_set_events (device_t *device, unsigned int events, device_event_callback_
 
 
 device_status_t
+device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size)
+{
+	if (device == NULL)
+		return DEVICE_STATUS_UNSUPPORTED;
+
+	if (device->backend->set_fingerprint == NULL)
+		return DEVICE_STATUS_UNSUPPORTED;
+
+	return device->backend->set_fingerprint (device, data, size);
+}
+
+
+device_status_t
 device_handshake (device_t *device, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)

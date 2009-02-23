@@ -48,6 +48,8 @@ struct device_t {
 struct device_backend_t {
     device_type_t type;
 
+	device_status_t (*set_fingerprint) (device_t *device, const unsigned char data[], unsigned int size);
+
 	device_status_t (*handshake) (device_t *device, unsigned char data[], unsigned int size);
 
 	device_status_t (*version) (device_t *device, unsigned char data[], unsigned int size);
