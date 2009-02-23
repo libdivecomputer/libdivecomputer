@@ -51,13 +51,14 @@ struct uwatec_memomouse_device_t {
 	unsigned int timestamp;
 };
 
+static device_status_t uwatec_memomouse_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 static device_status_t uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
 static device_status_t uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t uwatec_memomouse_device_close (device_t *abstract);
 
 static const device_backend_t uwatec_memomouse_device_backend = {
 	DEVICE_TYPE_UWATEC_MEMOMOUSE,
-	NULL, /* set_fingerprint */
+	uwatec_memomouse_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* handshake */
 	NULL, /* version */
 	NULL, /* read */
@@ -171,6 +172,26 @@ uwatec_memomouse_device_set_timestamp (device_t *abstract, unsigned int timestam
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	device->timestamp = timestamp;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+uwatec_memomouse_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
+
+	if (! device_is_uwatec_memomouse (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size && size != 4)
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+	else
+		device->timestamp = 0;
 
 	return DEVICE_STATUS_SUCCESS;
 }
