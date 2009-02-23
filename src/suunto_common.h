@@ -22,14 +22,16 @@
 #ifndef SUUNTO_COMMON_H
 #define SUUNTO_COMMON_H
 
+#include "device.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#include "device.h"
+typedef int (*fp_compare_t) (device_t *device, const unsigned char data[], unsigned int size);
 
 device_status_t
-suunto_common_extract_dives (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, dive_callback_t callback, void *userdata);
+suunto_common_extract_dives (device_t *device, const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, fp_compare_t fp_compare, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

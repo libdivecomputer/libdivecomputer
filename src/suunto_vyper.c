@@ -44,14 +44,20 @@
 #define HDR_DEVINFO_BEGIN   (HDR_DEVINFO_SPYDER)
 #define HDR_DEVINFO_END     (HDR_DEVINFO_VYPER + 6)
 
+#define FP_OFFSET_VYPER		9
+#define FP_OFFSET_SPYDER 	7
+#define FP_SIZE				5
+
 typedef struct suunto_vyper_device_t suunto_vyper_device_t;
 
 struct suunto_vyper_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int delay;
+	unsigned char fingerprint[FP_SIZE];
 };
 
+static device_status_t suunto_vyper_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
@@ -60,7 +66,7 @@ static device_status_t suunto_vyper_device_close (device_t *abstract);
 
 static const device_backend_t suunto_vyper_device_backend = {
 	DEVICE_TYPE_SUUNTO_VYPER,
-	NULL, /* set_fingerprint */
+	suunto_vyper_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* handshake */
 	NULL, /* version */
 	suunto_vyper_device_read, /* read */
@@ -99,6 +105,7 @@ suunto_vyper_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->delay = 500;
+	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -175,6 +182,26 @@ suunto_vyper_device_set_delay (device_t *abstract, unsigned int delay)
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	device->delay = delay;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+suunto_vyper_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
+
+	if (! device_is_suunto_vyper (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size && size != FP_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, FP_SIZE);
+	else
+		memset (device->fingerprint, 0, FP_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -540,6 +567,8 @@ suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int
 static device_status_t
 suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
+	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
+
 	if (! device_is_suunto_vyper (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
@@ -598,6 +627,10 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 		if (nbytes == 0)
 			return DEVICE_STATUS_SUCCESS;
 
+		unsigned int fp_offset = (vyper ? FP_OFFSET_VYPER : FP_OFFSET_SPYDER);
+		if (memcmp (data + offset + fp_offset, device->fingerprint, FP_SIZE) == 0)
+			return DEVICE_STATUS_SUCCESS;
+
 		if (callback && !callback (data + offset, nbytes, userdata))
 			return DEVICE_STATUS_SUCCESS;
 
@@ -609,8 +642,26 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 }
 
 
+static int
+fp_compare_vyper (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
+
+	return memcmp (data + FP_OFFSET_VYPER, device->fingerprint, FP_SIZE);
+}
+
+
+static int
+fp_compare_spyder (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
+
+	return memcmp (data + FP_OFFSET_SPYDER, device->fingerprint, FP_SIZE);
+}
+
+
 device_status_t
-suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+suunto_vyper_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	assert (size >= SUUNTO_VYPER_MEMORY_SIZE);
 
@@ -620,9 +671,9 @@ suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_
 
 	if (vyper) {
 		unsigned int eop = (data[0x51] << 8) + data[0x52];
-		return suunto_common_extract_dives (data, 0x71, SUUNTO_VYPER_MEMORY_SIZE, eop, 5, callback, userdata);
+		return suunto_common_extract_dives (abstract, data, 0x71, SUUNTO_VYPER_MEMORY_SIZE, eop, 5, fp_compare_vyper, callback, userdata);
 	} else {
 		unsigned int eop = (data[0x1C] << 8) + data[0x1D];
-		return suunto_common_extract_dives (data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, callback, userdata);
+		return suunto_common_extract_dives (abstract, data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, fp_compare_spyder, callback, userdata);
 	}
 }

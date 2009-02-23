@@ -40,7 +40,7 @@ device_status_t
 suunto_eon_device_write_interval (device_t *device, unsigned char interval);
 
 device_status_t
-suunto_eon_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+suunto_eon_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

@@ -27,7 +27,7 @@
 
 
 device_status_t
-suunto_common_extract_dives (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, dive_callback_t callback, void *userdata)
+suunto_common_extract_dives (device_t *device, const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, fp_compare_t fp_compare, dive_callback_t callback, void *userdata)
 {
 	assert (eop >= begin && eop < end);
 	assert (data[eop] == 0x82);
@@ -60,6 +60,9 @@ suunto_common_extract_dives (const unsigned char data[], unsigned int begin, uns
 			} else {
 				memcpy (buffer, data + current, len);
 			}
+
+			if (device && fp_compare && fp_compare (device, buffer, len) == 0)
+				return DEVICE_STATUS_SUCCESS;
 
 			if (callback && !callback (buffer, len, userdata))
 				return DEVICE_STATUS_SUCCESS;

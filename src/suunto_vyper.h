@@ -42,7 +42,7 @@ device_status_t
 suunto_vyper_device_read_dive (device_t *device, unsigned char data[], unsigned int size, unsigned int *result, int init);
 
 device_status_t
-suunto_vyper_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+suunto_vyper_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
 suunto_vyper_parser_create (parser_t **parser);
