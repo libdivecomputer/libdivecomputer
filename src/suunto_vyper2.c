@@ -46,14 +46,19 @@
 #define RB_PROFILE_END				SUUNTO_VYPER2_MEMORY_SIZE - 2
 #define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
+#define FP_OFFSET 0x15
+#define FP_SIZE   7
+
 
 typedef struct suunto_vyper2_device_t suunto_vyper2_device_t;
 
 struct suunto_vyper2_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned char fingerprint[FP_SIZE];
 };
 
+static device_status_t suunto_vyper2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
@@ -63,7 +68,7 @@ static device_status_t suunto_vyper2_device_close (device_t *abstract);
 
 static const device_backend_t suunto_vyper2_device_backend = {
 	DEVICE_TYPE_SUUNTO_VYPER2,
-	NULL, /* set_fingerprint */
+	suunto_vyper2_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* handshake */
 	suunto_vyper2_device_version, /* version */
 	suunto_vyper2_device_read, /* read */
@@ -101,6 +106,7 @@ suunto_vyper2_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -237,6 +243,26 @@ suunto_vyper2_transfer (suunto_vyper2_device_t *device, const unsigned char comm
 
 		return DEVICE_STATUS_SUCCESS;
 	}
+}
+
+
+static device_status_t
+suunto_vyper2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
+
+	if (! device_is_suunto_vyper2 (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size && size != FP_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, FP_SIZE);
+	else
+		memset (device->fingerprint, 0, FP_SIZE);
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -427,6 +453,8 @@ suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 static device_status_t
 suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
+	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
+
 	if (! device_is_suunto_vyper2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
@@ -593,7 +621,11 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		message ("\"\n");
 #endif
 
-		if (callback && !callback (data + MINIMUM + remaining + 4, size - 4, userdata))
+		unsigned int offset = MINIMUM + remaining;
+		if (memcmp (data + offset + FP_OFFSET, device->fingerprint, FP_SIZE) == 0)
+			return DEVICE_STATUS_SUCCESS;
+
+		if (callback && !callback (data + offset + 4, size - 4, userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
 	assert (remaining == 0);
