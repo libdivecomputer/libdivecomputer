@@ -39,6 +39,8 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define FP_OFFSET 8
+#define FP_SIZE   5
 
 #define RB_PROFILE_BEGIN			0x0070
 #define RB_PROFILE_END				0x3400
@@ -50,15 +52,17 @@ typedef struct mares_nemo_device_t mares_nemo_device_t;
 struct mares_nemo_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned char fingerprint[FP_SIZE];
 };
 
+static device_status_t mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
 static device_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_nemo_device_close (device_t *abstract);
 
 static const device_backend_t mares_nemo_device_backend = {
 	DEVICE_TYPE_MARES_NEMO,
-	NULL, /* set_fingerprint */
+	mares_nemo_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* handshake */
 	NULL, /* version */
 	NULL, /* read */
@@ -96,6 +100,7 @@ mares_nemo_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -153,6 +158,26 @@ mares_nemo_device_close (device_t *abstract)
 
 	// Free memory.
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
+
+	if (! device_is_mares_nemo (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size && size != FP_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, FP_SIZE);
+	else
+		memset (device->fingerprint, 0, FP_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -256,13 +281,18 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return mares_nemo_extract_dives (data, sizeof (data), callback, userdata);
+	return mares_nemo_extract_dives (abstract, data, sizeof (data), callback, userdata);
 }
 
 
 device_status_t
-mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
+
+	if (abstract && !device_is_mares_nemo (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	assert (size >= MARES_NEMO_MEMORY_SIZE);
 
 	// Get the end of the profile ring buffer.
@@ -357,6 +387,10 @@ mares_nemo_extract_dives (const unsigned char data[], unsigned int size, dive_ca
 			memcpy (buffer + offset + nbytes, data + RB_FREEDIVES_BEGIN, idx - RB_FREEDIVES_BEGIN);
 			nbytes += idx - RB_FREEDIVES_BEGIN;
 		}
+
+		unsigned int fp_offset = offset + length - FP_OFFSET;
+		if (device && memcmp (buffer + fp_offset, device->fingerprint, FP_SIZE) == 0)
+			return DEVICE_STATUS_SUCCESS;
 
 		if (callback && !callback (buffer + offset, nbytes, userdata))
 			return DEVICE_STATUS_SUCCESS;
