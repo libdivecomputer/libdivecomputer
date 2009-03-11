@@ -48,3 +48,44 @@ array_reverse_bits (unsigned char data[], unsigned int size)
 		data[i] = j;
 	}
 }
+
+
+unsigned int
+array_uint32_be (const unsigned char data[])
+{
+	return (data[0] << 24) + (data[1] << 16) + (data[2] << 8) + data[3];
+}
+
+
+unsigned int
+array_uint32_le (const unsigned char data[])
+{
+	return data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+}
+
+
+unsigned int
+array_uint24_be (const unsigned char data[])
+{
+	return (data[0] << 16) + (data[1] << 8) + data[2];
+}
+
+
+unsigned int
+array_uint24_le (const unsigned char data[])
+{
+	return data[0] + (data[1] << 8) + (data[2] << 16);
+}
+
+unsigned short
+array_uint16_be (const unsigned char data[])
+{
+	return (data[0] << 8) + data[1];
+}
+
+
+unsigned short
+array_uint16_le (const unsigned char data[])
+{
+	return data[0] + (data[1] << 8);
+}

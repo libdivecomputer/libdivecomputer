@@ -32,6 +32,24 @@ array_reverse_bytes (unsigned char data[], unsigned int size);
 void
 array_reverse_bits (unsigned char data[], unsigned int size);
 
+unsigned int
+array_uint32_be (const unsigned char data[]);
+
+unsigned int
+array_uint32_le (const unsigned char data[]);
+
+unsigned int
+array_uint24_be (const unsigned char data[]);
+
+unsigned int
+array_uint24_le (const unsigned char data[]);
+
+unsigned short
+array_uint16_be (const unsigned char data[]);
+
+unsigned short
+array_uint16_le (const unsigned char data[]);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
