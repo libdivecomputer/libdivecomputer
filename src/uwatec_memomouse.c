@@ -22,6 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
+#include <time.h>   // time
 
 #include "device-private.h"
 #include "uwatec_memomouse.h"
@@ -49,6 +50,8 @@ struct uwatec_memomouse_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int timestamp;
+	unsigned int devtime;
+	time_t systime;
 };
 
 static device_status_t uwatec_memomouse_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
@@ -97,6 +100,8 @@ uwatec_memomouse_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->timestamp = 0;
+	device->systime = (time_t) -1;
+	device->devtime = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -473,8 +478,19 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 		serial_sleep (100);
 	}
 
+	// Fetch the current system time.
+	time_t now = time (NULL);
+
 	// Read the data packet.
-	return uwatec_memomouse_read_packet_inner (device, data, size, &progress);
+	rc = uwatec_memomouse_read_packet_inner (device, data, size, &progress);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Store the clock calibration values.
+	device->systime = now;
+	device->devtime = array_uint32_le (*data + 2 + 1);
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 

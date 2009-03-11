@@ -21,6 +21,7 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
+#include <time.h>   // time
 
 #include "device-private.h"
 #include "reefnet_sensuspro.h"
@@ -46,6 +47,8 @@ struct reefnet_sensuspro_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int timestamp;
+	unsigned int devtime;
+	time_t systime;
 };
 
 static device_status_t reefnet_sensuspro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -95,6 +98,8 @@ reefnet_sensuspro_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->timestamp = 0;
+	device->systime = (time_t) -1;
+	device->devtime = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -233,6 +238,10 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 		array_uint16_le (handshake + 4),
 		array_uint32_le (handshake + 6));
 #endif
+
+	// Store the clock calibration values.
+	device->systime = time (NULL);
+	device->devtime = array_uint32_le (handshake + 6);
 
 	memcpy (data, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 

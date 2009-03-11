@@ -47,6 +47,8 @@ struct uwatec_smart_device_t {
 	struct irda *socket;
 	unsigned int address;
 	unsigned int timestamp;
+	unsigned int devtime;
+	time_t systime;
 };
 
 static device_status_t uwatec_smart_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
@@ -121,6 +123,8 @@ uwatec_smart_device_open (device_t **out)
 	device->socket = NULL;
 	device->address = 0;
 	device->timestamp = 0;
+	device->systime = (time_t) -1;
+	device->devtime = 0;
 
 	irda_init ();
 
@@ -393,6 +397,10 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 
 	unsigned int timestamp = array_uint32_le (answer);
 	message ("handshake: timestamp=0x%08x\n", timestamp);
+
+	// Store the clock calibration values.
+	device->systime = time (NULL);
+	device->devtime = timestamp;
 
 	// Update and emit a progress event.
 	progress.current += 9;

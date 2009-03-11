@@ -21,6 +21,8 @@
 
 #include <stdlib.h> // malloc, free
 #include <memory.h> // memcpy
+#include <time.h>   // time
+#include <assert.h> // assert
 
 #include "device-private.h"
 #include "uwatec_aladin.h"
@@ -53,6 +55,8 @@ struct uwatec_aladin_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int timestamp;
+	unsigned int devtime;
+	time_t systime;
 };
 
 static device_status_t uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -101,6 +105,8 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->timestamp = 0;
+	device->systime = (time_t) -1;
+	device->devtime = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -232,6 +238,9 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		}
 	}
 
+	// Fetch the current system time.
+	time_t now = time (NULL);
+
 	// Update and emit a progress event.
 	progress.current += 4;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
@@ -257,6 +266,10 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
+
+	// Store the clock calibration values.
+	device->systime = now;
+	device->devtime = array_uint32_be (answer + HEADER + 0x7f8);
 
 	memcpy (data, answer, UWATEC_ALADIN_MEMORY_SIZE);
 
