@@ -262,7 +262,7 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 		handshake[2], handshake[3],
 		handshake[4], handshake[5],
 		array_uint16_le (handshake + 6),
-		array_uint16_le (handshake + 8));
+		array_uint32_le (handshake + 8));
 #endif
 
 	memcpy (data, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);

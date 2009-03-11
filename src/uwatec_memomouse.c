@@ -573,7 +573,7 @@ uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], 
 			device_devinfo_t devinfo;
 			devinfo.model = data[current + 3];
 			devinfo.firmware = 0;
-			devinfo.serial = array_uint32_be (data + current);
+			devinfo.serial = array_uint24_be (data + current);
 			device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 		}
 
