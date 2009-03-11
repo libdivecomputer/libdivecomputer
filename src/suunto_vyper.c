@@ -604,10 +604,7 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	device_devinfo_t devinfo;
 	devinfo.model = header[hoffset + 0];
 	devinfo.firmware = header[hoffset + 1];
-	devinfo.serial = (header[hoffset + 2] << 24) +
-		(header[hoffset + 3] << 16) +
-		(header[hoffset + 4] << 8) +
-		header[hoffset + 5];
+	devinfo.serial = array_uint32_be (header + hoffset + 2);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// The memory layout of the Spyder is different from the Vyper
@@ -667,10 +664,10 @@ suunto_vyper_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		vyper = 0;
 
 	if (vyper) {
-		unsigned int eop = (data[0x51] << 8) + data[0x52];
+		unsigned int eop = array_uint16_be (data + 0x51);
 		return suunto_common_extract_dives (abstract, data, 0x71, SUUNTO_VYPER_MEMORY_SIZE, eop, 5, fp_compare_vyper, callback, userdata);
 	} else {
-		unsigned int eop = (data[0x1C] << 8) + data[0x1D];
+		unsigned int eop = array_uint16_be (data + 0x1C);
 		return suunto_common_extract_dives (abstract, data, 0x4C, SUUNTO_VYPER_MEMORY_SIZE, eop, 3, fp_compare_spyder, callback, userdata);
 	}
 }

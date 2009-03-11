@@ -27,6 +27,7 @@
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -148,7 +149,7 @@ reefnet_sensusultra_parser_samples_foreach (parser_t *abstract, sample_callback_
 			assert (offset + 16 <= size);
 
 			unsigned int time = 0;
-			unsigned int interval = data[offset + 8] + (data[offset + 9] << 8);
+			unsigned int interval = array_uint16_le (data + offset + 8);
 
 			offset += 16;
 			while (offset + sizeof (footer) <= size && 
@@ -161,12 +162,12 @@ reefnet_sensusultra_parser_samples_foreach (parser_t *abstract, sample_callback_
 				if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 				// Temperature (0.01 °K)
-				unsigned int temperature = data[offset + 0] + (data[offset + 1] << 8);
+				unsigned int temperature = array_uint16_le (data + offset);
 				sample.temperature = temperature / 100.0 - 273.15;
 				if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
 				// Depth (absolute pressure in millibar)
-				unsigned int depth = data[offset + 2] + (data[offset + 3] << 8);
+				unsigned int depth = array_uint16_le (data + offset + 2);
 				sample.depth = (depth * BAR / 1000.0 - parser->atmospheric) / parser->hydrostatic;
 				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 

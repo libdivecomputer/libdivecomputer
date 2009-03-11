@@ -39,6 +39,7 @@
 
 #include "irda.h"
 #include "utils.h"
+#include "array.h"
 
 #ifdef _WIN32
 #define TRACE(expr) \
@@ -277,10 +278,7 @@ irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
 	if (callback) {
 #ifdef _WIN32
 		for (unsigned int i = 0; i < list->numDevice; ++i) {
-			unsigned int address = (list->Device[i].irdaDeviceID[0] << 24) +
-									(list->Device[i].irdaDeviceID[1] << 16) +
-									(list->Device[i].irdaDeviceID[2] << 8) +
-									list->Device[i].irdaDeviceID[3];
+			unsigned int address = array_uint32_be (list->Device[i].irdaDeviceID);
 			unsigned int hints = (list->Device[i].irdaDeviceHints1 << 8) + 
 									list->Device[i].irdaDeviceHints2;
 			callback (address, 
@@ -291,8 +289,7 @@ irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
 		}
 #else
 		for (unsigned int i = 0; i < list->len; ++i) {
-			unsigned int hints = (list->dev[i].hints[0] << 8) + 
-									list->dev[i].hints[1];
+			unsigned int hints = array_uint16_be (list->dev[i].hints);
 			callback (list->dev[i].daddr, 
 				list->dev[i].info, 
 				list->dev[i].charset, 

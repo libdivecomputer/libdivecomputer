@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "ringbuffer.h"
 #include "checksum.h"
+#include "array.h"
 
 #define MAXRETRIES 2
 
@@ -56,9 +57,6 @@
 #define RB_PROFILE_BEGIN			0x0600
 #define RB_PROFILE_END				0x8000
 #define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
-
-#define PT_LOGBOOK_FIRST(x)			( (x)[4] + ((x)[5] << 8) )
-#define PT_LOGBOOK_LAST(x)			( (x)[6] + ((x)[7] << 8) )
 
 #define PT_PROFILE_FIRST(x)			( (x)[4] + (((x)[5] & 0x0F) << 8) )
 #define PT_PROFILE_LAST(x)			( (x)[6] + (((x)[7] & 0x0F) << 8) )
@@ -503,8 +501,8 @@ oceanic_veo250_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	}
 
 	// Get the logbook pointers.
-	unsigned int logbook_first = PT_LOGBOOK_FIRST (pointers);
-	unsigned int logbook_last  = PT_LOGBOOK_LAST (pointers);
+	unsigned int logbook_first = array_uint16_le (pointers + 4);
+	unsigned int logbook_last  = array_uint16_le (pointers + 6);
 	message ("logbook: first=%04x, last=%04x\n", logbook_first, logbook_last);
 
 	// Calculate the total number of logbook entries.

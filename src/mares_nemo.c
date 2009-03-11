@@ -28,6 +28,7 @@
 #include "serial.h"
 #include "utils.h"
 #include "checksum.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -296,7 +297,7 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	assert (size >= MARES_NEMO_MEMORY_SIZE);
 
 	// Get the end of the profile ring buffer.
-	unsigned int eop = data[0x6B] + (data[0x6C] << 8);
+	unsigned int eop = array_uint16_le (data + 0x6B);
 
 	// Make the ringbuffer linear, to avoid having to deal
 	// with the wrap point. The buffer has extra space to
@@ -335,7 +336,7 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 		}
 
 		// Get the number of samples in the profile data.
-		unsigned int nsamples = buffer[offset - 3] + (buffer[offset - 2] << 8);
+		unsigned int nsamples = array_uint16_le (buffer + offset - 3);
 
 		// Calculate the total number of bytes for this dive.
 		// If the buffer does not contain that much bytes, we reached the
@@ -351,7 +352,7 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 		// Verify that the length that is stored in the profile data
 		// equals the calculated length. If both values are different,
 		// something is wrong and an error is returned.
-		unsigned int length = buffer[offset] + (buffer[offset + 1] << 8);
+		unsigned int length = array_uint16_le (buffer + offset);
 		if (length != nbytes) {
 			WARNING ("Calculated and stored size are not equal.");
 			return DEVICE_STATUS_ERROR;
@@ -368,7 +369,7 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 				count != nsamples)
 			{
 				// Each freedive in the session ends with a zero sample.
-				unsigned int sample = data[idx] + (data[idx + 1] << 8);
+				unsigned int sample = array_uint16_le (data + idx);
 				if (sample == 0)
 					count++;
 

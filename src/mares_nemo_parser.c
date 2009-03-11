@@ -26,6 +26,7 @@
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -117,12 +118,12 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 	if (size < 5)
 		return PARSER_STATUS_ERROR;
 
-	unsigned int length = data[0] + (data[1] << 8);
+	unsigned int length = array_uint16_le (data);
 	assert (length <= size);
 
 	unsigned int mode = data[length - 1];
 
-	unsigned int nsamples = data[length - 3] + (data[length - 2] << 8);
+	unsigned int nsamples = array_uint16_le (data + length - 3);
 
 	if (mode != 2) {
 		unsigned int time = 0;
@@ -130,7 +131,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 			parser_sample_value_t sample = {0};
 
 			unsigned int idx = 2 + 2 * i;
-			unsigned int value = data[idx] + (data[idx + 1] << 8);
+			unsigned int value = array_uint16_le (data + idx);
 			unsigned int depth = value & 0x0FFF;
 			unsigned int ascent = (value & 0xC000) >> 14;
 			unsigned int violation = (value & 0x2000) >> 13;
@@ -186,7 +187,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 			parser_sample_value_t sample = {0};
 
 			unsigned int idx = 2 + 6 * i;
-			unsigned int maxdepth = data[idx + 0] + (data[idx + 1] << 8);
+			unsigned int maxdepth = array_uint16_le (data + idx);
 			unsigned int divetime = data[idx + 2] + data[idx + 3] * 60;
 			unsigned int surftime = data[idx + 4] + data[idx + 5] * 60;
 
@@ -213,7 +214,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 				// reached, the current freedive profile is complete.
 				unsigned int count = 0;
 				while (offset + 2 <= size) {
-					unsigned int depth = data[offset] + (data[offset + 1] << 8);
+					unsigned int depth = array_uint16_le (data + offset);
 					offset += 2;
 
 					if (depth == 0)

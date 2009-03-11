@@ -27,6 +27,7 @@
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -148,13 +149,13 @@ reefnet_sensuspro_parser_samples_foreach (parser_t *abstract, sample_callback_t 
 			assert (offset + 10 <= size);
 
 			unsigned int time = 0;
-			unsigned int interval = data[offset + 4] + (data[offset + 5] << 8);	
+			unsigned int interval = array_uint16_le (data + offset + 4);	
 
 			offset += 10;
 			while (offset + sizeof (footer) <= size && 
 				memcmp (data + offset, footer, sizeof (footer)) != 0) 
 			{
-				unsigned int value = data[offset + 0] + (data[offset + 1] << 8);
+				unsigned int value = array_uint16_le (data + offset);
 				unsigned int depth = (value & 0x01FF);
 				unsigned int temperature = (value & 0xFE00) >> 9;
 

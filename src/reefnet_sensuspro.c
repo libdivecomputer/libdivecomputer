@@ -27,6 +27,7 @@
 #include "serial.h"
 #include "checksum.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -176,7 +177,7 @@ reefnet_sensuspro_device_set_fingerprint (device_t *abstract, const unsigned cha
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
@@ -212,9 +213,7 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 	serial_set_break (device->port, 0);
 
 	// Verify the checksum of the handshake packet.
-	unsigned short crc = 
-		 handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE + 0] + 
-		(handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE + 1] << 8);
+	unsigned short crc = array_uint16_le (handshake + REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
@@ -231,8 +230,8 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 		"Current Time:    %u\n",
 		handshake[0], handshake[1],
 		handshake[2], handshake[3],
-		handshake[4] + (handshake[5] << 8),
-		handshake[6] + (handshake[7] << 8) + (handshake[8] << 16) + (handshake[9] << 24));
+		array_uint16_le (handshake + 4),
+		array_uint32_le (handshake + 6));
 #endif
 
 	memcpy (data, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
@@ -241,7 +240,7 @@ reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, uns
 	device_devinfo_t devinfo;
 	devinfo.model = handshake[0];
 	devinfo.firmware = handshake[1];
-	devinfo.serial = handshake[4] + (handshake[5] << 8);
+	devinfo.serial = array_uint16_le (handshake + 4);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	serial_sleep (10);
@@ -295,9 +294,7 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 		nbytes += len;
 	}
 
-	unsigned short crc = 
-		 answer[REEFNET_SENSUSPRO_MEMORY_SIZE + 0] + 
-		(answer[REEFNET_SENSUSPRO_MEMORY_SIZE + 1] << 8);
+	unsigned short crc = array_uint16_le (answer + REEFNET_SENSUSPRO_MEMORY_SIZE);
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
@@ -397,8 +394,7 @@ reefnet_sensuspro_extract_dives (device_t *abstract, const unsigned char data[],
 				return DEVICE_STATUS_ERROR;
 
 			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int timestamp = data[current + 6] + (data[current + 7] << 8) +
-				(data[current + 8] << 16) + (data[current + 9] << 24);
+			unsigned int timestamp = array_uint32_le (data + current + 6);
 			if (device && timestamp <= device->timestamp)
 				return DEVICE_STATUS_SUCCESS;
 		

@@ -28,6 +28,7 @@
 #include "serial.h"
 #include "checksum.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -202,7 +203,7 @@ reefnet_sensus_device_set_fingerprint (device_t *abstract, const unsigned char d
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
@@ -260,8 +261,8 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 		handshake[0], handshake[1],
 		handshake[2], handshake[3],
 		handshake[4], handshake[5],
-		handshake[6] + (handshake[7] << 8),
-		handshake[8] + (handshake[9] << 8) + (handshake[10] << 16) + (handshake[11] << 24));
+		array_uint16_le (handshake + 6),
+		array_uint16_le (handshake + 8));
 #endif
 
 	memcpy (data, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);
@@ -270,7 +271,7 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 	device_devinfo_t devinfo;
 	devinfo.model = handshake[2] - '0';
 	devinfo.firmware = handshake[3] - '0';
-	devinfo.serial = handshake[6] + (handshake[7] << 8);
+	devinfo.serial = array_uint16_le (handshake + 6);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Wait at least 10 ms to ensures the data line is
@@ -340,9 +341,7 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 	}
 
 	// Verify the checksum of the package.
-	unsigned short crc = 
-		 answer[4 + REEFNET_SENSUS_MEMORY_SIZE + 0] +
-		(answer[4 + REEFNET_SENSUS_MEMORY_SIZE + 1] << 8);
+	unsigned short crc = array_uint16_le (answer + 4 + REEFNET_SENSUS_MEMORY_SIZE);
 	unsigned short ccrc = checksum_add_uint16 (answer + 4, REEFNET_SENSUS_MEMORY_SIZE, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
@@ -429,8 +428,7 @@ reefnet_sensus_extract_dives (device_t *abstract, const unsigned char data[], un
 			}
 
 			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int timestamp = data[current + 2] + (data[current + 3] << 8) +
-				(data[current + 4] << 16) + (data[current + 5] << 24);
+			unsigned int timestamp = array_uint32_le (data + current + 2);
 			if (device && timestamp <= device->timestamp)
 				return DEVICE_STATUS_SUCCESS;
 

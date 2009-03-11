@@ -189,7 +189,7 @@ uwatec_memomouse_device_set_fingerprint (device_t *abstract, const unsigned char
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
@@ -326,7 +326,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 	}
 
 	// Calculate the total size of the inner package.
-	unsigned int total = package[0] + (package[1] << 8) + 3;
+	unsigned int total = array_uint16_le (package) + 3;
 
 	// Update and emit a progress event.
 	if (progress) {
@@ -558,7 +558,7 @@ uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], 
 			break;
 
 		// Get the length of the profile data.
-		unsigned int len = data[current + 16] + (data[current + 17] << 8);
+		unsigned int len = array_uint16_le (data + current + 16);
 
 		// Check for a buffer overflow.
 		if (current + len + 18 > size)
@@ -573,7 +573,7 @@ uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], 
 			device_devinfo_t devinfo;
 			devinfo.model = data[current + 3];
 			devinfo.firmware = 0;
-			devinfo.serial = (data[current + 0] << 16) + (data[current + 1] << 8) + data[current + 2];
+			devinfo.serial = array_uint32_be (data + current);
 			device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 		}
 
@@ -593,14 +593,14 @@ uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], 
 		unsigned int skip = ndives - i - 1;
 		while (skip) {
 			// Get the length of the profile data.
-			unsigned int len = data[offset + 16] + (data[offset + 17] << 8);
+			unsigned int len = array_uint16_le (data + offset + 16);
 			// Move to the next dive.
 			offset += len + 18;
 			skip--;
 		}
 
 		// Get the length of the profile data.
-		unsigned int length = data[offset + 16] + (data[offset + 17] << 8);
+		unsigned int length = array_uint16_le (data + offset + 16);
 
 		if (callback && !callback (data + offset, length + 18, userdata))
 			return DEVICE_STATUS_SUCCESS;

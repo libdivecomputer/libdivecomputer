@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "ringbuffer.h"
 #include "checksum.h"
+#include "array.h"
 
 #define MAXRETRIES 2
 
@@ -490,8 +491,8 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	// Emit a device info event.
 	device_devinfo_t devinfo;
 	devinfo.model = version[0];
-	devinfo.firmware = (version[1] << 16) + (version[2] << 8) + version[3];
-	devinfo.serial = (serial[0] << 24) + (serial[1] << 16) + (serial[2] << 8) + serial[3];
+	devinfo.firmware = array_uint24_be (version + 1);
+	devinfo.serial = array_uint32_be (serial);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Read the header bytes.
@@ -503,10 +504,10 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	}
 
 	// Obtain the pointers from the header.
-	unsigned int last  = header[0] + (header[1] << 8);
-	unsigned int count = header[2] + (header[3] << 8);
-	unsigned int end   = header[4] + (header[5] << 8);
-	unsigned int begin = header[6] + (header[7] << 8);
+	unsigned int last  = array_uint16_le (header + 0);
+	unsigned int count = array_uint16_le (header + 2);
+	unsigned int end   = array_uint16_le (header + 4);
+	unsigned int begin = array_uint16_le (header + 6);
 	message ("Pointers: begin=%04x, last=%04x, end=%04x, count=%i\n", begin, last, end, count);
 
 	// Memory buffer to store all the dives.
@@ -603,8 +604,8 @@ suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		remaining -= size;
 		available = nbytes - size;
 
-		unsigned int oprevious = data[MINIMUM + remaining + 0] + (data[MINIMUM + remaining + 1] << 8);
-		unsigned int onext     = data[MINIMUM + remaining + 2] + (data[MINIMUM + remaining + 3] << 8);
+		unsigned int oprevious = array_uint16_le (data + MINIMUM + remaining + 0);
+		unsigned int onext     = array_uint16_le (data + MINIMUM + remaining + 2);
 		message ("Pointers: previous=%04x, next=%04x\n", oprevious, onext);
 		assert (current == onext);
 

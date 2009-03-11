@@ -27,6 +27,7 @@
 #include "ringbuffer.h"
 #include "serial.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -272,7 +273,7 @@ suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	device_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = 0;
-	devinfo.serial = (data[0x1D + 0] << 16) + (data[0x1D + 1] << 8) + data[0x1D + 2];
+	devinfo.serial = array_uint24_be (data + 0x1D);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	return suunto_solution_extract_dives (abstract, data, sizeof (data), callback, userdata);

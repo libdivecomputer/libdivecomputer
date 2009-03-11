@@ -28,6 +28,7 @@
 #include "serial.h"
 #include "checksum.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -196,7 +197,7 @@ reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned c
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
@@ -276,7 +277,7 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 	}
 
 	// Verify the checksum of the packet.
-	unsigned short crc = data[size - 2] + (data[size - 1] << 8);
+	unsigned short crc = array_uint16_le (data + size - 2);
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (data + header, size - header - 2);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
@@ -337,16 +338,16 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 		"Threshold:  %u\n"
 		"End Count:  %u\n"
 		"Averaging:  %u\n",
-		handshake[0] + (handshake[1] << 8),
-		handshake[2] + (handshake[3] << 8),
-		handshake[4] + (handshake[5] << 8) + (handshake[6] << 16) + (handshake[7] << 24),
-		handshake[8] + (handshake[9] << 8),
-		handshake[10] + (handshake[11] << 8) + (handshake[12] << 16) + (handshake[13] << 24),
-		handshake[14] + (handshake[15] << 8),
-		handshake[16] + (handshake[17] << 8),
-		handshake[18] + (handshake[19] << 8),
-		handshake[20] + (handshake[21] << 8),
-		handshake[22] + (handshake[23] << 8));
+		array_uint16_le (handshake + 0),
+		array_uint16_le (handshake + 2),
+		array_uint32_le (handshake + 4),
+		array_uint16_le (handshake + 8),
+		array_uint32_le (handshake + 10),
+		array_uint16_le (handshake + 14),
+		array_uint16_le (handshake + 16),
+		array_uint16_le (handshake + 18),
+		array_uint16_le (handshake + 20),
+		array_uint16_le (handshake + 22));
 #endif
 
 	memcpy (data, handshake, REEFNET_SENSUSULTRA_HANDSHAKE_SIZE);
@@ -355,7 +356,7 @@ reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, u
 	device_devinfo_t devinfo;
 	devinfo.model = handshake[1];
 	devinfo.firmware = handshake[0];
-	devinfo.serial = handshake[2] + (handshake[3] << 8);
+	devinfo.serial = array_uint16_le (handshake + 2);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	return DEVICE_STATUS_SUCCESS;
@@ -387,7 +388,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 	}
 
 	// Verify the page number.
-	unsigned int page = package[0] + (package[1] << 8);
+	unsigned int page = array_uint16_le (package);
 	if (page != pagenum) {
 		WARNING ("Unexpected page number."); 
 		return DEVICE_STATUS_PROTOCOL;
@@ -661,8 +662,7 @@ reefnet_sensusultra_parse (device_t *abstract, const unsigned char data[], unsig
 			}
 
 			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int timestamp = data[current + 4] + (data[current + 5] << 8) +
-				(data[current + 6] << 16) + (data[current + 7] << 24);
+			unsigned int timestamp = array_uint32_le (data + current + 4);
 			if (device && timestamp <= device->timestamp) {
 				if (aborted)
 					*aborted = 1;

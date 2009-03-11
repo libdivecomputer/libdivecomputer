@@ -27,6 +27,7 @@
 #include "device-private.h"
 #include "uwatec_smart.h"
 #include "irda.h"
+#include "array.h"
 #include "utils.h"
 
 #define WARNING(expr) \
@@ -216,7 +217,7 @@ uwatec_smart_device_set_fingerprint (device_t *abstract, const unsigned char dat
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
@@ -311,8 +312,7 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	time_t device_time = answer[0] + (answer[1] << 8) + 
-						(answer[2] << 16) + (answer[3] << 24);
+	time_t device_time = array_uint32_le (answer);
 	message ("handshake: timestamp=0x%08x\n", device_time);
 
 	// PC Time and Time Correction.
@@ -330,8 +330,7 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	unsigned int serial = answer[4] + (answer[5] << 8) + 
-							(answer[6] << 16) + (answer[7] << 24);
+	unsigned int serial = array_uint32_le (answer + 4);
 	message ("handshake: serial=0x%08x\n", serial);
 
 	// Dive Computer Model.
@@ -382,7 +381,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	unsigned int serial = answer[0] + (answer[1] << 8) + (answer[2] << 16) + (answer[3] << 24);
+	unsigned int serial = array_uint32_le (answer);
 	message ("handshake: serial=0x%08x\n", serial);
 
 	// Current Timestamp.
@@ -392,7 +391,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	unsigned int timestamp = answer[0] + (answer[1] << 8) + (answer[2] << 16) + (answer[3] << 24);
+	unsigned int timestamp = array_uint32_le (answer);
 	message ("handshake: timestamp=0x%08x\n", timestamp);
 
 	// Update and emit a progress event.
@@ -422,8 +421,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	unsigned int length = answer[0] + (answer[1] << 8) + 
-						(answer[2] << 16) + (answer[3] << 24);
+	unsigned int length = array_uint32_le (answer);
 	message ("handshake: length=%u\n", length);
 
 	// Update and emit a progress event.
@@ -458,8 +456,7 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 		return rc;
 	}
 
-	unsigned int total = answer[0] + (answer[1] << 8) + 
-						(answer[2] << 16) + (answer[3] << 24);
+	unsigned int total = array_uint32_le (answer);
 	message ("handshake: total=%u\n", total);
 
 	// Update and emit a progress event.
@@ -567,8 +564,7 @@ uwatec_smart_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		current--;
 		if (memcmp (data + current, header, sizeof (header)) == 0) {
 			// Get the length of the profile data.
-			unsigned int len = data[current + 4] + (data[current + 5] << 8) + 
-							(data[current + 6] << 16) + (data[current + 7] << 24);
+			unsigned int len = array_uint32_le (data + current + 4);
 
 			// Check for a buffer overflow.
 			if (current + len > previous)

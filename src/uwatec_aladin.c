@@ -189,7 +189,7 @@ uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char da
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		device->timestamp = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
@@ -251,9 +251,7 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	array_reverse_bits (answer, sizeof (answer));
 
 	// Verify the checksum of the package.
-	unsigned short crc = 
-		 answer[UWATEC_ALADIN_MEMORY_SIZE + 0] + 
-		(answer[UWATEC_ALADIN_MEMORY_SIZE + 1] << 8);
+	unsigned short crc = array_uint16_le (answer + UWATEC_ALADIN_MEMORY_SIZE);
 	unsigned short ccrc = checksum_add_uint16 (answer, UWATEC_ALADIN_MEMORY_SIZE, 0x0000);
 	if (ccrc != crc) {
 		WARNING ("Unexpected answer CRC.");
@@ -287,7 +285,7 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 	device_devinfo_t devinfo;
 	devinfo.model = data[HEADER + 0x7bc];
 	devinfo.firmware = 0;
-	devinfo.serial = (data[HEADER + 0x7ed] << 16) + (data[HEADER + 0x7ee] << 8) + data[HEADER + 0x7ef];
+	devinfo.serial = array_uint24_be (data + HEADER + 0x7ed);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	return uwatec_aladin_extract_dives (abstract, data, sizeof (data), callback, userdata);
@@ -308,7 +306,7 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 	// The logbook ring buffer can store up to 37 dives. But
 	// if the total number of dives is less, not all logbook
 	// entries contain valid data.
-	unsigned int ndives = (data[HEADER + 0x7f2] << 8) + data[HEADER + 0x7f3];
+	unsigned int ndives = array_uint16_be (data + HEADER + 0x7f2);
 	if (ndives > 37)
 		ndives = 37;
 
@@ -394,8 +392,7 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 		}
 
 		// Automatically abort when a dive is older than the provided timestamp.
-		unsigned int timestamp = buffer[11] + (buffer[12] << 8) +
-			(buffer[13] << 16) + (buffer[14] << 24);
+		unsigned int timestamp = array_uint32_le (buffer + 11);
 		if (device && timestamp <= device->timestamp)
 			return DEVICE_STATUS_SUCCESS;
 

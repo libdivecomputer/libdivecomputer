@@ -25,6 +25,7 @@
 #include "uwatec_memomouse.h"
 #include "parser-private.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -138,7 +139,7 @@ uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t c
 	while (offset + 2 <= size) {
 		parser_sample_value_t sample = {0};
 
-		unsigned int value = (data[offset + 0] << 8) + data[offset + 1];
+		unsigned int value = array_uint16_be (data + offset);
 		unsigned int depth = (value & 0xFFC0) >> 6;
 		unsigned int warnings = (value & 0x3F);
 		offset += 2;

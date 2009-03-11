@@ -26,6 +26,7 @@
 #include "suunto_d9.h"
 #include "parser-private.h"
 #include "utils.h"
+#include "array.h"
 
 #define WARNING(expr) \
 { \
@@ -158,8 +159,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	unsigned int interval_temperature = data[0x47 - SKIP - pressure_offset];
 
 	// Offset to the first marker position.
-	unsigned int marker = data[0x4C - SKIP - pressure_offset] + 
-		(data[0x4D - SKIP - pressure_offset] << 8);
+	unsigned int marker = array_uint16_le (data + 0x4C - SKIP - pressure_offset);
 
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
@@ -172,7 +172,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 		// Depth (cm).
-		unsigned int depth = data[offset + 0] + (data[offset + 1] << 8);
+		unsigned int depth = array_uint16_le (data + offset);
 		sample.depth = depth / 100.0;
 		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 		offset += 2;
@@ -180,7 +180,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		// Tank pressure (1/100 bar).
 		if (pressure_samples) {
 			assert (offset + 2 <= size);
-			unsigned int pressure = data[offset + 0] + (data[offset + 1] << 8);
+			unsigned int pressure = array_uint16_le (data + offset);
 			sample.pressure.tank = 0;
 			sample.pressure.value = pressure / 100.0;
 			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
@@ -209,8 +209,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 				switch (event) {
 				case 0x01: // Next Event Marker
 					assert (offset + 4 <= size);
-					current = data[offset + 0] + (data[offset + 1] << 8);
-					next    = data[offset + 2] + (data[offset + 3] << 8);
+					current = array_uint16_le (data + offset + 0);
+					next    = array_uint16_le (data + offset + 2);
 					assert (marker == current);
 					marker += next;
 					offset += 4;
@@ -292,7 +292,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					assert (offset + 4 <= size);
 					unknown = data[offset + 0];
 					seconds = data[offset + 1];
-					heading = data[offset + 2] + (data[offset + 3] << 8);
+					heading = array_uint16_le (data + offset + 2);
 					if (heading == 0xFFFF) {
 						sample.event.type = SAMPLE_EVENT_BOOKMARK;
 						sample.event.value = 0;
