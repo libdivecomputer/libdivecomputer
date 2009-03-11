@@ -40,7 +40,10 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-#define DISTANCE(a,b) ringbuffer_distance (a, b, 0, 0x600)
+#define RB_PROFILE_BEGIN			0x000
+#define RB_PROFILE_END				0x600
+#define RB_PROFILE_NEXT(a)			ringbuffer_increment (a, 1, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define HEADER 4
 
@@ -317,8 +320,8 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 	// Get the end of the profile ring buffer. This value points
 	// to the last byte of the last profile and is incremented
 	// one byte to point immediately after the last profile.
-	unsigned int eop = (data[HEADER + 0x7f6] + 
-		(((data[HEADER + 0x7f7] & 0x0F) >> 1) << 8) + 1) % 0x600;
+	unsigned int eop = RB_PROFILE_NEXT (data[HEADER + 0x7f6] +
+		(((data[HEADER + 0x7f7] & 0x0F) >> 1) << 8));
 
 	// Start scanning the profile ringbuffer.
 	int profiles = 1;
@@ -333,10 +336,10 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 	unsigned int current = eop;
 	for (unsigned int i = 0; i < ndives; ++i) {
 		// Memory buffer to store one dive.
-		unsigned char buffer[18 + 0x600] = {0};
+		unsigned char buffer[18 + RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 
 		// Get the offset to the current logbook entry.
-		unsigned int offset = ((eol + 37 - i) % 37) * 12 + 0x600;
+		unsigned int offset = ((eol + 37 - i) % 37) * 12 + RB_PROFILE_END;
 
 		// Copy the serial number, type and logbook data
 		// to the buffer and set the profile length to zero.
@@ -353,12 +356,12 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 		if (profiles) {
 			// Search the profile ringbuffer for a start marker.
 			do {
-				if (current == 0)
-					current = 0x600;
+				if (current == RB_PROFILE_BEGIN)
+					current = RB_PROFILE_END;
 				current--;
 
 				if (data[HEADER + current] == 0xFF) {
-					len = DISTANCE (current, previous);
+					len = RB_PROFILE_DISTANCE (current, previous);
 					previous = current;
 					break;
 				}
@@ -367,14 +370,14 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 			if (len >= 1) {		
 				// Skip the start marker.
 				len--;
-				unsigned int begin = (current + 1) % 0x600;
+				unsigned int begin = RB_PROFILE_NEXT (current);
 				// Set the profile length.
 				buffer[16] = (len     ) & 0xFF;
 				buffer[17] = (len >> 8) & 0xFF;
 				// Copy the profile data.
-				if (begin + len > 0x600) {
-					unsigned int a = 0x600 - begin;
-					unsigned int b = (begin + len) - 0x600;
+				if (begin + len > RB_PROFILE_END) {
+					unsigned int a = RB_PROFILE_END - begin;
+					unsigned int b = (begin + len) - RB_PROFILE_END;
 					memcpy (buffer + 18 + 0, data + HEADER + begin, a);
 					memcpy (buffer + 18 + a, data + HEADER,         b);
 				} else {
