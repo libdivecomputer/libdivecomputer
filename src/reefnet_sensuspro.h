@@ -42,7 +42,7 @@ device_status_t
 reefnet_sensuspro_device_write_interval (device_t *device, unsigned char interval);
 
 device_status_t
-reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp);
+reefnet_sensuspro_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
 reefnet_sensuspro_parser_create (parser_t **parser);

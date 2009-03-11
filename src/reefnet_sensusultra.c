@@ -619,9 +619,14 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 
 
 static device_status_t
-reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsigned int end, unsigned int *pprevious,
-	int *aborted, dive_callback_t callback, void *userdata, unsigned int timestamp)
+reefnet_sensusultra_parse (device_t *abstract, const unsigned char data[], unsigned int begin, unsigned int end, unsigned int *pprevious,
+	int *aborted, dive_callback_t callback, void *userdata)
 {
+	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
+
+	if (abstract && !device_is_reefnet_sensusultra (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -656,9 +661,9 @@ reefnet_sensusultra_parse (const unsigned char data[], unsigned int begin, unsig
 			}
 
 			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int datetime = data[current + 4] + (data[current + 5] << 8) + 
+			unsigned int timestamp = data[current + 4] + (data[current + 5] << 8) +
 				(data[current + 6] << 16) + (data[current + 7] << 24);
-			if (datetime <= timestamp) {
+			if (device && timestamp <= device->timestamp) {
 				if (aborted)
 					*aborted = 1;
 				return DEVICE_STATUS_SUCCESS;
@@ -738,7 +743,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 
 		// Parse the page data.
 		int aborted = 0;
-		rc = reefnet_sensusultra_parse (data, offset, offset + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata, device->timestamp);
+		rc = reefnet_sensusultra_parse (abstract, data, offset, offset + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			free (data);
 			return rc;
@@ -764,7 +769,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 
 
 device_status_t
-reefnet_sensusultra_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
+reefnet_sensusultra_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	return reefnet_sensusultra_parse (data, 0, size, NULL, NULL, callback, userdata, timestamp);
+	return reefnet_sensusultra_parse (abstract, data, 0, size, NULL, NULL, callback, userdata);
 }

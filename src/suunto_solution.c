@@ -275,14 +275,20 @@ suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	devinfo.serial = (data[0x1D + 0] << 16) + (data[0x1D + 1] << 8) + data[0x1D + 2];
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	return suunto_solution_extract_dives (data, sizeof (data), callback, userdata);
+	return suunto_solution_extract_dives (abstract, data, sizeof (data), callback, userdata);
 }
 
 
 device_status_t
-suunto_solution_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	assert (size >= SUUNTO_SOLUTION_MEMORY_SIZE);
+	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
+
+	if (abstract && !device_is_suunto_solution (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < SUUNTO_SOLUTION_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
 
 	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 

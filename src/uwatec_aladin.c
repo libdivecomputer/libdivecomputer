@@ -287,13 +287,18 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 	devinfo.serial = (data[HEADER + 0x7ed] << 16) + (data[HEADER + 0x7ee] << 8) + data[HEADER + 0x7ef];
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	return uwatec_aladin_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
+	return uwatec_aladin_extract_dives (abstract, data, sizeof (data), callback, userdata);
 }
 
 
 device_status_t
-uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
+uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata)
 {
+	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
+
+	if (abstract && !device_is_uwatec_aladin (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	if (size < UWATEC_ALADIN_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
 
@@ -386,9 +391,9 @@ uwatec_aladin_extract_dives (const unsigned char* data, unsigned int size, dive_
 		}
 
 		// Automatically abort when a dive is older than the provided timestamp.
-		unsigned int datetime = buffer[11] + (buffer[12] << 8) + 
+		unsigned int timestamp = buffer[11] + (buffer[12] << 8) +
 			(buffer[13] << 16) + (buffer[14] << 24);
-		if (datetime <= timestamp)
+		if (device && timestamp <= device->timestamp)
 			return DEVICE_STATUS_SUCCESS;
 
 		if (callback && !callback (buffer, len + 18, userdata))

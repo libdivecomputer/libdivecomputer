@@ -327,7 +327,7 @@ reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, 
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return reefnet_sensuspro_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
+	return reefnet_sensuspro_extract_dives (abstract, data, sizeof (data), callback, userdata);
 }
 
 
@@ -362,8 +362,13 @@ reefnet_sensuspro_device_write_interval (device_t *abstract, unsigned char inter
 
 
 device_status_t
-reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
+reefnet_sensuspro_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
+
+	if (abstract && !device_is_reefnet_sensuspro (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[2] = {0xFF, 0xFF};
 
@@ -392,9 +397,9 @@ reefnet_sensuspro_extract_dives (const unsigned char data[], unsigned int size, 
 				return DEVICE_STATUS_ERROR;
 
 			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int datetime = data[current + 6] + (data[current + 7] << 8) + 
+			unsigned int timestamp = data[current + 6] + (data[current + 7] << 8) +
 				(data[current + 8] << 16) + (data[current + 9] << 24);
-			if (datetime <= timestamp)
+			if (device && timestamp <= device->timestamp)
 				return DEVICE_STATUS_SUCCESS;
 		
 			if (callback && !callback (data + current, offset + 2 - current, userdata))

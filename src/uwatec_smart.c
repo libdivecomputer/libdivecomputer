@@ -538,7 +538,7 @@ uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	rc = uwatec_smart_extract_dives (buffer, length, callback, userdata);
+	rc = uwatec_smart_extract_dives (abstract, buffer, length, callback, userdata);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		free (buffer);
 		return rc;
@@ -551,8 +551,13 @@ uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 
 device_status_t
-uwatec_smart_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+uwatec_smart_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (abstract && !device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	const unsigned char header[4] = {0xa5, 0xa5, 0x5a, 0x5a};
 
 	// Search the data stream for start markers.

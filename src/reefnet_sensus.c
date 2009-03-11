@@ -372,13 +372,18 @@ reefnet_sensus_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	return reefnet_sensus_extract_dives (data, sizeof (data), callback, userdata, device->timestamp);
+	return reefnet_sensus_extract_dives (abstract, data, sizeof (data), callback, userdata);
 }
 
 
 device_status_t
-reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata, unsigned int timestamp)
+reefnet_sensus_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
+
+	if (abstract && !device_is_reefnet_sensus (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
 	// Search the entire data stream for start markers.
 	unsigned int previous = size;
 	unsigned int current = (size >= 7 ? size - 7 : 0);
@@ -424,9 +429,9 @@ reefnet_sensus_extract_dives (const unsigned char data[], unsigned int size, div
 			}
 
 			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int datetime = data[current + 2] + (data[current + 3] << 8) +
+			unsigned int timestamp = data[current + 2] + (data[current + 3] << 8) +
 				(data[current + 4] << 16) + (data[current + 5] << 24);
-			if (datetime <= timestamp)
+			if (device && timestamp <= device->timestamp)
 				return DEVICE_STATUS_SUCCESS;
 
 			if (callback && !callback (data + current, offset - current, userdata))
