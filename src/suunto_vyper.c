@@ -464,30 +464,12 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
-		// Check for a buffer overflow.
-		if (size < nbytes + len) {
-			WARNING ("Insufficient buffer space available.");
-			return DEVICE_STATUS_MEMORY;
-		}
-
-		// Append the package to the output buffer.
-		memcpy (data + nbytes, answer + 2, len);
-		nbytes += len;
-
 		// The DC sends a null package (a package with length zero) when it 
 		// has reached the end of its internal ring buffer. From this point on, 
 		// the current dive has been overwritten with newer data. Therefore, 
 		// we discard the current (incomplete) dive and end the transmission.
 		if (len == 0) {
 			WARNING ("Null package received.");
-#ifndef NDEBUG
-			array_reverse_bytes (data, nbytes);
-			message ("Vyper%sProfile=\"", init ? "First" : "");
-			for (unsigned int i = 0; i < nbytes; ++i) {
-				message("%02x", data[i]);
-			}
-			message("\"\n");
-#endif
 			if (result)
 				*result = 0;
 			return DEVICE_STATUS_SUCCESS;
@@ -499,6 +481,15 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
 		}
 
+		// Append the package to the output buffer.
+		// Reporting of buffer overflows is delayed until the entire
+		// transfer is finished. This approach leaves no data behind in
+		// the serial receive buffer, and if this packet is part of the
+		// last incomplete dive, no error has to be reported at all.
+		if (size >= nbytes + len)
+			memcpy (data + nbytes, answer + 2, len);
+		nbytes += len;
+
 		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
 		// we assume it's the last packet and the transmission can be 
 		// finished early. However, this approach does not work if the 
@@ -507,6 +498,12 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 		if (len != SUUNTO_VYPER_PACKET_SIZE) 
 			break;
 #endif
+	}
+
+	// Check for a buffer overflow.
+	if (size < nbytes) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
 	}
 
 	// The DC traverses its internal ring buffer backwards. The most recent 
