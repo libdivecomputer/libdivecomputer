@@ -252,21 +252,36 @@ irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
 #endif
 
 	int rc = 0;
-	unsigned int n = 0;
-	while ((rc = getsockopt (device->fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char*) data, &size)) != 0) {
+	unsigned int nretries = 0;
+	while ((rc = getsockopt (device->fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char*) data, &size)) != 0 ||
 #ifdef _WIN32
-		if (WSAGetLastError() != WSAEWOULDBLOCK) {
+		list->numDevice == 0)
 #else
-		if (errno != EAGAIN) {
+		list->len == 0)
 #endif
-			TRACE ("getsockopt");
-			return -1; // Error during getsockopt call.
+	{
+		// Automatically retry the discovery when no devices were found.
+		// On Linux, getsockopt fails with EAGAIN when no devices are
+		// discovered, while on Windows it succeeds and sets the number
+		// of devices to zero. Both situations are handled the same here.
+		if (rc != 0) {
+#ifdef _WIN32
+			if (WSAGetLastError() != WSAEWOULDBLOCK) {
+#else
+			if (errno != EAGAIN) {
+#endif
+				TRACE ("getsockopt");
+				return -1; // Error during getsockopt call.
+			}
 		}
 
-		if (n >= DISCOVER_MAX_RETRIES)
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= DISCOVER_MAX_RETRIES)
 			return 0;
 
-		n++;
+		// Restore the size parameter in case it was
+		// modified by the previous getsockopt call.
+		size = sizeof (data);
 
 #ifdef _WIN32
 		Sleep (1000);
