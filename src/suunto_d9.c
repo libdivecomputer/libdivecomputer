@@ -41,6 +41,11 @@
 	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
 }
 
+#define EXITCODE(rc) \
+( \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+)
+
 #define MINIMUM 8
 
 #define RB_PROFILE_BEGIN			0x019A
@@ -189,12 +194,10 @@ suunto_d9_send (suunto_d9_device_t *device, const unsigned char command[], unsig
 	// Receive the echo.
 	unsigned char echo[128] = {0};
 	assert (sizeof (echo) >= csize);
-	int rc = serial_read (device->port, echo, csize);
-	if (rc != csize) {
+	int n = serial_read (device->port, echo, csize);
+	if (n != csize) {
 		WARNING ("Failed to receive the echo.");
-		if (rc == -1)
-			return DEVICE_STATUS_IO;
-		return DEVICE_STATUS_TIMEOUT;
+		return EXITCODE (n);
 	}
 
 	// Verify the echo.
@@ -211,6 +214,43 @@ suunto_d9_send (suunto_d9_device_t *device, const unsigned char command[], unsig
 
 
 static device_status_t
+suunto_d9_packet (suunto_d9_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
+{
+	// Send the command to the dive computer.
+	device_status_t rc = suunto_d9_send (device, command, csize);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to send the command.");
+		return rc;
+	}
+
+	// Receive the answer of the dive computer.
+	int n = serial_read (device->port, answer, asize);
+	if (n != asize) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (n);
+	}
+
+	// Verify the header of the package.
+	answer[2] -= size; // Adjust the package size for the comparision.
+	if (memcmp (command, answer, asize - size - 1) != 0) {
+		WARNING ("Unexpected answer start byte(s).");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+	answer[2] += size; // Restore the package size again.
+
+	// Verify the checksum of the package.
+	unsigned char crc = answer[asize - 1];
+	unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
+	if (crc != ccrc) {
+		WARNING ("Unexpected answer CRC.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
 suunto_d9_transfer (suunto_d9_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	assert (asize >= size + 4);
@@ -220,43 +260,20 @@ suunto_d9_transfer (suunto_d9_device_t *device, const unsigned char command[], u
 	// returning an error. Usually the dive computer will respond 
 	// again during one of the retries.
 
-	for (unsigned int i = 0;; ++i) {
-		// Send the command to the dive computer.
-		device_status_t rc = suunto_d9_send (device, command, csize);
-		if (rc != DEVICE_STATUS_SUCCESS) {
-			WARNING ("Failed to send the command.");
+	unsigned int nretries = 0;
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
+	while ((rc = suunto_d9_packet (device, command, csize, answer, asize, size)) != DEVICE_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (rc != DEVICE_STATUS_TIMEOUT && rc != DEVICE_STATUS_PROTOCOL)
 			return rc;
-		}
 
-		// Receive the answer of the dive computer.
-		int n = serial_read (device->port, answer, asize);
-		if (n != asize) {
-			WARNING ("Failed to receive the answer.");
-			if (n == -1)
-				return DEVICE_STATUS_IO;
-			if (i < MAXRETRIES)
-				continue; // Retry.
-			return DEVICE_STATUS_TIMEOUT;
-		}
-
-		// Verify the header of the package.
-		answer[2] -= size; // Adjust the package size for the comparision.
-		if (memcmp (command, answer, asize - size - 1) != 0) {
-			WARNING ("Unexpected answer start byte(s).");
-			return DEVICE_STATUS_PROTOCOL;
-		}
-		answer[2] += size; // Restore the package size again.
-
-		// Verify the checksum of the package.
-		unsigned char crc = answer[asize - 1];
-		unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
-		if (crc != ccrc) {
-			WARNING ("Unexpected answer CRC.");
-			return DEVICE_STATUS_PROTOCOL;
-		}
-
-		return DEVICE_STATUS_SUCCESS;
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
 	}
+
+	return rc;
 }
 
 
