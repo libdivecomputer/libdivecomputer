@@ -1,7 +1,7 @@
 /* 
  * libdivecomputer
  * 
- * Copyright (C) 2008 Jef Driesen
+ * Copyright (C) 2009 Jef Driesen
  * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,10 +19,23 @@
  * MA 02110-1301 USA
  */
 
-#ifndef MARES_H
-#define MARES_H
+#ifndef MARES_PUCK_H
+#define MARES_PUCK_H
 
-#include "mares_nemo.h"
-#include "mares_puck.h"
+#include "device.h"
+#include "parser.h"
 
-#endif /* MARES_H */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+#define MARES_PUCK_MEMORY_SIZE 0x4000
+#define MARES_PUCK_PACKET_SIZE 0x20
+
+device_status_t
+mares_puck_device_open (device_t **device, const char* name);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* MARES_PUCK_H */

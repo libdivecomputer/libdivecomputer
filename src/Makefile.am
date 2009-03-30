@@ -27,7 +27,8 @@ libdivecomputer_HEADERS = 	\
 	oceanic_veo250.h \
 	oceanic_vtpro.h \
 	mares.h \
-	mares_nemo.h
+	mares_nemo.h \
+	mares_puck.h
 
 #
 # Source files.
@@ -62,6 +63,7 @@ libdivecomputer_la_SOURCES = \
 	oceanic_vtpro.h oceanic_vtpro.c \
 	mares.h \
 	mares_nemo.h mares_nemo.c mares_nemo_parser.c \
+	mares_puck.h mares_puck.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \
