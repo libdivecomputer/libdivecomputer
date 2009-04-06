@@ -55,14 +55,11 @@
 #define FP_OFFSET 0x15
 #define FP_SIZE   7
 
-
-typedef struct suunto_d9_device_t suunto_d9_device_t;
-
-struct suunto_d9_device_t {
+typedef struct suunto_d9_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned char fingerprint[FP_SIZE];
-};
+} suunto_d9_device_t;
 
 static device_status_t suunto_d9_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t suunto_d9_device_version (device_t *abstract, unsigned char data[], unsigned int size);

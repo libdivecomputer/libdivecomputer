@@ -61,13 +61,10 @@
 #define PT_PROFILE_FIRST(x)			( (x)[5] + (((x)[6] & 0x0F) << 8) )
 #define PT_PROFILE_LAST(x)			( ((x)[6] >> 4) + ((x)[7] << 4) )
 
-
-typedef struct oceanic_atom2_device_t oceanic_atom2_device_t;
-
-struct oceanic_atom2_device_t {
+typedef struct oceanic_atom2_device_t {
 	device_t base;
 	struct serial *port;
-};
+} oceanic_atom2_device_t;
 
 static device_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);

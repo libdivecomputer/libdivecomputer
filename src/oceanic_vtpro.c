@@ -45,13 +45,10 @@
 #define ACK 0x5A
 #define NAK 0xA5
 
-
-typedef struct oceanic_vtpro_device_t oceanic_vtpro_device_t;
-
-struct oceanic_vtpro_device_t {
+typedef struct oceanic_vtpro_device_t {
 	device_t base;
 	struct serial *port;
-};
+} oceanic_vtpro_device_t;
 
 static device_status_t oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);

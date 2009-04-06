@@ -42,12 +42,10 @@
 #define RB_PROFILE_BEGIN			0x020
 #define RB_PROFILE_END				0x100
 
-typedef struct suunto_solution_device_t suunto_solution_device_t;
-
-struct suunto_solution_device_t {
+typedef struct suunto_solution_device_t {
 	device_t base;
 	struct serial *port;
-};
+} suunto_solution_device_t;
 
 static device_status_t suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
 static device_status_t suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);

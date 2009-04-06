@@ -44,15 +44,13 @@
 #define ACK 0x60
 #define NAK 0xA8
 
-typedef struct uwatec_memomouse_device_t uwatec_memomouse_device_t;
-
-struct uwatec_memomouse_device_t {
+typedef struct uwatec_memomouse_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	time_t systime;
-};
+} uwatec_memomouse_device_t;
 
 static device_status_t uwatec_memomouse_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 static device_status_t uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);

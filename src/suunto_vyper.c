@@ -48,14 +48,12 @@
 #define FP_OFFSET_SPYDER 	7
 #define FP_SIZE				5
 
-typedef struct suunto_vyper_device_t suunto_vyper_device_t;
-
-struct suunto_vyper_device_t {
+typedef struct suunto_vyper_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int delay;
 	unsigned char fingerprint[FP_SIZE];
-};
+} suunto_vyper_device_t;
 
 static device_status_t suunto_vyper_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);

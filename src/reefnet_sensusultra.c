@@ -45,16 +45,14 @@
 #define ACCEPT PROMPT
 #define REJECT 0x00
 
-typedef struct reefnet_sensusultra_device_t reefnet_sensusultra_device_t;
-
-struct reefnet_sensusultra_device_t {
+typedef struct reefnet_sensusultra_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int maxretries;
 	unsigned int timestamp;
 	unsigned int devtime;
 	time_t systime;
-};
+} reefnet_sensusultra_device_t;
 
 static device_status_t reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t reefnet_sensusultra_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);

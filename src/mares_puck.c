@@ -42,12 +42,10 @@
 
 #define MAXRETRIES 4
 
-typedef struct mares_puck_device_t mares_puck_device_t;
-
-struct mares_puck_device_t {
+typedef struct mares_puck_device_t {
 	device_t base;
 	struct serial *port;
-};
+} mares_puck_device_t;
 
 static device_status_t mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t mares_puck_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);

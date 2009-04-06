@@ -40,16 +40,13 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-
-typedef struct reefnet_sensuspro_device_t reefnet_sensuspro_device_t;
-
-struct reefnet_sensuspro_device_t {
+typedef struct reefnet_sensuspro_device_t {
 	device_t base;
 	struct serial *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	time_t systime;
-};
+} reefnet_sensuspro_device_t;
 
 static device_status_t reefnet_sensuspro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t reefnet_sensuspro_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);
