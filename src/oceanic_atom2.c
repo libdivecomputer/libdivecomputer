@@ -544,6 +544,13 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = 2 * OCEANIC_ATOM2_PACKET_SIZE +
+		(RB_PROFILE_END - RB_PROFILE_BEGIN) +
+		(RB_LOGBOOK_END - RB_LOGBOOK_BEGIN);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	// Read the device id.
 	unsigned char id[OCEANIC_ATOM2_PACKET_SIZE] = {0};
 	device_status_t rc = oceanic_atom2_device_read (abstract, CF_DEVINFO, id, OCEANIC_ATOM2_PACKET_SIZE);
@@ -551,6 +558,10 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		WARNING ("Cannot read device id.");
 		return rc;
 	}
+
+	// Update and emit a progress event.
+	progress.current += OCEANIC_ATOM2_PACKET_SIZE;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
 	device_devinfo_t devinfo;
@@ -611,6 +622,13 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	// Check whether the last entry is not aligned to a page boundary.
 	int unaligned = (rb_logbook_entry_end != rb_logbook_page_end);
 
+	// Update and emit a progress event.
+	progress.current += OCEANIC_ATOM2_PACKET_SIZE;
+	progress.maximum = 2 * OCEANIC_ATOM2_PACKET_SIZE +
+		(RB_PROFILE_END - RB_PROFILE_BEGIN) +
+		rb_logbook_page_size;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	// Memory buffer for the logbook entries.
 	unsigned char logbooks[RB_LOGBOOK_END - RB_LOGBOOK_BEGIN] = {0};
 
@@ -645,6 +663,10 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		rc = oceanic_atom2_device_read (abstract, address, logbooks + page, OCEANIC_ATOM2_PACKET_SIZE);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
+
+		// Update and emit a progress event.
+		progress.current += OCEANIC_ATOM2_PACKET_SIZE;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		// A full ringbuffer needs some special treatment to avoid
 		// having to download the first/last page twice. When a full
@@ -702,6 +724,10 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	unsigned int rb_profile_end   = RB_PROFILE_INCR (rb_profile_last, OCEANIC_ATOM2_PACKET_SIZE);
 	unsigned int rb_profile_size  = RB_PROFILE_DISTANCE (rb_profile_first, rb_profile_last) + OCEANIC_ATOM2_PACKET_SIZE;
 
+	// At this point, we know the exact amount of data
+	// that needs to be transfered for the profiles.
+	progress.maximum = progress.current + rb_profile_size;
+
 	// Traverse the logbook ringbuffer backwards to retrieve the most recent
 	// dives first. The logbook ringbuffer is linearized at this point, so
 	// we do not have to take into account any memory wrapping near the end
@@ -735,6 +761,10 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 			rc = oceanic_atom2_device_read (abstract, address, profiles + page, OCEANIC_ATOM2_PACKET_SIZE);
 			if (rc != DEVICE_STATUS_SUCCESS)
 				return rc;
+
+			// Update and emit a progress event.
+			progress.current += OCEANIC_ATOM2_PACKET_SIZE;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 		}
 
 		// Prepend the logbook entry to the profile data. The memory buffer
