@@ -662,11 +662,27 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 			break;
 	}
 
+	// Exit if there are no (new) dives.
+	if (begin == end)
+		return DEVICE_STATUS_SUCCESS;
+
+	// Memory buffer for the profile data.
+	unsigned char profiles[(RB_PROFILE_END - RB_PROFILE_BEGIN) + OCEANIC_ATOM2_PACKET_SIZE / 2] = {0};
+
+	// Calculate the total amount of bytes in the profile ringbuffer,
+	// based on the pointers in the first and last logbook entry.
+	unsigned int rb_profile_first = PT_PROFILE_FIRST (logbooks + begin);
+	unsigned int rb_profile_last  = PT_PROFILE_LAST (logbooks + end - OCEANIC_ATOM2_PACKET_SIZE / 2);
+	unsigned int rb_profile_end   = RB_PROFILE_INCR (rb_profile_last, OCEANIC_ATOM2_PACKET_SIZE);
+	unsigned int rb_profile_size  = RB_PROFILE_DISTANCE (rb_profile_first, rb_profile_last) + OCEANIC_ATOM2_PACKET_SIZE;
+
 	// Traverse the logbook ringbuffer backwards to retrieve the most recent
 	// dives first. The logbook ringbuffer is linearized at this point, so
 	// we do not have to take into account any memory wrapping near the end
 	// of the memory buffer.
 	entry = end;
+	page = rb_profile_size + OCEANIC_ATOM2_PACKET_SIZE / 2;
+	address = rb_profile_end;
 	while (entry != begin) {
 		// Move to the start of the current entry.
 		entry -= OCEANIC_ATOM2_PACKET_SIZE / 2;
@@ -677,12 +693,10 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, OCEANIC_ATOM2_PACKET_SIZE);
 		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last) + OCEANIC_ATOM2_PACKET_SIZE;
 
-		// Memory buffer for the profile data.
-		unsigned char profile[(RB_PROFILE_END - RB_PROFILE_BEGIN) + OCEANIC_ATOM2_PACKET_SIZE / 2] = {0};
+		// Make sure the profiles are continuous.
+		assert (address == rb_entry_end);
 
 		// Read the profile data.
-		page = rb_entry_size + OCEANIC_ATOM2_PACKET_SIZE / 2;
-		address = rb_entry_end;
 		npages = rb_entry_size / OCEANIC_ATOM2_PACKET_SIZE;
 		for (unsigned int i = 0; i < npages; ++i) {
 			// Move to the start of the current page.
@@ -692,15 +706,17 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 			page -= OCEANIC_ATOM2_PACKET_SIZE;
 
 			// Read the profile page.
-			rc = oceanic_atom2_device_read (abstract, address, profile + page, OCEANIC_ATOM2_PACKET_SIZE);
+			rc = oceanic_atom2_device_read (abstract, address, profiles + page, OCEANIC_ATOM2_PACKET_SIZE);
 			if (rc != DEVICE_STATUS_SUCCESS)
 				return rc;
 		}
 
-		// Copy the logbook data to the profile.
-		memcpy (profile, logbooks + entry, OCEANIC_ATOM2_PACKET_SIZE / 2);
+		// Prepend the logbook entry to the profile data. The memory buffer
+		// is large enough to store this entry, but it will be overwritten
+		// when the next profile is downloaded.
+		memcpy (profiles + page - OCEANIC_ATOM2_PACKET_SIZE / 2, logbooks + entry, OCEANIC_ATOM2_PACKET_SIZE / 2);
 
-		if (callback && !callback (profile, rb_entry_size + OCEANIC_ATOM2_PACKET_SIZE / 2, userdata))
+		if (callback && !callback (profiles + page - OCEANIC_ATOM2_PACKET_SIZE / 2, rb_entry_size + OCEANIC_ATOM2_PACKET_SIZE / 2, userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
 
