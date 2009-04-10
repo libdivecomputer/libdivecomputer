@@ -49,6 +49,7 @@
 #define ACK 0x5A
 #define NAK 0xA5
 
+#define CF_DEVINFO					0x0000
 #define CF_POINTERS					0x0040
 
 #define RB_LOGBOOK_EMPTY			0x0230
@@ -106,6 +107,16 @@ iceil (unsigned int x, unsigned int n)
 {
 	// Round up to next higher multiple.
 	return ((x + n - 1) / n) * n;
+}
+
+
+static unsigned char
+bcd (unsigned char value)
+{
+	unsigned char lower = (value     ) & 0x0F;
+	unsigned char upper = (value >> 4) & 0x0F;
+
+	return lower + 10 * upper;
 }
 
 
@@ -533,9 +544,24 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Read the device id.
+	unsigned char id[OCEANIC_ATOM2_PACKET_SIZE] = {0};
+	device_status_t rc = oceanic_atom2_device_read (abstract, CF_DEVINFO, id, OCEANIC_ATOM2_PACKET_SIZE);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Cannot read device id.");
+		return rc;
+	}
+
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = array_uint16_be (id + 8);
+	devinfo.firmware = 0;
+	devinfo.serial = bcd (id[10]) * 10000 + bcd (id[11]) * 100 + bcd (id[12]);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	// Read the pointer data.
 	unsigned char pointers[OCEANIC_ATOM2_PACKET_SIZE] = {0};
-	device_status_t rc = oceanic_atom2_device_read (abstract, CF_POINTERS, pointers, OCEANIC_ATOM2_PACKET_SIZE);
+	rc = oceanic_atom2_device_read (abstract, CF_POINTERS, pointers, OCEANIC_ATOM2_PACKET_SIZE);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read pointers.");
 		return rc;
