@@ -61,6 +61,7 @@
 #define RB_PROFILE_BEGIN			0x0A50
 #define RB_PROFILE_END				0xFFF0
 #define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_INCR(a,b)		ringbuffer_increment (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define PT_PROFILE_FIRST(x)			(((array_uint16_le ((x) + 5)     ) & 0x0FFF) * OCEANIC_ATOM2_PACKET_SIZE)
 #define PT_PROFILE_LAST(x)			(((array_uint16_le ((x) + 6) >> 4) & 0x0FFF) * OCEANIC_ATOM2_PACKET_SIZE)
@@ -503,32 +504,6 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 
 
 static device_status_t
-oceanic_atom2_read_ringbuffer (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, unsigned int begin, unsigned int end)
-{
-	assert (address >= begin && address < end);
-	assert (size <= end - begin);
-
-	if (address + size > end) {
-		unsigned int a = end - address;
-		unsigned int b = size - a;
-
-		device_status_t rc = oceanic_atom2_device_read (abstract, address, data, a);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
-
-		rc = oceanic_atom2_device_read (abstract, begin, data + a, b);
-		if (rc != DEVICE_STATUS_SUCCESS) 
-			return rc;
-	} else {
-		device_status_t rc = oceanic_atom2_device_read (abstract, address, data, size);
-		if (rc != DEVICE_STATUS_SUCCESS) 
-			return rc;
-	}
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-static device_status_t
 oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	if (! device_is_oceanic_atom2 (abstract))
@@ -699,14 +674,27 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 		// Get the profile pointers.
 		unsigned int rb_entry_first = PT_PROFILE_FIRST (logbooks + entry);
 		unsigned int rb_entry_last  = PT_PROFILE_LAST (logbooks + entry);
+		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, OCEANIC_ATOM2_PACKET_SIZE);
 		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last) + OCEANIC_ATOM2_PACKET_SIZE;
 
-		// Read the profile data.
+		// Memory buffer for the profile data.
 		unsigned char profile[(RB_PROFILE_END - RB_PROFILE_BEGIN) + OCEANIC_ATOM2_PACKET_SIZE / 2] = {0};
-		rc = oceanic_atom2_read_ringbuffer (abstract, rb_entry_first, profile + OCEANIC_ATOM2_PACKET_SIZE / 2, rb_entry_size, RB_PROFILE_BEGIN, RB_PROFILE_END);
-		if (rc != DEVICE_STATUS_SUCCESS) {
-			WARNING ("Cannot read dive profiles.");
-			return rc;
+
+		// Read the profile data.
+		page = rb_entry_size + OCEANIC_ATOM2_PACKET_SIZE / 2;
+		address = rb_entry_end;
+		npages = rb_entry_size / OCEANIC_ATOM2_PACKET_SIZE;
+		for (unsigned int i = 0; i < npages; ++i) {
+			// Move to the start of the current page.
+			if (address == RB_PROFILE_BEGIN)
+				address = RB_PROFILE_END;
+			address -= OCEANIC_ATOM2_PACKET_SIZE;
+			page -= OCEANIC_ATOM2_PACKET_SIZE;
+
+			// Read the profile page.
+			rc = oceanic_atom2_device_read (abstract, address, profile + page, OCEANIC_ATOM2_PACKET_SIZE);
+			if (rc != DEVICE_STATUS_SUCCESS)
+				return rc;
 		}
 
 		// Copy the logbook data to the profile.
