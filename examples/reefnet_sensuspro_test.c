@@ -35,20 +35,11 @@ test_dump_memory (const char* name, const char* filename)
 {
 	device_t *device = NULL;
 	unsigned char data[REEFNET_SENSUSPRO_MEMORY_SIZE] = {0};
-	unsigned char handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE] = {0};
 
 	message ("reefnet_sensuspro_device_open\n");
 	device_status_t rc = reefnet_sensuspro_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
-		return rc;
-	}
-
-	message ("device_handshake\n");
-	rc = device_handshake (device, handshake, sizeof (handshake));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read handshake.");
-		device_close (device);
 		return rc;
 	}
 

@@ -51,7 +51,6 @@ typedef struct reefnet_sensus_device_t {
 } reefnet_sensus_device_t;
 
 static device_status_t reefnet_sensus_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsigned int size);
 static device_status_t reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result);
 static device_status_t reefnet_sensus_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t reefnet_sensus_device_close (device_t *abstract);
@@ -59,7 +58,7 @@ static device_status_t reefnet_sensus_device_close (device_t *abstract);
 static const device_backend_t reefnet_sensus_device_backend = {
 	DEVICE_TYPE_REEFNET_SENSUS,
 	reefnet_sensus_device_set_fingerprint, /* set_fingerprint */
-	reefnet_sensus_device_handshake, /* handshake */
+	NULL, /* handshake */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
@@ -214,13 +213,8 @@ reefnet_sensus_device_set_fingerprint (device_t *abstract, const unsigned char d
 
 
 static device_status_t
-reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsigned int size)
+reefnet_sensus_handshake (reefnet_sensus_device_t *device, unsigned char *data, unsigned int size)
 {
-	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
-
-	if (! device_is_reefnet_sensus (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
 	if (size < REEFNET_SENSUS_HANDSHAKE_SIZE) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
@@ -278,7 +272,7 @@ reefnet_sensus_device_handshake (device_t *abstract, unsigned char *data, unsign
 	devinfo.model = handshake[2] - '0';
 	devinfo.firmware = handshake[3] - '0';
 	devinfo.serial = array_uint16_le (handshake + 6);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (&device->base, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Wait at least 10 ms to ensures the data line is
 	// clear before transmission from the host begins.
@@ -306,6 +300,12 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
 	progress.maximum = 4 + REEFNET_SENSUS_MEMORY_SIZE + 2 + 3;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Wake-up the device.
+	unsigned char handshake[REEFNET_SENSUS_HANDSHAKE_SIZE] = {0};
+	device_status_t rc = reefnet_sensus_handshake (device, handshake, sizeof (handshake));
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
 	// Send the command to the device.
 	unsigned char command = 0x40;

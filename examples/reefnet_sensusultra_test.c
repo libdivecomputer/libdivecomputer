@@ -35,20 +35,11 @@ device_status_t
 test_dump_memory_dives (const char* name, const char* filename)
 {
 	device_t *device = NULL;
-	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE] = {0};
 
 	message ("reefnet_sensusultra_device_open\n");
 	device_status_t rc = reefnet_sensusultra_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
-		return rc;
-	}
-
-	message ("device_handshake\n");
-	rc = device_handshake (device, handshake, sizeof (handshake));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read handshake.");
-		device_close (device);
 		return rc;
 	}
 
@@ -81,20 +72,11 @@ test_dump_memory_data (const char* name, const char* filename)
 {
 	device_t *device = NULL;
 	unsigned char data[REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE] = {0};
-	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE] = {0};
 
 	message ("reefnet_sensusultra_device_open\n");
 	device_status_t rc = reefnet_sensusultra_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
-		return rc;
-	}
-
-	message ("device_handshake\n");
-	rc = device_handshake (device, handshake, sizeof (handshake));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read handshake.");
-		device_close (device);
 		return rc;
 	}
 
@@ -135,20 +117,11 @@ test_dump_memory_user (const char* name, const char* filename)
 {
 	device_t *device = NULL;
 	unsigned char data[REEFNET_SENSUSULTRA_MEMORY_USER_SIZE] = {0};
-	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE] = {0};
 
 	message ("reefnet_sensusultra_device_open\n");
 	device_status_t rc = reefnet_sensusultra_device_open (&device, name);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
-		return rc;
-	}
-
-	message ("device_handshake\n");
-	rc = device_handshake (device, handshake, sizeof (handshake));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read handshake.");
-		device_close (device);
 		return rc;
 	}
 
