@@ -39,6 +39,9 @@ device_status_t
 reefnet_sensuspro_device_set_timestamp (device_t *device, unsigned int timestamp);
 
 device_status_t
+reefnet_sensuspro_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size);
+
+device_status_t
 reefnet_sensuspro_device_write_interval (device_t *device, unsigned char interval);
 
 device_status_t

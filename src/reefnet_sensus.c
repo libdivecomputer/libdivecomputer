@@ -181,6 +181,25 @@ reefnet_sensus_device_close (device_t *abstract)
 
 
 device_status_t
+reefnet_sensus_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size)
+{
+	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
+
+	if (! device_is_reefnet_sensus (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < REEFNET_SENSUS_HANDSHAKE_SIZE) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	memcpy (data, device->handshake, REEFNET_SENSUS_HANDSHAKE_SIZE);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
 reefnet_sensus_device_set_timestamp (device_t *abstract, unsigned int timestamp)
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;

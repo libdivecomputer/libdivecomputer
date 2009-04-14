@@ -53,6 +53,9 @@ device_status_t
 reefnet_sensusultra_device_set_timestamp (device_t *device, unsigned int timestamp);
 
 device_status_t
+reefnet_sensusultra_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size);
+
+device_status_t
 reefnet_sensusultra_device_read_user (device_t *device, unsigned char *data, unsigned int size);
 
 device_status_t
