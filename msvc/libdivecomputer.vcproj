@@ -201,6 +201,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\mares_puck.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\oceanic_atom2.c"
 				>
 			</File>
@@ -340,6 +344,10 @@
 			</File>
 			<File
 				RelativePath="..\src\mares_nemo.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_puck.h"
 				>
 			</File>
 			<File
