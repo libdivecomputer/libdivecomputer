@@ -10,7 +10,9 @@ reefnet_sensuspro_parser_set_calibration
 reefnet_sensusultra_parser_create
 reefnet_sensusultra_parser_set_calibration
 uwatec_memomouse_parser_create
+#ifdef IRDA
 uwatec_smart_parser_create
+#endif
 suunto_vyper_parser_create
 suunto_solution_parser_create
 suunto_spyder_parser_create
