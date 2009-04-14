@@ -44,6 +44,7 @@
 typedef struct reefnet_sensus_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned char handshake[REEFNET_SENSUS_HANDSHAKE_SIZE];
 	unsigned int waiting;
 	unsigned int timestamp;
 	unsigned int devtime;
@@ -117,6 +118,7 @@ reefnet_sensus_device_open (device_t **out, const char* name)
 	device->timestamp = 0;
 	device->systime = (time_t) -1;
 	device->devtime = 0;
+	memset (device->handshake, 0, sizeof (device->handshake));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -213,13 +215,8 @@ reefnet_sensus_device_set_fingerprint (device_t *abstract, const unsigned char d
 
 
 static device_status_t
-reefnet_sensus_handshake (reefnet_sensus_device_t *device, unsigned char *data, unsigned int size)
+reefnet_sensus_handshake (reefnet_sensus_device_t *device)
 {
-	if (size < REEFNET_SENSUS_HANDSHAKE_SIZE) {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
-
 	// Send the command to the device.
 	unsigned char command = 0x0A;
 	int n = serial_write (device->port, &command, 1);
@@ -265,7 +262,8 @@ reefnet_sensus_handshake (reefnet_sensus_device_t *device, unsigned char *data, 
 	device->systime = time (NULL);
 	device->devtime = array_uint32_le (handshake + 8);
 
-	memcpy (data, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);
+	// Store the handshake packet.
+	memcpy (device->handshake, handshake + 2, REEFNET_SENSUS_HANDSHAKE_SIZE);
 
 	// Emit a device info event.
 	device_devinfo_t devinfo;
@@ -302,8 +300,7 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Wake-up the device.
-	unsigned char handshake[REEFNET_SENSUS_HANDSHAKE_SIZE] = {0};
-	device_status_t rc = reefnet_sensus_handshake (device, handshake, sizeof (handshake));
+	device_status_t rc = reefnet_sensus_handshake (device);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
