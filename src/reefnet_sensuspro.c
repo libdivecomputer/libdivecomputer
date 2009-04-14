@@ -57,7 +57,6 @@ static device_status_t reefnet_sensuspro_device_close (device_t *abstract);
 static const device_backend_t reefnet_sensuspro_device_backend = {
 	DEVICE_TYPE_REEFNET_SENSUSPRO,
 	reefnet_sensuspro_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* handshake */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */

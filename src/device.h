@@ -86,8 +86,6 @@ device_status_t device_set_events (device_t *device, unsigned int events, device
 
 device_status_t device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 
-device_status_t device_handshake (device_t *device, unsigned char data[], unsigned int size);
-
 device_status_t device_version (device_t *device, unsigned char data[], unsigned int size);
 
 device_status_t device_read (device_t *device, unsigned int address, unsigned char data[], unsigned int size);

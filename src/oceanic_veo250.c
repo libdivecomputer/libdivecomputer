@@ -76,7 +76,6 @@ static device_status_t oceanic_veo250_device_close (device_t *abstract);
 static const device_backend_t oceanic_veo250_device_backend = {
 	DEVICE_TYPE_OCEANIC_VEO250,
 	NULL, /* set_fingerprint */
-	NULL, /* handshake */
 	oceanic_veo250_device_version, /* version */
 	oceanic_veo250_device_read, /* read */
 	NULL, /* write */

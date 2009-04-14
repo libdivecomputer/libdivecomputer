@@ -74,19 +74,6 @@ device_set_fingerprint (device_t *device, const unsigned char data[], unsigned i
 
 
 device_status_t
-device_handshake (device_t *device, unsigned char data[], unsigned int size)
-{
-	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
-
-	if (device->backend->handshake == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
-
-	return device->backend->handshake (device, data, size);
-}
-
-
-device_status_t
 device_version (device_t *device, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)

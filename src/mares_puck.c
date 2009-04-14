@@ -54,7 +54,6 @@ static device_status_t mares_puck_device_close (device_t *abstract);
 static const device_backend_t mares_puck_device_backend = {
 	DEVICE_TYPE_MARES_PUCK,
 	NULL, /* set_fingerprint */
-	NULL, /* handshake */
 	NULL, /* version */
 	mares_puck_device_read, /* read */
 	NULL, /* write */

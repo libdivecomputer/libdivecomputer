@@ -72,7 +72,6 @@ static device_status_t suunto_vyper2_device_close (device_t *abstract);
 static const device_backend_t suunto_vyper2_device_backend = {
 	DEVICE_TYPE_SUUNTO_VYPER2,
 	suunto_vyper2_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* handshake */
 	suunto_vyper2_device_version, /* version */
 	suunto_vyper2_device_read, /* read */
 	suunto_vyper2_device_write, /* write */

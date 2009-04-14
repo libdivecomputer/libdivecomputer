@@ -72,7 +72,6 @@ static device_status_t suunto_d9_device_close (device_t *abstract);
 static const device_backend_t suunto_d9_device_backend = {
 	DEVICE_TYPE_SUUNTO_D9,
 	suunto_d9_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* handshake */
 	suunto_d9_device_version, /* version */
 	suunto_d9_device_read, /* read */
 	suunto_d9_device_write, /* write */

@@ -60,7 +60,6 @@ static device_status_t uwatec_memomouse_device_close (device_t *abstract);
 static const device_backend_t uwatec_memomouse_device_backend = {
 	DEVICE_TYPE_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* handshake */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */

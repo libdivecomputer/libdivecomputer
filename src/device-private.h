@@ -50,8 +50,6 @@ struct device_backend_t {
 
 	device_status_t (*set_fingerprint) (device_t *device, const unsigned char data[], unsigned int size);
 
-	device_status_t (*handshake) (device_t *device, unsigned char data[], unsigned int size);
-
 	device_status_t (*version) (device_t *device, unsigned char data[], unsigned int size);
 
 	device_status_t (*read) (device_t *device, unsigned int address, unsigned char data[], unsigned int size);
