@@ -36,6 +36,13 @@ extern "C" {
 #define REEFNET_SENSUSULTRA_HANDSHAKE_SIZE 24
 #define REEFNET_SENSUSULTRA_SENSE_SIZE 6
 
+typedef enum reefnet_sensusultra_parameter_t {
+	REEFNET_SENSUSULTRA_PARAMETER_INTERVAL,
+	REEFNET_SENSUSULTRA_PARAMETER_THRESHOLD,
+	REEFNET_SENSUSULTRA_PARAMETER_ENDCOUNT,
+	REEFNET_SENSUSULTRA_PARAMETER_AVERAGING
+} reefnet_sensusultra_parameter_t;
+
 device_status_t
 reefnet_sensusultra_device_open (device_t **device, const char* name);
 
@@ -52,16 +59,7 @@ device_status_t
 reefnet_sensusultra_device_write_user (device_t *device, const unsigned char *data, unsigned int size);
 
 device_status_t
-reefnet_sensusultra_device_write_interval (device_t *device, unsigned int value);
-
-device_status_t
-reefnet_sensusultra_device_write_threshold (device_t *device, unsigned int value);
-
-device_status_t
-reefnet_sensusultra_device_write_endcount (device_t *device, unsigned int value);
-
-device_status_t
-reefnet_sensusultra_device_write_averaging (device_t *device, unsigned int value);
+reefnet_sensusultra_device_write_parameter (device_t *device, reefnet_sensusultra_parameter_t parameter, unsigned int value);
 
 device_status_t
 reefnet_sensusultra_device_sense (device_t *device, unsigned char *data, unsigned int size);

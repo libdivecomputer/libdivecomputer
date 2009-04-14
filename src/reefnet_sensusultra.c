@@ -534,13 +534,40 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 }
 
 
-static device_status_t
-reefnet_sensusultra_write_internal (device_t *abstract, unsigned int code, unsigned int value)
+device_status_t
+reefnet_sensusultra_device_write_parameter (device_t *abstract, reefnet_sensusultra_parameter_t parameter, unsigned int value)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Set the instruction code and validate the new value.
+	unsigned short code = 0;
+	switch (parameter) {
+	case REEFNET_SENSUSULTRA_PARAMETER_INTERVAL:
+		code = 0xB410;
+		if (value < 1 || value > 65535)
+			return DEVICE_STATUS_ERROR;
+		break;
+	case REEFNET_SENSUSULTRA_PARAMETER_THRESHOLD:
+		code = 0xB411;
+		if (value < 1 || value > 65535)
+			return DEVICE_STATUS_ERROR;
+		break;
+	case REEFNET_SENSUSULTRA_PARAMETER_ENDCOUNT:
+		code = 0xB412;
+		if (value < 1 || value > 65535)
+			return DEVICE_STATUS_ERROR;
+		break;
+	case REEFNET_SENSUSULTRA_PARAMETER_AVERAGING:
+		code = 0xB413;
+		if (value != 1 && value != 2 && value != 4)
+			return DEVICE_STATUS_ERROR;
+		break;
+	default:
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// Send the instruction code to the device.
 	device_status_t rc = reefnet_sensusultra_send_ushort (device, code);
@@ -553,46 +580,6 @@ reefnet_sensusultra_write_internal (device_t *abstract, unsigned int code, unsig
 		return rc;
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-device_status_t
-reefnet_sensusultra_device_write_interval (device_t *abstract, unsigned int value)
-{
-	if (value < 1 || value > 65535)
-		return DEVICE_STATUS_ERROR;
-
-	return reefnet_sensusultra_write_internal (abstract, 0xB410, value);
-}
-
-
-device_status_t
-reefnet_sensusultra_device_write_threshold (device_t *abstract, unsigned int value)
-{
-	if (value < 1 || value > 65535)
-		return DEVICE_STATUS_ERROR;
-
-	return reefnet_sensusultra_write_internal (abstract, 0xB411, value);
-}
-
-
-device_status_t
-reefnet_sensusultra_device_write_endcount (device_t *abstract, unsigned int value)
-{
-	if (value < 1 || value > 65535)
-		return DEVICE_STATUS_ERROR;
-
-	return reefnet_sensusultra_write_internal (abstract, 0xB412, value);
-}
-
-
-device_status_t
-reefnet_sensusultra_device_write_averaging (device_t *abstract, unsigned int value)
-{
-	if (value != 1 && value != 2 && value != 4)
-		return DEVICE_STATUS_ERROR;
-
-	return reefnet_sensusultra_write_internal (abstract, 0xB413, value);
 }
 
 
