@@ -209,6 +209,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\oceanic_common.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\oceanic_veo250.c"
 				>
 			</File>
@@ -359,7 +363,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\oceanic_memory.h"
+				RelativePath="..\src\oceanic_common.h"
 				>
 			</File>
 			<File
