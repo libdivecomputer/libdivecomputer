@@ -24,6 +24,7 @@
 #include <assert.h> // assert
 
 #include "device-private.h"
+#include "oceanic_common.h"
 #include "oceanic_vtpro.h"
 #include "serial.h"
 #include "utils.h"
@@ -58,6 +59,7 @@ static device_status_t oceanic_vtpro_device_set_fingerprint (device_t *abstract,
 static device_status_t oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t oceanic_vtpro_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t oceanic_vtpro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t oceanic_vtpro_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_vtpro_device_backend = {
@@ -67,9 +69,22 @@ static const device_backend_t oceanic_vtpro_device_backend = {
 	oceanic_vtpro_device_read, /* read */
 	NULL, /* write */
 	oceanic_vtpro_device_dump, /* dump */
-	NULL, /* foreach */
+	oceanic_vtpro_device_foreach, /* foreach */
 	oceanic_vtpro_device_close /* close */
 };
+
+static const oceanic_common_layout_t oceanic_vtpro_layout = {
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0230, /* rb_logbook_empty */
+	0x0240, /* rb_logbook_begin */
+	0x0440, /* rb_logbook_end */
+	0x0430, /* rb_profile_empty */
+	0x0440, /* rb_profile_begin */
+	0x8000, /* rb_profile_end */
+	0 /* mode */
+};
+
 
 static int
 device_is_oceanic_vtpro (device_t *abstract)
@@ -543,4 +558,16 @@ oceanic_vtpro_device_dump (device_t *abstract, unsigned char data[], unsigned in
 		*result = OCEANIC_VTPRO_MEMORY_SIZE;
 
 	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+oceanic_vtpro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
+
+	if (! device_is_oceanic_vtpro (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	return oceanic_common_device_foreach (abstract, &oceanic_vtpro_layout, device->fingerprint, callback, userdata);
 }

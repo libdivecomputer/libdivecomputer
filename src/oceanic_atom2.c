@@ -24,12 +24,12 @@
 #include <assert.h> // assert
 
 #include "device-private.h"
+#include "oceanic_common.h"
 #include "oceanic_atom2.h"
 #include "serial.h"
 #include "utils.h"
 #include "ringbuffer.h"
 #include "checksum.h"
-#include "array.h"
 
 #define MAXRETRIES 2
 
@@ -48,24 +48,6 @@
 
 #define ACK 0x5A
 #define NAK 0xA5
-
-#define CF_DEVINFO					0x0000
-#define CF_POINTERS					0x0040
-
-#define RB_LOGBOOK_EMPTY			0x0230
-#define RB_LOGBOOK_BEGIN			0x0240
-#define RB_LOGBOOK_END				0x0A40
-#define RB_LOGBOOK_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END)
-#define RB_LOGBOOK_INCR(a,b)		ringbuffer_increment (a, b, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END)
-
-#define RB_PROFILE_EMPTY			0x0A40
-#define RB_PROFILE_BEGIN			0x0A50
-#define RB_PROFILE_END				0xFFF0
-#define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
-#define RB_PROFILE_INCR(a,b)		ringbuffer_increment (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
-
-#define PT_PROFILE_FIRST(x)			(((array_uint16_le ((x) + 5)     ) & 0x0FFF) * OCEANIC_ATOM2_PACKET_SIZE)
-#define PT_PROFILE_LAST(x)			(((array_uint16_le ((x) + 6) >> 4) & 0x0FFF) * OCEANIC_ATOM2_PACKET_SIZE)
 
 typedef struct oceanic_atom2_device_t {
 	device_t base;
@@ -92,31 +74,17 @@ static const device_backend_t oceanic_atom2_device_backend = {
 	oceanic_atom2_device_close /* close */
 };
 
-
-static unsigned int
-ifloor (unsigned int x, unsigned int n)
-{
-	// Round down to next lower multiple.
-	return (x / n) * n;
-}
-
-
-static unsigned int
-iceil (unsigned int x, unsigned int n)
-{
-	// Round up to next higher multiple.
-	return ((x + n - 1) / n) * n;
-}
-
-
-static unsigned char
-bcd (unsigned char value)
-{
-	unsigned char lower = (value     ) & 0x0F;
-	unsigned char upper = (value >> 4) & 0x0F;
-
-	return lower + 10 * upper;
-}
+static const oceanic_common_layout_t oceanic_atom2_layout = {
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0230, /* rb_logbook_empty */
+	0x0240, /* rb_logbook_begin */
+	0x0A40, /* rb_logbook_end */
+	0x0A40, /* rb_profile_empty */
+	0x0A50, /* rb_profile_begin */
+	0xFFF0, /* rb_profile_end */
+	0 /* mode */
+};
 
 
 static int
@@ -543,237 +511,5 @@ oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = 2 * OCEANIC_ATOM2_PACKET_SIZE +
-		(RB_PROFILE_END - RB_PROFILE_BEGIN) +
-		(RB_LOGBOOK_END - RB_LOGBOOK_BEGIN);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// Read the device id.
-	unsigned char id[OCEANIC_ATOM2_PACKET_SIZE] = {0};
-	device_status_t rc = oceanic_atom2_device_read (abstract, CF_DEVINFO, id, OCEANIC_ATOM2_PACKET_SIZE);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read device id.");
-		return rc;
-	}
-
-	// Update and emit a progress event.
-	progress.current += OCEANIC_ATOM2_PACKET_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// Emit a device info event.
-	device_devinfo_t devinfo;
-	devinfo.model = array_uint16_be (id + 8);
-	devinfo.firmware = 0;
-	devinfo.serial = bcd (id[10]) * 10000 + bcd (id[11]) * 100 + bcd (id[12]);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
-
-	// Read the pointer data.
-	unsigned char pointers[OCEANIC_ATOM2_PACKET_SIZE] = {0};
-	rc = oceanic_atom2_device_read (abstract, CF_POINTERS, pointers, OCEANIC_ATOM2_PACKET_SIZE);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read pointers.");
-		return rc;
-	}
-
-	// Get the logbook pointers.
-	unsigned int rb_logbook_first = array_uint16_le (pointers + 4);
-	unsigned int rb_logbook_last  = array_uint16_le (pointers + 6);
-
-	// Convert the first/last pointers to begin/end/count pointers.
-	unsigned int rb_logbook_entry_begin, rb_logbook_entry_end,
-		rb_logbook_entry_size;
-	if (rb_logbook_first == RB_LOGBOOK_EMPTY &&
-		rb_logbook_last == RB_LOGBOOK_EMPTY)
-	{
-		// Empty ringbuffer.
-		rb_logbook_entry_begin = RB_LOGBOOK_BEGIN;
-		rb_logbook_entry_end   = RB_LOGBOOK_BEGIN;
-		rb_logbook_entry_size  = 0;
-	} else {
-		// Non-empty ringbuffer.
-		rb_logbook_entry_begin = rb_logbook_first;
-		rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, OCEANIC_ATOM2_PACKET_SIZE / 2);
-		rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last) + OCEANIC_ATOM2_PACKET_SIZE / 2;
-	}
-
-	// Check whether the ringbuffer is full.
-	int full = (rb_logbook_entry_size == (RB_LOGBOOK_END - RB_LOGBOOK_BEGIN));
-
-	// Align the pointers to page boundaries.
-	unsigned int rb_logbook_page_begin, rb_logbook_page_end,
-		rb_logbook_page_size;
-	if (full) {
-		// Full ringbuffer.
-		rb_logbook_page_begin = iceil (rb_logbook_entry_end, OCEANIC_ATOM2_PACKET_SIZE);
-		rb_logbook_page_end   = rb_logbook_page_begin;
-		rb_logbook_page_size  = rb_logbook_entry_size;
-	} else {
-		// Non-full ringbuffer.
-		rb_logbook_page_begin = ifloor (rb_logbook_entry_begin, OCEANIC_ATOM2_PACKET_SIZE);
-		rb_logbook_page_end   = iceil (rb_logbook_entry_end, OCEANIC_ATOM2_PACKET_SIZE);
-		rb_logbook_page_size  = rb_logbook_entry_size +
-			(rb_logbook_entry_begin - rb_logbook_page_begin) +
-			(rb_logbook_page_end - rb_logbook_entry_end);
-	}
-
-	// Check whether the last entry is not aligned to a page boundary.
-	int unaligned = (rb_logbook_entry_end != rb_logbook_page_end);
-
-	// Update and emit a progress event.
-	progress.current += OCEANIC_ATOM2_PACKET_SIZE;
-	progress.maximum = 2 * OCEANIC_ATOM2_PACKET_SIZE +
-		(RB_PROFILE_END - RB_PROFILE_BEGIN) +
-		rb_logbook_page_size;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// Memory buffer for the logbook entries.
-	unsigned char logbooks[RB_LOGBOOK_END - RB_LOGBOOK_BEGIN] = {0};
-
-	// Since entries are not necessary aligned on page boundaries,
-	// the memory buffer may contain padding entries on both sides.
-	// The memory area which contains the valid entries is marked
-	// with a number of additional variables.
-	unsigned int begin = 0;
-	unsigned int end = rb_logbook_page_size;
-	if (!full) {
-		begin += rb_logbook_entry_begin - rb_logbook_page_begin;
-		end -= rb_logbook_page_end - rb_logbook_entry_end;
-	}
-
-	// The logbook ringbuffer is read backwards to retrieve the most recent
-	// entries first. If an already downloaded entry is identified (by means
-	// of its fingerprint), the transfer is aborted immediately to reduce
-	// the transfer time. When necessary, padding entries are downloaded
-	// (but not processed) to align all read requests on page boundaries.
-	unsigned int entry = end;
-	unsigned int page = rb_logbook_page_size;
-	unsigned int address = rb_logbook_page_end;
-	unsigned int npages = rb_logbook_page_size / OCEANIC_ATOM2_PACKET_SIZE;
-	for (unsigned int i = 0; i < npages; ++i) {
-		// Move to the start of the current page.
-		if (address == RB_LOGBOOK_BEGIN)
-			address = RB_LOGBOOK_END;
-		address -= OCEANIC_ATOM2_PACKET_SIZE;
-		page -= OCEANIC_ATOM2_PACKET_SIZE;
-
-		// Read the logbook page.
-		rc = oceanic_atom2_device_read (abstract, address, logbooks + page, OCEANIC_ATOM2_PACKET_SIZE);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
-
-		// Update and emit a progress event.
-		progress.current += OCEANIC_ATOM2_PACKET_SIZE;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-		// A full ringbuffer needs some special treatment to avoid
-		// having to download the first/last page twice. When a full
-		// ringbuffer is not aligned to page boundaries, this page
-		// will contain both the most recent and oldest entry.
-		if (full && unaligned) {
-			if (i == 0) {
-				// After downloading the first page, move both the oldest
-				// and most recent entries to their correct location.
-				unsigned int oldest = rb_logbook_page_end - rb_logbook_entry_end;
-				unsigned int newest  = OCEANIC_ATOM2_PACKET_SIZE - oldest;
-				// Move the oldest entries down to the start of the buffer.
-				memcpy (logbooks, logbooks + page + newest, oldest);
-				// Move the newest entries up to the end of the buffer.
-				memmove (logbooks + page + oldest, logbooks + page, newest);
-				// Adjust the current page offset to the new position.
-				page += oldest;
-			} else if (i == npages - 1) {
-				// After downloading the last page, pretend we have also
-				// downloaded those oldest entries from the first page.
-				page = 0;
-			}
-		}
-
-		// Process the logbook entries.
-		int abort = 0;
-		while (entry != page && entry != begin) {
-			// Move to the start of the current entry.
-			entry -= OCEANIC_ATOM2_PACKET_SIZE / 2;
-
-			// Compare the fingerprint to identify previously downloaded entries.
-			if (memcmp (logbooks + entry + FP_OFFSET, device->fingerprint, FP_SIZE) == 0) {
-				begin = entry + OCEANIC_ATOM2_PACKET_SIZE / 2;
-				abort = 1;
-				break;
-			}
-		}
-
-		// Stop reading pages too.
-		if (abort)
-			break;
-	}
-
-	// Exit if there are no (new) dives.
-	if (begin == end)
-		return DEVICE_STATUS_SUCCESS;
-
-	// Memory buffer for the profile data.
-	unsigned char profiles[(RB_PROFILE_END - RB_PROFILE_BEGIN) + OCEANIC_ATOM2_PACKET_SIZE / 2] = {0};
-
-	// Calculate the total amount of bytes in the profile ringbuffer,
-	// based on the pointers in the first and last logbook entry.
-	unsigned int rb_profile_first = PT_PROFILE_FIRST (logbooks + begin);
-	unsigned int rb_profile_last  = PT_PROFILE_LAST (logbooks + end - OCEANIC_ATOM2_PACKET_SIZE / 2);
-	unsigned int rb_profile_end   = RB_PROFILE_INCR (rb_profile_last, OCEANIC_ATOM2_PACKET_SIZE);
-	unsigned int rb_profile_size  = RB_PROFILE_DISTANCE (rb_profile_first, rb_profile_last) + OCEANIC_ATOM2_PACKET_SIZE;
-
-	// At this point, we know the exact amount of data
-	// that needs to be transfered for the profiles.
-	progress.maximum = progress.current + rb_profile_size;
-
-	// Traverse the logbook ringbuffer backwards to retrieve the most recent
-	// dives first. The logbook ringbuffer is linearized at this point, so
-	// we do not have to take into account any memory wrapping near the end
-	// of the memory buffer.
-	entry = end;
-	page = rb_profile_size + OCEANIC_ATOM2_PACKET_SIZE / 2;
-	address = rb_profile_end;
-	while (entry != begin) {
-		// Move to the start of the current entry.
-		entry -= OCEANIC_ATOM2_PACKET_SIZE / 2;
-
-		// Get the profile pointers.
-		unsigned int rb_entry_first = PT_PROFILE_FIRST (logbooks + entry);
-		unsigned int rb_entry_last  = PT_PROFILE_LAST (logbooks + entry);
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, OCEANIC_ATOM2_PACKET_SIZE);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last) + OCEANIC_ATOM2_PACKET_SIZE;
-
-		// Make sure the profiles are continuous.
-		assert (address == rb_entry_end);
-
-		// Read the profile data.
-		npages = rb_entry_size / OCEANIC_ATOM2_PACKET_SIZE;
-		for (unsigned int i = 0; i < npages; ++i) {
-			// Move to the start of the current page.
-			if (address == RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;
-			address -= OCEANIC_ATOM2_PACKET_SIZE;
-			page -= OCEANIC_ATOM2_PACKET_SIZE;
-
-			// Read the profile page.
-			rc = oceanic_atom2_device_read (abstract, address, profiles + page, OCEANIC_ATOM2_PACKET_SIZE);
-			if (rc != DEVICE_STATUS_SUCCESS)
-				return rc;
-
-			// Update and emit a progress event.
-			progress.current += OCEANIC_ATOM2_PACKET_SIZE;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-		}
-
-		// Prepend the logbook entry to the profile data. The memory buffer
-		// is large enough to store this entry, but it will be overwritten
-		// when the next profile is downloaded.
-		memcpy (profiles + page - OCEANIC_ATOM2_PACKET_SIZE / 2, logbooks + entry, OCEANIC_ATOM2_PACKET_SIZE / 2);
-
-		if (callback && !callback (profiles + page - OCEANIC_ATOM2_PACKET_SIZE / 2, rb_entry_size + OCEANIC_ATOM2_PACKET_SIZE / 2, userdata))
-			return DEVICE_STATUS_SUCCESS;
-	}
-
-	return DEVICE_STATUS_SUCCESS;
+	return oceanic_common_device_foreach (abstract, &oceanic_atom2_layout, device->fingerprint, callback, userdata);
 }
