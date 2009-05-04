@@ -42,14 +42,19 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define FP_OFFSET 0
+#define FP_SIZE   8
+
 #define ACK 0x5A
 #define NAK 0xA5
 
 typedef struct oceanic_vtpro_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned char fingerprint[FP_SIZE];
 } oceanic_vtpro_device_t;
 
+static device_status_t oceanic_vtpro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t oceanic_vtpro_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
@@ -57,7 +62,7 @@ static device_status_t oceanic_vtpro_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_vtpro_device_backend = {
 	DEVICE_TYPE_OCEANIC_VTPRO,
-	NULL, /* set_fingerprint */
+	oceanic_vtpro_device_set_fingerprint, /* set_fingerprint */
 	oceanic_vtpro_device_version, /* version */
 	oceanic_vtpro_device_read, /* read */
 	NULL, /* write */
@@ -220,6 +225,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -294,6 +300,25 @@ oceanic_vtpro_device_close (device_t *abstract)
 	return DEVICE_STATUS_SUCCESS;
 }
 
+
+static device_status_t
+oceanic_vtpro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
+
+	if (! device_is_oceanic_vtpro (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size && size != FP_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, FP_SIZE);
+	else
+		memset (device->fingerprint, 0, FP_SIZE);
+
+	return DEVICE_STATUS_SUCCESS;
+}
 
 device_status_t
 oceanic_vtpro_device_keepalive (device_t *abstract)
