@@ -22,11 +22,16 @@
 #ifndef OCEANIC_COMMON_H
 #define OCEANIC_COMMON_H
 
-#include "device.h"
+#include "device-private.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+typedef struct oceanic_common_device_t {
+	device_t base;
+	unsigned char fingerprint[8];
+} oceanic_common_device_t;
 
 typedef struct oceanic_common_layout_t {
 	// Device info.
@@ -48,8 +53,14 @@ typedef struct oceanic_common_layout_t {
 	unsigned int mode;
 } oceanic_common_layout_t;
 
+void
+oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend);
+
 device_status_t
-oceanic_common_device_foreach (device_t *abstract, const oceanic_common_layout_t *layout, const unsigned char fingerprint[], dive_callback_t callback, void *userdata);
+oceanic_common_device_set_fingerprint (oceanic_common_device_t *device, const unsigned char data[], unsigned int size);
+
+device_status_t
+oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_common_layout_t *layout, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

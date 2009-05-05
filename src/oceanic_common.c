@@ -99,12 +99,43 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 }
 
 
-device_status_t
-oceanic_common_device_foreach (device_t *abstract, const oceanic_common_layout_t *layout, const unsigned char fingerprint[], dive_callback_t callback, void *userdata)
+void
+oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend)
 {
+	assert (device != NULL);
+
+	// Initialize the base class.
+	device_init (&device->base, backend);
+
+	// Set the default values.
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+}
+
+
+device_status_t
+oceanic_common_device_set_fingerprint (oceanic_common_device_t *device, const unsigned char data[], unsigned int size)
+{
+	assert (device != NULL);
+
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_common_layout_t *layout, dive_callback_t callback, void *userdata)
+{
+	device_t *abstract = (device_t *) device;
+
 	assert (abstract != NULL);
 	assert (layout != NULL);
-	assert (fingerprint != NULL);
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
@@ -276,7 +307,7 @@ oceanic_common_device_foreach (device_t *abstract, const oceanic_common_layout_t
 			current -= PAGESIZE / 2;
 
 			// Compare the fingerprint to identify previously downloaded entries.
-			if (memcmp (logbooks + current, fingerprint, PAGESIZE / 2) == 0) {
+			if (memcmp (logbooks + current, device->fingerprint, PAGESIZE / 2) == 0) {
 				begin = current + PAGESIZE / 2;
 				abort = 1;
 				break;

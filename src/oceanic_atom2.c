@@ -43,16 +43,12 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-#define FP_OFFSET 0
-#define FP_SIZE   8
-
 #define ACK 0x5A
 #define NAK 0xA5
 
 typedef struct oceanic_atom2_device_t {
-	device_t base;
+	oceanic_common_device_t base;
 	struct serial *port;
-	unsigned char fingerprint[FP_SIZE];
 } oceanic_atom2_device_t;
 
 static device_status_t oceanic_atom2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -244,11 +240,10 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &oceanic_atom2_device_backend);
+	oceanic_common_device_init (&device->base, &oceanic_atom2_device_backend);
 
 	// Set the default values.
 	device->port = NULL;
-	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -293,20 +288,12 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 static device_status_t
 oceanic_atom2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
-	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+	oceanic_common_device_t *device = (oceanic_common_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size && size != FP_SIZE)
-		return DEVICE_STATUS_ERROR;
-
-	if (size)
-		memcpy (device->fingerprint, data, FP_SIZE);
-	else
-		memset (device->fingerprint, 0, FP_SIZE);
-
-	return DEVICE_STATUS_SUCCESS;
+	return oceanic_common_device_set_fingerprint (device, data, size);
 }
 
 
@@ -506,10 +493,10 @@ oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned in
 static device_status_t
 oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+	oceanic_common_device_t *device = (oceanic_common_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	return oceanic_common_device_foreach (abstract, &oceanic_atom2_layout, device->fingerprint, callback, userdata);
+	return oceanic_common_device_foreach (device, &oceanic_atom2_layout, callback, userdata);
 }
