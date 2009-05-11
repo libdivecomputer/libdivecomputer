@@ -134,6 +134,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	case 0x0F: // D6
 	case 0x10: // Vyper 2
 	case 0x11: // Cobra 2
+	case 0x13: // Vyper Air
+	case 0x14: // Cobra 3
 		if (data[0x3E - SKIP] == 0x03 && data[0x3F - SKIP] == 0x07) {
 			pressure_samples = 1;
 			pressure_offset = 0;
@@ -181,9 +183,11 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		if (pressure_samples) {
 			assert (offset + 2 <= size);
 			unsigned int pressure = array_uint16_le (data + offset);
-			sample.pressure.tank = 0;
-			sample.pressure.value = pressure / 100.0;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			if (pressure != 0xFFFF) {
+				sample.pressure.tank = 0;
+				sample.pressure.value = pressure / 100.0;
+				if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			}
 			offset += 2;
 		}
 
