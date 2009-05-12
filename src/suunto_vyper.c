@@ -69,6 +69,7 @@ static const device_backend_t suunto_vyper_device_backend = {
 };
 
 static const suunto_common_layout_t suunto_vyper_layout = {
+	0x51, /* eop */
 	0x71, /* rb_profile_begin */
 	SUUNTO_VYPER_MEMORY_SIZE, /* rb_profile_end */
 	9, /* fp_offset */
@@ -76,6 +77,7 @@ static const suunto_common_layout_t suunto_vyper_layout = {
 };
 
 static const suunto_common_layout_t suunto_spyder_layout = {
+	0x1C, /* eop */
 	0x4C, /* rb_profile_begin */
 	SUUNTO_VYPER_MEMORY_SIZE, /* rb_profile_end */
 	7, /* fp_offset */
@@ -650,10 +652,8 @@ suunto_vyper_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		vyper = 0;
 
 	if (vyper) {
-		unsigned int eop = array_uint16_be (data + 0x51);
-		return suunto_common_extract_dives (device, &suunto_vyper_layout, data, eop, callback, userdata);
+		return suunto_common_extract_dives (device, &suunto_vyper_layout, data, callback, userdata);
 	} else {
-		unsigned int eop = array_uint16_be (data + 0x1C);
-		return suunto_common_extract_dives (device, &suunto_spyder_layout, data, eop, callback, userdata);
+		return suunto_common_extract_dives (device, &suunto_spyder_layout, data, callback, userdata);
 	}
 }

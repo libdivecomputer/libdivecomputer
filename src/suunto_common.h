@@ -34,6 +34,8 @@ typedef struct suunto_common_device_t {
 } suunto_common_device_t;
 
 typedef struct suunto_common_layout_t {
+	// End-of-profile marker
+	unsigned int eop;
 	// Profile ringbuffer
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;
@@ -50,7 +52,7 @@ device_status_t
 suunto_common_device_set_fingerprint (suunto_common_device_t *device, const unsigned char data[], unsigned int size);
 
 device_status_t
-suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], unsigned int eop, dive_callback_t callback, void *userdata);
+suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

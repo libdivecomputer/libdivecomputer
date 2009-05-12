@@ -63,6 +63,7 @@ static const device_backend_t suunto_eon_device_backend = {
 };
 
 static const suunto_common_layout_t suunto_eon_layout = {
+	0, /* eop */
 	0x100, /* rb_profile_begin */
 	SUUNTO_EON_MEMORY_SIZE, /* rb_profile_end */
 	6, /* fp_offset */
@@ -301,14 +302,5 @@ suunto_eon_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (size < SUUNTO_EON_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
 
-	// Search the end-of-profile marker.
-	unsigned int eop = 0x100;
-	while (eop < SUUNTO_EON_MEMORY_SIZE) {
-		if (data[eop] == 0x82) {
-			break;
-		}
-		eop++;
-	}
-
-	return suunto_common_extract_dives (device, &suunto_eon_layout, data, eop, callback, userdata);
+	return suunto_common_extract_dives (device, &suunto_eon_layout, data, callback, userdata);
 }

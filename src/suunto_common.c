@@ -25,6 +25,7 @@
 
 #include "suunto_common.h"
 #include "ringbuffer.h"
+#include "array.h"
 
 #define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, l->rb_profile_begin, l->rb_profile_end)
 #define RB_PROFILE_PEEK(a,l)		ringbuffer_decrement (a, l->peek, l->rb_profile_begin, l->rb_profile_end)
@@ -60,12 +61,32 @@ suunto_common_device_set_fingerprint (suunto_common_device_t *device, const unsi
 
 
 device_status_t
-suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], unsigned int eop, dive_callback_t callback, void *userdata)
+suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata)
 {
 	assert (layout != NULL);
 
-	assert (eop >= layout->rb_profile_begin && eop < layout->rb_profile_end);
-	assert (data[eop] == 0x82);
+	unsigned int eop;
+	if (layout->eop) {
+		// Get the end-of-profile pointer directly from the header.
+		eop = array_uint16_be (data + layout->eop);
+	} else {
+		// Get the end-of-profile pointer by searching for the
+		// end-of-profile marker in the profile ringbuffer.
+		eop = layout->rb_profile_begin;
+		while (eop < layout->rb_profile_end) {
+			if (data[eop] == 0x82)
+				break;
+			eop++;
+		}
+	}
+
+	// Validate the end-of-profile pointer.
+	if (eop < layout->rb_profile_begin || 
+		eop >= layout->rb_profile_end ||
+		data[eop] != 0x82)
+	{
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// Memory buffer for the profile ringbuffer.
 	unsigned int length = layout->rb_profile_end - layout->rb_profile_begin;
