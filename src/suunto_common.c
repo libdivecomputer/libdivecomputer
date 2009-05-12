@@ -19,28 +19,66 @@
  * MA 02110-1301 USA
  */
 
-#include <assert.h>
-#include <string.h>
+#include <stdlib.h> // malloc
+#include <string.h> // memcpy, memcmp
+#include <assert.h> // assert
 
 #include "suunto_common.h"
 #include "ringbuffer.h"
 
+#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_PEEK(a,l)		ringbuffer_decrement (a, l->peek, l->rb_profile_begin, l->rb_profile_end)
+
+void
+suunto_common_device_init (suunto_common_device_t *device, const device_backend_t *backend)
+{
+	assert (device != NULL);
+
+	// Initialize the base class.
+	device_init (&device->base, backend);
+
+	// Set the default values.
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+}
+
 
 device_status_t
-suunto_common_extract_dives (device_t *device, const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, fp_compare_t fp_compare, dive_callback_t callback, void *userdata)
+suunto_common_device_set_fingerprint (suunto_common_device_t *device, const unsigned char data[], unsigned int size)
 {
-	assert (eop >= begin && eop < end);
+	assert (device != NULL);
+
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], unsigned int eop, dive_callback_t callback, void *userdata)
+{
+	assert (layout != NULL);
+
+	assert (eop >= layout->rb_profile_begin && eop < layout->rb_profile_end);
 	assert (data[eop] == 0x82);
 
-	unsigned char buffer[0x2000 - 0x4C] = {0};
-	assert (sizeof (buffer) >= end - begin);
+	// Memory buffer for the profile ringbuffer.
+	unsigned int length = layout->rb_profile_end - layout->rb_profile_begin;
+	unsigned char *buffer = (unsigned char *) malloc (length);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
 	unsigned int current = eop;
 	unsigned int previous = eop;
-	for (unsigned int i = 0; i < end - begin; ++i) {
+	for (unsigned int i = 0; i < length; ++i) {
 		// Move backwards through the ringbuffer.
-		if (current == begin)
-			current = end;
+		if (current == layout->rb_profile_begin)
+			current = layout->rb_profile_end;
 		current--;
 
 		// Check for an end of profile marker.
@@ -49,27 +87,33 @@ suunto_common_extract_dives (device_t *device, const unsigned char data[], unsig
 
 		// Check for an end of dive marker (of the next dive),
 		// to find the start of the current dive.
-		unsigned int idx = ringbuffer_decrement (current, peek, begin, end);
+		unsigned int idx = RB_PROFILE_PEEK (current, layout);
 		if (data[idx] == 0x80) {
-			unsigned int len = ringbuffer_distance (current, previous, begin, end);
-			if (current + len > end) {
-				unsigned int a = end - current;
-				unsigned int b = (current + len) - end;
+			unsigned int len = RB_PROFILE_DISTANCE (current, previous, layout);
+			if (current + len > layout->rb_profile_end) {
+				unsigned int a = layout->rb_profile_end - current;
+				unsigned int b = (current + len) - layout->rb_profile_end;
 				memcpy (buffer + 0, data + current, a);
-				memcpy (buffer + a, data + begin,   b);
+				memcpy (buffer + a, data + layout->rb_profile_begin,   b);
 			} else {
 				memcpy (buffer, data + current, len);
 			}
 
-			if (device && fp_compare && fp_compare (device, buffer, len) == 0)
+			if (device && memcmp (buffer + layout->fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+				free (buffer);
 				return DEVICE_STATUS_SUCCESS;
+			}
 
-			if (callback && !callback (buffer, len, userdata))
+			if (callback && !callback (buffer, len, userdata)) {
+				free (buffer);
 				return DEVICE_STATUS_SUCCESS;
+			}
 
 			previous = current;
 		}
 	}
+
+	free (buffer);
 
 	assert (data[current] == 0x82);
 

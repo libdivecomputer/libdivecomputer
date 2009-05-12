@@ -41,13 +41,9 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-#define FP_OFFSET 6
-#define FP_SIZE   5
-
 typedef struct suunto_eon_device_t {
-	device_t base;
+	suunto_common_device_t base;
 	struct serial *port;
-	unsigned char fingerprint[FP_SIZE];
 } suunto_eon_device_t;
 
 static device_status_t suunto_eon_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -65,6 +61,14 @@ static const device_backend_t suunto_eon_device_backend = {
 	suunto_eon_device_foreach, /* foreach */
 	suunto_eon_device_close /* close */
 };
+
+static const suunto_common_layout_t suunto_eon_layout = {
+	0x100, /* rb_profile_begin */
+	SUUNTO_EON_MEMORY_SIZE, /* rb_profile_end */
+	6, /* fp_offset */
+	3 /* peek */
+};
+
 
 static int
 device_is_suunto_eon (device_t *abstract)
@@ -90,11 +94,10 @@ suunto_eon_device_open (device_t **out, const char* name)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &suunto_eon_device_backend);
+	suunto_common_device_init (&device->base, &suunto_eon_device_backend);
 
 	// Set the default values.
 	device->port = NULL;
-	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -159,20 +162,12 @@ suunto_eon_device_close (device_t *abstract)
 static device_status_t
 suunto_eon_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
-	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
+	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
 
 	if (! device_is_suunto_eon (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size && size != FP_SIZE)
-		return DEVICE_STATUS_ERROR;
-
-	if (size)
-		memcpy (device->fingerprint, data, FP_SIZE);
-	else
-		memset (device->fingerprint, 0, FP_SIZE);
-
-	return DEVICE_STATUS_SUCCESS;
+	return suunto_common_device_set_fingerprint (device, data, size);
 }
 
 
@@ -295,19 +290,16 @@ suunto_eon_device_write_interval (device_t *abstract, unsigned char interval)
 }
 
 
-static int
-fp_compare (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
-
-	return memcmp (data + FP_OFFSET, device->fingerprint, FP_SIZE);
-}
-
-
 device_status_t
 suunto_eon_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	assert (size >= SUUNTO_EON_MEMORY_SIZE);
+	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
+
+	if (abstract && !device_is_suunto_eon (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < SUUNTO_EON_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
 
 	// Search the end-of-profile marker.
 	unsigned int eop = 0x100;
@@ -318,5 +310,5 @@ suunto_eon_extract_dives (device_t *abstract, const unsigned char data[], unsign
 		eop++;
 	}
 
-	return suunto_common_extract_dives (abstract, data, 0x100, SUUNTO_EON_MEMORY_SIZE, eop, 3, fp_compare, callback, userdata);
+	return suunto_common_extract_dives (device, &suunto_eon_layout, data, eop, callback, userdata);
 }

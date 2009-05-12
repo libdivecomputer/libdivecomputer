@@ -22,16 +22,35 @@
 #ifndef SUUNTO_COMMON_H
 #define SUUNTO_COMMON_H
 
-#include "device.h"
+#include "device-private.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-typedef int (*fp_compare_t) (device_t *device, const unsigned char data[], unsigned int size);
+typedef struct suunto_common_device_t {
+	device_t base;
+	unsigned char fingerprint[5];
+} suunto_common_device_t;
+
+typedef struct suunto_common_layout_t {
+	// Profile ringbuffer
+	unsigned int rb_profile_begin;
+	unsigned int rb_profile_end;
+	// Fingerprint
+	unsigned int fp_offset;
+	// Peek
+	unsigned int peek;
+} suunto_common_layout_t;
+
+void
+suunto_common_device_init (suunto_common_device_t *device, const device_backend_t *backend);
 
 device_status_t
-suunto_common_extract_dives (device_t *device, const unsigned char data[], unsigned int begin, unsigned int end, unsigned int eop, unsigned int peek, fp_compare_t fp_compare, dive_callback_t callback, void *userdata);
+suunto_common_device_set_fingerprint (suunto_common_device_t *device, const unsigned char data[], unsigned int size);
+
+device_status_t
+suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], unsigned int eop, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
