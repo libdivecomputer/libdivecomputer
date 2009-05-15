@@ -28,7 +28,7 @@ extern "C" {
 
 #include "device.h"
 
-#define OCEANIC_ATOM2_MEMORY_SIZE 0xFFF0
+#define OCEANIC_ATOM2_MEMORY_SIZE 0x10000
 #define OCEANIC_ATOM2_PACKET_SIZE 0x10
 
 device_status_t
