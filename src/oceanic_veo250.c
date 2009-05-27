@@ -284,9 +284,8 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the init and quit commands.
+	// Initialize the data cable (PPS mode).
 	oceanic_veo250_init (device);
-	oceanic_veo250_quit (device);
 
 	*out = (device_t*) device;
 

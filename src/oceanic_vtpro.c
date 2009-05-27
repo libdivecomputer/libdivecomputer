@@ -277,9 +277,8 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the init and quit commands.
+	// Initialize the data cable (MOD mode).
 	oceanic_vtpro_init (device);
-	oceanic_vtpro_quit (device);
 
 	*out = (device_t*) device;
 
