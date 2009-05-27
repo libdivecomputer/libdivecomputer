@@ -42,15 +42,6 @@ test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
-	message ("device_version\n");
-	unsigned char version[OCEANIC_VTPRO_PACKET_SIZE] = {0};
-	rc = device_version (device, version, sizeof (version));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot identify computer.");
-		device_close (device);
-		return rc;
-	}
-
 	message ("oceanic_vtpro_device_calibrate\n");
 	unsigned char calibration = 0;
 	rc = oceanic_vtpro_device_calibrate (device, &calibration, 1);

@@ -49,6 +49,7 @@
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
 	struct serial *port;
+	unsigned char version[OCEANIC_ATOM2_PACKET_SIZE];
 } oceanic_atom2_device_t;
 
 static device_status_t oceanic_atom2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -244,6 +245,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->version, 0, sizeof (device->version));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -278,6 +280,11 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 
 	// Send the init command.
 	oceanic_atom2_init (device);
+
+	// Switch the device from surface mode into download mode. Before sending
+	// this command, the device needs to be in PC mode (automatically activated
+	// by connecting the device), or already in download mode.
+	oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
 
 	*out = (device_t*) device;
 

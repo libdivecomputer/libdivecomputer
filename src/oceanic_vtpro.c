@@ -49,6 +49,7 @@
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	struct serial *port;
+	unsigned char version[OCEANIC_VTPRO_PACKET_SIZE];
 } oceanic_vtpro_device_t;
 
 static device_status_t oceanic_vtpro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -236,6 +237,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->version, 0, sizeof (device->version));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -280,6 +282,11 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	// Initialize the data cable (MOD mode).
 	oceanic_vtpro_init (device);
 
+	// Switch the device from surface mode into download mode. Before sending
+	// this command, the device needs to be in PC mode (manually activated by
+	// the user), or already in download mode.
+	oceanic_vtpro_device_version ((device_t *) device, device->version, sizeof (device->version));
+
 	*out = (device_t*) device;
 
 	return DEVICE_STATUS_SUCCESS;
@@ -294,7 +301,7 @@ oceanic_vtpro_device_close (device_t *abstract)
 	if (! device_is_oceanic_vtpro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	// Send the quit command.
+	// Switch the device back to surface mode.
 	oceanic_vtpro_quit (device);
 
 	// Close the device.

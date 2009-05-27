@@ -42,15 +42,6 @@ test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
-	message ("device_version\n");
-	unsigned char version[OCEANIC_VEO250_PACKET_SIZE] = {0};
-	rc = device_version (device, version, sizeof (version));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot identify computer.");
-		device_close (device);
-		return rc;
-	}
-
 	message ("device_read\n");
 	rc = device_read (device, 0x00, data, sizeof (data));
 	if (rc != DEVICE_STATUS_SUCCESS) {
