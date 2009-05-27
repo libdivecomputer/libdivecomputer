@@ -347,7 +347,7 @@ oceanic_vtpro_device_keepalive (device_t *abstract)
 	}
 
 	// Verify the answer.
-	if (answer[0] != 0x5A || answer[1] != 0x51) {
+	if (answer[0] != ACK || answer[1] != 0x51) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -388,7 +388,7 @@ oceanic_vtpro_device_calibrate (device_t *abstract, unsigned char data[], unsign
 	}
 
 	// Verify the answer.
-	if (answer[0] != 0x5A || answer[2] != 0x00) {
+	if (answer[0] != ACK || answer[2] != 0x00) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}

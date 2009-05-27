@@ -217,7 +217,7 @@ oceanic_atom2_quit (oceanic_atom2_device_t *device)
 	}
 
 	// Verify the answer.
-	if (answer[0] != 0xA5) {
+	if (answer[0] != NAK) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
