@@ -216,12 +216,22 @@ suunto_vyper2_packet (suunto_vyper2_device_t *device, const unsigned char comman
 	}
 
 	// Verify the header of the package.
-	answer[2] -= size; // Adjust the package size for the comparision.
-	if (memcmp (command, answer, asize - size - 1) != 0) {
-		WARNING ("Unexpected answer start byte(s).");
+	if (answer[0] != command[0]) {
+		WARNING ("Unexpected answer header.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
-	answer[2] += size; // Restore the package size again.
+
+	// Verify the size of the package.
+	if (array_uint16_be (answer + 1) + 4 != asize) {
+		WARNING ("Unexpected answer size.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	// Verify the parameters of the package.
+	if (memcmp (command + 3, answer + 3, asize - size - 4) != 0) {
+		WARNING ("Unexpected answer parameters.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[asize - 1];
@@ -411,7 +421,7 @@ suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsi
 
 		// Write the package.
 		unsigned char answer[7] = {0};
-		unsigned char command[SUUNTO_VYPER2_PACKET_SIZE + 7] = {0x06, 0x00, 0x03,
+		unsigned char command[SUUNTO_VYPER2_PACKET_SIZE + 7] = {0x06, 0x00, len + 3,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
 				len, // count
