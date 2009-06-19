@@ -227,18 +227,6 @@ reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned c
 }
 
 
-static int
-reefnet_sensusultra_isempty (const unsigned char *data, unsigned int size)
-{
-	for (unsigned int i = 0; i < size; ++i) {
-		if (data[i] != 0xFF)
-			return 0;
-	}
-
-	return 1;
-}
-
-
 static device_status_t
 reefnet_sensusultra_send_uchar (reefnet_sensusultra_device_t *device, unsigned char value)
 {
@@ -759,7 +747,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		// Abort the transfer if the page contains no useful data.
-		if (reefnet_sensusultra_isempty (data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE))
+		if (array_isequal (data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, 0xFF))
 			break;
 
 		// Parse the page data.
