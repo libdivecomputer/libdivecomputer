@@ -32,6 +32,9 @@ array_reverse_bytes (unsigned char data[], unsigned int size);
 void
 array_reverse_bits (unsigned char data[], unsigned int size);
 
+int
+array_isequal (const unsigned char data[], unsigned int size, unsigned char value);
+
 unsigned int
 array_uint32_be (const unsigned char data[]);
 

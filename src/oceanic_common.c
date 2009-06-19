@@ -306,6 +306,17 @@ oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_co
 			// Move to the start of the current entry.
 			current -= PAGESIZE / 2;
 
+			// Check for uninitialized entries. Normally, such entries are
+			// never present, except when the ringbuffer is actually empty,
+			// but the ringbuffer pointers are not set to their empty values.
+			// This appears to happen on some devices, and we attempt to
+			// fix this here.
+			if (array_isequal (logbooks + current, PAGESIZE / 2, 0xFF)) {
+				begin = current + PAGESIZE / 2;
+				abort = 1;
+				break;
+			}
+
 			// Compare the fingerprint to identify previously downloaded entries.
 			if (memcmp (logbooks + current, device->fingerprint, PAGESIZE / 2) == 0) {
 				begin = current + PAGESIZE / 2;
