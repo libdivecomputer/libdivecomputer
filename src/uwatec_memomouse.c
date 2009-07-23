@@ -125,18 +125,17 @@ uwatec_memomouse_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_IO;
 	}
 
-	serial_sleep (200);
-
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
-
-	// Clear the RTS line and set the DTR line.
-	if (serial_set_dtr (device->port, 1) == -1 ||
-		serial_set_rts (device->port, 0) == -1) {
+	// Clear the RTS and DTR lines.
+	if (serial_set_rts (device->port, 0) == -1 ||
+		serial_set_dtr (device->port, 0) == -1) {
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DEVICE_STATUS_IO;
 	}
+
+	// Make sure everything is in a sane state.
+	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	*out = (device_t*) device;
 
@@ -389,7 +388,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned 
 
 
 static device_status_t
-uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
+uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
 {
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
@@ -488,6 +487,32 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 	device->devtime = array_uint32_le (*data + 2 + 1);
 
 	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
+{
+	// Give the interface some time to notice the DTR
+	// line change from a previous transfer (if any).
+	serial_sleep (500);
+
+	// Set the DTR line.
+	if (serial_set_dtr (device->port, 1) == -1) {
+		WARNING ("Failed to set the RTS line.");
+		return DEVICE_STATUS_IO;
+	}
+
+	// Start the transfer.
+	device_status_t rc = uwatec_memomouse_dump_internal (device, data, size);
+
+	// Clear the DTR line again.
+	if (serial_set_dtr (device->port, 0) == -1) {
+		WARNING ("Failed to set the RTS line.");
+		return DEVICE_STATUS_IO;
+	}
+
+	return rc;
 }
 
 
