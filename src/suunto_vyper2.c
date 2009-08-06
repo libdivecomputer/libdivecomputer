@@ -23,18 +23,12 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include "device-private.h"
+#include "suunto_common2.h"
 #include "suunto_vyper2.h"
 #include "serial.h"
 #include "utils.h"
-#include "ringbuffer.h"
 #include "checksum.h"
 #include "array.h"
-
-#define MAXRETRIES 2
-
-#define MIN(a,b)	(((a) < (b)) ? (a) : (b))
-#define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
 #define WARNING(expr) \
 { \
@@ -46,38 +40,26 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-#define MINIMUM 8
-
-#define RB_PROFILE_BEGIN			0x019A
-#define RB_PROFILE_END				SUUNTO_VYPER2_MEMORY_SIZE - 2
-#define RB_PROFILE_DISTANCE(a,b)	ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
-
-#define FP_OFFSET 0x15
-#define FP_SIZE   7
-
 typedef struct suunto_vyper2_device_t {
-	device_t base;
+	suunto_common2_device_t base;
 	struct serial *port;
-	unsigned char fingerprint[FP_SIZE];
 } suunto_vyper2_device_t;
 
-static device_status_t suunto_vyper2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t suunto_vyper2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static device_status_t suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static device_status_t suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
-static device_status_t suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
 static device_status_t suunto_vyper2_device_close (device_t *abstract);
 
-static const device_backend_t suunto_vyper2_device_backend = {
-	DEVICE_TYPE_SUUNTO_VYPER2,
-	suunto_vyper2_device_set_fingerprint, /* set_fingerprint */
-	suunto_vyper2_device_version, /* version */
-	suunto_vyper2_device_read, /* read */
-	suunto_vyper2_device_write, /* write */
-	suunto_vyper2_device_dump, /* dump */
-	suunto_vyper2_device_foreach, /* foreach */
-	suunto_vyper2_device_close /* close */
+static const suunto_common2_device_backend_t suunto_vyper2_device_backend = {
+	{
+		DEVICE_TYPE_SUUNTO_VYPER2,
+		suunto_common2_device_set_fingerprint, /* set_fingerprint */
+		suunto_common2_device_version, /* version */
+		suunto_common2_device_read, /* read */
+		suunto_common2_device_write, /* write */
+		suunto_common2_device_dump, /* dump */
+		suunto_common2_device_foreach, /* foreach */
+		suunto_vyper2_device_close /* close */
+	},
+	suunto_vyper2_device_packet
 };
 
 static int
@@ -86,7 +68,7 @@ device_is_suunto_vyper2 (device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &suunto_vyper2_device_backend;
+    return abstract->backend == (const device_backend_t *) &suunto_vyper2_device_backend;
 }
 
 
@@ -104,11 +86,10 @@ suunto_vyper2_device_open (device_t **out, const char* name)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &suunto_vyper2_device_backend);
+	suunto_common2_device_init (&device->base, &suunto_vyper2_device_backend);
 
 	// Set the default values.
 	device->port = NULL;
-	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -177,8 +158,10 @@ suunto_vyper2_device_close (device_t *abstract)
 
 
 static device_status_t
-suunto_vyper2_send (suunto_vyper2_device_t *device, const unsigned char command[], unsigned int csize)
+suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
+	suunto_vyper2_device_t *device = (suunto_vyper2_device_t *) abstract;
+
 	serial_sleep (0x190 + 0xC8);
 
 	// Set RTS to send the command.
@@ -193,20 +176,6 @@ suunto_vyper2_send (suunto_vyper2_device_t *device, const unsigned char command[
 
 	// Clear RTS to receive the reply.
 	serial_set_rts (device->port, 0);
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper2_packet (suunto_vyper2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
-{
-	// Send the command to the dive computer.
-	device_status_t rc = suunto_vyper2_send (device, command, csize);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Failed to send the command.");
-		return rc;
-	}
 
 	// Receive the answer of the dive computer.
 	int n = serial_read (device->port, answer, asize);
@@ -245,417 +214,11 @@ suunto_vyper2_packet (suunto_vyper2_device_t *device, const unsigned char comman
 }
 
 
-static device_status_t
-suunto_vyper2_transfer (suunto_vyper2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
-{
-	assert (asize >= size + 4);
-
-	// Occasionally, the dive computer does not respond to a command. 
-	// In that case we retry the command a number of times before 
-	// returning an error. Usually the dive computer will respond 
-	// again during one of the retries.
-
-	unsigned int nretries = 0;
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = suunto_vyper2_packet (device, command, csize, answer, asize, size)) != DEVICE_STATUS_SUCCESS) {
-		// Automatically discard a corrupted packet,
-		// and request a new one.
-		if (rc != DEVICE_STATUS_TIMEOUT && rc != DEVICE_STATUS_PROTOCOL)
-			return rc;
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
-			return rc;
-	}
-
-	return rc;
-}
-
-
-static device_status_t
-suunto_vyper2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
-
-	if (! device_is_suunto_vyper2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	if (size && size != FP_SIZE)
-		return DEVICE_STATUS_ERROR;
-
-	if (size)
-		memcpy (device->fingerprint, data, FP_SIZE);
-	else
-		memset (device->fingerprint, 0, FP_SIZE);
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper2_device_version (device_t *abstract, unsigned char data[], unsigned int size)
-{
-	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
-
-	if (! device_is_suunto_vyper2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	if (size < SUUNTO_VYPER2_VERSION_SIZE) {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
-
-	unsigned char answer[SUUNTO_VYPER2_VERSION_SIZE + 4] = {0};
-	unsigned char command[4] = {0x0F, 0x00, 0x00, 0x0F};
-	device_status_t rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, sizeof (answer), 4);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	memcpy (data, answer + 3, SUUNTO_VYPER2_VERSION_SIZE);
-
-#ifndef NDEBUG
-	message ("Vyper2ReadVersion()=\"%02x %02x %02x %02x\"\n", data[0], data[1], data[2], data[3]);
-#endif
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
 device_status_t
 suunto_vyper2_device_reset_maxdepth (device_t *abstract)
 {
-	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
-
 	if (! device_is_suunto_vyper2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char answer[4] = {0};
-	unsigned char command[4] = {0x20, 0x00, 0x00, 0x20};
-	device_status_t rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-#ifndef NDEBUG
-	message ("Vyper2ResetMaxDepth()\n");
-#endif
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper2_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_t *progress)
-{
-	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
-
-	if (! device_is_suunto_vyper2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	// The data transmission is split in packages
-	// of maximum $SUUNTO_VYPER2_PACKET_SIZE bytes.
-
-	unsigned int nbytes = 0;
-	while (nbytes < size) {
-		// Calculate the package size.
-		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER2_PACKET_SIZE);
-		
-		// Read the package.
-		unsigned char answer[SUUNTO_VYPER2_PACKET_SIZE + 7] = {0};
-		unsigned char command[7] = {0x05, 0x00, 0x03,
-				(address >> 8) & 0xFF, // high
-				(address     ) & 0xFF, // low
-				len, // count
-				0};  // CRC
-		command[6] = checksum_xor_uint8 (command, 6, 0x00);
-		device_status_t rc = suunto_vyper2_transfer (device, command, sizeof (command), answer, len + 7, len);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
-
-		memcpy (data, answer + 6, len);
-
-#ifndef NDEBUG
-		message ("Vyper2Read(0x%04x,%d)=\"", address, len);
-		for (unsigned int i = 0; i < len; ++i) {
-			message("%02x", data[i]);
-		}
-		message("\"\n");
-#endif
-
-		// Update and emit a progress event.
-		if (progress) {
-			progress->current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
-		}
-
-		nbytes += len;
-		address += len;
-		data += len;
-	}
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
-{
-	return suunto_vyper2_read (abstract, address, data, size, NULL);
-}
-
-
-static device_status_t
-suunto_vyper2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
-{
-	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
-
-	if (! device_is_suunto_vyper2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	// The data transmission is split in packages
-	// of maximum $SUUNTO_VYPER2_PACKET_SIZE bytes.
-
-	unsigned int nbytes = 0;
-	while (nbytes < size) {
-		// Calculate the package size.
-		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER2_PACKET_SIZE);
-
-		// Write the package.
-		unsigned char answer[7] = {0};
-		unsigned char command[SUUNTO_VYPER2_PACKET_SIZE + 7] = {0x06, 0x00, len + 3,
-				(address >> 8) & 0xFF, // high
-				(address     ) & 0xFF, // low
-				len, // count
-				0};  // data + CRC
-		memcpy (command + 6, data, len);
-		command[len + 6] = checksum_xor_uint8 (command, len + 6, 0x00);
-		device_status_t rc = suunto_vyper2_transfer (device, command, len + 7, answer, sizeof (answer), 0);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
-
-#ifndef NDEBUG
-		message ("Vyper2Write(0x%04x,%d,\"", address, len);
-		for (unsigned int i = 0; i < len; ++i) {
-			message ("%02x", data[i]);
-		}
-		message ("\");\n");
-#endif
-
-		nbytes += len;
-		address += len;
-		data += len;
-	}
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
-{
-	if (! device_is_suunto_vyper2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	if (size < SUUNTO_VYPER2_MEMORY_SIZE) {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
-
-	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = SUUNTO_VYPER2_MEMORY_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	device_status_t rc = suunto_vyper2_read (abstract, 0x00, data, SUUNTO_VYPER2_MEMORY_SIZE, &progress);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	if (result)
-		*result = SUUNTO_VYPER2_MEMORY_SIZE;
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
-{
-	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
-
-	if (! device_is_suunto_vyper2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = RB_PROFILE_END - RB_PROFILE_BEGIN + 8 + 4 + (MINIMUM > 4 ? MINIMUM : 4);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// Read the version info.
-	unsigned char version[4] = {0};
-	device_status_t rc = suunto_vyper2_device_version (abstract, version, sizeof (version));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read memory header.");
-		return rc;
-	}
-
-	// Update and emit a progress event.
-	progress.current += sizeof (version);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// Read the serial number.
-	unsigned char serial[MINIMUM > 4 ? MINIMUM : 4] = {0};
-	rc = suunto_vyper2_read (abstract, 0x0023, serial, sizeof (serial), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read memory header.");
-		return rc;
-	}
-
-	// Update and emit a progress event.
-	progress.current += sizeof (serial);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// Emit a device info event.
-	device_devinfo_t devinfo;
-	devinfo.model = version[0];
-	devinfo.firmware = array_uint24_be (version + 1);
-	devinfo.serial = array_uint32_be (serial);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
-
-	// Read the header bytes.
-	unsigned char header[8] = {0};
-	rc = suunto_vyper2_read (abstract, 0x0190, header, sizeof (header), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read memory header.");
-		return rc;
-	}
-
-	// Obtain the pointers from the header.
-	unsigned int last  = array_uint16_le (header + 0);
-	unsigned int count = array_uint16_le (header + 2);
-	unsigned int end   = array_uint16_le (header + 4);
-	unsigned int begin = array_uint16_le (header + 6);
-	message ("Pointers: begin=%04x, last=%04x, end=%04x, count=%i\n", begin, last, end, count);
-
-	// Memory buffer to store all the dives.
-
-	unsigned char data[MINIMUM + RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
-
-	// Calculate the total amount of bytes.
-
-	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end);
-
-	// Update and emit a progress event.
-
-	progress.maximum -= (RB_PROFILE_END - RB_PROFILE_BEGIN) - remaining;
-	progress.current += sizeof (header);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	// To reduce the number of read operations, we always try to read 
-	// packages with the largest possible size. As a consequence, the 
-	// last package of a dive can contain data from more than one dive. 
-	// Therefore, the remaining data of this package (and its size) 
-	// needs to be preserved for the next dive.
-
-	unsigned int available = 0;
-
-	// The ring buffer is traversed backwards to retrieve the most recent
-	// dives first. This allows you to download only the new dives. During 
-	// the traversal, the current pointer does always point to the end of
-	// the dive data and we move to the "next" dive by means of the previous 
-	// pointer.
-
-	unsigned int ndives = 0;
-	unsigned int current = end;
-	unsigned int previous = last;
-	while (current != begin) {
-		// Calculate the size of the current dive.
-		unsigned int size = RB_PROFILE_DISTANCE (previous, current);
-		message ("Pointers: dive=%u, current=%04x, previous=%04x, size=%u, remaining=%u, available=%u\n",
-			ndives + 1, current, previous, size, remaining, available);
-
-		assert (size >= 4 && size <= remaining);
-
-		unsigned int nbytes = available;
-		unsigned int address = current - available;
-		while (nbytes < size) {
-			// Calculate the package size. Try with the largest possible 
-			// size first, and adjust when the end of the ringbuffer or  
-			// the end of the profile data is reached.
-			unsigned int len = SUUNTO_VYPER2_PACKET_SIZE;
-			if (RB_PROFILE_BEGIN + len > address)
-				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.
-			if (nbytes + len > remaining)
-				len = remaining - nbytes; // End of profile.
-			/*if (nbytes + len > size)
-				len = size - nbytes;*/ // End of dive (for testing only).
-
-			message ("Pointers: address=%04x, len=%u\n", address - len, len);
-
-			// Always read at least the minimum amount of bytes, because 
-			// reading fewer bytes is unreliable. The memory buffer is 
-			// large enough to prevent buffer overflows, and the extra 
-			// bytes are automatically ignored (due to reading backwards).
-			unsigned int extra = 0;
-			if (len < MINIMUM)
-				extra = MINIMUM - len;
-
-			message ("Pointers: extra=%u\n", extra);
-
-			// Read the package.
-			unsigned char *p = data + MINIMUM + remaining - nbytes;
-			rc = suunto_vyper2_read (abstract, address - (len + extra), p - (len + extra), len + extra, NULL);
-			if (rc != DEVICE_STATUS_SUCCESS) {
-				WARNING ("Cannot read memory.");
-				return rc;
-			}
-
-			// Update and emit a progress event.
-			progress.current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-			// Next package.
-			nbytes += len;
-			address -= len;
-			if (address <= RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;		
-		}
-
-		message ("Pointers: nbytes=%u\n", nbytes);
-
-		// The last package of the current dive contains the previous and
-		// next pointers (in a continuous memory area). It can also contain
-		// a number of bytes from the next dive. The offset to the pointers
-		// is equal to the number of bytes remaining after the current dive.
-
-		remaining -= size;
-		available = nbytes - size;
-
-		unsigned int oprevious = array_uint16_le (data + MINIMUM + remaining + 0);
-		unsigned int onext     = array_uint16_le (data + MINIMUM + remaining + 2);
-		message ("Pointers: previous=%04x, next=%04x\n", oprevious, onext);
-		assert (current == onext);
-
-		// Next dive.
-		current = previous;
-		previous = oprevious;
-		ndives++;
-
-#ifndef NDEBUG
-		message ("Vyper2Profile()=\"");
-		for (unsigned int i = 0; i < size - 4; ++i) {
-			message ("%02x", data[MINIMUM + remaining + 4 + i]);
-		}
-		message ("\"\n");
-#endif
-
-		unsigned int offset = MINIMUM + remaining;
-		if (memcmp (data + offset + FP_OFFSET, device->fingerprint, FP_SIZE) == 0)
-			return DEVICE_STATUS_SUCCESS;
-
-		if (callback && !callback (data + offset + 4, size - 4, userdata))
-			return DEVICE_STATUS_SUCCESS;
-	}
-	assert (remaining == 0);
-	assert (available == 0);
-
-	return DEVICE_STATUS_SUCCESS;
+	return suunto_common2_device_reset_maxdepth (abstract);
 }

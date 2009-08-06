@@ -45,6 +45,7 @@ libdivecomputer_la_SOURCES = \
 	parser.h parser-private.h parser.c \
 	suunto.h \
 	suunto_common.h suunto_common.c \
+	suunto_common2.h suunto_common2.c \
 	suunto_solution.h suunto_solution.c suunto_solution_parser.c \
 	suunto_eon.h suunto_eon.c \
 	suunto_vyper.h suunto_vyper.c suunto_vyper_parser.c suunto_spyder_parser.c \

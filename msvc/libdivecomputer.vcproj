@@ -261,6 +261,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\suunto_common2.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\suunto_d9.c"
 				>
 			</File>
@@ -412,6 +416,10 @@
 			</File>
 			<File
 				RelativePath="..\src\suunto_common.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_common2.h"
 				>
 			</File>
 			<File
