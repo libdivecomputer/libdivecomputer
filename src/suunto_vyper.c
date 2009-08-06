@@ -34,11 +34,6 @@
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 #define HDR_DEVINFO_VYPER   0x24
 #define HDR_DEVINFO_SPYDER  0x16
 #define HDR_DEVINFO_BEGIN   (HDR_DEVINFO_SPYDER)

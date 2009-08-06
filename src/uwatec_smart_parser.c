@@ -28,11 +28,6 @@
 #include "units.h"
 #include "utils.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 #define NBITS 8
 #define NELEMENTS(x) ( sizeof(x) / sizeof((x)[0]) )
 

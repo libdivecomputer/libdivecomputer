@@ -28,11 +28,6 @@
 #include "checksum.h"
 #include "array.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 #define MAXRETRIES 2
 
 #define SZ_VERSION    0x04

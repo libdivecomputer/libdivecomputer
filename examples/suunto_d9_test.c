@@ -24,11 +24,6 @@
 #include "suunto_d9.h"
 #include "utils.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 device_status_t
 test_dump_sdm (const char* name)
 {

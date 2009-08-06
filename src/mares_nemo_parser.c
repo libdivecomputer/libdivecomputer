@@ -28,11 +28,6 @@
 #include "utils.h"
 #include "array.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 typedef struct mares_nemo_parser_t mares_nemo_parser_t;
 
 struct mares_nemo_parser_t {

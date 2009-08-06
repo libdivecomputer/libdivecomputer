@@ -27,11 +27,6 @@
 #include "units.h"
 #include "utils.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 #define SAMPLE_DEPTH_ADJUST	13
 
 typedef struct reefnet_sensus_parser_t reefnet_sensus_parser_t;

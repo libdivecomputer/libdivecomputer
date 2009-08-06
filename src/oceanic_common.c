@@ -29,11 +29,6 @@
 #include "array.h"
 #include "utils.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 #define PAGESIZE 0x10
 
 #define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, l->rb_logbook_begin, l->rb_logbook_end)

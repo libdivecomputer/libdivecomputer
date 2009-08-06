@@ -27,11 +27,6 @@
 #include "utils.h"
 #include "array.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 typedef struct uwatec_memomouse_parser_t uwatec_memomouse_parser_t;
 
 struct uwatec_memomouse_parser_t {

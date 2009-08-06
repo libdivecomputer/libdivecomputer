@@ -27,11 +27,6 @@
 #include "units.h"
 #include "utils.h"
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 typedef struct suunto_solution_parser_t suunto_solution_parser_t;
 
 struct suunto_solution_parser_t {

@@ -26,6 +26,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define WARNING(expr) message ("%s:%d: %s\n", __FILE__, __LINE__, expr)
+
 int message (const char* fmt, ...);
 
 void message_set_logfile (const char* filename);

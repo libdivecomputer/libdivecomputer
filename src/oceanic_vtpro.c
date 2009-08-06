@@ -33,11 +33,6 @@
 
 #define MAXRETRIES 2
 
-#define WARNING(expr) \
-{ \
-	message ("%s:%d: %s\n", __FILE__, __LINE__, expr); \
-}
-
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
