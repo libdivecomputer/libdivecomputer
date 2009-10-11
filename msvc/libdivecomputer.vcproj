@@ -193,6 +193,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\mares_common.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\mares_nemo.c"
 				>
 			</File>
@@ -348,6 +352,10 @@
 			</File>
 			<File
 				RelativePath="..\src\irda.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_common.h"
 				>
 			</File>
 			<File
