@@ -36,6 +36,7 @@ message_set_logfile
 mares_nemo_device_open
 mares_nemo_extract_dives
 mares_puck_device_open
+mares_puck_extract_dives
 oceanic_atom2_device_open
 oceanic_atom2_device_keepalive
 oceanic_veo250_device_open

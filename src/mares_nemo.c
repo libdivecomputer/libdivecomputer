@@ -24,11 +24,11 @@
 #include <assert.h> // assert
 
 #include "device-private.h"
+#include "mares_common.h"
 #include "mares_nemo.h"
 #include "serial.h"
 #include "utils.h"
 #include "checksum.h"
-#include "array.h"
 
 #define EXITCODE(rc) \
 ( \
@@ -44,9 +44,8 @@
 #define RB_FREEDIVES_END			0x4000
 
 typedef struct mares_nemo_device_t {
-	device_t base;
+	mares_common_device_t base;
 	struct serial *port;
-	unsigned char fingerprint[FP_SIZE];
 } mares_nemo_device_t;
 
 static device_status_t mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -63,6 +62,13 @@ static const device_backend_t mares_nemo_device_backend = {
 	mares_nemo_device_dump, /* dump */
 	mares_nemo_device_foreach, /* foreach */
 	mares_nemo_device_close /* close */
+};
+
+static const mares_common_layout_t mares_nemo_layout = {
+	0x0070, /* rb_profile_begin */
+	0x3400, /* rb_profile_end */
+	0x3400, /* rb_freedives_begin */
+	0x4000  /* rb_freedives_end */
 };
 
 static int
@@ -89,11 +95,10 @@ mares_nemo_device_open (device_t **out, const char* name)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &mares_nemo_device_backend);
+	mares_common_device_init (&device->base, &mares_nemo_device_backend);
 
 	// Set the default values.
 	device->port = NULL;
-	memset (device->fingerprint, 0, FP_SIZE);
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -159,20 +164,12 @@ mares_nemo_device_close (device_t *abstract)
 static device_status_t
 mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
-	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
+	mares_common_device_t *device = (mares_common_device_t*) abstract;
 
 	if (! device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size && size != FP_SIZE)
-		return DEVICE_STATUS_ERROR;
-
-	if (size)
-		memcpy (device->fingerprint, data, FP_SIZE);
-	else
-		memset (device->fingerprint, 0, FP_SIZE);
-
-	return DEVICE_STATUS_SUCCESS;
+	return mares_common_device_set_fingerprint (device, data, size);
 }
 
 
@@ -281,113 +278,13 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 device_status_t
 mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
+	mares_common_device_t *device = (mares_common_device_t*) abstract;
 
 	if (abstract && !device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	assert (size >= MARES_NEMO_MEMORY_SIZE);
+	if (size < MARES_NEMO_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
 
-	// Get the end of the profile ring buffer.
-	unsigned int eop = array_uint16_le (data + 0x6B);
-
-	// Make the ringbuffer linear, to avoid having to deal
-	// with the wrap point. The buffer has extra space to
-	// store the profile data for the freedives.
-	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN + RB_FREEDIVES_END - RB_FREEDIVES_BEGIN] = {0};
-	memcpy (buffer + 0, data + eop, RB_PROFILE_END - eop);
-	memcpy (buffer + RB_PROFILE_END - eop, data + RB_PROFILE_BEGIN, eop - RB_PROFILE_BEGIN);
-
-	// For a freedive session, the Mares Nemo stores all the freedives of
-	// that session in a single logbook entry, and each sample is actually
-	// a summary for each individual freedive in the session. The profile
-	// data is stored in a separate memory area. Since only the most recent
-	// recent freediving session can have profile data, we keep track of the
-	// number of freedives.
-	unsigned int nfreedives = 0;
-
-	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-	while (offset >= 3) {
-		// Check the dive mode of the logbook entry. Valid modes are
-		// 0 (air), 1 (EANx), 2 (freedive) or 3 (bottom timer).
-		// If the ringbuffer has never reached the wrap point before,
-		// there will be "empty" memory (filled with 0xFF) and
-		// processing should stop at this point.
-		unsigned int mode = buffer[offset - 1];
-		if (mode == 0xFF)
-			break;
-
-		// The header and sample size are dependant on the dive mode. Only
-		// in freedive mode, the sizes are different from the other modes.
-		unsigned int header_size = 53;
-		unsigned int sample_size = 2;
-		if (mode == 2) {
-			header_size = 28;
-			sample_size = 6;
-			nfreedives++;
-		}
-
-		// Get the number of samples in the profile data.
-		unsigned int nsamples = array_uint16_le (buffer + offset - 3);
-
-		// Calculate the total number of bytes for this dive.
-		// If the buffer does not contain that much bytes, we reached the
-		// end of the ringbuffer. The current dive is incomplete (partially
-		// overwritten with newer data), and processing should stop.
-		unsigned int nbytes = 2 + nsamples * sample_size + header_size;
-		if (offset < nbytes)
-			break;
-
-		// Move to the start of the dive.
-		offset -= nbytes;
-
-		// Verify that the length that is stored in the profile data
-		// equals the calculated length. If both values are different,
-		// something is wrong and an error is returned.
-		unsigned int length = array_uint16_le (buffer + offset);
-		if (length != nbytes) {
-			WARNING ("Calculated and stored size are not equal.");
-			return DEVICE_STATUS_ERROR;
-		}
-
-		// Process the profile data for the most recent freedive entry.
-		// Since we are processing the entries backwards (newest to oldest),
-		// this entry will always be the first one.
-		if (mode == 2 && nfreedives == 1) {
-			// Count the number of freedives in the profile data.
-			unsigned int count = 0;
-			unsigned int idx = RB_FREEDIVES_BEGIN;
-			while (idx + 2 <= RB_FREEDIVES_END &&
-				count != nsamples)
-			{
-				// Each freedive in the session ends with a zero sample.
-				unsigned int sample = array_uint16_le (data + idx);
-				if (sample == 0)
-					count++;
-
-				// Move to the next sample.
-				idx += 2;
-			}
-
-			// Verify that the number of freedive entries in the session
-			// equals the number of freedives in the profile data. If
-			// both values are different, the profile data is incomplete.
-			assert (count == nsamples);
-
-			// Append the profile data to the main logbook entry. The
-			// buffer is guaranteed to have enough space, and the dives
-			// that will be overwritten have already been processed.
-			memcpy (buffer + offset + nbytes, data + RB_FREEDIVES_BEGIN, idx - RB_FREEDIVES_BEGIN);
-			nbytes += idx - RB_FREEDIVES_BEGIN;
-		}
-
-		unsigned int fp_offset = offset + length - FP_OFFSET;
-		if (device && memcmp (buffer + fp_offset, device->fingerprint, FP_SIZE) == 0)
-			return DEVICE_STATUS_SUCCESS;
-
-		if (callback && !callback (buffer + offset, nbytes, userdata))
-			return DEVICE_STATUS_SUCCESS;
-	}
-
-	return DEVICE_STATUS_SUCCESS;
+	return mares_common_extract_dives (device, &mares_nemo_layout, data, callback, userdata);
 }

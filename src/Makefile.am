@@ -64,6 +64,7 @@ libdivecomputer_la_SOURCES = \
 	oceanic_veo250.h oceanic_veo250.c \
 	oceanic_vtpro.h oceanic_vtpro.c \
 	mares.h \
+	mares_common.h mares_common.c \
 	mares_nemo.h mares_nemo.c mares_nemo_parser.c \
 	mares_puck.h mares_puck.c \
 	ringbuffer.h ringbuffer.c \
