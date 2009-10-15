@@ -18,6 +18,7 @@ suunto_solution_parser_create
 suunto_spyder_parser_create
 suunto_d9_parser_create
 mares_nemo_parser_create
+oceanic_atom2_parser_create
 
 device_close
 device_dump

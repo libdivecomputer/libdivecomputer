@@ -60,7 +60,7 @@ libdivecomputer_la_SOURCES = \
 	uwatec_memomouse.h uwatec_memomouse.c uwatec_memomouse_parser.c \
 	oceanic.h \
 	oceanic_common.h oceanic_common.c \
-	oceanic_atom2.h oceanic_atom2.c \
+	oceanic_atom2.h oceanic_atom2.c oceanic_atom2_parser.c \
 	oceanic_veo250.h oceanic_veo250.c \
 	oceanic_vtpro.h oceanic_vtpro.c \
 	mares.h \

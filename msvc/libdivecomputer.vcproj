@@ -213,6 +213,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\oceanic_atom2_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\oceanic_common.c"
 				>
 			</File>

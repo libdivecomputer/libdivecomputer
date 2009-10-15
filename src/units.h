@@ -23,12 +23,15 @@
 #define UNITS_H
 
 
+#define POUND       0.45359237
 #define FEET        0.3048
+#define INCH        0.0254
 #define GRAVITY     9.80665
 #define ATM         101325.0
 #define BAR         100000.0
 #define FSW         (ATM / 33.0)
 #define MSW         (BAR / 10.0)
+#define PSI         ((POUND * GRAVITY) / (INCH * INCH))
 
 
 #endif /* UNITS_H */

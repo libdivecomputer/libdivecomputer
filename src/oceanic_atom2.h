@@ -22,11 +22,12 @@
 #ifndef OCEANIC_ATOM2_H
 #define OCEANIC_ATOM2_H
 
+#include "device.h"
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "device.h"
 
 #define OCEANIC_ATOM2_MEMORY_SIZE 0x10000
 #define OCEANIC_ATOM2_PACKET_SIZE 0x10
@@ -36,6 +37,9 @@ oceanic_atom2_device_open (device_t **device, const char* name);
 
 device_status_t
 oceanic_atom2_device_keepalive (device_t *device);
+
+parser_status_t
+oceanic_atom2_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }
