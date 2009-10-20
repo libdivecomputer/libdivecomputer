@@ -176,7 +176,7 @@ oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_co
 	if (rb_logbook_first < layout->rb_logbook_begin ||
 		rb_logbook_first >= layout->rb_logbook_end ||
 		rb_logbook_last < layout->rb_logbook_begin ||
-		rb_logbook_last >= layout->rb_logbook_begin)
+		rb_logbook_last >= layout->rb_logbook_end)
 	{
 		// One of the pointers is outside the valid ringbuffer area.
 		// Because some devices use invalid pointers to indicate an
