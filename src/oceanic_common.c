@@ -173,15 +173,19 @@ oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_co
 	// Convert the first/last pointers to begin/end/count pointers.
 	unsigned int rb_logbook_entry_begin, rb_logbook_entry_end,
 		rb_logbook_entry_size;
-	if (rb_logbook_first == layout->rb_logbook_empty &&
-		rb_logbook_last == layout->rb_logbook_empty)
+	if (rb_logbook_first < layout->rb_logbook_begin ||
+		rb_logbook_first >= layout->rb_logbook_end ||
+		rb_logbook_last < layout->rb_logbook_begin ||
+		rb_logbook_last >= layout->rb_logbook_begin)
 	{
-		// Empty ringbuffer.
+		// One of the pointers is outside the valid ringbuffer area.
+		// Because some devices use invalid pointers to indicate an
+		// empty ringbuffer, we silently ignore the error and always
+		// consider the ringbuffer empty.
 		rb_logbook_entry_begin = layout->rb_logbook_begin;
 		rb_logbook_entry_end   = layout->rb_logbook_begin;
 		rb_logbook_entry_size  = 0;
 	} else {
-		// Non-empty ringbuffer.
 		if (layout->mode == 0) {
 			rb_logbook_entry_begin = rb_logbook_first;
 			rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, PAGESIZE / 2, layout);
@@ -192,8 +196,9 @@ oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_co
 			rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout);
 			// In a typical ringbuffer implementation with only two begin/end
 			// pointers, there is no distinction possible between an empty and
-			// a full ringbuffer. Fortunately, the empty ringbuffer is stored
-			// differently, and we can detect the difference correctly.
+			// a full ringbuffer. We always consider the ringbuffer full in
+			// that case, because an empty ringbuffer can be detected by
+			// inspecting the logbook entries once they are downloaded.
 			if (rb_logbook_first == rb_logbook_last)
 				rb_logbook_entry_size = layout->rb_logbook_end - layout->rb_logbook_begin;
 		}

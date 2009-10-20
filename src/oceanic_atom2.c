@@ -69,10 +69,8 @@ static const device_backend_t oceanic_atom2_device_backend = {
 static const oceanic_common_layout_t oceanic_atom2_layout = {
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
-	0x0230, /* rb_logbook_empty */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
-	0x0A40, /* rb_profile_empty */
 	0x0A50, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
 	0 /* mode */
