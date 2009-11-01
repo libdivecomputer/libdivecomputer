@@ -5,6 +5,8 @@ AC_PROG_CC_C99
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
 AC_MSG_CHECKING([for native Win32])
 case "$host" in
   *-*-mingw*)

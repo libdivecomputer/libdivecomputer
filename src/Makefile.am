@@ -91,9 +91,9 @@ libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp
 
 libdivecomputer.exp: libdivecomputer.symbols
 if IRDA
-	$(CPP) -P -DSERIAL -DIRDA - < $< | sed -e '/^$$/d' > $@
+	$(AM_V_GEN) $(CPP) -P -DSERIAL -DIRDA - < $< | sed -e '/^$$/d' > $@
 else
-	$(CPP) -P -DSERIAL - < $< | sed -e '/^$$/d' > $@
+	$(AM_V_GEN) $(CPP) -P -DSERIAL - < $< | sed -e '/^$$/d' > $@
 endif
 
 CLEANFILES = libdivecomputer.exp 
