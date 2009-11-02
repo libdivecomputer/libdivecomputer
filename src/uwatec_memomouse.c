@@ -570,8 +570,6 @@ uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, v
 device_status_t
 uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
-
 	if (abstract && !device_is_uwatec_memomouse (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 

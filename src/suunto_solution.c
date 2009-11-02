@@ -275,8 +275,6 @@ suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, vo
 device_status_t
 suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
-
 	if (abstract && !device_is_suunto_solution (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 

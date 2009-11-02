@@ -275,8 +275,6 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 static device_status_t
 uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
-
 	if (! device_is_uwatec_aladin (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 

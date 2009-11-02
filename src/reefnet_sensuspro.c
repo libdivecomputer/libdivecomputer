@@ -341,8 +341,6 @@ reefnet_sensuspro_device_dump (device_t *abstract, unsigned char *data, unsigned
 static device_status_t
 reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
-
 	if (! device_is_reefnet_sensuspro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 

@@ -376,8 +376,6 @@ reefnet_sensus_device_dump (device_t *abstract, unsigned char *data, unsigned in
 static device_status_t
 reefnet_sensus_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
-
 	if (! device_is_reefnet_sensus (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
