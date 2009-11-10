@@ -48,7 +48,7 @@ typedef struct uwatec_memomouse_device_t {
 } uwatec_memomouse_device_t;
 
 static device_status_t uwatec_memomouse_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
-static device_status_t uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t uwatec_memomouse_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t uwatec_memomouse_device_close (device_t *abstract);
 
@@ -512,30 +512,32 @@ uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[],
 
 
 static device_status_t
-uwatec_memomouse_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+uwatec_memomouse_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
 	if (! device_is_uwatec_memomouse (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned int length = 0;
-	unsigned char *buffer = NULL;
-	device_status_t rc = uwatec_memomouse_dump (device, &buffer, &length);
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	unsigned int len = 0;
+	unsigned char *buf = NULL;
+	device_status_t rc = uwatec_memomouse_dump (device, &buf, &len);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
-	if (size < length - 3) {
+	if (!dc_buffer_append (buffer, buf + 2, len - 3)) {
 		WARNING ("Insufficient buffer space available.");
 		free (buffer); 
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	memcpy (data, buffer + 2, length - 3);
 	free (buffer);
-
-	if (result)
-		*result = length - 3;
 
 	return DEVICE_STATUS_SUCCESS;
 }

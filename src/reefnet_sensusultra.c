@@ -51,7 +51,7 @@ typedef struct reefnet_sensusultra_device_t {
 } reefnet_sensusultra_device_t;
 
 static device_status_t reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result);
+static device_status_t reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t reefnet_sensusultra_device_close (device_t *abstract);
 
@@ -418,14 +418,16 @@ reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short c
 
 
 static device_status_t
-reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsigned int size, unsigned int *result)
+reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -442,6 +444,7 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 
 	unsigned int nbytes = 0;
 	unsigned int npages = 0;
+	unsigned char *data = dc_buffer_get_data (buffer);
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
 		// Receive the packet.
 		unsigned int offset = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
@@ -462,9 +465,6 @@ reefnet_sensusultra_device_dump (device_t *abstract, unsigned char *data, unsign
 		nbytes += REEFNET_SENSUSULTRA_PACKET_SIZE;
 		npages++;
 	}
-
-	if (result)
-		*result = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
 
 	return DEVICE_STATUS_SUCCESS;
 }

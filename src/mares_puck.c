@@ -44,7 +44,7 @@ typedef struct mares_puck_device_t {
 
 static device_status_t mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t mares_puck_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_puck_device_close (device_t *abstract);
 
@@ -339,22 +339,22 @@ mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char 
 
 
 static device_status_t
-mares_puck_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	if (! device_is_mares_puck (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < MARES_PUCK_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, MARES_PUCK_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	device_status_t rc = mares_puck_device_read (abstract, 0x00, data, MARES_PUCK_MEMORY_SIZE);
+	device_status_t rc = mares_puck_device_read (abstract, 0x00,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	if (result)
-		*result = MARES_PUCK_MEMORY_SIZE;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -366,13 +366,22 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	if (! device_is_mares_puck (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char data[MARES_PUCK_MEMORY_SIZE] = {0};
+	dc_buffer_t *buffer = dc_buffer_new (MARES_PUCK_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	device_status_t rc = mares_puck_device_dump (abstract, data, sizeof (data), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	device_status_t rc = mares_puck_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
 		return rc;
+	}
 
-	return mares_puck_extract_dives (abstract, data, sizeof (data), callback, userdata);
+	rc = mares_puck_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
 }
 
 

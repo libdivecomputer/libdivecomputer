@@ -221,9 +221,11 @@ suunto_common2_device_write (device_t *abstract, unsigned int address, const uns
 
 
 device_status_t
-suunto_common2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+suunto_common2_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
-	if (size < SZ_MEMORY) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -233,12 +235,10 @@ suunto_common2_device_dump (device_t *abstract, unsigned char data[], unsigned i
 	progress.maximum = SZ_MEMORY;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-	device_status_t rc = suunto_common2_read (abstract, 0x00, data, SZ_MEMORY, &progress);
+	device_status_t rc = suunto_common2_read (abstract, 0x00,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	if (result)
-		*result = SZ_MEMORY;
 
 	return DEVICE_STATUS_SUCCESS;
 }

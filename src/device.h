@@ -22,6 +22,8 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
+#include "buffer.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -92,7 +94,7 @@ device_status_t device_read (device_t *device, unsigned int address, unsigned ch
 
 device_status_t device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
 
-device_status_t device_dump (device_t *device, unsigned char data[], unsigned int size, unsigned int *result);
+device_status_t device_dump (device_t *device, dc_buffer_t *buffer);
 
 device_status_t device_foreach (device_t *device, dive_callback_t callback, void *userdata);
 

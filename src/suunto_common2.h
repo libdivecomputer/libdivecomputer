@@ -54,7 +54,7 @@ device_status_t
 suunto_common2_device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
 
 device_status_t
-suunto_common2_device_dump (device_t *device, unsigned char data[], unsigned int size, unsigned int *result);
+suunto_common2_device_dump (device_t *device, dc_buffer_t *buffer);
 
 device_status_t
 suunto_common2_device_foreach (device_t *device, dive_callback_t callback, void *userdata);

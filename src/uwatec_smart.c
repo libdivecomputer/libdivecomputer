@@ -45,7 +45,7 @@ typedef struct uwatec_smart_device_t {
 } uwatec_smart_device_t;
 
 static device_status_t uwatec_smart_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
-static device_status_t uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t uwatec_smart_device_close (device_t *abstract);
 
@@ -351,8 +351,19 @@ uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned 
 
 
 static device_status_t
-uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigned int *size)
+uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
+	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+
+	if (! device_is_uwatec_smart (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
 	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
@@ -432,11 +443,13 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
   	if (length == 0)
   		return DEVICE_STATUS_SUCCESS;
 
-	unsigned char *package = (unsigned char *) malloc (length * sizeof (unsigned char));
-	if (package == NULL) {
-		WARNING ("Memory allocation error.");
+	// Allocate the required amount of memory.
+	if (!dc_buffer_resize (buffer, length)) {
+		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
+
+	unsigned char *data = dc_buffer_get_data (buffer);
 
 	// Data.
 
@@ -451,10 +464,8 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 	command[8] = 0;
 
 	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		free (package);
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-	}
 
 	unsigned int total = array_uint32_le (answer);
 	message ("handshake: total=%u\n", total);
@@ -470,10 +481,9 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 		unsigned int len = length - nbytes;
 		if (len > 32)
 			len = 32;
-		int n = irda_socket_read (device->socket, package + nbytes, len);
+		int n = irda_socket_read (device->socket, data + nbytes, len);
 		if (n < 0) {
 			WARNING ("Failed to receive the answer.");
-			free (package);
 			return EXITCODE (n);
 		}
 
@@ -484,39 +494,6 @@ uwatec_smart_dump (uwatec_smart_device_t *device, unsigned char *data[], unsigne
 		nbytes += n;
 	}
 
-	*data = package;
-	*size = length;
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
-{
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-
-	if (! device_is_uwatec_smart (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	unsigned int length = 0;
-	unsigned char *buffer = NULL;
-	device_status_t rc = uwatec_smart_dump (device, &buffer, &length);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	if (size < length) {
-		WARNING ("Insufficient buffer space available.");
-		free (buffer); 
-		return DEVICE_STATUS_MEMORY;
-	}
-
-	memcpy (data, buffer, length);
-	free (buffer);
-
-	if (result)
-		*result = length;
-
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -524,24 +501,23 @@ uwatec_smart_device_dump (device_t *abstract, unsigned char data[], unsigned int
 static device_status_t
 uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-
 	if (! device_is_uwatec_smart (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned int length = 0;
-	unsigned char *buffer = NULL;
-	device_status_t rc = uwatec_smart_dump (device, &buffer, &length);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
+	dc_buffer_t *buffer = dc_buffer_new (0);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	rc = uwatec_smart_extract_dives (abstract, buffer, length, callback, userdata);
+	device_status_t rc = uwatec_smart_device_dump (abstract, buffer);
 	if (rc != DEVICE_STATUS_SUCCESS) {
-		free (buffer);
+		dc_buffer_free (buffer);
 		return rc;
 	}
 
-	free (buffer);
+	rc = uwatec_smart_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
 
 	return DEVICE_STATUS_SUCCESS;
 }

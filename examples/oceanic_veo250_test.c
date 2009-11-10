@@ -27,7 +27,6 @@
 device_status_t
 test_dump_memory (const char* name, const char* filename)
 {
-	unsigned char data[OCEANIC_VEO250_MEMORY_SIZE] = {0};
 	device_t *device = NULL;
 
 	message ("oceanic_veo250_device_open\n");
@@ -37,11 +36,13 @@ test_dump_memory (const char* name, const char* filename)
 		return rc;
 	}
 
+	dc_buffer_t *buffer = dc_buffer_new (0);
+
 	message ("device_dump\n");
-	unsigned int nbytes = 0;
-	rc = device_dump (device, data, sizeof (data), &nbytes);
+	rc = device_dump (device, buffer);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
+		dc_buffer_free (buffer);
 		device_close (device);
 		return rc;
 	}
@@ -49,9 +50,11 @@ test_dump_memory (const char* name, const char* filename)
 	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
-		fwrite (data, sizeof (unsigned char), nbytes, fp);
+		fwrite (dc_buffer_get_data (buffer), sizeof (unsigned char), dc_buffer_get_size (buffer), fp);
 		fclose (fp);
 	}
+
+	dc_buffer_free (buffer);
 
 	message ("device_foreach\n");
 	rc = device_foreach (device, NULL, NULL);

@@ -49,7 +49,7 @@ typedef struct mares_nemo_device_t {
 } mares_nemo_device_t;
 
 static device_status_t mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_nemo_device_close (device_t *abstract);
 
@@ -174,14 +174,16 @@ mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[
 
 
 static device_status_t
-mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
 	if (! device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < MARES_NEMO_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// pre-allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, MARES_NEMO_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -231,15 +233,15 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 				WARNING ("Both packets are not equal.");
 				return DEVICE_STATUS_PROTOCOL;
 			}
-			memcpy (data + nbytes, packet, MARES_NEMO_PACKET_SIZE);
+			dc_buffer_append (buffer, packet, MARES_NEMO_PACKET_SIZE);
 		} else if (crc1 == ccrc1) {
 			// Only the first packet has a correct checksum.
 			WARNING ("Only the first packet has a correct checksum.");
-			memcpy (data + nbytes, packet, MARES_NEMO_PACKET_SIZE);
+			dc_buffer_append (buffer, packet, MARES_NEMO_PACKET_SIZE);
 		} else if (crc2 == ccrc2) {
 			// Only the second packet has a correct checksum.
 			WARNING ("Only the second packet has a correct checksum.");
-			memcpy (data + nbytes, packet + MARES_NEMO_PACKET_SIZE + 1, MARES_NEMO_PACKET_SIZE);
+			dc_buffer_append (buffer, packet + MARES_NEMO_PACKET_SIZE + 1, MARES_NEMO_PACKET_SIZE);
 		} else {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
@@ -252,9 +254,6 @@ mares_nemo_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		nbytes += MARES_NEMO_PACKET_SIZE;
 	}
 
-	if (result)
-		*result = MARES_NEMO_MEMORY_SIZE;
-
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -265,13 +264,22 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	if (! device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char data[MARES_NEMO_MEMORY_SIZE] = {0};
+	dc_buffer_t *buffer = dc_buffer_new (MARES_NEMO_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	device_status_t rc = mares_nemo_device_dump (abstract, data, sizeof (data), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	device_status_t rc = mares_nemo_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
 		return rc;
+	}
 
-	return mares_nemo_extract_dives (abstract, data, sizeof (data), callback, userdata);
+	rc = mares_nemo_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
 }
 
 

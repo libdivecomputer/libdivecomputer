@@ -42,7 +42,7 @@ typedef struct suunto_solution_device_t {
 	struct serial *port;
 } suunto_solution_device_t;
 
-static device_status_t suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t suunto_solution_device_close (device_t *abstract);
 
@@ -147,17 +147,21 @@ suunto_solution_device_close (device_t *abstract)
 
 
 static device_status_t
-suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
 
 	if (! device_is_suunto_solution (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_SOLUTION_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SUUNTO_SOLUTION_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
+
+	unsigned char *data = dc_buffer_get_data (buffer);
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
@@ -242,9 +246,6 @@ suunto_solution_device_dump (device_t *abstract, unsigned char data[], unsigned 
 	progress.current += 1;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-	if (result)
-		*result = SUUNTO_SOLUTION_MEMORY_SIZE;
-
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -255,20 +256,30 @@ suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	if (! device_is_suunto_solution (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char data[SUUNTO_SOLUTION_MEMORY_SIZE] = {0};
+	dc_buffer_t *buffer = dc_buffer_new (SUUNTO_SOLUTION_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	device_status_t rc = suunto_solution_device_dump (abstract, data, sizeof (data), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	device_status_t rc = suunto_solution_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
 		return rc;
+	}
 
 	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint24_be (data + 0x1D);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	return suunto_solution_extract_dives (abstract, data, sizeof (data), callback, userdata);
+	rc = suunto_solution_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
 }
 
 

@@ -31,17 +31,10 @@ test_dump_memory (const char* filename)
 {
 	device_t *device = NULL;
 
-	const unsigned int size = 2 * 1024 * 1024;
-	unsigned char *data = (unsigned char *) malloc (size * sizeof (unsigned char));
-	if (data == NULL)
-		return DEVICE_STATUS_MEMORY;
-	memset (data, 0, size * sizeof (unsigned char));
-
 	message ("uwatec_smart_device_open\n");
 	device_status_t rc = uwatec_smart_device_open (&device);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot open device.");
-		free (data);
 		return rc;
 	}
 
@@ -50,7 +43,6 @@ test_dump_memory (const char* filename)
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Handshake failed.");
 		device_close (device);
-		free (data);
 		return rc;
 	}
 
@@ -60,36 +52,35 @@ test_dump_memory (const char* filename)
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
 		device_close (device);
-		free (data);
 		return rc;
 	}
 
+	dc_buffer_t *buffer = dc_buffer_new (0);
+
 	message ("device_dump\n");
-	unsigned int nbytes = 0;
-	rc = device_dump (device, data, size, &nbytes);
+	rc = device_dump (device, buffer);
 	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Cannot read data.");
+		WARNING ("Cannot read memory.");
+		dc_buffer_free (buffer);
 		device_close (device);
-		free (data);
 		return rc;
 	}
 
 	message ("Dumping data\n");
 	FILE* fp = fopen (filename, "wb");
 	if (fp != NULL) {
-		fwrite (data, sizeof (unsigned char), nbytes, fp);
+		fwrite (dc_buffer_get_data (buffer), sizeof (unsigned char), dc_buffer_get_size (buffer), fp);
 		fclose (fp);
 	}
+
+	dc_buffer_free (buffer);
 
 	message ("device_close\n");
 	rc = device_close (device);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
-		free (data);
 		return rc;
 	}
-
-	free (data);
 
 	return DEVICE_STATUS_SUCCESS;
 }

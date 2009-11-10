@@ -53,7 +53,7 @@ typedef struct uwatec_aladin_device_t {
 } uwatec_aladin_device_t ;
 
 static device_status_t uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t uwatec_aladin_device_close (device_t *abstract);
 
@@ -196,14 +196,16 @@ uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char da
 
 
 static device_status_t
-uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	if (! device_is_uwatec_aladin (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < UWATEC_ALADIN_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// pre-allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, UWATEC_ALADIN_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -263,10 +265,7 @@ uwatec_aladin_device_dump (device_t *abstract, unsigned char data[], unsigned in
 	device->systime = now;
 	device->devtime = array_uint32_be (answer + HEADER + 0x7f8);
 
-	memcpy (data, answer, UWATEC_ALADIN_MEMORY_SIZE);
-
-	if (result)
-		*result = UWATEC_ALADIN_MEMORY_SIZE;
+	dc_buffer_append (buffer, answer, UWATEC_ALADIN_MEMORY_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -278,20 +277,30 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 	if (! device_is_uwatec_aladin (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char data[UWATEC_ALADIN_MEMORY_SIZE] = {0};
+	dc_buffer_t *buffer = dc_buffer_new (UWATEC_ALADIN_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	device_status_t rc = uwatec_aladin_device_dump (abstract, data, sizeof (data), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	device_status_t rc = uwatec_aladin_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
 		return rc;
+	}
 
 	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
 	devinfo.model = data[HEADER + 0x7bc];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint24_be (data + HEADER + 0x7ed);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	return uwatec_aladin_extract_dives (abstract, data, sizeof (data), callback, userdata);
+	rc = uwatec_aladin_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
 }
 
 

@@ -42,7 +42,7 @@ typedef struct suunto_eon_device_t {
 } suunto_eon_device_t;
 
 static device_status_t suunto_eon_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t suunto_eon_device_close (device_t *abstract);
 
@@ -168,14 +168,16 @@ suunto_eon_device_set_fingerprint (device_t *abstract, const unsigned char data[
 
 
 static device_status_t
-suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
 	if (! device_is_suunto_eon (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_EON_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// pre-allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SUUNTO_EON_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -213,10 +215,7 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	memcpy (data, answer, SUUNTO_EON_MEMORY_SIZE);
-
-	if (result)
-		*result = SUUNTO_EON_MEMORY_SIZE;
+	dc_buffer_append (buffer, answer, SUUNTO_EON_MEMORY_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -225,20 +224,30 @@ suunto_eon_device_dump (device_t *abstract, unsigned char data[], unsigned int s
 static device_status_t
 suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	unsigned char data[SUUNTO_EON_MEMORY_SIZE] = {0};
+	dc_buffer_t *buffer = dc_buffer_new (SUUNTO_EON_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	device_status_t rc = suunto_eon_device_dump (abstract, data, sizeof (data), NULL);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	device_status_t rc = suunto_eon_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
 		return rc;
+	}
 
 	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint24_be (data + 244);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	return suunto_eon_extract_dives (abstract, data, sizeof (data), callback, userdata);
+	rc = suunto_eon_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
 }
 
 

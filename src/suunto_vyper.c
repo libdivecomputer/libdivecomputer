@@ -48,7 +48,7 @@ typedef struct suunto_vyper_device_t {
 static device_status_t suunto_vyper_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static device_status_t suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t suunto_vyper_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t suunto_vyper_device_close (device_t *abstract);
 
@@ -530,12 +530,14 @@ suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigne
 
 
 static device_status_t
-suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+suunto_vyper_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	if (! device_is_suunto_vyper (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < SUUNTO_VYPER_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SUUNTO_VYPER_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -545,12 +547,10 @@ suunto_vyper_device_dump (device_t *abstract, unsigned char data[], unsigned int
 	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-	device_status_t rc = suunto_vyper_read (abstract, 0x00, data, SUUNTO_VYPER_MEMORY_SIZE, &progress);
+	device_status_t rc = suunto_vyper_read (abstract, 0x00,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	if (result)
-		*result = SUUNTO_VYPER_MEMORY_SIZE;
 
 	return DEVICE_STATUS_SUCCESS;
 }

@@ -51,7 +51,7 @@ static device_status_t oceanic_atom2_device_set_fingerprint (device_t *abstract,
 static device_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static device_status_t oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t oceanic_atom2_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t oceanic_atom2_device_close (device_t *abstract);
 
@@ -469,22 +469,22 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 
 
 static device_status_t
-oceanic_atom2_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+oceanic_atom2_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	if (! device_is_oceanic_atom2 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < OCEANIC_ATOM2_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, OCEANIC_ATOM2_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	device_status_t rc = oceanic_atom2_device_read (abstract, 0x00, data, OCEANIC_ATOM2_MEMORY_SIZE);
+	device_status_t rc = oceanic_atom2_device_read (abstract, 0x00,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	if (result)
-		*result = OCEANIC_ATOM2_MEMORY_SIZE;
 
 	return DEVICE_STATUS_SUCCESS;
 }

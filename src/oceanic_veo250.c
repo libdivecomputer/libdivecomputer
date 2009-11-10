@@ -51,7 +51,7 @@ typedef struct oceanic_veo250_device_t {
 static device_status_t oceanic_veo250_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t oceanic_veo250_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result);
+static device_status_t oceanic_veo250_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t oceanic_veo250_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t oceanic_veo250_device_close (device_t *abstract);
 
@@ -445,22 +445,22 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 
 
 static device_status_t
-oceanic_veo250_device_dump (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result)
+oceanic_veo250_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	if (! device_is_oceanic_veo250 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < OCEANIC_VEO250_MEMORY_SIZE) {
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, OCEANIC_VEO250_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	device_status_t rc = oceanic_veo250_device_read (abstract, 0x00, data, OCEANIC_VEO250_MEMORY_SIZE);
+	device_status_t rc = oceanic_veo250_device_read (abstract, 0x00,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	if (result)
-		*result = OCEANIC_VEO250_MEMORY_SIZE;
 
 	return DEVICE_STATUS_SUCCESS;
 }

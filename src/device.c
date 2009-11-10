@@ -113,7 +113,7 @@ device_write (device_t *device, unsigned int address, const unsigned char data[]
 
 
 device_status_t
-device_dump (device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
+device_dump (device_t *device, dc_buffer_t *buffer)
 {
 	if (device == NULL)
 		return DEVICE_STATUS_UNSUPPORTED;
@@ -121,7 +121,7 @@ device_dump (device_t *device, unsigned char data[], unsigned int size, unsigned
 	if (device->backend->dump == NULL)
 		return DEVICE_STATUS_UNSUPPORTED;
 
-	return device->backend->dump (device, data, size, result);
+	return device->backend->dump (device, buffer);
 }
 
 
