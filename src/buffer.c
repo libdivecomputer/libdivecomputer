@@ -91,7 +91,8 @@ dc_buffer_expand_append (dc_buffer_t *buffer, size_t n)
 			if (data == NULL)
 				return 0;
 
-			memcpy (data, buffer->data + buffer->offset, buffer->size);
+			if (buffer->size)
+				memcpy (data, buffer->data + buffer->offset, buffer->size);
 
 			free (buffer->data);
 
@@ -99,7 +100,8 @@ dc_buffer_expand_append (dc_buffer_t *buffer, size_t n)
 			buffer->capacity = capacity;
 			buffer->offset = 0;
 		} else {
-			memmove (buffer->data, buffer->data + buffer->offset, buffer->size);
+			if (buffer->size)
+				memmove (buffer->data, buffer->data + buffer->offset, buffer->size);
 
 			buffer->offset = 0;
 		}
@@ -122,7 +124,8 @@ dc_buffer_expand_prepend (dc_buffer_t *buffer, size_t n)
 			if (data == NULL)
 				return 0;
 
-			memcpy (data + capacity - buffer->size, buffer->data + buffer->offset, buffer->size);
+			if (buffer->size)
+				memcpy (data + capacity - buffer->size, buffer->data + buffer->offset, buffer->size);
 
 			free (buffer->data);
 
@@ -130,7 +133,8 @@ dc_buffer_expand_prepend (dc_buffer_t *buffer, size_t n)
 			buffer->capacity = capacity;
 			buffer->offset = capacity - buffer->size;
 		} else {
-			memmove (buffer->data + available, buffer->data + buffer->offset, buffer->size);
+			if (buffer->size)
+				memmove (buffer->data + available, buffer->data + buffer->offset, buffer->size);
 
 			buffer->offset = available;
 		}
@@ -184,7 +188,8 @@ dc_buffer_append (dc_buffer_t *buffer, const unsigned char data[], size_t size)
 	if (!dc_buffer_expand_append (buffer, buffer->size + size))
 		return 0;
 
-	memcpy (buffer->data + buffer->offset + buffer->size, data, size);
+	if (size)
+		memcpy (buffer->data + buffer->offset + buffer->size, data, size);
 
 	buffer->size += size;
 
@@ -201,7 +206,8 @@ dc_buffer_prepend (dc_buffer_t *buffer, const unsigned char data[], size_t size)
 	if (!dc_buffer_expand_prepend (buffer, buffer->size + size))
 		return 0;
 
-	memcpy (buffer->data + buffer->offset - size, data, size);
+	if (size)
+		memcpy (buffer->data + buffer->offset - size, data, size);
 
 	buffer->size += size;
 	buffer->offset -= size;
