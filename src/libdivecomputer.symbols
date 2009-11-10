@@ -1,3 +1,13 @@
+dc_buffer_new
+dc_buffer_free
+dc_buffer_clear
+dc_buffer_reserve
+dc_buffer_resize
+dc_buffer_append
+dc_buffer_prepend
+dc_buffer_get_size
+dc_buffer_get_data
+
 parser_get_type
 parser_set_data
 parser_samples_foreach

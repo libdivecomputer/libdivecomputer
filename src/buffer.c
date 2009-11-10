@@ -1,0 +1,230 @@
+/*
+ * libdivecomputer
+ *
+ * Copyright (C) 2009 Jef Driesen
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301 USA
+ */
+
+#include <stdlib.h> // malloc, realloc, free
+#include <string.h> // memcpy, memmove
+
+#include "buffer.h"
+
+struct dc_buffer_t {
+	unsigned char *data;
+	size_t capacity, offset, size;
+};
+
+dc_buffer_t *
+dc_buffer_new (size_t capacity)
+{
+	dc_buffer_t *buffer = (dc_buffer_t *) malloc (sizeof (dc_buffer_t));
+	if (buffer == NULL)
+		return NULL;
+
+	if (capacity) {
+		buffer->data = (unsigned char *) malloc (capacity);
+		if (buffer->data == NULL) {
+			free (buffer);
+			return NULL;
+		}
+	} else {
+		buffer->data = NULL;
+	}
+
+	buffer->capacity = capacity;
+	buffer->offset = 0;
+	buffer->size = 0;
+
+	return buffer;
+}
+
+
+void
+dc_buffer_free (dc_buffer_t *buffer)
+{
+	if (buffer == NULL)
+		return;
+
+	if (buffer->data)
+		free (buffer->data);
+
+	free (buffer);
+}
+
+
+int
+dc_buffer_clear (dc_buffer_t *buffer)
+{
+	if (buffer == NULL)
+		return 0;
+
+	buffer->offset = 0;
+	buffer->size = 0;
+
+	return 1;
+}
+
+
+static int
+dc_buffer_expand_append (dc_buffer_t *buffer, size_t n)
+{
+	if (n > buffer->capacity - buffer->offset) {
+		if (n > buffer->capacity) {
+			size_t capacity = n;
+
+			unsigned char *data = (unsigned char *) malloc (capacity);
+			if (data == NULL)
+				return 0;
+
+			memcpy (data, buffer->data + buffer->offset, buffer->size);
+
+			free (buffer->data);
+
+			buffer->data = data;
+			buffer->capacity = capacity;
+			buffer->offset = 0;
+		} else {
+			memmove (buffer->data, buffer->data + buffer->offset, buffer->size);
+
+			buffer->offset = 0;
+		}
+	}
+
+	return 1;
+}
+
+
+static int
+dc_buffer_expand_prepend (dc_buffer_t *buffer, size_t n)
+{
+	size_t available = buffer->capacity - buffer->size;
+
+	if (n > buffer->offset + buffer->size) {
+		if (n > buffer->capacity) {
+			size_t capacity = n;
+
+			unsigned char *data = (unsigned char *) malloc (capacity);
+			if (data == NULL)
+				return 0;
+
+			memcpy (data + capacity - buffer->size, buffer->data + buffer->offset, buffer->size);
+
+			free (buffer->data);
+
+			buffer->data = data;
+			buffer->capacity = capacity;
+			buffer->offset = capacity - buffer->size;
+		} else {
+			memmove (buffer->data + available, buffer->data + buffer->offset, buffer->size);
+
+			buffer->offset = available;
+		}
+	}
+
+	return 1;
+}
+
+
+int
+dc_buffer_reserve (dc_buffer_t *buffer, size_t capacity)
+{
+	if (buffer == NULL)
+		return 0;
+
+	if (capacity <= buffer->capacity)
+		return 1;
+
+	unsigned char *data = (unsigned char *) realloc (buffer->data, capacity);
+	if (data == NULL)
+		return 0;
+
+	buffer->data = data;
+	buffer->capacity = capacity;
+
+	return 1;
+}
+
+
+int
+dc_buffer_resize (dc_buffer_t *buffer, size_t size)
+{
+	if (buffer == NULL)
+		return 0;
+
+	if (!dc_buffer_expand_append (buffer, size))
+		return 0;
+
+	buffer->size = size;
+
+	return 1;
+}
+
+
+int
+dc_buffer_append (dc_buffer_t *buffer, const unsigned char data[], size_t size)
+{
+	if (buffer == NULL)
+		return 0;
+
+	if (!dc_buffer_expand_append (buffer, buffer->size + size))
+		return 0;
+
+	memcpy (buffer->data + buffer->offset + buffer->size, data, size);
+
+	buffer->size += size;
+
+	return 1;
+}
+
+
+int
+dc_buffer_prepend (dc_buffer_t *buffer, const unsigned char data[], size_t size)
+{
+	if (buffer == NULL)
+		return 0;
+
+	if (!dc_buffer_expand_prepend (buffer, buffer->size + size))
+		return 0;
+
+	memcpy (buffer->data + buffer->offset - size, data, size);
+
+	buffer->size += size;
+	buffer->offset -= size;
+
+	return 1;
+}
+
+
+size_t
+dc_buffer_get_size (dc_buffer_t *buffer)
+{
+	if (buffer == NULL)
+		return 0;
+
+	return buffer->size;
+}
+
+
+unsigned char *
+dc_buffer_get_data (dc_buffer_t *buffer)
+{
+	if (buffer == NULL)
+		return NULL;
+
+	return buffer->size ? buffer->data + buffer->offset : NULL;
+}

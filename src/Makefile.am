@@ -5,6 +5,7 @@
 libdivecomputerdir = $(includedir)/libdivecomputer
 libdivecomputer_HEADERS = 	\
 	utils.h \
+	buffer.h \
 	device.h \
 	parser.h \
 	units.h \
@@ -70,6 +71,7 @@ libdivecomputer_la_SOURCES = \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \
+	buffer.h buffer.c \
 	utils.h utils.c
 
 if OS_WIN32
