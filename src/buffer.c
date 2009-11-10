@@ -80,12 +80,24 @@ dc_buffer_clear (dc_buffer_t *buffer)
 }
 
 
+static size_t
+dc_buffer_expand_calc (dc_buffer_t *buffer, size_t n)
+{
+	size_t oldsize = buffer->capacity;
+	size_t newsize = (oldsize ? oldsize : n);
+	while (newsize < n)
+		newsize *= 2;
+
+	return newsize;
+}
+
+
 static int
 dc_buffer_expand_append (dc_buffer_t *buffer, size_t n)
 {
 	if (n > buffer->capacity - buffer->offset) {
 		if (n > buffer->capacity) {
-			size_t capacity = n;
+			size_t capacity = dc_buffer_expand_calc (buffer, n);
 
 			unsigned char *data = (unsigned char *) malloc (capacity);
 			if (data == NULL)
@@ -118,7 +130,7 @@ dc_buffer_expand_prepend (dc_buffer_t *buffer, size_t n)
 
 	if (n > buffer->offset + buffer->size) {
 		if (n > buffer->capacity) {
-			size_t capacity = n;
+			size_t capacity = dc_buffer_expand_calc (buffer, n);
 
 			unsigned char *data = (unsigned char *) malloc (capacity);
 			if (data == NULL)
