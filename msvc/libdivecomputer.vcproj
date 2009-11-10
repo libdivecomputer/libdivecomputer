@@ -181,6 +181,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\buffer.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\checksum.c"
 				>
 			</File>
@@ -340,6 +344,10 @@
 			>
 			<File
 				RelativePath="..\src\array.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\buffer.h"
 				>
 			</File>
 			<File
