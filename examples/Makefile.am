@@ -2,6 +2,7 @@ AM_CFLAGS = -I$(top_srcdir)/src
 LDADD = $(top_builddir)/src/libdivecomputer.la
 
 bin_PROGRAMS = \
+	universal \
 	solution \
 	eon \
 	vyper \
@@ -21,6 +22,8 @@ bin_PROGRAMS = \
 if IRDA
 bin_PROGRAMS += smart
 endif
+
+universal_SOURCES = universal.c
 
 solution_SOURCES = suunto_solution_test.c
 
