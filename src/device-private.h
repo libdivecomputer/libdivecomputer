@@ -69,6 +69,9 @@ device_init (device_t *device, const device_backend_t *backend);
 void
 device_event_emit (device_t *device, device_event_t event, const void *data);
 
+device_status_t
+device_dump_read (device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

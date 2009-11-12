@@ -230,17 +230,8 @@ suunto_common2_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = SZ_MEMORY;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	device_status_t rc = suunto_common2_read (abstract, 0x00,
-		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), &progress);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	return DEVICE_STATUS_SUCCESS;
+	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), SZ_PACKET);
 }
 
 

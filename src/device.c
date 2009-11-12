@@ -126,6 +126,43 @@ device_dump (device_t *device, dc_buffer_t *buffer)
 
 
 device_status_t
+device_dump_read (device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize)
+{
+	if (device == NULL)
+		return DEVICE_STATUS_UNSUPPORTED;
+
+	if (device->backend->read == NULL)
+		return DEVICE_STATUS_UNSUPPORTED;
+
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = size;
+	device_event_emit (device, DEVICE_EVENT_PROGRESS, &progress);
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		// Calculate the packet size.
+		unsigned int len = size - nbytes;
+		if (len > blocksize)
+			len = blocksize;
+
+		// Read the packet.
+		device_status_t rc = device->backend->read (device, nbytes, data + nbytes, len);
+		if (rc != DEVICE_STATUS_SUCCESS)
+			return rc;
+
+		// Update and emit a progress event.
+		progress.current += len;
+		device_event_emit (device, DEVICE_EVENT_PROGRESS, &progress);
+
+		nbytes += len;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
 device_foreach (device_t *device, dive_callback_t callback, void *userdata)
 {
 	if (device == NULL)

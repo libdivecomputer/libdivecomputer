@@ -533,12 +533,8 @@ oceanic_vtpro_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	device_status_t rc = oceanic_vtpro_device_read (abstract, 0x00,
-		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	return DEVICE_STATUS_SUCCESS;
+	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), OCEANIC_VTPRO_PACKET_SIZE);
 }
 
 

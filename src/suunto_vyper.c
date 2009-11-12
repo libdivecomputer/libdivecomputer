@@ -542,17 +542,8 @@ suunto_vyper_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
-	device_status_t rc = suunto_vyper_read (abstract, 0x00,
-		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), &progress);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	return DEVICE_STATUS_SUCCESS;
+	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), SUUNTO_VYPER_PACKET_SIZE);
 }
 
 
