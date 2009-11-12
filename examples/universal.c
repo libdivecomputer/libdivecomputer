@@ -32,6 +32,7 @@
 #include <uwatec.h>
 #include <oceanic.h>
 #include <mares.h>
+#include <hw.h>
 #include <utils.h>
 
 typedef struct backend_table_t {
@@ -55,7 +56,8 @@ static const backend_table_t g_backends[] = {
 	{"veo250",		DEVICE_TYPE_OCEANIC_VEO250},
 	{"atom2",		DEVICE_TYPE_OCEANIC_ATOM2},
 	{"nemo",		DEVICE_TYPE_MARES_NEMO},
-	{"puck",		DEVICE_TYPE_MARES_PUCK}
+	{"puck",		DEVICE_TYPE_MARES_PUCK},
+	{"ostc",		DEVICE_TYPE_HW_OSTC}
 };
 
 static device_type_t
@@ -231,6 +233,9 @@ dowork (device_type_t backend, const char *devname, const char *filename)
 		break;
 	case DEVICE_TYPE_MARES_PUCK:
 		rc = mares_puck_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_HW_OSTC:
+		rc = hw_ostc_device_open (&device, devname);
 		break;
 	default:
 		rc = DEVICE_STATUS_ERROR;

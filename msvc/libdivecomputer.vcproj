@@ -193,6 +193,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\hw_ostc.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\irda.c"
 				>
 			</File>
@@ -360,6 +364,14 @@
 			</File>
 			<File
 				RelativePath="..\src\device.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\hw.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\hw_ostc.h"
 				>
 			</File>
 			<File

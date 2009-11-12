@@ -92,6 +92,7 @@ uwatec_aladin_extract_dives
 uwatec_memomouse_device_open
 uwatec_memomouse_device_set_timestamp
 uwatec_memomouse_extract_dives
+hw_ostc_device_open
 #endif
 
 #ifdef IRDA
