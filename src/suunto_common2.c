@@ -136,8 +136,8 @@ suunto_common2_device_reset_maxdepth (device_t *abstract)
 }
 
 
-static device_status_t
-suunto_common2_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_t *progress)
+device_status_t
+suunto_common2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	// The data transmission is split in packages
 	// of maximum $SZ_PACKET bytes.
@@ -163,25 +163,12 @@ suunto_common2_read (device_t *abstract, unsigned int address, unsigned char dat
 
 		memcpy (data, answer + 6, len);
 
-		// Update and emit a progress event.
-		if (progress) {
-			progress->current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
-		}
-
 		nbytes += len;
 		address += len;
 		data += len;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-device_status_t
-suunto_common2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
-{
-	return suunto_common2_read (abstract, address, data, size, NULL);
 }
 
 
@@ -259,7 +246,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Read the serial number.
 	unsigned char serial[SZ_MINIMUM > 4 ? SZ_MINIMUM : 4] = {0};
-	rc = suunto_common2_read (abstract, 0x0023, serial, sizeof (serial), NULL);
+	rc = suunto_common2_device_read (abstract, 0x0023, serial, sizeof (serial));
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;
@@ -278,7 +265,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Read the header bytes.
 	unsigned char header[8] = {0};
-	rc = suunto_common2_read (abstract, 0x0190, header, sizeof (header), NULL);
+	rc = suunto_common2_device_read (abstract, 0x0190, header, sizeof (header));
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;
@@ -351,7 +338,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 			// Read the package.
 			unsigned char *p = data + SZ_MINIMUM + remaining - nbytes;
-			rc = suunto_common2_read (abstract, address - (len + extra), p - (len + extra), len + extra, NULL);
+			rc = suunto_common2_device_read (abstract, address - (len + extra), p - (len + extra), len + extra);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Cannot read memory.");
 				return rc;

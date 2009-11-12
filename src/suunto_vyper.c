@@ -276,7 +276,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 
 
 static device_status_t
-suunto_vyper_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size, device_progress_t *progress)
+suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -313,25 +313,12 @@ suunto_vyper_read (device_t *abstract, unsigned int address, unsigned char data[
 		message("\"\n");
 #endif
 
-		// Update and emit a progress event.
-		if (progress) {
-			progress->current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
-		}
-
 		nbytes += len;
 		address += len;
 		data += len;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
-{
-	return suunto_vyper_read (abstract, address, data, size, NULL);
 }
 
 
@@ -566,7 +553,7 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	// we read a larger block of memory that always contains the data
 	// for both devices.
 	unsigned char header[HDR_DEVINFO_END - HDR_DEVINFO_BEGIN] = {0};
-	device_status_t rc = suunto_vyper_read (abstract, HDR_DEVINFO_BEGIN, header, sizeof (header), NULL);
+	device_status_t rc = suunto_vyper_device_read (abstract, HDR_DEVINFO_BEGIN, header, sizeof (header));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
