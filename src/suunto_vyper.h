@@ -39,7 +39,7 @@ device_status_t
 suunto_vyper_device_set_delay (device_t *device, unsigned int delay);
 
 device_status_t
-suunto_vyper_device_read_dive (device_t *device, unsigned char data[], unsigned int size, unsigned int *result, int init);
+suunto_vyper_device_read_dive (device_t *device, dc_buffer_t *buffer, int init);
 
 device_status_t
 suunto_vyper_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);

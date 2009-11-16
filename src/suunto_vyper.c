@@ -360,12 +360,15 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 
 
 static device_status_t
-suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init, device_progress_t *progress)
+suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, device_progress_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
-	if (! device_is_suunto_vyper (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Send the command to the dive computer.
 	unsigned char command[3] = {init ? 0x08 : 0x09, 0xA5, 0x00};
@@ -431,9 +434,7 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 		// the current dive has been overwritten with newer data. Therefore, 
 		// we discard the current (incomplete) dive and end the transmission.
 		if (len == 0) {
-			WARNING ("Null package received.");
-			if (result)
-				*result = 0;
+			dc_buffer_clear (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}
 
@@ -444,12 +445,12 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 		}
 
 		// Append the package to the output buffer.
-		// Reporting of buffer overflows is delayed until the entire
+		// Reporting of buffer errors is delayed until the entire
 		// transfer is finished. This approach leaves no data behind in
 		// the serial receive buffer, and if this packet is part of the
 		// last incomplete dive, no error has to be reported at all.
-		if (size >= nbytes + len)
-			memcpy (data + nbytes, answer + 2, len);
+		dc_buffer_append (buffer, answer + 2, len);
+
 		nbytes += len;
 
 		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
@@ -462,8 +463,8 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 #endif
 	}
 
-	// Check for a buffer overflow.
-	if (size < nbytes) {
+	// Check for a buffer error.
+	if (dc_buffer_get_size (buffer) != nbytes) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -472,19 +473,19 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 	// dive is send first (which allows you to download only the new dives), 
 	// but also the contents of each dive is reversed. Therefore, we reverse 
 	// the bytes again before returning them to the application.
-	array_reverse_bytes (data, nbytes);
-
-	if (result)
-		*result = nbytes;
+	array_reverse_bytes (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 
 	return DEVICE_STATUS_SUCCESS;
 }
 
 
 device_status_t
-suunto_vyper_device_read_dive (device_t *abstract, unsigned char data[], unsigned int size, unsigned int *result, int init)
+suunto_vyper_device_read_dive (device_t *abstract, dc_buffer_t *buffer, int init)
 {
-	return suunto_vyper_read_dive (abstract, data, size, result, init, NULL);
+	if (! device_is_suunto_vyper (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	return suunto_vyper_read_dive (abstract, buffer, init, NULL);
 }
 
 
@@ -551,29 +552,35 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	devinfo.serial = array_uint32_be (header + hoffset + 2);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	// The memory layout of the Spyder is different from the Vyper
-	// (and all other compatible dive computers). The Spyder has
-	// the largest ring buffer for the profile memory, so we use
-	// that value as the maximum size of the memory buffer.
-
-	unsigned char data[SUUNTO_VYPER_MEMORY_SIZE - 0x4C] = {0};
+	// Allocate a memory buffer.
+	dc_buffer_t *buffer = dc_buffer_new (layout->rb_profile_end - layout->rb_profile_begin);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
 	unsigned int ndives = 0;
-	unsigned int offset = 0;
-	unsigned int nbytes = 0;
-	while ((rc = suunto_vyper_read_dive (abstract, data + offset, sizeof (data) - offset, &nbytes, (ndives == 0), &progress)) == DEVICE_STATUS_SUCCESS) {
-		if (nbytes == 0)
-			return DEVICE_STATUS_SUCCESS;
+	while ((rc = suunto_vyper_read_dive (abstract, buffer, (ndives == 0), &progress)) == DEVICE_STATUS_SUCCESS) {
+		unsigned char *data = dc_buffer_get_data (buffer);
+		unsigned int size = dc_buffer_get_size (buffer);
 
-		if (memcmp (data + offset + layout->fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0)
+		if (size == 0) {
+			dc_buffer_free (buffer);
 			return DEVICE_STATUS_SUCCESS;
+		}
 
-		if (callback && !callback (data + offset, nbytes, userdata))
+		if (memcmp (data + layout->fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+			dc_buffer_free (buffer);
 			return DEVICE_STATUS_SUCCESS;
+		}
+
+		if (callback && !callback (data, size, userdata)) {
+			dc_buffer_free (buffer);
+			return DEVICE_STATUS_SUCCESS;
+		}
 
 		ndives++;
-		offset += nbytes;
 	}
+
+	dc_buffer_free (buffer);
 
 	return rc;
 }
