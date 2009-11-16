@@ -516,8 +516,7 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = (SUUNTO_VYPER_MEMORY_SIZE - 0x4C) +
-		(HDR_DEVINFO_END - HDR_DEVINFO_BEGIN);
+	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Read the device info. The Vyper and the Spyder store this data
@@ -532,16 +531,16 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	// Identify the connected device as a Vyper or a Spyder, by inspecting
 	// the Vyper model code. For a Spyder, this value will contain the
 	// sample interval (20, 30 or 60s) instead of the model code.
-	unsigned int vyper = 1;
 	unsigned int hoffset = HDR_DEVINFO_VYPER - HDR_DEVINFO_BEGIN;
+	const suunto_common_layout_t *layout = &suunto_vyper_layout;
 	if (header[hoffset] == 20 || header[hoffset] == 30 || header[hoffset] == 60) {
-		vyper = 0;
 		hoffset = HDR_DEVINFO_SPYDER - HDR_DEVINFO_BEGIN;
+		layout = &suunto_spyder_layout;
 	}
 
 	// Update and emit a progress event.
-	if (vyper)
-		progress.maximum -= 0x71 - 0x4C;
+	progress.maximum = sizeof (header) +
+		(layout->rb_profile_end - layout->rb_profile_begin);
 	progress.current += sizeof (header);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
@@ -566,8 +565,7 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 		if (nbytes == 0)
 			return DEVICE_STATUS_SUCCESS;
 
-		unsigned int fp_offset = (vyper ? suunto_vyper_layout.fp_offset : suunto_spyder_layout.fp_offset);
-		if (memcmp (data + offset + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0)
+		if (memcmp (data + offset + layout->fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0)
 			return DEVICE_STATUS_SUCCESS;
 
 		if (callback && !callback (data + offset, nbytes, userdata))
@@ -592,13 +590,9 @@ suunto_vyper_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	if (size < SUUNTO_VYPER_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
 
-	unsigned int vyper = 1;
+	const suunto_common_layout_t *layout = &suunto_vyper_layout;
 	if (data[HDR_DEVINFO_VYPER] == 20 || data[HDR_DEVINFO_VYPER] == 30 || data[HDR_DEVINFO_VYPER] == 60)
-		vyper = 0;
+		layout = &suunto_spyder_layout;
 
-	if (vyper) {
-		return suunto_common_extract_dives (device, &suunto_vyper_layout, data, callback, userdata);
-	} else {
-		return suunto_common_extract_dives (device, &suunto_spyder_layout, data, callback, userdata);
-	}
+	return suunto_common_extract_dives (device, layout, data, callback, userdata);
 }
