@@ -36,6 +36,8 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define PACKETSIZE 126
+
 #define ACK 0x60
 #define NAK 0xA8
 
@@ -212,7 +214,7 @@ uwatec_memomouse_confirm (uwatec_memomouse_device_t *device, unsigned char value
 static device_status_t
 uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
-	assert (size >= 126 + 2);
+	assert (result != NULL);
 
 	// Receive the header of the package.
 	int rc = serial_read (device->port, data, 1);
@@ -226,7 +228,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 
 	// Verify the header of the package.
 	unsigned int len = data[0];
-	if (len > 126) {
+	if (len + 2 > size) {
 		WARNING ("Unexpected answer start byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -249,8 +251,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	if (result)
-		*result = len;
+	*result = len;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -259,10 +260,8 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 static device_status_t
 uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
-	unsigned int length = 0;
-	unsigned char package[126 + 2] = {0};
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = uwatec_memomouse_read_packet (device, package, sizeof (package), &length)) != DEVICE_STATUS_SUCCESS) {
+	while ((rc = uwatec_memomouse_read_packet (device, data, size, result)) != DEVICE_STATUS_SUCCESS) {
 		// Automatically discard a corrupted packet, 
 		// and request a new one.
 		if (rc != DEVICE_STATUS_PROTOCOL)
@@ -277,113 +276,89 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 			return rc;
 	}
 
-#ifndef NDEBUG
-	message ("package(%i)=\"", length);
-	for (unsigned int i = 0; i < length; ++i) {
-		message ("%02x", package[i + 1]);
-	}
-	message ("\"\n");
-#endif
+	return DEVICE_STATUS_SUCCESS;
+}
 
-	if (size < length) {
+
+static device_status_t
+uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer_t *buffer, device_progress_t *progress)
+{
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	memcpy (data, package + 1, length);
-
-	if (result)
-		*result = length;
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size, device_progress_t *progress)
-{
-	// Read the first package.
-	unsigned int length = 0;
-	unsigned char package[126] = {0};
-	device_status_t rc = uwatec_memomouse_read_packet_outer (device, package, sizeof (package), &length);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	// Accept the package.
-	rc = uwatec_memomouse_confirm (device, ACK);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	// Verify the first package contains at least 
-	// the size of the inner package.
-	if (length < 2) {
-		WARNING ("First package is too small.");
-		return DEVICE_STATUS_PROTOCOL;
-	}
-
-	// Calculate the total size of the inner package.
-	unsigned int total = array_uint16_le (package) + 3;
-
-	// Update and emit a progress event.
-	if (progress) {
-		progress->maximum = total;
-		progress->current += length;
-		device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, progress);
-	}
-
-	// Allocate memory for the entire package.
-	unsigned char *buffer = (unsigned char *) malloc (total * sizeof (unsigned char));
-	if (buffer == NULL) {
-		WARNING ("Memory allocation error.");
-		return DEVICE_STATUS_MEMORY;
-	}
-
-	// Copy the first package to the new memory buffer.
-	memcpy (buffer, package, length);
-
-	// Read the remaining packages.
-	unsigned int nbytes = length;
+	unsigned int nbytes = 0;
+	unsigned int total = PACKETSIZE;
 	while (nbytes < total) {
-		// Read the package.
-		rc = uwatec_memomouse_read_packet_outer (device, buffer + nbytes, total - nbytes, &length);
-		if (rc != DEVICE_STATUS_SUCCESS) {
-			free (buffer);
-			return rc;
-		}
+		// Calculate the packet size.
+		unsigned int length = total - nbytes;
+		if (length > PACKETSIZE)
+			length = PACKETSIZE;
 
-		// Accept the package.
-		rc = uwatec_memomouse_confirm (device, ACK);
-		if (rc != DEVICE_STATUS_SUCCESS) {
-			free (buffer);
+		// Read the packet.
+		unsigned char packet[PACKETSIZE + 2] = {0};
+		device_status_t rc = uwatec_memomouse_read_packet_outer (device, packet, length + 2, &length);
+		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
+
+		// Accept the packet.
+		rc = uwatec_memomouse_confirm (device, ACK);
+		if (rc != DEVICE_STATUS_SUCCESS)
+			return rc;
+
+		if (nbytes == 0) {
+			// The first packet should contain at least
+			// the total size of the inner packet.
+			if (length < 2) {
+				WARNING ("First package is too small.");
+				return DEVICE_STATUS_PROTOCOL;
+			}
+
+			// Calculate the total size of the inner packet.
+			total = array_uint16_le (packet + 1) + 3;
+
+			// Pre-allocate the required amount of memory.
+			if (!dc_buffer_reserve (buffer, total)) {
+				WARNING ("Insufficient buffer space available.");
+				return DEVICE_STATUS_MEMORY;
+			}
 		}
 
 		// Update and emit a progress event.
 		if (progress) {
+			progress->maximum = total;
 			progress->current += length;
 			device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, progress);
 		}
 
+		// Append the packet to the buffer.
+		dc_buffer_append (buffer, packet + 1, length);
+
 		nbytes += length;
 	}
 
+	// Obtain the pointer to the buffer contents.
+	unsigned char *data = dc_buffer_get_data (buffer);
+
 	// Verify the checksum.
-	unsigned char crc = buffer[total - 1];
-	unsigned char ccrc = checksum_xor_uint8 (buffer, total - 1, 0x00);
+	unsigned char crc = data[total - 1];
+	unsigned char ccrc = checksum_xor_uint8 (data, total - 1, 0x00);
 	if (crc != ccrc) {
-		free (buffer);
+		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	*data = buffer;
-	*size = total;
+	// Discard the header and checksum bytes.
+	dc_buffer_slice (buffer, 2, total - 3);
 
 	return DEVICE_STATUS_SUCCESS;
 }
 
 
 static device_status_t
-uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
+uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *buffer)
 {
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
@@ -403,13 +378,9 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, unsigned char
 	}
 
 	// Read the ID string.
-	unsigned int id_length = 0;
-	unsigned char *id_buffer = NULL;
-	device_status_t rc = uwatec_memomouse_read_packet_inner (device, &id_buffer, &id_length, NULL);
+	device_status_t rc = uwatec_memomouse_read_packet_inner (device, buffer, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	free (id_buffer);
 
 	// Prepare the command.
 	unsigned char command [9] = {
@@ -450,11 +421,6 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, unsigned char
 			WARNING ("Failed to recieve the answer.");
 			return EXITCODE (n);
 		}
-
-#ifndef NDEBUG
-		if (answer != ACK)
-			message ("Received unexpected response (%02x).\n", answer);
-#endif
 	}
 
 	// Verify the answer.
@@ -473,41 +439,15 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, unsigned char
 	time_t now = time (NULL);
 
 	// Read the data packet.
-	rc = uwatec_memomouse_read_packet_inner (device, data, size, &progress);
+	rc = uwatec_memomouse_read_packet_inner (device, buffer, &progress);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	// Store the clock calibration values.
 	device->systime = now;
-	device->devtime = array_uint32_le (*data + 2 + 1);
+	device->devtime = array_uint32_le (dc_buffer_get_data (buffer) + 1);
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-uwatec_memomouse_dump (uwatec_memomouse_device_t *device, unsigned char *data[], unsigned int *size)
-{
-	// Give the interface some time to notice the DTR
-	// line change from a previous transfer (if any).
-	serial_sleep (500);
-
-	// Set the DTR line.
-	if (serial_set_dtr (device->port, 1) == -1) {
-		WARNING ("Failed to set the RTS line.");
-		return DEVICE_STATUS_IO;
-	}
-
-	// Start the transfer.
-	device_status_t rc = uwatec_memomouse_dump_internal (device, data, size);
-
-	// Clear the DTR line again.
-	if (serial_set_dtr (device->port, 0) == -1) {
-		WARNING ("Failed to set the RTS line.");
-		return DEVICE_STATUS_IO;
-	}
-
-	return rc;
 }
 
 
@@ -525,47 +465,51 @@ uwatec_memomouse_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	unsigned int len = 0;
-	unsigned char *buf = NULL;
-	device_status_t rc = uwatec_memomouse_dump (device, &buf, &len);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
+	// Give the interface some time to notice the DTR
+	// line change from a previous transfer (if any).
+	serial_sleep (500);
 
-	if (!dc_buffer_append (buffer, buf + 2, len - 3)) {
-		WARNING ("Insufficient buffer space available.");
-		free (buffer); 
-		return DEVICE_STATUS_MEMORY;
+	// Set the DTR line.
+	if (serial_set_dtr (device->port, 1) == -1) {
+		WARNING ("Failed to set the RTS line.");
+		return DEVICE_STATUS_IO;
 	}
 
-	free (buffer);
+	// Start the transfer.
+	device_status_t rc = uwatec_memomouse_dump_internal (device, buffer);
 
-	return DEVICE_STATUS_SUCCESS;
+	// Clear the DTR line again.
+	if (serial_set_dtr (device->port, 0) == -1) {
+		WARNING ("Failed to set the RTS line.");
+		return DEVICE_STATUS_IO;
+	}
+
+	return rc;
 }
 
 
 static device_status_t
 uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
-
 	if (! device_is_uwatec_memomouse (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned int length = 0;
-	unsigned char *buffer = NULL;
-	device_status_t rc = uwatec_memomouse_dump (device, &buffer, &length);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
+	dc_buffer_t *buffer = dc_buffer_new (0);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
 
-	rc = uwatec_memomouse_extract_dives (abstract, buffer + 2, length - 3, callback, userdata);
+	device_status_t rc = uwatec_memomouse_device_dump (abstract, buffer);
 	if (rc != DEVICE_STATUS_SUCCESS) {
-		free (buffer);
+		dc_buffer_free (buffer);
 		return rc;
 	}
 
-	free (buffer);
+	rc = uwatec_memomouse_extract_dives (abstract,
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
 
-	return DEVICE_STATUS_SUCCESS;
+	dc_buffer_free (buffer);
+
+	return rc;
 }
 
 
