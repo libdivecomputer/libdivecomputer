@@ -231,6 +231,22 @@ dc_buffer_prepend (dc_buffer_t *buffer, const unsigned char data[], size_t size)
 }
 
 
+int
+dc_buffer_slice (dc_buffer_t *buffer, size_t offset, size_t size)
+{
+	if (buffer == NULL)
+		return 0;
+
+	if (offset + size >= buffer->size)
+		return 0;
+
+	buffer->offset += offset;
+	buffer->size = size;
+
+	return 1;
+}
+
+
 size_t
 dc_buffer_get_size (dc_buffer_t *buffer)
 {
