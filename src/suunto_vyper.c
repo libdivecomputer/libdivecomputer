@@ -305,14 +305,6 @@ suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned cha
 
 		memcpy (data, answer + 4, len);
 
-#ifndef NDEBUG
-		message ("VyperRead(0x%04x,%d)=\"", address, len);
-		for (unsigned int i = 0; i < len; ++i) {
-			message("%02x", data[i]);
-		}
-		message("\"\n");
-#endif
-
 		nbytes += len;
 		address += len;
 		data += len;
@@ -345,10 +337,6 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
-#ifndef NDEBUG
-		message("VyperPrepareWrite();\n");
-#endif
-
 		// Write the package.
 		unsigned char wanswer[5] = {0};
 		unsigned char wcommand[SUUNTO_VYPER_PACKET_SIZE + 5] = {0x06,
@@ -361,14 +349,6 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 		rc = suunto_vyper_transfer (device, wcommand, len + 5, wanswer, sizeof (wanswer), 0);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
-
-#ifndef NDEBUG
-		message ("VyperWrite(0x%04x,%d,\"", address, len);
-		for (unsigned int i = 0; i < len; ++i) {
-			message ("%02x", data[i]);
-		}
-		message ("\");\n");
-#endif
 
 		nbytes += len;
 		address += len;
@@ -493,14 +473,6 @@ suunto_vyper_read_dive (device_t *abstract, unsigned char data[], unsigned int s
 	// but also the contents of each dive is reversed. Therefore, we reverse 
 	// the bytes again before returning them to the application.
 	array_reverse_bytes (data, nbytes);
-
-#ifndef NDEBUG
-	message ("Vyper%sProfile=\"", init ? "First" : "");
-	for (unsigned int i = 0; i < nbytes; ++i) {
-		message("%02x", data[i]);
-	}
-	message("\"\n");
-#endif
 
 	if (result)
 		*result = nbytes;
