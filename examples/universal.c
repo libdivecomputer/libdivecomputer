@@ -158,6 +158,8 @@ usage (const char *filename)
 	fprintf (stderr, "   -b name        Set backend name (required).\n");
 	fprintf (stderr, "   -l logfile     Set logfile.\n");
 	fprintf (stderr, "   -o output      Set output filename.\n");
+	fprintf (stderr, "   -d             Download dives only.\n");
+	fprintf (stderr, "   -m             Download memory dump only.\n");
 	fprintf (stderr, "   -h             Show this help message.\n\n");
 #else
 	fprintf (stderr, "Usage:\n\n");
@@ -177,7 +179,7 @@ usage (const char *filename)
 
 
 static device_status_t
-dowork (device_type_t backend, const char *devname, const char *filename)
+dowork (device_type_t backend, const char *devname, const char *filename, int memory, int dives)
 {
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
 
@@ -256,36 +258,40 @@ dowork (device_type_t backend, const char *devname, const char *filename)
 		return rc;
 	}
 
-	// Allocate a memory buffer.
-	dc_buffer_t *buffer = dc_buffer_new (0);
+	if (memory) {
+		// Allocate a memory buffer.
+		dc_buffer_t *buffer = dc_buffer_new (0);
 
-	// Download the memory dump.
-	message ("Downloading the memory dump.\n");
-	rc = device_dump (device, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Error downloading the memory dump.");
+		// Download the memory dump.
+		message ("Downloading the memory dump.\n");
+		rc = device_dump (device, buffer);
+		if (rc != DEVICE_STATUS_SUCCESS) {
+			WARNING ("Error downloading the memory dump.");
+			dc_buffer_free (buffer);
+			device_close (device);
+			return rc;
+		}
+
+		// Write the memory dump to disk.
+		FILE* fp = fopen (filename, "wb");
+		if (fp != NULL) {
+			fwrite (dc_buffer_get_data (buffer), 1, dc_buffer_get_size (buffer), fp);
+			fclose (fp);
+		}
+
+		// Free the memory buffer.
 		dc_buffer_free (buffer);
-		device_close (device);
-		return rc;
 	}
 
-	// Write the memory dump to disk.
-	FILE* fp = fopen (filename, "wb");
-	if (fp != NULL) {
-		fwrite (dc_buffer_get_data (buffer), 1, dc_buffer_get_size (buffer), fp);
-		fclose (fp);
-	}
-
-	// Free the memory buffer.
-	dc_buffer_free (buffer);
-
-	// Download the dives.
-	message ("Downloading the dives.\n");
-	rc = device_foreach (device, dive_cb, NULL);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Error downloading the dives.");
-		device_close (device);
-		return rc;
+	if (dives) {
+		// Download the dives.
+		message ("Downloading the dives.\n");
+		rc = device_foreach (device, dive_cb, NULL);
+		if (rc != DEVICE_STATUS_SUCCESS) {
+			WARNING ("Error downloading the dives.");
+			device_close (device);
+			return rc;
+		}
 	}
 
 	// Close the device.
@@ -308,11 +314,12 @@ main (int argc, char *argv[])
 	const char *logfile = "output.log";
 	const char *filename = "output.bin";
 	const char *devname = NULL;
+	int memory = 1, dives = 1;
 
 #ifndef _MSC_VER
 	// Parse command-line options.
 	int opt = 0;
-	while ((opt = getopt (argc, argv, "b:l:o:h")) != -1) {
+	while ((opt = getopt (argc, argv, "b:l:o:mdh")) != -1) {
 		switch (opt) {
 		case 'b':
 			backend = lookup_type (optarg);
@@ -322,6 +329,12 @@ main (int argc, char *argv[])
 			break;
 		case 'o':
 			filename = optarg;
+			break;
+		case 'm':
+			dives = 0;
+			break;
+		case 'd':
+			memory = 0;
 			break;
 		case '?':
 		case 'h':
@@ -349,7 +362,7 @@ main (int argc, char *argv[])
 
 	message_set_logfile (logfile);
 
-	device_status_t rc = dowork (backend, devname, filename);
+	device_status_t rc = dowork (backend, devname, filename, memory, dives);
 	message ("Result: %s\n", errmsg (rc));
 
 	message_set_logfile (NULL);
