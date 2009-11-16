@@ -185,6 +185,9 @@ dc_buffer_resize (dc_buffer_t *buffer, size_t size)
 	if (!dc_buffer_expand_append (buffer, size))
 		return 0;
 
+	if (size > buffer->size)
+		memset (buffer->data + buffer->offset + buffer->size, 0, size - buffer->size);
+
 	buffer->size = size;
 
 	return 1;
