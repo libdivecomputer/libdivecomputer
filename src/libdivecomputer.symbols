@@ -45,6 +45,7 @@ message
 message_set_logfile
 
 #ifdef SERIAL
+cressi_edy_device_open
 mares_nemo_device_open
 mares_nemo_extract_dives
 mares_puck_device_open

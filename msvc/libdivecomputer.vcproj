@@ -189,6 +189,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\cressi_edy.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\device.c"
 				>
 			</File>
@@ -356,6 +360,14 @@
 			</File>
 			<File
 				RelativePath="..\src\checksum.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cressi.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cressi_edy.h"
 				>
 			</File>
 			<File

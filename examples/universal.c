@@ -33,6 +33,7 @@
 #include <oceanic.h>
 #include <mares.h>
 #include <hw.h>
+#include <cressi.h>
 #include <utils.h>
 
 typedef struct backend_table_t {
@@ -57,7 +58,8 @@ static const backend_table_t g_backends[] = {
 	{"atom2",		DEVICE_TYPE_OCEANIC_ATOM2},
 	{"nemo",		DEVICE_TYPE_MARES_NEMO},
 	{"puck",		DEVICE_TYPE_MARES_PUCK},
-	{"ostc",		DEVICE_TYPE_HW_OSTC}
+	{"ostc",		DEVICE_TYPE_HW_OSTC},
+	{"edy",			DEVICE_TYPE_CRESSI_EDY}
 };
 
 static device_type_t
@@ -238,6 +240,9 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 		break;
 	case DEVICE_TYPE_HW_OSTC:
 		rc = hw_ostc_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_CRESSI_EDY:
+		rc = cressi_edy_device_open (&device, devname);
 		break;
 	default:
 		rc = DEVICE_STATUS_ERROR;

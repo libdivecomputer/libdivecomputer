@@ -18,7 +18,8 @@ bin_PROGRAMS = \
 	vtpro \
 	nemo \
 	puck \
-	ostc
+	ostc \
+	edy
 
 if IRDA
 bin_PROGRAMS += smart
@@ -57,6 +58,8 @@ nemo_SOURCES = mares_nemo_test.c
 puck_SOURCES = mares_puck_test.c
 
 ostc_SOURCES = hw_ostc_test.c
+
+edy_SOURCES = cressi_edy_test.c
 
 if IRDA
 smart_SOURCES = uwatec_smart_test.c

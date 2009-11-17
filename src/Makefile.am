@@ -31,7 +31,9 @@ libdivecomputer_HEADERS = 	\
 	mares_nemo.h \
 	mares_puck.h \
 	hw.h \
-	hw_ostc.h
+	hw_ostc.h \
+	cressi.h \
+	cressi_edy.h
 
 #
 # Source files.
@@ -72,6 +74,8 @@ libdivecomputer_la_SOURCES = \
 	mares_puck.h mares_puck.c \
 	hw.h \
 	hw_ostc.h hw_ostc.c \
+	cressi.h \
+	cressi_edy.h cressi_edy.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \

@@ -46,7 +46,8 @@ typedef enum device_type_t {
 	DEVICE_TYPE_OCEANIC_VTPRO,
 	DEVICE_TYPE_MARES_NEMO,
 	DEVICE_TYPE_MARES_PUCK,
-	DEVICE_TYPE_HW_OSTC
+	DEVICE_TYPE_HW_OSTC,
+	DEVICE_TYPE_CRESSI_EDY
 } device_type_t;
 
 typedef enum device_status_t {
