@@ -237,7 +237,7 @@ dc_buffer_slice (dc_buffer_t *buffer, size_t offset, size_t size)
 	if (buffer == NULL)
 		return 0;
 
-	if (offset + size >= buffer->size)
+	if (offset + size > buffer->size)
 		return 0;
 
 	buffer->offset += offset;
