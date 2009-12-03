@@ -630,65 +630,64 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 
 static device_status_t
 reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
-	const unsigned char data[], unsigned int size, unsigned int *pprevious,
+	const unsigned char data[], unsigned int *premaining, unsigned int *pprevious,
 	int *aborted, dive_callback_t callback, void *userdata)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
-	// Initialize the data stream offsets.
-	unsigned int previous = (pprevious ? *pprevious : size);
-	unsigned int current = size;
-	if (current + 4 > previous)
-		current = (previous >= 4 ? previous - 4 : 0);
+	// Initialize the data stream pointers.
+	const unsigned char *current  = data + *premaining;
+	const unsigned char *previous = data + *pprevious;
 
-	// Search the data stream for start markers.
-	while (current > 0) {
-		current--;
-		if (memcmp (data + current, header, sizeof (header)) == 0) {
-			// Once a start marker is found, start searching
-			// for the corresponding stop marker. The search is 
-			// now limited to the start of the previous dive.
-			int found = 0;
-			unsigned int offset = current + 16; // Skip non-sample data.
-			while (offset + 4 <= previous) {
-				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
-					found = 1;
-					break;
-				} else {
-					offset++;
-				}
-			}
+	// Search the data stream for header markers.
+	while ((current = array_search_backward (data, current - data, header, sizeof (header))) != NULL) {
+		// Move the pointer to the begin of the header.
+		current -= sizeof (header);
 
-			// Report an error if no stop marker was found.
-			if (!found) {
-				WARNING ("No stop marker present.");
-				return DEVICE_STATUS_ERROR;
-			}
-
-			// Automatically abort when a dive is older than the provided timestamp.
-			unsigned int timestamp = array_uint32_le (data + current + 4);
-			if (device && timestamp <= device->timestamp) {
-				if (aborted)
-					*aborted = 1;
-				return DEVICE_STATUS_SUCCESS;
-			}
-
-			if (callback && !callback (data + current, offset + 4 - current, userdata)) {
-				if (aborted)
-					*aborted = 1;
-				return DEVICE_STATUS_SUCCESS;
-			}
-
-			// Prepare for the next dive.
-			previous = current;
-			current = (previous >= 4 ? previous - 4 : 0);
+		// Once a header marker is found, start searching
+		// for the corresponding footer marker. The search is
+		// now limited to the start of the previous dive.
+		if (previous - current >= 16) {
+			previous = array_search_forward (current + 16, previous - current - 16, footer, sizeof (footer));
+		} else {
+			previous = NULL;
 		}
+
+		// Report an error if no footer marker was found.
+		if (previous == NULL) {
+			WARNING ("No stop marker present.");
+			return DEVICE_STATUS_ERROR;
+		}
+
+		// Move the pointer to the end of the footer.
+		previous += sizeof (footer);
+
+		// Automatically abort when a dive is older than the provided timestamp.
+		unsigned int timestamp = array_uint32_le (current + 4);
+		if (device && timestamp <= device->timestamp) {
+			if (aborted)
+				*aborted = 1;
+			return DEVICE_STATUS_SUCCESS;
+		}
+
+		if (callback && !callback (current, previous - current, userdata)) {
+			if (aborted)
+				*aborted = 1;
+			return DEVICE_STATUS_SUCCESS;
+		}
+
+		// Prepare for the next iteration.
+		previous = current;
+
+		// Return the current state.
+		*premaining = *pprevious = current - data;
 	}
 
-	// Return the offset to the last dive.
-	if (pprevious)
-		*pprevious = previous;
+	// Return the current state.
+	*premaining = sizeof (header) - 1;
+	if (*premaining > *pprevious)
+		*premaining = *pprevious;
 
 	if (aborted)
 		*aborted = 0;
@@ -724,6 +723,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	}
 
 	// Initialize the state for the incremental parser.
+	unsigned int remaining = 0;
 	unsigned int previous = 0;
 
 	unsigned int nbytes = 0;
@@ -752,12 +752,13 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		}
 
 		// Update the parser state.
+		remaining += REEFNET_SENSUSULTRA_PACKET_SIZE;
 		previous += REEFNET_SENSUSULTRA_PACKET_SIZE;
 
 		// Parse the page data.
 		int aborted = 0;
 		rc = reefnet_sensusultra_parse (device, dc_buffer_get_data (buffer),
-			REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata);
+			&remaining, &previous, &aborted, callback, userdata);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			dc_buffer_free (buffer);
 			return rc;
@@ -790,5 +791,8 @@ reefnet_sensusultra_extract_dives (device_t *abstract, const unsigned char data[
 	if (abstract && !device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	return reefnet_sensusultra_parse (device, data, size, NULL, NULL, callback, userdata);
+	unsigned int remaining = size;
+	unsigned int previous = size;
+
+	return reefnet_sensusultra_parse (device, data, &remaining, &previous, NULL, callback, userdata);
 }
