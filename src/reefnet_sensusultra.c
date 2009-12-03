@@ -366,12 +366,11 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device)
 static device_status_t
 reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *data, unsigned int size, unsigned int pagenum)
 {
-	assert (size >= REEFNET_SENSUSULTRA_PACKET_SIZE);
+	assert (size >= REEFNET_SENSUSULTRA_PACKET_SIZE + 4);
 
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
 	unsigned int nretries = 0;
-	unsigned char package[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
-	while ((rc = reefnet_sensusultra_packet (device, package, sizeof (package), 2)) != DEVICE_STATUS_SUCCESS) {
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
+	while ((rc = reefnet_sensusultra_packet (device, data, size, 2)) != DEVICE_STATUS_SUCCESS) {
 		// Automatically discard a corrupted packet, 
 		// and request a new one.
 		if (rc != DEVICE_STATUS_PROTOCOL)
@@ -388,13 +387,11 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 	}
 
 	// Verify the page number.
-	unsigned int page = array_uint16_le (package);
+	unsigned int page = array_uint16_le (data);
 	if (page != pagenum) {
 		WARNING ("Unexpected page number."); 
 		return DEVICE_STATUS_PROTOCOL;
 	}
-
-	memcpy (data, package + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -426,8 +423,8 @@ reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Erase the current contents of the buffer and
-	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)) {
+	// pre-allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -444,18 +441,22 @@ reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	unsigned int nbytes = 0;
 	unsigned int npages = 0;
-	unsigned char *data = dc_buffer_get_data (buffer);
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
 		// Receive the packet.
-		unsigned int offset = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
-			nbytes - REEFNET_SENSUSULTRA_PACKET_SIZE;
-		rc = reefnet_sensusultra_page (device, data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		unsigned char packet[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
+		rc = reefnet_sensusultra_page (device, packet, sizeof (packet), npages);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
 		// Update and emit a progress event.
 		progress.current += REEFNET_SENSUSULTRA_PACKET_SIZE;
 		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+		// Prepend the packet to the buffer.
+		if (!dc_buffer_prepend (buffer, packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE)) {
+			WARNING ("Insufficient buffer space available.");
+			return DEVICE_STATUS_MEMORY;
+		}
 
 		// Accept the packet.
 		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
@@ -492,9 +493,13 @@ reefnet_sensusultra_device_read_user (device_t *abstract, unsigned char *data, u
 	unsigned int npages = 0;
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE) {
 		// Receive the packet.
-		rc = reefnet_sensusultra_page (device, data + nbytes, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		unsigned char packet[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
+		rc = reefnet_sensusultra_page (device, packet, sizeof (packet), npages);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
+
+		// Append the packet to the buffer.
+		memcpy (data + nbytes, packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE);
 
 		// Accept the packet.
 		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
@@ -624,25 +629,21 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 
 
 static device_status_t
-reefnet_sensusultra_parse (device_t *abstract, const unsigned char data[], unsigned int begin, unsigned int end, unsigned int *pprevious,
+reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
+	const unsigned char data[], unsigned int size, unsigned int *pprevious,
 	int *aborted, dive_callback_t callback, void *userdata)
 {
-	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
-
-	if (abstract && !device_is_reefnet_sensusultra (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
 	// Initialize the data stream offsets.
-	unsigned int previous = (pprevious ? *pprevious : end);
-	unsigned int current = end;
+	unsigned int previous = (pprevious ? *pprevious : size);
+	unsigned int current = size;
 	if (current + 4 > previous)
 		current = (previous >= 4 ? previous - 4 : 0);
 
 	// Search the data stream for start markers.
-	while (current > begin) {
+	while (current > 0) {
 		current--;
 		if (memcmp (data + current, header, sizeof (header)) == 0) {
 			// Once a start marker is found, start searching
@@ -704,8 +705,8 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	if (! device_is_reefnet_sensusultra (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	unsigned char *data = (unsigned char *) malloc (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE * sizeof (unsigned char));
-	if (data == NULL) {
+	dc_buffer_t *buffer = dc_buffer_new (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE);
+	if (buffer == NULL) {
 		WARNING ("Memory allocation error.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -715,25 +716,24 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	progress.maximum = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-	// Initialize the state for the parsing code.
-	unsigned int previous = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
-
 	// Wake-up the device and send the instruction code.
 	device_status_t rc = reefnet_sensusultra_send (device, 0xB421);
 	if (rc != DEVICE_STATUS_SUCCESS) {
-		free (data);
+		dc_buffer_free (buffer);
 		return rc;
 	}
+
+	// Initialize the state for the incremental parser.
+	unsigned int previous = 0;
 
 	unsigned int nbytes = 0;
 	unsigned int npages = 0;
 	while (nbytes < REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE) {
 		// Receive the packet.
-		unsigned int offset = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE - 
-			nbytes - REEFNET_SENSUSULTRA_PACKET_SIZE;
-		rc = reefnet_sensusultra_page (device, data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, npages);
+		unsigned char packet[REEFNET_SENSUSULTRA_PACKET_SIZE + 4] = {0};
+		rc = reefnet_sensusultra_page (device, packet, sizeof (packet), npages);
 		if (rc != DEVICE_STATUS_SUCCESS) {
-			free (data);
+			dc_buffer_free (buffer);
 			return rc;
 		}
 
@@ -742,14 +742,24 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		// Abort the transfer if the page contains no useful data.
-		if (array_isequal (data + offset, REEFNET_SENSUSULTRA_PACKET_SIZE, 0xFF))
+		if (array_isequal (packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE, 0xFF))
 			break;
+
+		// Prepend the packet to the buffer.
+		if (!dc_buffer_prepend (buffer, packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE)) {
+			WARNING ("Insufficient buffer space available.");
+			return DEVICE_STATUS_MEMORY;
+		}
+
+		// Update the parser state.
+		previous += REEFNET_SENSUSULTRA_PACKET_SIZE;
 
 		// Parse the page data.
 		int aborted = 0;
-		rc = reefnet_sensusultra_parse (abstract, data, offset, offset + REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata);
+		rc = reefnet_sensusultra_parse (device, dc_buffer_get_data (buffer),
+			REEFNET_SENSUSULTRA_PACKET_SIZE, &previous, &aborted, callback, userdata);
 		if (rc != DEVICE_STATUS_SUCCESS) {
-			free (data);
+			dc_buffer_free (buffer);
 			return rc;
 		}
 		if (aborted)
@@ -758,7 +768,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		// Accept the packet.
 		rc = reefnet_sensusultra_send_uchar (device, ACCEPT);
 		if (rc != DEVICE_STATUS_SUCCESS) {
-			free (data);
+			dc_buffer_free (buffer);
 			return rc;
 		}
 
@@ -766,7 +776,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		npages++;
 	}
 
-	free (data);
+	dc_buffer_free (buffer);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -775,5 +785,10 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 device_status_t
 reefnet_sensusultra_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	return reefnet_sensusultra_parse (abstract, data, 0, size, NULL, NULL, callback, userdata);
+	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t *) abstract;
+
+	if (abstract && !device_is_reefnet_sensusultra (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	return reefnet_sensusultra_parse (device, data, size, NULL, NULL, callback, userdata);
 }
