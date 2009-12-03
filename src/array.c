@@ -19,6 +19,8 @@
  * MA 02110-1301 USA
  */
 
+#include <string.h>
+
 #include "array.h"
 
 void
@@ -59,6 +61,35 @@ array_isequal (const unsigned char data[], unsigned int size, unsigned char valu
 	}
 
 	return 1;
+}
+
+
+const unsigned char *
+array_search_forward (const unsigned char *data, unsigned int size,
+                      const unsigned char *marker, unsigned int msize)
+{
+	while (size >= msize) {
+		if (memcmp (data, marker, msize) == 0)
+			return data;
+		size--;
+		data++;
+	}
+	return NULL;
+}
+
+
+const unsigned char *
+array_search_backward (const unsigned char *data, unsigned int size,
+                       const unsigned char *marker, unsigned int msize)
+{
+	data += size;
+	while (size >= msize) {
+		if (memcmp (data - msize, marker, msize) == 0)
+			return data;
+		size--;
+		data--;
+	}
+	return NULL;
 }
 
 

@@ -35,6 +35,14 @@ array_reverse_bits (unsigned char data[], unsigned int size);
 int
 array_isequal (const unsigned char data[], unsigned int size, unsigned char value);
 
+const unsigned char *
+array_search_forward (const unsigned char *data, unsigned int size,
+                      const unsigned char *marker, unsigned int msize);
+
+const unsigned char *
+array_search_backward (const unsigned char *data, unsigned int size,
+                       const unsigned char *marker, unsigned int msize);
+
 unsigned int
 array_uint32_be (const unsigned char data[]);
 
