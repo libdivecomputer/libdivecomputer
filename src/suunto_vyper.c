@@ -75,7 +75,7 @@ static const suunto_common_layout_t suunto_spyder_layout = {
 	0x1C, /* eop */
 	0x4C, /* rb_profile_begin */
 	SUUNTO_VYPER_MEMORY_SIZE, /* rb_profile_end */
-	7, /* fp_offset */
+	6, /* fp_offset */
 	3 /* peek */
 };
 
