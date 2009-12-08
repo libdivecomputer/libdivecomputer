@@ -61,6 +61,9 @@ array_uint16_be (const unsigned char data[]);
 unsigned short
 array_uint16_le (const unsigned char data[]);
 
+unsigned char
+bcd2dec (unsigned char value);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

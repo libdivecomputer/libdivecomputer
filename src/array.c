@@ -132,3 +132,9 @@ array_uint16_le (const unsigned char data[])
 {
 	return data[0] + (data[1] << 8);
 }
+
+unsigned char
+bcd2dec (unsigned char value)
+{
+	return ((value >> 4) & 0x0f) * 10 + (value & 0x0f);
+}

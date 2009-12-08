@@ -54,16 +54,6 @@ iceil (unsigned int x, unsigned int n)
 }
 
 
-static unsigned char
-bcd (unsigned char value)
-{
-	unsigned char lower = (value     ) & 0x0F;
-	unsigned char upper = (value >> 4) & 0x0F;
-
-	return lower + 10 * upper;
-}
-
-
 static unsigned int
 get_profile_first (const unsigned char data[], const oceanic_common_layout_t *layout)
 {
@@ -155,7 +145,7 @@ oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_co
 	device_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = 0;
-	devinfo.serial = bcd (id[10]) * 10000 + bcd (id[11]) * 100 + bcd (id[12]);
+	devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Read the pointer data.
