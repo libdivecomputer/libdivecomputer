@@ -654,27 +654,24 @@ reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 			previous = NULL;
 		}
 
-		// Report an error if no footer marker was found.
-		if (previous == NULL) {
-			WARNING ("No stop marker present.");
-			return DEVICE_STATUS_ERROR;
-		}
+		// Skip dives without a footer marker.
+		if (previous) {
+			// Move the pointer to the end of the footer.
+			previous += sizeof (footer);
 
-		// Move the pointer to the end of the footer.
-		previous += sizeof (footer);
+			// Automatically abort when a dive is older than the provided timestamp.
+			unsigned int timestamp = array_uint32_le (current + 4);
+			if (device && timestamp <= device->timestamp) {
+				if (aborted)
+					*aborted = 1;
+				return DEVICE_STATUS_SUCCESS;
+			}
 
-		// Automatically abort when a dive is older than the provided timestamp.
-		unsigned int timestamp = array_uint32_le (current + 4);
-		if (device && timestamp <= device->timestamp) {
-			if (aborted)
-				*aborted = 1;
-			return DEVICE_STATUS_SUCCESS;
-		}
-
-		if (callback && !callback (current, previous - current, userdata)) {
-			if (aborted)
-				*aborted = 1;
-			return DEVICE_STATUS_SUCCESS;
+			if (callback && !callback (current, previous - current, userdata)) {
+				if (aborted)
+					*aborted = 1;
+				return DEVICE_STATUS_SUCCESS;
+			}
 		}
 
 		// Prepare for the next iteration.
