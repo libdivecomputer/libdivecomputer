@@ -245,6 +245,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\oceanic_vtpro_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\parser.c"
 				>
 			</File>

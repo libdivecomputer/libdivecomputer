@@ -27,6 +27,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include "device.h"
+#include "parser.h"
 
 #define OCEANIC_VTPRO_MEMORY_SIZE 0x8000
 #define OCEANIC_VTPRO_PACKET_SIZE 0x10
@@ -36,6 +37,9 @@ oceanic_vtpro_device_open (device_t **device, const char* name);
 
 device_status_t
 oceanic_vtpro_device_keepalive (device_t *device);
+
+parser_status_t
+oceanic_vtpro_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }

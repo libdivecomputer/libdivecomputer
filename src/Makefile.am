@@ -67,7 +67,7 @@ libdivecomputer_la_SOURCES = \
 	oceanic_common.h oceanic_common.c \
 	oceanic_atom2.h oceanic_atom2.c oceanic_atom2_parser.c \
 	oceanic_veo250.h oceanic_veo250.c oceanic_veo250_parser.c \
-	oceanic_vtpro.h oceanic_vtpro.c \
+	oceanic_vtpro.h oceanic_vtpro.c oceanic_vtpro_parser.c \
 	mares.h \
 	mares_common.h mares_common.c \
 	mares_nemo.h mares_nemo.c mares_nemo_parser.c \
