@@ -237,6 +237,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\oceanic_veo250_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\oceanic_vtpro.c"
 				>
 			</File>
