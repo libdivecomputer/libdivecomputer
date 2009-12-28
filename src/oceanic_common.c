@@ -145,7 +145,10 @@ oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_co
 	device_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = 0;
-	devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
+	if (layout->mode == 0)
+		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
+	else
+		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Read the pointer data.
