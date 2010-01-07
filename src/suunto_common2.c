@@ -39,7 +39,7 @@
 
 #define RB_PROFILE_BEGIN            0x019A
 #define RB_PROFILE_END              SZ_MEMORY - 2
-#define RB_PROFILE_DISTANCE(a,b)    ringbuffer_distance (a, b, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b)    ringbuffer_distance (a, b, 0, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define BACKEND(abstract)	((suunto_common2_device_backend_t *) abstract->backend)
 

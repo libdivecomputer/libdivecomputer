@@ -32,12 +32,14 @@ normalize (unsigned int a, unsigned int size)
 
 
 static unsigned int
-distance (unsigned int a, unsigned int b, unsigned int size)
+distance (unsigned int a, unsigned int b, int mode, unsigned int size)
 {
-	if (a <= b) {
+	if (a < b) {
 		return (b - a) % size;
-	} else {
+	} else if (a > b) {
 		return size - (a - b) % size;
+	} else {
+		return (mode == 0 ? 0 : size);
 	}
 }
 
@@ -71,12 +73,12 @@ ringbuffer_normalize (unsigned int a, unsigned int begin, unsigned int end)
 
 
 unsigned int
-ringbuffer_distance (unsigned int a, unsigned int b, unsigned int begin, unsigned int end)
+ringbuffer_distance (unsigned int a, unsigned int b, int mode, unsigned int begin, unsigned int end)
 {
 	assert (end >= begin);
 	assert (a >= begin);
 
-	return distance (a, b, end - begin);
+	return distance (a, b, mode, end - begin);
 }
 
 

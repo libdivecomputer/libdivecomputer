@@ -31,10 +31,10 @@
 
 #define PAGESIZE 0x10
 
-#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, l->rb_logbook_begin, l->rb_logbook_end)
+#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
 
-#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_profile_begin, l->rb_profile_end)
 #define RB_PROFILE_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_profile_begin, l->rb_profile_end)
 
 

@@ -30,7 +30,7 @@ unsigned int
 ringbuffer_normalize (unsigned int a, unsigned int begin, unsigned int end);
 
 unsigned int
-ringbuffer_distance (unsigned int a, unsigned int b, unsigned int begin, unsigned int end);
+ringbuffer_distance (unsigned int a, unsigned int b, int mode, unsigned int begin, unsigned int end);
 
 unsigned int
 ringbuffer_increment (unsigned int a, unsigned int delta, unsigned int begin, unsigned int end);
