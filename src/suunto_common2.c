@@ -39,7 +39,7 @@
 
 #define RB_PROFILE_BEGIN            0x019A
 #define RB_PROFILE_END              SZ_MEMORY - 2
-#define RB_PROFILE_DISTANCE(a,b)    ringbuffer_distance (a, b, 0, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b,m)  ringbuffer_distance (a, b, m, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define BACKEND(abstract)	((suunto_common2_device_backend_t *) abstract->backend)
 
@@ -283,7 +283,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Calculate the total amount of bytes.
 
-	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end);
+	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end, count != 0);
 
 	// Update and emit a progress event.
 
@@ -300,23 +300,26 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	unsigned int available = 0;
 
 	// The ring buffer is traversed backwards to retrieve the most recent
-	// dives first. This allows you to download only the new dives. During
-	// the traversal, the current pointer does always point to the end of
-	// the dive data and we move to the "next" dive by means of the previous
-	// pointer.
+	// dives first. This allows us to download only the new dives.
 
-	unsigned int ndives = 0;
-	unsigned int current = end;
-	unsigned int previous = last;
-	while (current != begin) {
+	unsigned int current = last;
+	unsigned int previous = end;
+	unsigned int address = previous;
+	unsigned int offset = remaining + SZ_MINIMUM;
+	while (remaining) {
 		// Calculate the size of the current dive.
-		unsigned int size = RB_PROFILE_DISTANCE (previous, current);
-
-		assert (size >= 4 && size <= remaining);
+		unsigned int size = RB_PROFILE_DISTANCE (current, previous, 1);
+		if (size < 4 || size > remaining) {
+			WARNING ("Unexpected profile size.");
+			return DEVICE_STATUS_ERROR;
+		}
 
 		unsigned int nbytes = available;
-		unsigned int address = current - available;
 		while (nbytes < size) {
+			// Handle the ringbuffer wrap point.
+			if (address == RB_PROFILE_BEGIN)
+				address = RB_PROFILE_END;
+
 			// Calculate the package size. Try with the largest possible
 			// size first, and adjust when the end of the ringbuffer or
 			// the end of the profile data is reached.
@@ -328,6 +331,10 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			/*if (nbytes + len > size)
 				len = size - nbytes;*/ // End of dive (for testing only).
 
+			// Move to the begin of the current package.
+			offset -= len;
+			address -= len;
+
 			// Always read at least the minimum amount of bytes, because
 			// reading fewer bytes is unreliable. The memory buffer is
 			// large enough to prevent buffer overflows, and the extra
@@ -337,8 +344,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 				extra = SZ_MINIMUM - len;
 
 			// Read the package.
-			unsigned char *p = data + SZ_MINIMUM + remaining - nbytes;
-			rc = suunto_common2_device_read (abstract, address - (len + extra), p - (len + extra), len + extra);
+			rc = suunto_common2_device_read (abstract, address - extra, data + offset - extra, len + extra);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Cannot read memory.");
 				return rc;
@@ -350,38 +356,32 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 			// Next package.
 			nbytes += len;
-			address -= len;
-			if (address <= RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;
 		}
 
 		// The last package of the current dive contains the previous and
 		// next pointers (in a continuous memory area). It can also contain
-		// a number of bytes from the next dive. The offset to the pointers
-		// is equal to the number of bytes remaining after the current dive.
+		// a number of bytes from the next dive.
 
 		remaining -= size;
 		available = nbytes - size;
 
-		unsigned int oprevious = array_uint16_le (data + SZ_MINIMUM + remaining + 0);
-		unsigned int onext     = array_uint16_le (data + SZ_MINIMUM + remaining + 2);
-		assert (current == onext);
+		unsigned int prev = array_uint16_le (data + offset + available + 0);
+		unsigned int next = array_uint16_le (data + offset + available + 2);
+		if (next != previous) {
+			WARNING ("Profiles are not continuous.");
+			return DEVICE_STATUS_ERROR;
+		}
 
 		// Next dive.
-		current = previous;
-		previous = oprevious;
-		ndives++;
+		previous = current;
+		current = prev;
 
-		unsigned int offset = SZ_MINIMUM + remaining;
-		if (memcmp (data + offset + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0)
+		if (memcmp (data + offset + available + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0)
 			return DEVICE_STATUS_SUCCESS;
 
-		if (callback && !callback (data + offset + 4, size - 4, userdata))
+		if (callback && !callback (data + offset + available + 4, size - 4, userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
-	assert (remaining == 0);
-	assert (available == 0);
-	assert (ndives == count);
 
 	return DEVICE_STATUS_SUCCESS;
 }
