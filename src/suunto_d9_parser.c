@@ -118,49 +118,33 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 0x4E - SKIP)
-		return PARSER_STATUS_ERROR;
+	// Offset to the configuration data.
+	unsigned int config = 0x3E - SKIP;
+	if (parser->model == 0x12)
+		config += 1; // D4
+	assert (config + 1 <= size);
 
-	unsigned int pressure_samples = 1;
-	unsigned int pressure_offset = 0;
+	// Number of parameters in the configuration data.
+	unsigned int nparams = data[config];
 
-	switch (parser->model) {
-	case 0x0E: // D9
-	case 0x0F: // D6
-	case 0x10: // Vyper 2
-	case 0x11: // Cobra 2
-	case 0x13: // Vyper Air
-	case 0x14: // Cobra 3
-		if (data[0x3E - SKIP] == 0x03 && data[0x3F - SKIP] == 0x07) {
-			pressure_samples = 1;
-			pressure_offset = 0;
-		} else if (data[0x3E - SKIP] == 0x02 && data[0x3F - SKIP] == 0x05) {
-			pressure_samples = 0;
-			pressure_offset = 3;
-		} else {
-			return PARSER_STATUS_ERROR;
-		}
-		break;
-	case 0x12: // D4
-		pressure_samples = 0;
-		pressure_offset = 2;
-		break;
-	default:
-		return PARSER_STATUS_ERROR;
-	}
+	// Offset to the profile data.
+	unsigned int profile = config + 2 + nparams * 3;
+	assert (profile + 5 <= size);
 
 	// Sample recording interval.
 	unsigned int interval_sample = data[0x1C - SKIP];
+	assert (interval_sample > 0);
 
 	// Temperature recording interval.
-	unsigned int interval_temperature = data[0x47 - SKIP - pressure_offset];
+	unsigned int interval_temperature = data[config + 2 + (nparams - 1) * 3 + 1];
+	assert (interval_temperature > 0);
 
 	// Offset to the first marker position.
-	unsigned int marker = array_uint16_le (data + 0x4C - SKIP - pressure_offset);
+	unsigned int marker = array_uint16_le (data + profile + 3);
 
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
-	unsigned int offset = 0x4E - SKIP - pressure_offset;
+	unsigned int offset = profile + 5;
 	while (offset + 2 <= size) {
 		parser_sample_value_t sample = {0};
 
@@ -175,7 +159,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		offset += 2;
 
 		// Tank pressure (1/100 bar).
-		if (pressure_samples) {
+		if (nparams == 3) {
 			assert (offset + 2 <= size);
 			unsigned int pressure = array_uint16_le (data + offset);
 			if (pressure != 0xFFFF) {
