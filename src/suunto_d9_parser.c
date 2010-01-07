@@ -122,6 +122,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	unsigned int config = 0x3E - SKIP;
 	if (parser->model == 0x12)
 		config += 1; // D4
+	if (parser->model == 0x15)
+		config += 74; // HelO2
 	assert (config + 1 <= size);
 
 	// Number of parameters in the configuration data.
@@ -129,6 +131,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 	// Offset to the profile data.
 	unsigned int profile = config + 2 + nparams * 3;
+	if (parser->model == 0x15)
+		profile += 12; // HelO2
 	assert (profile + 5 <= size);
 
 	// Sample recording interval.
@@ -251,13 +255,22 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 						sample.event.value = 100;
 						break;
 					case 0x0C: // PO2
-						sample.event.type = SAMPLE_EVENT_P02;
+						sample.event.type = SAMPLE_EVENT_PO2;
 						break;
 					case 0x0D: //Air Time Warning
 						sample.event.type = SAMPLE_EVENT_AIRTIME;
 						break;
 					case 0x0E: // RGBM Warning
 						sample.event.type = SAMPLE_EVENT_RGBM;
+						break;
+					case 0x0F: // PO2 High
+						sample.event.type = SAMPLE_EVENT_PO2;
+						break;
+					case 0x11: // Tissue Level Warning
+						sample.event.type = SAMPLE_EVENT_TISSUELEVEL;
+						break;
+					case 0x13: // Deep Safety Stop
+						sample.event.type = SAMPLE_EVENT_DEEPSTOP;
 						break;
 					default: // Unknown
 						WARNING ("Unknown event");
@@ -296,6 +309,18 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					sample.event.value = percentage;
 					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
 					offset += 2;
+					break;
+				case 0x06: // Gas Change
+					assert (offset + 4 <= size);
+					unknown = data[offset + 0];
+					unknown = data[offset + 1];
+					percentage = data[offset + 2];
+					seconds = data[offset + 3];
+					sample.event.type = SAMPLE_EVENT_GASCHANGE;
+					sample.event.time = seconds;
+					sample.event.value = percentage;
+					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+					offset += 4;
 					break;
 				default:
 					WARNING ("Unknown event");
