@@ -29,6 +29,7 @@
 #include "serial.h"
 #include "utils.h"
 #include "checksum.h"
+#include "array.h"
 
 #define EXITCODE(rc) \
 ( \
@@ -273,6 +274,14 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 		dc_buffer_free (buffer);
 		return rc;
 	}
+
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	device_devinfo_t devinfo;
+	devinfo.model = 0;
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint16_be (data + 8);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	rc = mares_nemo_extract_dives (abstract,
 		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
