@@ -47,26 +47,24 @@ typedef struct oceanic_atom2_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_atom2_device_t;
 
-static device_status_t oceanic_atom2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static device_status_t oceanic_atom2_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t oceanic_atom2_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_atom2_device_backend = {
 	DEVICE_TYPE_OCEANIC_ATOM2,
-	oceanic_atom2_device_set_fingerprint, /* set_fingerprint */
+	oceanic_common_device_set_fingerprint, /* set_fingerprint */
 	oceanic_atom2_device_version, /* version */
 	oceanic_atom2_device_read, /* read */
 	oceanic_atom2_device_write, /* write */
-	oceanic_atom2_device_dump, /* dump */
-	oceanic_atom2_device_foreach, /* foreach */
+	oceanic_common_device_dump, /* dump */
+	oceanic_common_device_foreach, /* foreach */
 	oceanic_atom2_device_close /* close */
 };
 
 static const oceanic_common_layout_t oceanic_atom2_layout = {
+	0x10000, /* memsize */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -236,6 +234,9 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Initialize the base class.
 	oceanic_common_device_init (&device->base, &oceanic_atom2_device_backend);
 
+	// Override the base class values.
+	device->base.layout = &oceanic_atom2_layout;
+
 	// Set the default values.
 	device->port = NULL;
 	memset (device->version, 0, sizeof (device->version));
@@ -282,18 +283,6 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	*out = (device_t*) device;
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-oceanic_atom2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	oceanic_common_device_t *device = (oceanic_common_device_t*) abstract;
-
-	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	return oceanic_common_device_set_fingerprint (device, data, size);
 }
 
 
@@ -465,34 +454,4 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 	}
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-oceanic_atom2_device_dump (device_t *abstract, dc_buffer_t *buffer)
-{
-	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	// Erase the current contents of the buffer and
-	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, OCEANIC_ATOM2_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
-
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), PAGESIZE);
-}
-
-
-static device_status_t
-oceanic_atom2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
-{
-	oceanic_common_device_t *device = (oceanic_common_device_t*) abstract;
-
-	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	return oceanic_common_device_foreach (device, &oceanic_atom2_layout, callback, userdata);
 }

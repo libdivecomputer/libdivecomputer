@@ -30,12 +30,9 @@ extern "C" {
 
 #define PAGESIZE 0x10
 
-typedef struct oceanic_common_device_t {
-	device_t base;
-	unsigned char fingerprint[8];
-} oceanic_common_device_t;
-
 typedef struct oceanic_common_layout_t {
+	// Memory size.
+	unsigned int memsize;
 	// Device info.
 	unsigned int cf_devinfo;
 	// Ringbuffer pointers.
@@ -53,14 +50,23 @@ typedef struct oceanic_common_layout_t {
 	unsigned int mode;
 } oceanic_common_layout_t;
 
+typedef struct oceanic_common_device_t {
+	device_t base;
+	unsigned char fingerprint[PAGESIZE / 2];
+	const oceanic_common_layout_t *layout;
+} oceanic_common_device_t;
+
 void
 oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend);
 
 device_status_t
-oceanic_common_device_set_fingerprint (oceanic_common_device_t *device, const unsigned char data[], unsigned int size);
+oceanic_common_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 
 device_status_t
-oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_common_layout_t *layout, dive_callback_t callback, void *userdata);
+oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer);
+
+device_status_t
+oceanic_common_device_foreach (device_t *device, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

@@ -48,25 +48,23 @@ typedef struct oceanic_veo250_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_veo250_device_t;
 
-static device_status_t oceanic_veo250_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t oceanic_veo250_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t oceanic_veo250_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t oceanic_veo250_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_veo250_device_backend = {
 	DEVICE_TYPE_OCEANIC_VEO250,
-	oceanic_veo250_device_set_fingerprint, /* set_fingerprint */
+	oceanic_common_device_set_fingerprint, /* set_fingerprint */
 	oceanic_veo250_device_version, /* version */
 	oceanic_veo250_device_read, /* read */
 	NULL, /* write */
-	oceanic_veo250_device_dump, /* dump */
-	oceanic_veo250_device_foreach, /* foreach */
+	oceanic_common_device_dump, /* dump */
+	oceanic_common_device_foreach, /* foreach */
 	oceanic_veo250_device_close /* close */
 };
 
 static const oceanic_common_layout_t oceanic_veo250_layout = {
+	0x8000, /* memsize */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0400, /* rb_logbook_begin */
@@ -224,6 +222,9 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 	// Initialize the base class.
 	oceanic_common_device_init (&device->base, &oceanic_veo250_device_backend);
 
+	// Override the base class values.
+	device->base.layout = &oceanic_veo250_layout;
+
 	// Set the default values.
 	device->port = NULL;
 	device->last = 0;
@@ -280,18 +281,6 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 	*out = (device_t*) device;
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-oceanic_veo250_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	oceanic_common_device_t *device = (oceanic_common_device_t*) abstract;
-
-	if (! device_is_oceanic_veo250 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	return oceanic_common_device_set_fingerprint (device, data, size);
 }
 
 
@@ -437,34 +426,4 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 	}
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-oceanic_veo250_device_dump (device_t *abstract, dc_buffer_t *buffer)
-{
-	if (! device_is_oceanic_veo250 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	// Erase the current contents of the buffer and
-	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, OCEANIC_VEO250_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
-	}
-
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), PAGESIZE);
-}
-
-
-static device_status_t
-oceanic_veo250_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
-{
-	oceanic_common_device_t *device = (oceanic_common_device_t*) abstract;
-
-	if (! device_is_oceanic_veo250 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	return oceanic_common_device_foreach (device, &oceanic_veo250_layout, callback, userdata);
 }

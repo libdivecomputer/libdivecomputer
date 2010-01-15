@@ -92,12 +92,15 @@ oceanic_common_device_init (oceanic_common_device_t *device, const device_backen
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	device->layout = NULL;
 }
 
 
 device_status_t
-oceanic_common_device_set_fingerprint (oceanic_common_device_t *device, const unsigned char data[], unsigned int size)
+oceanic_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+
 	assert (device != NULL);
 
 	if (size && size != sizeof (device->fingerprint))
@@ -113,12 +116,34 @@ oceanic_common_device_set_fingerprint (oceanic_common_device_t *device, const un
 
 
 device_status_t
-oceanic_common_device_foreach (oceanic_common_device_t *device, const oceanic_common_layout_t *layout, dive_callback_t callback, void *userdata)
+oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
-	device_t *abstract = (device_t *) device;
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
-	assert (abstract != NULL);
-	assert (layout != NULL);
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	// Erase the current contents of the buffer and
+	// allocate the required amount of memory.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), PAGESIZE);
+}
+
+
+device_status_t
+oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	const oceanic_common_layout_t *layout = device->layout;
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;

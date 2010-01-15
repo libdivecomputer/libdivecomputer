@@ -29,8 +29,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define OCEANIC_VTPRO_MEMORY_SIZE 0x8000
-
 device_status_t
 oceanic_vtpro_device_open (device_t **device, const char* name);
 
