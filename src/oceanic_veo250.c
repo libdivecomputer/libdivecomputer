@@ -45,7 +45,7 @@ typedef struct oceanic_veo250_device_t {
 	oceanic_common_device_t base;
 	struct serial *port;
 	unsigned int last;
-	unsigned char version[OCEANIC_VEO250_PACKET_SIZE];
+	unsigned char version[PAGESIZE];
 } oceanic_veo250_device_t;
 
 static device_status_t oceanic_veo250_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -354,27 +354,27 @@ oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigne
 	if (! device_is_oceanic_veo250 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < OCEANIC_VEO250_PACKET_SIZE)
+	if (size < PAGESIZE)
 		return DEVICE_STATUS_MEMORY;
 
-	unsigned char answer[OCEANIC_VEO250_PACKET_SIZE + 2] = {0};
+	unsigned char answer[PAGESIZE + 2] = {0};
 	unsigned char command[2] = {0x90, 0x00};
 	device_status_t rc = oceanic_veo250_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the checksum of the answer.
-	unsigned char crc = answer[OCEANIC_VEO250_PACKET_SIZE];
-	unsigned char ccrc = checksum_add_uint8 (answer, OCEANIC_VEO250_PACKET_SIZE, 0x00);
+	unsigned char crc = answer[PAGESIZE];
+	unsigned char ccrc = checksum_add_uint8 (answer, PAGESIZE, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-	memcpy (data, answer, OCEANIC_VEO250_PACKET_SIZE);
+	memcpy (data, answer, PAGESIZE);
 
 #ifndef NDEBUG
-	answer[OCEANIC_VEO250_PACKET_SIZE] = 0;
+	answer[PAGESIZE] = 0;
 	message ("VEO250ReadVersion()=\"%s\"\n", answer);
 #endif
 
@@ -390,17 +390,17 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 	if (! device_is_oceanic_veo250 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	assert (address % OCEANIC_VEO250_PACKET_SIZE == 0);
-	assert (size    % OCEANIC_VEO250_PACKET_SIZE == 0);
+	assert (address % PAGESIZE == 0);
+	assert (size    % PAGESIZE == 0);
 
 	// The data transmission is split in packages
-	// of maximum $OCEANIC_VEO250_PACKET_SIZE bytes.
+	// of maximum $PAGESIZE bytes.
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Read the package.
-		unsigned int number = address / OCEANIC_VEO250_PACKET_SIZE;
-		unsigned char answer[OCEANIC_VEO250_PACKET_SIZE + 2] = {0};
+		unsigned int number = address / PAGESIZE;
+		unsigned char answer[PAGESIZE + 2] = {0};
 		unsigned char command[6] = {0x20, 
 				(number     ) & 0xFF, // low
 				(number >> 8) & 0xFF, // high
@@ -414,26 +414,26 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 		device->last = number;
 
 		// Verify the checksum of the answer.
-		unsigned char crc = answer[OCEANIC_VEO250_PACKET_SIZE];
-		unsigned char ccrc = checksum_add_uint8 (answer, OCEANIC_VEO250_PACKET_SIZE, 0x00);
+		unsigned char crc = answer[PAGESIZE];
+		unsigned char ccrc = checksum_add_uint8 (answer, PAGESIZE, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
-		memcpy (data, answer, OCEANIC_VEO250_PACKET_SIZE);
+		memcpy (data, answer, PAGESIZE);
 
 #ifndef NDEBUG
-		message ("VEO250Read(0x%04x,%d)=\"", address, OCEANIC_VEO250_PACKET_SIZE);
-		for (unsigned int i = 0; i < OCEANIC_VEO250_PACKET_SIZE; ++i) {
+		message ("VEO250Read(0x%04x,%d)=\"", address, PAGESIZE);
+		for (unsigned int i = 0; i < PAGESIZE; ++i) {
 			message("%02x", data[i]);
 		}
 		message("\"\n");
 #endif
 
-		nbytes += OCEANIC_VEO250_PACKET_SIZE;
-		address += OCEANIC_VEO250_PACKET_SIZE;
-		data += OCEANIC_VEO250_PACKET_SIZE;
+		nbytes += PAGESIZE;
+		address += PAGESIZE;
+		data += PAGESIZE;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
@@ -454,7 +454,7 @@ oceanic_veo250_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), OCEANIC_VEO250_PACKET_SIZE);
+		dc_buffer_get_size (buffer), PAGESIZE);
 }
 
 

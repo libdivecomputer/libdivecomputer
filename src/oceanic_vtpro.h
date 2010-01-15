@@ -22,15 +22,14 @@
 #ifndef OCEANIC_VTPRO_H
 #define OCEANIC_VTPRO_H
 
+#include "device.h"
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#include "device.h"
-#include "parser.h"
-
 #define OCEANIC_VTPRO_MEMORY_SIZE 0x8000
-#define OCEANIC_VTPRO_PACKET_SIZE 0x10
 
 device_status_t
 oceanic_vtpro_device_open (device_t **device, const char* name);

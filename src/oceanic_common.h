@@ -28,6 +28,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define PAGESIZE 0x10
+
 typedef struct oceanic_common_device_t {
 	device_t base;
 	unsigned char fingerprint[8];

@@ -30,7 +30,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 #define OCEANIC_ATOM2_MEMORY_SIZE 0x10000
-#define OCEANIC_ATOM2_PACKET_SIZE 0x10
 
 device_status_t
 oceanic_atom2_device_open (device_t **device, const char* name);

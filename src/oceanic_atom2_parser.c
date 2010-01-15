@@ -23,6 +23,7 @@
 #include <assert.h>
 
 #include "oceanic_atom2.h"
+#include "oceanic_common.h"
 #include "parser-private.h"
 #include "array.h"
 #include "units.h"
@@ -110,7 +111,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 11 * OCEANIC_ATOM2_PACKET_SIZE / 2)
+	if (size < 11 * PAGESIZE / 2)
 		return PARSER_STATUS_ERROR;
 
 	unsigned int time = 0;
@@ -136,13 +137,13 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int pressure = data[0x42] + (data[0x42 + 1] << 8);
 	unsigned int temperature = data[0x47];
 
-	unsigned int offset = 9 * OCEANIC_ATOM2_PACKET_SIZE / 2;
-	while (offset + OCEANIC_ATOM2_PACKET_SIZE / 2 <= size - OCEANIC_ATOM2_PACKET_SIZE) {
+	unsigned int offset = 9 * PAGESIZE / 2;
+	while (offset + PAGESIZE / 2 <= size - PAGESIZE) {
 		parser_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, OCEANIC_ATOM2_PACKET_SIZE / 2, 0x00)) {
-			offset += OCEANIC_ATOM2_PACKET_SIZE / 2;
+		if (array_isequal (data + offset, PAGESIZE / 2, 0x00)) {
+			offset += PAGESIZE / 2;
 			continue;
 		}
 
@@ -155,7 +156,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 		// Vendor specific data
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
-		sample.vendor.size = OCEANIC_ATOM2_PACKET_SIZE / 2;
+		sample.vendor.size = PAGESIZE / 2;
 		sample.vendor.data = data + offset;
 		if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
 
@@ -191,7 +192,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			complete = 1;
 		}
 
-		offset += OCEANIC_ATOM2_PACKET_SIZE / 2;
+		offset += PAGESIZE / 2;
 	}
 
 	return PARSER_STATUS_SUCCESS;

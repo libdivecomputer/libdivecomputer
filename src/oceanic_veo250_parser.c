@@ -23,6 +23,7 @@
 #include <assert.h>
 
 #include "oceanic_veo250.h"
+#include "oceanic_common.h"
 #include "parser-private.h"
 #include "array.h"
 #include "units.h"
@@ -110,7 +111,7 @@ oceanic_veo250_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 7 * OCEANIC_VEO250_PACKET_SIZE / 2)
+	if (size < 7 * PAGESIZE / 2)
 		return PARSER_STATUS_ERROR;
 
 	unsigned int time = 0;
@@ -130,13 +131,13 @@ oceanic_veo250_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		break;
 	}
 
-	unsigned int offset = 5 * OCEANIC_VEO250_PACKET_SIZE / 2;
-	while (offset + OCEANIC_VEO250_PACKET_SIZE / 2 <= size - OCEANIC_VEO250_PACKET_SIZE) {
+	unsigned int offset = 5 * PAGESIZE / 2;
+	while (offset + PAGESIZE / 2 <= size - PAGESIZE) {
 		parser_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, OCEANIC_VEO250_PACKET_SIZE / 2, 0x00)) {
-			offset += OCEANIC_VEO250_PACKET_SIZE / 2;
+		if (array_isequal (data + offset, PAGESIZE / 2, 0x00)) {
+			offset += PAGESIZE / 2;
 			continue;
 		}
 
@@ -147,7 +148,7 @@ oceanic_veo250_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 
 		// Vendor specific data
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_VEO250;
-		sample.vendor.size = OCEANIC_VEO250_PACKET_SIZE / 2;
+		sample.vendor.size = PAGESIZE / 2;
 		sample.vendor.data = data + offset;
 		if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
 
@@ -161,7 +162,7 @@ oceanic_veo250_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
-		offset += OCEANIC_VEO250_PACKET_SIZE / 2;
+		offset += PAGESIZE / 2;
 	}
 
 	return PARSER_STATUS_SUCCESS;

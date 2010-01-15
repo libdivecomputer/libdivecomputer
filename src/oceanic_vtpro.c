@@ -45,7 +45,7 @@
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	struct serial *port;
-	unsigned char version[OCEANIC_VTPRO_PACKET_SIZE];
+	unsigned char version[PAGESIZE];
 } oceanic_vtpro_device_t;
 
 static device_status_t oceanic_vtpro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -375,7 +375,7 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 	if (! device_is_oceanic_vtpro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < OCEANIC_VTPRO_PACKET_SIZE)
+	if (size < PAGESIZE)
 		return DEVICE_STATUS_MEMORY;
 
 	// Switch the device into download mode. The response is ignored here,
@@ -383,21 +383,21 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 	// response of the first part of the other command in this function.
 
 	unsigned char cmd[2] = {0x88, 0x00};
-	unsigned char ans[OCEANIC_VTPRO_PACKET_SIZE / 2 + 1] = {0};
+	unsigned char ans[PAGESIZE / 2 + 1] = {0};
 	device_status_t rc = oceanic_vtpro_transfer (device, cmd, sizeof (cmd), ans, sizeof (ans));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the checksum of the answer.
-	unsigned char crc = ans[OCEANIC_VTPRO_PACKET_SIZE / 2];
-	unsigned char ccrc = checksum_add_uint4 (ans, OCEANIC_VTPRO_PACKET_SIZE / 2, 0x00);
+	unsigned char crc = ans[PAGESIZE / 2];
+	unsigned char ccrc = checksum_add_uint4 (ans, PAGESIZE / 2, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
 #ifndef NDEBUG
-	ans[OCEANIC_VTPRO_PACKET_SIZE / 2] = 0;
+	ans[PAGESIZE / 2] = 0;
 	message ("VTPROVersion(init)=\"%s\"\n", ans);
 #endif
 
@@ -406,30 +406,30 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 
 	for (unsigned int i = 0; i < 2; ++i) {
 		unsigned char command[4] = {0x72, 0x03, i * 0x10, 0x00};
-		unsigned char answer[OCEANIC_VTPRO_PACKET_SIZE / 2 + 2] = {0};
+		unsigned char answer[PAGESIZE / 2 + 2] = {0};
 		rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
 		// Verify the checksum of the answer.
-		unsigned char crc = answer[OCEANIC_VTPRO_PACKET_SIZE / 2];
-		unsigned char ccrc = checksum_add_uint4 (answer, OCEANIC_VTPRO_PACKET_SIZE / 2, 0x00);
+		unsigned char crc = answer[PAGESIZE / 2];
+		unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
 		// Verify the last byte of the answer.
-		if (answer[OCEANIC_VTPRO_PACKET_SIZE / 2 + 1] != END) {
+		if (answer[PAGESIZE / 2 + 1] != END) {
 			WARNING ("Unexpected answer byte.");
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
 		// Append the answer to the output buffer.
-		memcpy (data + i * OCEANIC_VTPRO_PACKET_SIZE / 2, answer, OCEANIC_VTPRO_PACKET_SIZE / 2);
+		memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
 
 #ifndef NDEBUG
-		answer[OCEANIC_VTPRO_PACKET_SIZE / 2] = 0;
+		answer[PAGESIZE / 2] = 0;
 		message ("VTPROVersion(%u)=\"%s\"\n", i, answer);
 #endif
 	}
@@ -446,17 +446,17 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 	if (! device_is_oceanic_vtpro (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	assert (address % OCEANIC_VTPRO_PACKET_SIZE == 0);
-	assert (size    % OCEANIC_VTPRO_PACKET_SIZE == 0);
+	assert (address % PAGESIZE == 0);
+	assert (size    % PAGESIZE == 0);
 
 	// The data transmission is split in packages
-	// of maximum $OCEANIC_VTPRO_PACKET_SIZE bytes.
+	// of maximum $PAGESIZE bytes.
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Read the package.
-		unsigned int number = address / OCEANIC_VTPRO_PACKET_SIZE;
-		unsigned char answer[OCEANIC_VTPRO_PACKET_SIZE + 1] = {0};
+		unsigned int number = address / PAGESIZE;
+		unsigned char answer[PAGESIZE + 1] = {0};
 		unsigned char command[6] = {0x34,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
@@ -468,26 +468,26 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 			return rc;
 
 		// Verify the checksum of the answer.
-		unsigned char crc = answer[OCEANIC_VTPRO_PACKET_SIZE];
-		unsigned char ccrc = checksum_add_uint8 (answer, OCEANIC_VTPRO_PACKET_SIZE, 0x00);
+		unsigned char crc = answer[PAGESIZE];
+		unsigned char ccrc = checksum_add_uint8 (answer, PAGESIZE, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
-		memcpy (data, answer, OCEANIC_VTPRO_PACKET_SIZE);
+		memcpy (data, answer, PAGESIZE);
 
 #ifndef NDEBUG
-		message ("VTPRORead(0x%04x,%d)=\"", address, OCEANIC_VTPRO_PACKET_SIZE);
-		for (unsigned int i = 0; i < OCEANIC_VTPRO_PACKET_SIZE; ++i) {
+		message ("VTPRORead(0x%04x,%d)=\"", address, PAGESIZE);
+		for (unsigned int i = 0; i < PAGESIZE; ++i) {
 			message("%02x", data[i]);
 		}
 		message("\"\n");
 #endif
 
-		nbytes += OCEANIC_VTPRO_PACKET_SIZE;
-		address += OCEANIC_VTPRO_PACKET_SIZE;
-		data += OCEANIC_VTPRO_PACKET_SIZE;
+		nbytes += PAGESIZE;
+		address += PAGESIZE;
+		data += PAGESIZE;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
@@ -508,7 +508,7 @@ oceanic_vtpro_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), OCEANIC_VTPRO_PACKET_SIZE);
+		dc_buffer_get_size (buffer), PAGESIZE);
 }
 
 
