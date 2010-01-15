@@ -40,6 +40,7 @@
 
 #define ACK 0x5A
 #define NAK 0xA5
+#define END 0x51
 
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
@@ -187,23 +188,14 @@ static device_status_t
 oceanic_vtpro_quit (oceanic_vtpro_device_t *device)
 {
 	// Send the command to the dive computer.
+	unsigned char answer[1] = {0};
 	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
-	device_status_t rc = oceanic_vtpro_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Failed to send the command.");
+	device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-	}
 
-	// Receive the answer of the dive computer.
-	unsigned char answer[2] = {0};
-	int n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (n);
-	}
-
-	// Verify the answer.
-	if (answer[0] != 0x5A || answer[1] != 0x51) {
+	// Verify the last byte of the answer.
+	if (answer[0] != END) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -216,27 +208,18 @@ static device_status_t
 oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 {
 	// Send the command to the dive computer.
+	// The timeout is temporary increased, because the
+	// device needs approximately 6 seconds to respond.
+	unsigned char answer[2] = {0};
 	unsigned char command[2] = {0x18, 0x00};
-	device_status_t rc = oceanic_vtpro_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Failed to send the command.");
-		return rc;
-	}
-
-	// Receive the answer of the dive computer. The timeout
-	// is temporary increased, because the device needs
-	// approximately 6 seconds to respond.
-	unsigned char answer[3] = {0};
 	serial_set_timeout (device->port, 9000);
-	int n = serial_read (device->port, answer, sizeof (answer));
+	device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	serial_set_timeout (device->port, 3000);
-	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (n);
-	}
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
-	// Verify the answer.
-	if (answer[0] != ACK || answer[2] != 0x00) {
+	// Verify the last byte of the answer.
+	if (answer[1] != 0x00) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -368,23 +351,14 @@ oceanic_vtpro_device_keepalive (device_t *abstract)
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// Send the command to the dive computer.
+	unsigned char answer[1] = {0};
 	unsigned char command[4] = {0x6A, 0x08, 0x00, 0x00};
-	device_status_t rc = oceanic_vtpro_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Failed to send the command.");
+	device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-	}
 
-	// Receive the answer of the dive computer.
-	unsigned char answer[2] = {0};
-	int n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (n);
-	}
-
-	// Verify the answer.
-	if (answer[0] != ACK || answer[1] != 0x51) {
+	// Verify the last byte of the answer.
+	if (answer[0] != END) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -446,7 +420,7 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 		}
 
 		// Verify the last byte of the answer.
-		if (answer[OCEANIC_VTPRO_PACKET_SIZE / 2 + 1] != 0x51) {
+		if (answer[OCEANIC_VTPRO_PACKET_SIZE / 2 + 1] != END) {
 			WARNING ("Unexpected answer byte.");
 			return DEVICE_STATUS_PROTOCOL;
 		}

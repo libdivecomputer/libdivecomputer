@@ -105,8 +105,6 @@ oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char comman
 static device_status_t
 oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
-	assert (asize == OCEANIC_VEO250_PACKET_SIZE + 2);
-
 	// Send the command to the device. If the device responds with an
 	// ACK byte, the command was received successfully and the answer
 	// (if any) follows after the ACK byte. If the device responds with
@@ -147,22 +145,14 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 	}
 
 	// Receive the answer of the dive computer.
-	int n = serial_read (device->port, answer, OCEANIC_VEO250_PACKET_SIZE + 2);
-	if (n != OCEANIC_VEO250_PACKET_SIZE + 2) {
+	int n = serial_read (device->port, answer, asize);
+	if (n != asize) {
 		WARNING ("Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
-	// Verify the checksum of the answer.
-	unsigned char crc = answer[OCEANIC_VEO250_PACKET_SIZE];
-	unsigned char ccrc = checksum_add_uint8 (answer, OCEANIC_VEO250_PACKET_SIZE, 0x00);
-	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
-	}
-
 	// Verify the last byte of the answer.
-	if (answer[OCEANIC_VEO250_PACKET_SIZE + 1] != NAK) {
+	if (answer[asize - 1] != NAK) {
 		WARNING ("Unexpected answer byte.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -337,27 +327,17 @@ oceanic_veo250_device_keepalive (device_t *abstract)
 	if (! device_is_oceanic_veo250 (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	// Send the command to the dive computer.
+	unsigned char answer[2] = {0};
 	unsigned char command[4] = {0x91,
 		(device->last     ) & 0xFF, // low
 		(device->last >> 8) & 0xFF, // high
 		0x00};
-	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Failed to send the command.");
+	device_status_t rc = oceanic_veo250_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-	}
-
-	// Receive the answer of the dive computer.
-	unsigned char answer[3] = {0};
-	int n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (n);
-	}
 
 	// Verify the answer.
-	if (answer[0] != ACK || answer[1] != NAK || answer[2] != NAK) {
+	if (answer[0] != NAK) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -382,6 +362,14 @@ oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigne
 	device_status_t rc = oceanic_veo250_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
+
+	// Verify the checksum of the answer.
+	unsigned char crc = answer[OCEANIC_VEO250_PACKET_SIZE];
+	unsigned char ccrc = checksum_add_uint8 (answer, OCEANIC_VEO250_PACKET_SIZE, 0x00);
+	if (crc != ccrc) {
+		WARNING ("Unexpected answer CRC.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
 
 	memcpy (data, answer, OCEANIC_VEO250_PACKET_SIZE);
 
@@ -423,9 +411,17 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
-		memcpy (data, answer, OCEANIC_VEO250_PACKET_SIZE);
-
 		device->last = number;
+
+		// Verify the checksum of the answer.
+		unsigned char crc = answer[OCEANIC_VEO250_PACKET_SIZE];
+		unsigned char ccrc = checksum_add_uint8 (answer, OCEANIC_VEO250_PACKET_SIZE, 0x00);
+		if (crc != ccrc) {
+			WARNING ("Unexpected answer CRC.");
+			return DEVICE_STATUS_PROTOCOL;
+		}
+
+		memcpy (data, answer, OCEANIC_VEO250_PACKET_SIZE);
 
 #ifndef NDEBUG
 		message ("VEO250Read(0x%04x,%d)=\"", address, OCEANIC_VEO250_PACKET_SIZE);
