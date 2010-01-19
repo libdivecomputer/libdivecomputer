@@ -273,6 +273,9 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 	// Initialize the data cable (PPS mode).
 	oceanic_veo250_init (device);
 
+	// Delay the sending of the version command.
+	serial_sleep (100);
+
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (manually activated by
 	// the user), or already in download mode.
