@@ -32,6 +32,7 @@
 #include "checksum.h"
 
 #define MAXRETRIES 2
+#define MULTIPAGE  4
 
 #define EXITCODE(rc) \
 ( \
@@ -444,40 +445,50 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
+		// Calculate the number of packages.
+		unsigned int npackets = (size - nbytes) / PAGESIZE;
+		if (npackets > MULTIPAGE)
+			npackets = MULTIPAGE;
+
 		// Read the package.
-		unsigned int number = address / PAGESIZE;
-		unsigned char answer[PAGESIZE + 1] = {0};
+		unsigned int first =  address / PAGESIZE;
+		unsigned int last  = first + npackets - 1;
+		unsigned char answer[(PAGESIZE + 1) * MULTIPAGE] = {0};
 		unsigned char command[6] = {0x34,
-				(number >> 8) & 0xFF, // high
-				(number     ) & 0xFF, // low
-				(number >> 8) & 0xFF, // high
-				(number     ) & 0xFF, // low
+				(first >> 8) & 0xFF, // high
+				(first     ) & 0xFF, // low
+				(last >> 8) & 0xFF, // high
+				(last     ) & 0xFF, // low
 				0x00};
-		device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+		device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, (PAGESIZE + 1) * npackets);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
-		// Verify the checksum of the answer.
-		unsigned char crc = answer[PAGESIZE];
-		unsigned char ccrc = checksum_add_uint8 (answer, PAGESIZE, 0x00);
-		if (crc != ccrc) {
-			WARNING ("Unexpected answer CRC.");
-			return DEVICE_STATUS_PROTOCOL;
-		}
+		unsigned int offset = 0;
+		for (unsigned int i = 0; i < npackets; ++i) {
+			// Verify the checksum of the answer.
+			unsigned char crc = answer[offset + PAGESIZE];
+			unsigned char ccrc = checksum_add_uint8 (answer + offset, PAGESIZE, 0x00);
+			if (crc != ccrc) {
+				WARNING ("Unexpected answer CRC.");
+				return DEVICE_STATUS_PROTOCOL;
+			}
 
-		memcpy (data, answer, PAGESIZE);
+			memcpy (data, answer + offset, PAGESIZE);
 
 #ifndef NDEBUG
-		message ("VTPRORead(0x%04x,%d)=\"", address, PAGESIZE);
-		for (unsigned int i = 0; i < PAGESIZE; ++i) {
-			message("%02x", data[i]);
-		}
-		message("\"\n");
+			message ("VTPRORead(0x%04x,%d)=\"", address, PAGESIZE);
+			for (unsigned int i = 0; i < PAGESIZE; ++i) {
+				message("%02x", data[i]);
+			}
+			message("\"\n");
 #endif
 
-		nbytes += PAGESIZE;
-		address += PAGESIZE;
-		data += PAGESIZE;
+			offset += PAGESIZE + 1;
+			nbytes += PAGESIZE;
+			address += PAGESIZE;
+			data += PAGESIZE;
+		}
 	}
 
 	return DEVICE_STATUS_SUCCESS;
