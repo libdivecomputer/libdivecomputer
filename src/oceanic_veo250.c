@@ -225,6 +225,7 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 
 	// Override the base class values.
 	device->base.layout = &oceanic_veo250_layout;
+	device->base.multipage = MULTIPAGE;
 
 	// Set the default values.
 	device->port = NULL;

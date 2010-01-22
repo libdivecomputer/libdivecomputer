@@ -93,6 +93,7 @@ oceanic_common_device_init (oceanic_common_device_t *device, const device_backen
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->layout = NULL;
+	device->multipage = 1;
 }
 
 
@@ -131,7 +132,7 @@ oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), PAGESIZE);
+		dc_buffer_get_size (buffer), PAGESIZE * device->multipage);
 }
 
 
@@ -271,26 +272,35 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// of its fingerprint), the transfer is aborted immediately to reduce
 	// the transfer time. When necessary, padding entries are downloaded
 	// (but not processed) to align all read requests on page boundaries.
+	unsigned int nbytes = 0;
 	unsigned int current = end;
 	unsigned int offset = rb_logbook_page_size;
 	unsigned int address = rb_logbook_page_end;
-	unsigned int npages = rb_logbook_page_size / PAGESIZE;
-	for (unsigned int i = 0; i < npages; ++i) {
-		// Move to the start of the current page.
+	while (nbytes < rb_logbook_page_size) {
+		// Handle the ringbuffer wrap point.
 		if (address == layout->rb_logbook_begin)
 			address = layout->rb_logbook_end;
-		address -= PAGESIZE;
-		offset -= PAGESIZE;
+
+		// Calculate the optimal packet size.
+		unsigned int len = PAGESIZE * device->multipage;
+		if (layout->rb_logbook_begin + len > address)
+			len = address - layout->rb_logbook_begin; // End of ringbuffer.
+		if (nbytes + len > rb_logbook_page_size)
+			len = rb_logbook_page_size - nbytes; // End of logbooks.
+
+		// Move to the start of the current page.
+		address -= len;
+		offset -= len;
 
 		// Read the logbook page.
-		rc = device_read (abstract, address, logbooks + offset, PAGESIZE);
+		rc = device_read (abstract, address, logbooks + offset, len);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			free (logbooks);
 			return rc;
 		}
 
 		// Update and emit a progress event.
-		progress.current += PAGESIZE;
+		progress.current += len;
 		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		// A full ringbuffer needs some special treatment to avoid
@@ -298,23 +308,25 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		// ringbuffer is not aligned to page boundaries, this page
 		// will contain both the most recent and oldest entry.
 		if (full && unaligned) {
-			if (i == 0) {
+			if (nbytes == 0) {
 				// After downloading the first page, move both the oldest
 				// and most recent entries to their correct location.
 				unsigned int oldest = rb_logbook_page_end - rb_logbook_entry_end;
-				unsigned int newest  = PAGESIZE - oldest;
+				unsigned int newest  = len - oldest;
 				// Move the oldest entries down to the start of the buffer.
 				memcpy (logbooks, logbooks + offset + newest, oldest);
 				// Move the newest entries up to the end of the buffer.
 				memmove (logbooks + offset + oldest, logbooks + offset, newest);
 				// Adjust the current page offset to the new position.
 				offset += oldest;
-			} else if (i == npages - 1) {
+			} else if (nbytes + len == rb_logbook_page_size) {
 				// After downloading the last page, pretend we have also
 				// downloaded those oldest entries from the first page.
 				offset = 0;
 			}
 		}
+
+		nbytes += len;
 
 		// Process the logbook entries.
 		int abort = 0;
@@ -364,19 +376,28 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	progress.maximum = progress.current + rb_profile_size;
 
 	// Memory buffer for the profile data.
-	unsigned char *profiles = (unsigned char *) malloc (rb_profile_size + PAGESIZE / 2);
+	unsigned char *profiles = (unsigned char *) malloc (rb_profile_size + (end - begin));
 	if (profiles == NULL) {
 		free (logbooks);
 		return DEVICE_STATUS_MEMORY;
 	}
+
+	// When using multipage reads, the last packet can contain data from more
+	// than one dive. Therefore, the remaining data of this package (and its
+	// size) needs to be preserved for the next dive.
+	unsigned int remaining = rb_profile_size;
+	unsigned int available = 0;
+
+	// Keep track of the previous dive.
+	unsigned int previous = rb_profile_end;
 
 	// Traverse the logbook ringbuffer backwards to retrieve the most recent
 	// dives first. The logbook ringbuffer is linearized at this point, so
 	// we do not have to take into account any memory wrapping near the end
 	// of the memory buffer.
 	current = end;
-	offset = rb_profile_size + PAGESIZE / 2;
-	address = rb_profile_end;
+	offset = rb_profile_size + (end - begin);
+	address = previous;
 	while (current != begin) {
 		// Move to the start of the current entry.
 		current -= PAGESIZE / 2;
@@ -388,19 +409,41 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
 
 		// Make sure the profiles are continuous.
-		assert (address == rb_entry_end);
+		if (rb_entry_end != previous) {
+			WARNING ("Profiles are not continuous.");
+			free (logbooks);
+			free (profiles);
+			return DEVICE_STATUS_ERROR;
+		}
+
+		// Make sure the profile size is valid.
+		if (rb_entry_size > remaining) {
+			WARNING ("Unexpected profile size.");
+			free (logbooks);
+			free (profiles);
+			return DEVICE_STATUS_ERROR;
+		}
 
 		// Read the profile data.
-		npages = rb_entry_size / PAGESIZE;
-		for (unsigned int i = 0; i < npages; ++i) {
-			// Move to the start of the current page.
+		unsigned int nbytes = available;
+		while (nbytes < rb_entry_size) {
+			// Handle the ringbuffer wrap point.
 			if (address == layout->rb_profile_begin)
 				address = layout->rb_profile_end;
-			address -= PAGESIZE;
-			offset -= PAGESIZE;
+
+			// Calculate the optimal packet size.
+			unsigned int len = PAGESIZE * device->multipage;
+			if (layout->rb_profile_begin + len > address)
+				len = address - layout->rb_profile_begin; // End of ringbuffer.
+			if (nbytes + len > remaining)
+				len = remaining - nbytes; // End of profile.
+
+			// Move to the start of the current page.
+			address -= len;
+			offset -= len;
 
 			// Read the profile page.
-			rc = device_read (abstract, address, profiles + offset, PAGESIZE);
+			rc = device_read (abstract, address, profiles + offset, len);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				free (logbooks);
 				free (profiles);
@@ -408,16 +451,25 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			}
 
 			// Update and emit a progress event.
-			progress.current += PAGESIZE;
+			progress.current += len;
 			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+			nbytes += len;
 		}
 
-		// Prepend the logbook entry to the profile data. The memory buffer
-		// is large enough to store this entry, but it will be overwritten
-		// when the next profile is downloaded.
-		memcpy (profiles + offset - PAGESIZE / 2, logbooks + current, PAGESIZE / 2);
+		available = nbytes - rb_entry_size;
+		remaining -= rb_entry_size;
+		previous = rb_entry_first;
 
-		if (callback && !callback (profiles + offset - PAGESIZE / 2, rb_entry_size + PAGESIZE / 2, userdata)) {
+		// Prepend the logbook entry to the profile data. The memory buffer is
+		// large enough to store this entry, but any data that belongs to the
+		// next dive needs to be moved down first.
+		if (available)
+			memmove (profiles + offset - PAGESIZE / 2, profiles + offset, available);
+		offset -= PAGESIZE / 2;
+		memcpy (profiles + offset + available, logbooks + current, PAGESIZE / 2);
+
+		if (callback && !callback (profiles + offset + available, rb_entry_size + PAGESIZE / 2, userdata)) {
 			free (logbooks);
 			free (profiles);
 			return DEVICE_STATUS_SUCCESS;

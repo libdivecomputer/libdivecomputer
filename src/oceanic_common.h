@@ -54,6 +54,7 @@ typedef struct oceanic_common_device_t {
 	device_t base;
 	unsigned char fingerprint[PAGESIZE / 2];
 	const oceanic_common_layout_t *layout;
+	unsigned int multipage;
 } oceanic_common_device_t;
 
 void
