@@ -196,22 +196,6 @@ uwatec_memomouse_device_set_fingerprint (device_t *abstract, const unsigned char
 
 
 static device_status_t
-uwatec_memomouse_confirm (uwatec_memomouse_device_t *device, unsigned char value)
-{
-	// Send the value to the device.
-	int rc = serial_write (device->port, &value, 1);
-	if (rc != 1) {
-		WARNING ("Failed to send the value.");
-		return EXITCODE (rc);
-	}
-
-	serial_drain (device->port);
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
 uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
 	assert (result != NULL);
@@ -271,9 +255,12 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
 		// Reject the packet.
-		rc = uwatec_memomouse_confirm (device, NAK);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
+		unsigned char value = NAK;
+		int n = serial_write (device->port, &value, 1);
+		if (n != 1) {
+			WARNING ("Failed to reject the packet.");
+			return EXITCODE (n);
+		}
 	}
 
 	return DEVICE_STATUS_SUCCESS;
@@ -304,9 +291,12 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 			return rc;
 
 		// Accept the packet.
-		rc = uwatec_memomouse_confirm (device, ACK);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
+		unsigned char value = ACK;
+		int n = serial_write (device->port, &value, 1);
+		if (n != 1) {
+			WARNING ("Failed to accept the packet.");
+			return EXITCODE (n);
+		}
 
 		if (nbytes == 0) {
 			// The first packet should contain at least
@@ -370,9 +360,12 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
 		// Reject the packet.
-		device_status_t rc = uwatec_memomouse_confirm (device, NAK);
-		if (rc != DEVICE_STATUS_SUCCESS)
-			return rc;
+		unsigned char value = NAK;
+		int n = serial_write (device->port, &value, 1);
+		if (n != 1) {
+			WARNING ("Failed to reject the packet.");
+			return EXITCODE (n);
+		}
 
 		serial_sleep (300);
 	}
@@ -412,8 +405,6 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 			WARNING ("Failed to send the command.");
 			return EXITCODE (n);
 		}
-
-		serial_drain (device->port);
 
 		// Wait for the answer (ACK).
 		n = serial_read (device->port, &answer, 1);

@@ -87,21 +87,6 @@ device_is_oceanic_veo250 (device_t *abstract)
 
 
 static device_status_t
-oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize)
-{
-	// Discard garbage bytes.
-	serial_flush (device->port, SERIAL_QUEUE_INPUT);
-
-	// Send the command to the dive computer and 
-	// wait until all data has been transmitted.
-	serial_write (device->port, command, csize);
-	serial_drain (device->port);
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
 oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
 	// Send the command to the device. If the device responds with an
@@ -113,15 +98,18 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 	unsigned int nretries = 0;
 	unsigned char response = NAK;
 	while (response == NAK) {
+		// Discard garbage bytes.
+		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+
 		// Send the command to the dive computer.
-		device_status_t rc = oceanic_veo250_send (device, command, csize);
-		if (rc != DEVICE_STATUS_SUCCESS) {
+		int n = serial_write (device->port, command, csize);
+		if (n != csize) {
 			WARNING ("Failed to send the command.");
-			return rc;
+			return EXITCODE (n);
 		}
 
 		// Receive the response (ACK/NAK) of the dive computer.
-		int n = serial_read (device->port, &response, 1);
+		n = serial_read (device->port, &response, 1);
 		if (n != 1) {
 			WARNING ("Failed to receive the answer.");
 			return EXITCODE (n);
@@ -165,15 +153,15 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[2] = {0x55, 0x00};
-	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	int n = serial_write (device->port, command, sizeof (command));
+	if (n != sizeof (command)) {
 		WARNING ("Failed to send the command.");
-		return rc;
+		return EXITCODE (n);
 	}
 
 	// Receive the answer of the dive computer.
 	unsigned char answer[14] = {0};
-	int n = serial_read (device->port, answer, sizeof (answer));
+	n = serial_read (device->port, answer, sizeof (answer));
 	if (n != sizeof (answer)) {
 		WARNING ("Failed to receive the answer.");
 		return EXITCODE (n);
@@ -197,10 +185,10 @@ oceanic_veo250_quit (oceanic_veo250_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[2] = {0x98, 0x00};
-	device_status_t rc = oceanic_veo250_send (device, command, sizeof (command));
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	int n = serial_write (device->port, command, sizeof (command));
+	if (n != sizeof (command)) {
 		WARNING ("Failed to send the command.");
-		return rc;
+		return EXITCODE (n);
 	}
 
 	return DEVICE_STATUS_SUCCESS;
