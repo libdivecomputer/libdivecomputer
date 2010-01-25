@@ -273,12 +273,22 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Send the init command.
-	oceanic_atom2_init (device);
+	device_status_t status = oceanic_atom2_init (device);
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
 	// by connecting the device), or already in download mode.
-	oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
+	status = oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	*out = (device_t*) device;
 

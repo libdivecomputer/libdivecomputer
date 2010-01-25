@@ -292,17 +292,32 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Initialize the data cable (MOD mode).
-	oceanic_vtpro_init (device);
+	device_status_t status = oceanic_vtpro_init (device);
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (manually activated by
 	// the user), or already in download mode.
-	oceanic_vtpro_device_version ((device_t *) device, device->version, sizeof (device->version));
+	status = oceanic_vtpro_device_version ((device_t *) device, device->version, sizeof (device->version));
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	// Calibrate the device. Although calibration is optional, it's highly
 	// recommended because it reduces the transfer time considerably, even
 	// when processing the command itself is quite slow.
-	oceanic_vtpro_calibrate (device);
+	status = oceanic_vtpro_calibrate (device);
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	*out = (device_t*) device;
 
