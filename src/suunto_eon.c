@@ -41,14 +41,13 @@ typedef struct suunto_eon_device_t {
 	struct serial *port;
 } suunto_eon_device_t;
 
-static device_status_t suunto_eon_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t suunto_eon_device_close (device_t *abstract);
 
 static const device_backend_t suunto_eon_device_backend = {
 	DEVICE_TYPE_SUUNTO_EON,
-	suunto_eon_device_set_fingerprint, /* set_fingerprint */
+	suunto_common_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
@@ -152,18 +151,6 @@ suunto_eon_device_close (device_t *abstract)
 	free (device);
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-suunto_eon_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
-
-	if (! device_is_suunto_eon (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	return suunto_common_device_set_fingerprint (device, data, size);
 }
 
 

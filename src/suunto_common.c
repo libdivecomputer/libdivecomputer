@@ -44,8 +44,10 @@ suunto_common_device_init (suunto_common_device_t *device, const device_backend_
 
 
 device_status_t
-suunto_common_device_set_fingerprint (suunto_common_device_t *device, const unsigned char data[], unsigned int size)
+suunto_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
+	suunto_common_device_t *device = (suunto_common_device_t *) abstract;
+
 	assert (device != NULL);
 
 	if (size && size != sizeof (device->fingerprint))

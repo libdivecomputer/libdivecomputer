@@ -49,7 +49,7 @@ void
 suunto_common_device_init (suunto_common_device_t *device, const device_backend_t *backend);
 
 device_status_t
-suunto_common_device_set_fingerprint (suunto_common_device_t *device, const unsigned char data[], unsigned int size);
+suunto_common_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 
 device_status_t
 suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata);
