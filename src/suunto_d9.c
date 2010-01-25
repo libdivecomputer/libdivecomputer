@@ -160,15 +160,20 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 	// Clear RTS to send the command.
 	serial_set_rts (device->port, 0);
 
-	// Send the command to the dive computer and 
-	// wait until all data has been transmitted.
-	serial_write (device->port, command, csize);
+	// Send the command to the dive computer.
+	int n = serial_write (device->port, command, csize);
+	if (n != csize) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Wait until all data has been transmitted.
 	serial_drain (device->port);
 
 	// Receive the echo.
 	unsigned char echo[128] = {0};
 	assert (sizeof (echo) >= csize);
-	int n = serial_read (device->port, echo, csize);
+	n = serial_read (device->port, echo, csize);
 	if (n != csize) {
 		WARNING ("Failed to receive the echo.");
 		return EXITCODE (n);

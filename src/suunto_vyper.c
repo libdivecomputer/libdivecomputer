@@ -31,6 +31,11 @@
 #include "array.h"
 #include "utils.h"
 
+#define EXITCODE(rc) \
+( \
+	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+)
+
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
@@ -210,9 +215,14 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);
 
-	// Send the command to the dive computer and 
-	// wait until all data has been transmitted.
-	serial_write (device->port, command, csize);
+	// Send the command to the dive computer.
+	int n = serial_write (device->port, command, csize);
+	if (n != csize) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Wait until all data has been transmitted.
 	serial_drain (device->port);
 
 	// If the interface sends an echo back (which is the case for many clone 
@@ -252,9 +262,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 	int n = serial_read (device->port, answer, asize);
 	if (n != asize) {
 		WARNING ("Failed to receive the answer.");
-		if (n == -1)
-			return DEVICE_STATUS_IO;
-		return DEVICE_STATUS_TIMEOUT;
+		return EXITCODE (n);
 	}
 
 	// Verify the header of the package.
@@ -399,9 +407,7 @@ suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, devic
 			if (n == 0 && npackages != 0)
 				break;
 			WARNING ("Failed to receive the answer.");
-			if (n == -1)
-				return DEVICE_STATUS_IO;
-			return DEVICE_STATUS_TIMEOUT;
+			return EXITCODE (n);
 		}
 
 		// Verify the header of the package.
@@ -416,9 +422,7 @@ suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, devic
 		n = serial_read (device->port, answer + 2, len + 1);
 		if (n != len + 1) {
 			WARNING ("Failed to receive the answer.");
-			if (n == -1)
-				return DEVICE_STATUS_IO;
-			return DEVICE_STATUS_TIMEOUT;
+			return EXITCODE (n);
 		}
 
 		// Verify the checksum of the package.

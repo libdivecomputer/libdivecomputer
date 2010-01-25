@@ -162,9 +162,14 @@ suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], 
 	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);
 
-	// Send the command to the dive computer and 
-	// wait until all data has been transmitted.
-	serial_write (device->port, command, csize);
+	// Send the command to the dive computer.
+	int n = serial_write (device->port, command, csize);
+	if (n != csize) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Wait until all data has been transmitted.
 	serial_drain (device->port);
 
 	serial_sleep (0x9);
@@ -173,7 +178,7 @@ suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], 
 	serial_set_rts (device->port, 0);
 
 	// Receive the answer of the dive computer.
-	int n = serial_read (device->port, answer, asize);
+	n = serial_read (device->port, answer, asize);
 	if (n != asize) {
 		WARNING ("Failed to receive the answer.");
 		return EXITCODE (n);
