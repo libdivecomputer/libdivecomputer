@@ -38,17 +38,9 @@ test_dump_memory (const char* filename)
 		return rc;
 	}
 
-	message ("uwatec_smart_device_handshake\n");
-	rc = uwatec_smart_device_handshake (device);
-	if (rc != DEVICE_STATUS_SUCCESS) {
-		WARNING ("Handshake failed.");
-		device_close (device);
-		return rc;
-	}
-
-	message ("uwatec_smart_device_version\n");
+	message ("device_version\n");
 	unsigned char version[UWATEC_SMART_VERSION_SIZE] = {0};
-	rc = uwatec_smart_device_version (device, version, sizeof (version));
+	rc = device_version (device, version, sizeof (version));
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
 		device_close (device);

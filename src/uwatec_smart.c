@@ -22,7 +22,6 @@
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strncmp, strstr
 #include <time.h>	// time, strftime
-#include <assert.h>	// assert
 
 #include "device-private.h"
 #include "uwatec_smart.h"
@@ -45,6 +44,7 @@ typedef struct uwatec_smart_device_t {
 } uwatec_smart_device_t;
 
 static device_status_t uwatec_smart_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
+static device_status_t uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned int size);
 static device_status_t uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t uwatec_smart_device_close (device_t *abstract);
@@ -52,7 +52,7 @@ static device_status_t uwatec_smart_device_close (device_t *abstract);
 static const device_backend_t uwatec_smart_device_backend = {
 	DEVICE_TYPE_UWATEC_SMART,
 	uwatec_smart_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
+	uwatec_smart_device_version, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	uwatec_smart_device_dump, /* dump */
@@ -73,8 +73,6 @@ device_is_uwatec_smart (device_t *abstract)
 static void
 uwatec_smart_discovery (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata)
 {
-	message ("device: address=%08x, name=%s, charset=%02x, hints=%04x\n", address, name, charset, hints);
-
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) userdata;
 	if (device == NULL)
 		return;
@@ -88,10 +86,64 @@ uwatec_smart_discovery (unsigned int address, const char *name, unsigned int cha
 		strstr (name, "Smart") != NULL ||
 		strstr (name, "SMART") != NULL ||
 		strstr (name, "Galileo") != NULL ||
-		strstr (name, "GALILEO") != NULL) {
-		message ("Found an Uwatec dive computer.\n");
+		strstr (name, "GALILEO") != NULL)
+	{
 		device->address = address;
 	}
+}
+
+
+static device_status_t
+uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+{
+	int n = irda_socket_write (device->socket, command, csize);
+	if (n != csize) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	n = irda_socket_read (device->socket, answer, asize);
+	if (n != asize) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (n);
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+uwatec_smart_handshake (uwatec_smart_device_t *device)
+{
+	// Command template.
+	unsigned char answer[1] = {0};
+	unsigned char command[5] = {0x00, 0x10, 0x27, 0, 0};
+
+	// Handshake (stage 1).
+	command[0] = 0x1B;
+	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Verify the answer.
+	if (answer[0] != 0x01) {
+		WARNING ("Unexpected answer byte(s).");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	// Handshake (stage 2).
+	command[0] = 0x1C;
+	rc = uwatec_smart_transfer (device, command, 5, answer, 1);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Verify the answer.
+	if (answer[0] != 0x01) {
+		WARNING ("Unexpected answer byte(s).");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -156,6 +208,9 @@ uwatec_smart_device_open (device_t **out)
 		free (device);
 		return DEVICE_STATUS_IO;
 	}
+
+	// Perform the handshaking.
+	uwatec_smart_handshake (device);
 
 	*out = (device_t*) device;
 
@@ -222,129 +277,34 @@ uwatec_smart_device_set_fingerprint (device_t *abstract, const unsigned char dat
 
 
 static device_status_t
-uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
-{
-	int rc = irda_socket_write (device->socket, command, csize);
-	if (rc != csize) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (rc);
-	}
-
-	rc = irda_socket_read (device->socket, answer, asize);
-	if (rc != asize) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-device_status_t
-uwatec_smart_device_handshake (device_t *abstract)
-{
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-
-	if (! device_is_uwatec_smart (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	unsigned char command[5] = {0};
-	unsigned char answer[1] = {0};
-
-	// Handshake (stage 1).
-
-	command[0] = 0x1B;
-
-	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	message ("handshake: header=%02x\n", answer[0]);
-
-	if (answer[0] != 0x01) {
-		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
-	}
-
-	// Handshake (stage 2).
-
-	command[0] = 0x1C;
-	command[1] = 0x10;
-	command[2] = 0x27;
-	command[3] = 0;
-	command[4] = 0;
-
-	rc = uwatec_smart_transfer (device, command, 5, answer, 1);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	message ("handshake: header=%02x\n", answer[0]);
-
-	if (answer[0] != 0x01) {
-		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
-	}
-	
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-device_status_t
 uwatec_smart_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-
-	if (! device_is_uwatec_smart (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	unsigned char command[1] = {0};
-	unsigned char answer[UWATEC_SMART_VERSION_SIZE] = {0};
-
-	// Dive Computer Time.
-
-	command[0] = 0x1A;
-
-	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer + 0, 4);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	time_t device_time = array_uint32_le (answer);
-	message ("handshake: timestamp=0x%08x\n", device_time);
-
-	// PC Time and Time Correction.
-
-	time_t now = time (NULL);
-	char datetime[21] = {0};
-	strftime (datetime, sizeof (datetime), "%Y-%m-%dT%H:%M:%SZ", gmtime (&now));
-	message ("handshake: now=%lu (%s)\n", (unsigned long)now, datetime);
-
-	// Serial Number
-
-	command[0] = 0x14;
-
-	rc = uwatec_smart_transfer (device, command, 1, answer + 4, 4);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	unsigned int serial = array_uint32_le (answer + 4);
-	message ("handshake: serial=0x%08x\n", serial);
-
-	// Dive Computer Model.
-
-	command[0] = 0x10;
-
-	rc = uwatec_smart_transfer (device, command, 1, answer + 8, 1);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	message ("handshake: model=0x%02x\n", answer[8]);
+	uwatec_smart_device_t *device = (uwatec_smart_device_t *) abstract;
 
 	if (size < UWATEC_SMART_VERSION_SIZE) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
-	memcpy (data, answer, UWATEC_SMART_VERSION_SIZE);
+	unsigned char command[1] = {0};
+
+	// Model Number.
+	command[0] = 0x10;
+	device_status_t rc = uwatec_smart_transfer (device, command, 1, data + 0, 1);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Serial Number.
+	command[0] = 0x14;
+	rc = uwatec_smart_transfer (device, command, 1, data + 1, 4);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Current Timestamp.
+	command[0] = 0x1A;
+	rc = uwatec_smart_transfer (device, command, 1, data + 5, 4);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -368,42 +328,15 @@ uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
 	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
-	unsigned char command[9] = {0};
-	unsigned char answer[4] = {0};
-
-	// Model Number.
-
-	command[0] = 0x10;
-	device_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	// Read the version and clock data.
+	unsigned char version[UWATEC_SMART_VERSION_SIZE] = {0};
+	device_status_t rc = uwatec_smart_device_version (abstract, version, sizeof (version));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
-
-	unsigned int model = answer[0];
-	message ("handshake: model=0x%02x\n", model);
-
-	// Serial Number.
-
-	command[0] = 0x14;
-	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	unsigned int serial = array_uint32_le (answer);
-	message ("handshake: serial=0x%08x\n", serial);
-
-	// Current Timestamp.
-
-	command[0] = 0x1A;
-	rc = uwatec_smart_transfer (device, command, 1, answer, 4);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	unsigned int timestamp = array_uint32_le (answer);
-	message ("handshake: timestamp=0x%08x\n", timestamp);
 
 	// Store the clock calibration values.
 	device->systime = time (NULL);
-	device->devtime = timestamp;
+	device->devtime = array_uint32_le (version + 5);
 
 	// Update and emit a progress event.
 	progress.current += 9;
@@ -411,29 +344,30 @@ uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	// Emit a device info event.
 	device_devinfo_t devinfo;
-	devinfo.model = model;
+	devinfo.model = version[0];
 	devinfo.firmware = 0;
-	devinfo.serial = serial;
+	devinfo.serial = array_uint32_le (version + 1);
 	device_event_emit (&device->base, DEVICE_EVENT_DEVINFO, &devinfo);
 
+	// Command template.
+	unsigned char answer[4] = {0};
+	unsigned char command[9] = {0x00,
+			(device->timestamp      ) & 0xFF,
+			(device->timestamp >> 8 ) & 0xFF,
+			(device->timestamp >> 16) & 0xFF,
+			(device->timestamp >> 24) & 0xFF,
+			0x10,
+			0x27,
+			0,
+			0};
+
 	// Data Length.
-
 	command[0] = 0xC6;
-	command[1] = (device->timestamp      ) & 0xFF;
-	command[2] = (device->timestamp >> 8 ) & 0xFF;
-	command[3] = (device->timestamp >> 16) & 0xFF;
-	command[4] = (device->timestamp >> 24) & 0xFF;
-	command[5] = 0x10;
-	command[6] = 0x27;
-	command[7] = 0;
-	command[8] = 0;
-
-	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	rc = uwatec_smart_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	unsigned int length = array_uint32_le (answer);
-	message ("handshake: length=%u\n", length);
 
 	// Update and emit a progress event.
 	progress.maximum = 4 + 9 + (length ? length + 4 : 0);
@@ -452,29 +386,21 @@ uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	unsigned char *data = dc_buffer_get_data (buffer);
 
 	// Data.
-
 	command[0] = 0xC4;
-	command[1] = (device->timestamp      ) & 0xFF;
-	command[2] = (device->timestamp >> 8 ) & 0xFF;
-	command[3] = (device->timestamp >> 16) & 0xFF;
-	command[4] = (device->timestamp >> 24) & 0xFF;
-	command[5] = 0x10;
-	command[6] = 0x27;
-	command[7] = 0;
-	command[8] = 0;
-
-	rc = uwatec_smart_transfer (device, command, 9, answer, 4);
+	rc = uwatec_smart_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
 	unsigned int total = array_uint32_le (answer);
-	message ("handshake: total=%u\n", total);
 
 	// Update and emit a progress event.
 	progress.current += 4;
 	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
-	assert (total == length + 4);
+	if (total != length + 4) {
+		WARNING ("Received an unexpected size.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
 
 	unsigned int nbytes = 0;
 	while (nbytes < length) {

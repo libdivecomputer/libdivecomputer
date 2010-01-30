@@ -100,9 +100,7 @@ hw_ostc_device_open
 #endif
 
 #ifdef IRDA
-uwatec_smart_device_handshake
-uwatec_smart_device_open 
+uwatec_smart_device_open
 uwatec_smart_device_set_timestamp
-uwatec_smart_device_version
 uwatec_smart_extract_dives
 #endif
