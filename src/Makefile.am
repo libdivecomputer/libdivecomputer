@@ -8,6 +8,7 @@ libdivecomputer_HEADERS = 	\
 	buffer.h \
 	device.h \
 	parser.h \
+	datetime.h \
 	units.h \
 	suunto.h \
 	suunto_solution.h \
@@ -48,6 +49,7 @@ libdivecomputer_la_LDFLAGS = \
 libdivecomputer_la_SOURCES = \
 	device.h device-private.h device.c \
 	parser.h parser-private.h parser.c \
+	datetime.h datetime.c \
 	suunto.h \
 	suunto_common.h suunto_common.c \
 	suunto_common2.h suunto_common2.c \

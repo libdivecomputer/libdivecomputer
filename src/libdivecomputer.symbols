@@ -9,6 +9,10 @@ dc_buffer_slice
 dc_buffer_get_size
 dc_buffer_get_data
 
+dc_datetime_now
+dc_datetime_localtime
+dc_datetime_gmtime
+
 parser_get_type
 parser_set_data
 parser_samples_foreach

@@ -38,6 +38,9 @@ AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"
 AM_CONDITIONAL([IRDA_WIN32], [test "$irda_win32" = "yes"])
 AM_CONDITIONAL([IRDA_LINUX], [test "$irda_linux" = "yes"])
 
+# Checks for library functions.
+AC_CHECK_FUNCS([localtime_r gmtime_r])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
    libdivecomputer.pc

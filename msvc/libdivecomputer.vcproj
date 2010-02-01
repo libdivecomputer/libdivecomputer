@@ -193,6 +193,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\datetime.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\device.c"
 				>
 			</File>
@@ -376,6 +380,10 @@
 			</File>
 			<File
 				RelativePath="..\src\cressi_edy.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\datetime.h"
 				>
 			</File>
 			<File
