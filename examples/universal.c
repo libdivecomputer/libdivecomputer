@@ -91,6 +91,7 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 {
 	const device_progress_t *progress = (device_progress_t *) data;
 	const device_devinfo_t *devinfo = (device_devinfo_t *) data;
+	const device_clock_t *clock = (device_clock_t *) data;
 
 	switch (event) {
 	case DEVICE_EVENT_WAITING:
@@ -106,6 +107,10 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 			devinfo->model, devinfo->model,
 			devinfo->firmware, devinfo->firmware,
 			devinfo->serial, devinfo->serial);
+		break;
+	case DEVICE_EVENT_CLOCK:
+		message ("Event: systime=%u, devtime=%u\n",
+			clock->systime, clock->devtime);
 		break;
 	default:
 		break;
@@ -255,7 +260,7 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 
 	// Register the event handler.
 	message ("Registering the event handler.\n");
-	int events = DEVICE_EVENT_WAITING | DEVICE_EVENT_PROGRESS | DEVICE_EVENT_DEVINFO;
+	int events = DEVICE_EVENT_WAITING | DEVICE_EVENT_PROGRESS | DEVICE_EVENT_DEVINFO | DEVICE_EVENT_CLOCK;
 	rc = device_set_events (device, events, event_cb, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error registering the event handler.");

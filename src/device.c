@@ -206,6 +206,9 @@ device_event_emit (device_t *device, device_event_t event, const void *data)
 	case DEVICE_EVENT_DEVINFO:
 		assert (data != NULL);
 		break;
+	case DEVICE_EVENT_CLOCK:
+		assert (data != NULL);
+		break;
 	default:
 		break;
 	}

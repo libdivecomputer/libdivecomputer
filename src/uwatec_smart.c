@@ -341,6 +341,12 @@ uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	progress.current += 9;
 	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
+	// Emit a clock event.
+	device_clock_t clock;
+	clock.systime = device->systime;
+	clock.devtime = device->devtime;
+	device_event_emit (&device->base, DEVICE_EVENT_CLOCK, &clock);
+
 	// Emit a device info event.
 	device_devinfo_t devinfo;
 	devinfo.model = version[0];

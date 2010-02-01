@@ -264,6 +264,12 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device->systime = now;
 	device->devtime = array_uint32_be (answer + HEADER + 0x7f8);
 
+	// Emit a clock event.
+	device_clock_t clock;
+	clock.systime = device->systime;
+	clock.devtime = device->devtime;
+	device_event_emit (abstract, DEVICE_EVENT_CLOCK, &clock);
+
 	dc_buffer_append (buffer, answer, UWATEC_ALADIN_MEMORY_SIZE);
 
 	return DEVICE_STATUS_SUCCESS;

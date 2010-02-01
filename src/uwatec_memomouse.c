@@ -437,6 +437,12 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 	device->systime = now;
 	device->devtime = array_uint32_le (dc_buffer_get_data (buffer) + 1);
 
+	// Emit a clock event.
+	device_clock_t clock;
+	clock.systime = device->systime;
+	clock.devtime = device->devtime;
+	device_event_emit ((device_t *) device, DEVICE_EVENT_CLOCK, &clock);
+
 	return DEVICE_STATUS_SUCCESS;
 }
 

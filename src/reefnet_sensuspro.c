@@ -246,6 +246,12 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	// Store the handshake packet.
 	memcpy (device->handshake, handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 
+	// Emit a clock event.
+	device_clock_t clock;
+	clock.systime = device->systime;
+	clock.devtime = device->devtime;
+	device_event_emit (&device->base, DEVICE_EVENT_CLOCK, &clock);
+
 	// Emit a device info event.
 	device_devinfo_t devinfo;
 	devinfo.model = handshake[0];
