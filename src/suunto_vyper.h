@@ -47,9 +47,6 @@ suunto_vyper_extract_dives (device_t *device, const unsigned char data[], unsign
 parser_status_t
 suunto_vyper_parser_create (parser_t **parser);
 
-parser_status_t
-suunto_spyder_parser_create (parser_t **parser);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

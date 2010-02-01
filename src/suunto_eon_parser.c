@@ -22,54 +22,54 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "suunto_vyper.h"
+#include "suunto_eon.h"
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
 
-typedef struct suunto_spyder_parser_t suunto_spyder_parser_t;
+typedef struct suunto_eon_parser_t suunto_eon_parser_t;
 
-struct suunto_spyder_parser_t {
+struct suunto_eon_parser_t {
 	parser_t base;
 };
 
-static parser_status_t suunto_spyder_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t suunto_spyder_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t suunto_spyder_parser_destroy (parser_t *abstract);
+static parser_status_t suunto_eon_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static parser_status_t suunto_eon_parser_destroy (parser_t *abstract);
 
-static const parser_backend_t suunto_spyder_parser_backend = {
-	PARSER_TYPE_SUUNTO_SPYDER,
-	suunto_spyder_parser_set_data, /* set_data */
-	suunto_spyder_parser_samples_foreach, /* samples_foreach */
-	suunto_spyder_parser_destroy /* destroy */
+static const parser_backend_t suunto_eon_parser_backend = {
+	PARSER_TYPE_SUUNTO_EON,
+	suunto_eon_parser_set_data, /* set_data */
+	suunto_eon_parser_samples_foreach, /* samples_foreach */
+	suunto_eon_parser_destroy /* destroy */
 };
 
 
 static int
-parser_is_suunto_spyder (parser_t *abstract)
+parser_is_suunto_eon (parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &suunto_spyder_parser_backend;
+    return abstract->backend == &suunto_eon_parser_backend;
 }
 
 
 parser_status_t
-suunto_spyder_parser_create (parser_t **out)
+suunto_eon_parser_create (parser_t **out)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
 
 	// Allocate memory.
-	suunto_spyder_parser_t *parser = (suunto_spyder_parser_t *) malloc (sizeof (suunto_spyder_parser_t));
+	suunto_eon_parser_t *parser = (suunto_eon_parser_t *) malloc (sizeof (suunto_eon_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return PARSER_STATUS_MEMORY;
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &suunto_spyder_parser_backend);
+	parser_init (&parser->base, &suunto_eon_parser_backend);
 
 	*out = (parser_t*) parser;
 
@@ -78,9 +78,9 @@ suunto_spyder_parser_create (parser_t **out)
 
 
 static parser_status_t
-suunto_spyder_parser_destroy (parser_t *abstract)
+suunto_eon_parser_destroy (parser_t *abstract)
 {
-	if (! parser_is_suunto_spyder (abstract))
+	if (! parser_is_suunto_eon (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
 
 	// Free memory.	
@@ -91,9 +91,9 @@ suunto_spyder_parser_destroy (parser_t *abstract)
 
 
 static parser_status_t
-suunto_spyder_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+suunto_eon_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_suunto_spyder (abstract))
+	if (! parser_is_suunto_eon (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
 
 	return PARSER_STATUS_SUCCESS;
@@ -101,9 +101,9 @@ suunto_spyder_parser_set_data (parser_t *abstract, const unsigned char *data, un
 
 
 static parser_status_t
-suunto_spyder_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
-	if (! parser_is_suunto_spyder (abstract))
+	if (! parser_is_suunto_eon (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
 
 	const unsigned char *data = abstract->data;

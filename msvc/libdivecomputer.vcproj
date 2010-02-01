@@ -305,15 +305,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\suunto_eon_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\suunto_solution.c"
 				>
 			</File>
 			<File
 				RelativePath="..\src\suunto_solution_parser.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\suunto_spyder_parser.c"
 				>
 			</File>
 			<File

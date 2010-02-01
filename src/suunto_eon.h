@@ -22,11 +22,12 @@
 #ifndef SUUNTO_EON_H
 #define SUUNTO_EON_H
 
+#include "device.h"
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "device.h"
 
 #define SUUNTO_EON_MEMORY_SIZE 0x900
 
@@ -41,6 +42,9 @@ suunto_eon_device_write_interval (device_t *device, unsigned char interval);
 
 device_status_t
 suunto_eon_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
+parser_status_t
+suunto_eon_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }
