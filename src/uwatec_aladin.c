@@ -21,7 +21,6 @@
 
 #include <stdlib.h> // malloc, free
 #include <memory.h> // memcpy
-#include <time.h>   // time
 #include <assert.h> // assert
 
 #include "device-private.h"
@@ -49,7 +48,7 @@ typedef struct uwatec_aladin_device_t {
 	struct serial *port;
 	unsigned int timestamp;
 	unsigned int devtime;
-	time_t systime;
+	dc_ticks_t systime;
 } uwatec_aladin_device_t ;
 
 static device_status_t uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -97,7 +96,7 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	device->timestamp = 0;
-	device->systime = (time_t) -1;
+	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 
 	// Open the device.
@@ -233,7 +232,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Fetch the current system time.
-	time_t now = time (NULL);
+	dc_ticks_t now = dc_datetime_now ();
 
 	// Update and emit a progress event.
 	progress.current += 4;

@@ -23,6 +23,7 @@
 #define DEVICE_H
 
 #include "buffer.h"
+#include "datetime.h"
 
 #ifdef __cplusplus
 extern "C" {

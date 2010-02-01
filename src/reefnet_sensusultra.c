@@ -22,7 +22,6 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
-#include <time.h>   // time
 
 #include "device-private.h"
 #include "reefnet_sensusultra.h"
@@ -47,7 +46,7 @@ typedef struct reefnet_sensusultra_device_t {
 	unsigned int maxretries;
 	unsigned int timestamp;
 	unsigned int devtime;
-	time_t systime;
+	dc_ticks_t systime;
 } reefnet_sensusultra_device_t;
 
 static device_status_t reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -96,7 +95,7 @@ reefnet_sensusultra_device_open (device_t **out, const char* name)
 	device->port = NULL;
 	device->maxretries = 2;
 	device->timestamp = 0;
-	device->systime = (time_t) -1;
+	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 	memset (device->handshake, 0, sizeof (device->handshake));
 
@@ -346,7 +345,7 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device)
 #endif
 
 	// Store the clock calibration values.
-	device->systime = time (NULL);
+	device->systime = dc_datetime_now ();
 	device->devtime = array_uint32_le (handshake + 4);
 
 	// Store the handshake packet.

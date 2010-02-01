@@ -21,7 +21,6 @@
 
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strncmp, strstr
-#include <time.h>	// time, strftime
 
 #include "device-private.h"
 #include "uwatec_smart.h"
@@ -40,7 +39,7 @@ typedef struct uwatec_smart_device_t {
 	unsigned int address;
 	unsigned int timestamp;
 	unsigned int devtime;
-	time_t systime;
+	dc_ticks_t systime;
 } uwatec_smart_device_t;
 
 static device_status_t uwatec_smart_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
@@ -167,7 +166,7 @@ uwatec_smart_device_open (device_t **out)
 	device->socket = NULL;
 	device->address = 0;
 	device->timestamp = 0;
-	device->systime = (time_t) -1;
+	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 
 	irda_init ();
@@ -335,7 +334,7 @@ uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 
 	// Store the clock calibration values.
-	device->systime = time (NULL);
+	device->systime = dc_datetime_now ();
 	device->devtime = array_uint32_le (version + 5);
 
 	// Update and emit a progress event.
