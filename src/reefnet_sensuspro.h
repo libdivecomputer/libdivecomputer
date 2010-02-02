@@ -48,7 +48,7 @@ device_status_t
 reefnet_sensuspro_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-reefnet_sensuspro_parser_create (parser_t **parser);
+reefnet_sensuspro_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
 parser_status_t
 reefnet_sensuspro_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);

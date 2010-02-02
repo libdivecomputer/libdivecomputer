@@ -38,12 +38,14 @@ struct suunto_d9_parser_t {
 };
 
 static parser_status_t suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
 static parser_status_t suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t suunto_d9_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_d9_parser_backend = {
 	PARSER_TYPE_SUUNTO_D9,
 	suunto_d9_parser_set_data, /* set_data */
+	suunto_d9_parser_get_datetime, /* datetime */
 	suunto_d9_parser_samples_foreach, /* samples_foreach */
 	suunto_d9_parser_destroy /* destroy */
 };
@@ -102,6 +104,27 @@ suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsign
 {
 	if (! parser_is_suunto_d9 (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+{
+	if (abstract->size < 0x15 - 4 + 7)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data + 0x15 - 4;
+
+	if (datetime) {
+		datetime->hour   = p[0];
+		datetime->minute = p[1];
+		datetime->second = p[2];
+		datetime->year   = p[3] + (p[4] << 8);
+		datetime->month  = p[5];
+		datetime->day    = p[6];
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }

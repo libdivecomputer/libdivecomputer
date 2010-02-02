@@ -41,7 +41,7 @@ device_status_t
 uwatec_smart_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-uwatec_smart_parser_create (parser_t **parser, unsigned int model);
+uwatec_smart_parser_create (parser_t **parser, unsigned int model, unsigned int devtime, dc_ticks_t systime);
 
 #ifdef __cplusplus
 }

@@ -35,12 +35,14 @@ struct mares_nemo_parser_t {
 };
 
 static parser_status_t mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t mares_nemo_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
 static parser_status_t mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t mares_nemo_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t mares_nemo_parser_backend = {
 	PARSER_TYPE_MARES_NEMO,
 	mares_nemo_parser_set_data, /* set_data */
+	mares_nemo_parser_get_datetime, /* datetime */
 	mares_nemo_parser_samples_foreach, /* samples_foreach */
 	mares_nemo_parser_destroy /* destroy */
 };
@@ -96,6 +98,32 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 {
 	if (! parser_is_mares_nemo (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+mares_nemo_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+{
+	if (abstract->size < 2)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int length = array_uint16_le (abstract->data);
+
+	if (length < 8 || length > abstract->size)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data + length - 8;
+
+	if (datetime) {
+		datetime->year   = p[0] + 2000;
+		datetime->month  = p[1];
+		datetime->day    = p[2];
+		datetime->hour   = p[3];
+		datetime->minute = p[4];
+		datetime->second = 0;
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }

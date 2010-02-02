@@ -27,6 +27,7 @@
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
+#include "array.h"
 
 #define NBITS 8
 #define NELEMENTS(x) ( sizeof(x) / sizeof((x)[0]) )
@@ -36,15 +37,19 @@ typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
 struct uwatec_smart_parser_t {
 	parser_t base;
 	unsigned int model;
+	unsigned int devtime;
+	dc_ticks_t systime;
 };
 
 static parser_status_t uwatec_smart_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t uwatec_smart_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
 static parser_status_t uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t uwatec_smart_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t uwatec_smart_parser_backend = {
 	PARSER_TYPE_UWATEC_SMART,
 	uwatec_smart_parser_set_data, /* set_data */
+	uwatec_smart_parser_get_datetime, /* datetime */
 	uwatec_smart_parser_samples_foreach, /* samples_foreach */
 	uwatec_smart_parser_destroy /* destroy */
 };
@@ -61,7 +66,7 @@ parser_is_uwatec_smart (parser_t *abstract)
 
 
 parser_status_t
-uwatec_smart_parser_create (parser_t **out, unsigned int model)
+uwatec_smart_parser_create (parser_t **out, unsigned int model, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -78,6 +83,8 @@ uwatec_smart_parser_create (parser_t **out, unsigned int model)
 
 	// Set the default values.
 	parser->model = model;
+	parser->devtime = devtime;
+	parser->systime = systime;
 
 	*out = (parser_t*) parser;
 
@@ -103,6 +110,25 @@ uwatec_smart_parser_set_data (parser_t *abstract, const unsigned char *data, uns
 {
 	if (! parser_is_uwatec_smart (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+uwatec_smart_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+{
+	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
+
+	if (abstract->size < 8 + 4)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int timestamp = array_uint32_le (abstract->data + 8);
+
+	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp) / 2;
+
+	if (!dc_datetime_localtime (datetime, ticks))
+		return PARSER_STATUS_ERROR;
 
 	return PARSER_STATUS_SUCCESS;
 }

@@ -22,6 +22,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "datetime.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -139,6 +141,9 @@ parser_get_type (parser_t *device);
 
 parser_status_t
 parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size);
+
+parser_status_t
+parser_get_datetime (parser_t *parser, dc_datetime_t *datetime);
 
 parser_status_t
 parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata);

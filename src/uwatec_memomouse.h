@@ -39,7 +39,7 @@ device_status_t
 uwatec_memomouse_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-uwatec_memomouse_parser_create (parser_t **parser);
+uwatec_memomouse_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
 #ifdef __cplusplus
 }

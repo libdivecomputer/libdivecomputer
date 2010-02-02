@@ -26,20 +26,24 @@
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
+#include "array.h"
 
 typedef struct suunto_eon_parser_t suunto_eon_parser_t;
 
 struct suunto_eon_parser_t {
 	parser_t base;
+	int spyder;
 };
 
 static parser_status_t suunto_eon_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t suunto_eon_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
 static parser_status_t suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t suunto_eon_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_eon_parser_backend = {
 	PARSER_TYPE_SUUNTO_EON,
 	suunto_eon_parser_set_data, /* set_data */
+	suunto_eon_parser_get_datetime, /* datetime */
 	suunto_eon_parser_samples_foreach, /* samples_foreach */
 	suunto_eon_parser_destroy /* destroy */
 };
@@ -56,7 +60,7 @@ parser_is_suunto_eon (parser_t *abstract)
 
 
 parser_status_t
-suunto_eon_parser_create (parser_t **out)
+suunto_eon_parser_create (parser_t **out, int spyder)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -70,6 +74,9 @@ suunto_eon_parser_create (parser_t **out)
 
 	// Initialize the base class.
 	parser_init (&parser->base, &suunto_eon_parser_backend);
+
+	// Set the default values.
+	parser->spyder = spyder;
 
 	*out = (parser_t*) parser;
 
@@ -95,6 +102,37 @@ suunto_eon_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 {
 	if (! parser_is_suunto_eon (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+suunto_eon_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+{
+	suunto_eon_parser_t *parser = (suunto_eon_parser_t *) abstract;
+
+	if (abstract->size < 6 + 5)
+		return DEVICE_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data + 6;
+
+	if (datetime) {
+		if (parser->spyder) {
+			datetime->year   = p[0] + (p[0] < 90 ? 2000 : 1900);
+			datetime->month  = p[1];
+			datetime->day    = p[2];
+			datetime->hour   = p[3];
+			datetime->minute = p[4];
+		} else {
+			datetime->year   = bcd2dec (p[0]) + (bcd2dec (p[0]) < 85 ? 2000 : 1900);
+			datetime->month  = bcd2dec (p[1]);
+			datetime->day    = bcd2dec (p[2]);
+			datetime->hour   = bcd2dec (p[3]);
+			datetime->minute = bcd2dec (p[4]);
+		}
+		datetime->second = 0;
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }

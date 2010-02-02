@@ -15,6 +15,7 @@ dc_datetime_gmtime
 
 parser_get_type
 parser_set_data
+parser_get_datetime
 parser_samples_foreach
 parser_destroy 
 

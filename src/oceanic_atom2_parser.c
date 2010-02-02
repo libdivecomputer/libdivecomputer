@@ -33,15 +33,18 @@ typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
 struct oceanic_atom2_parser_t {
 	parser_t base;
+	unsigned int model;
 };
 
 static parser_status_t oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
 static parser_status_t oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t oceanic_atom2_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t oceanic_atom2_parser_backend = {
 	PARSER_TYPE_OCEANIC_ATOM2,
 	oceanic_atom2_parser_set_data, /* set_data */
+	oceanic_atom2_parser_get_datetime, /* datetime */
 	oceanic_atom2_parser_samples_foreach, /* samples_foreach */
 	oceanic_atom2_parser_destroy /* destroy */
 };
@@ -58,7 +61,7 @@ parser_is_oceanic_atom2 (parser_t *abstract)
 
 
 parser_status_t
-oceanic_atom2_parser_create (parser_t **out)
+oceanic_atom2_parser_create (parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -72,6 +75,9 @@ oceanic_atom2_parser_create (parser_t **out)
 
 	// Initialize the base class.
 	parser_init (&parser->base, &oceanic_atom2_parser_backend);
+
+	// Set the default values.
+	parser->model = model;
 
 	*out = (parser_t*) parser;
 
@@ -97,6 +103,43 @@ oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, un
 {
 	if (! parser_is_oceanic_atom2 (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+{
+	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
+
+	if (abstract->size < 8)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data;
+
+	if (datetime) {
+		if (parser->model == 0x4258) {
+			// VT3
+			datetime->year  = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
+			datetime->month = (p[4] & 0xF0) >> 4;
+			datetime->day   = p[3] & 0x1F;
+			datetime->hour  = bcd2dec (p[1] & 0x7F);
+		} else {
+			// Atom 2
+			datetime->year  = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
+			datetime->month = (p[4] & 0xF0) >> 4;
+			datetime->day   = bcd2dec (p[3] & 0x3F);
+			datetime->hour  = bcd2dec (p[1] & 0x1F);
+		}
+		datetime->minute = bcd2dec (p[0]);
+		datetime->second = 0;
+
+		// Convert to a 24-hour clock.
+		datetime->hour %= 12;
+		if (p[1] & 0x80)
+			datetime->hour += 12;
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }

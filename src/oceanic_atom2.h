@@ -36,7 +36,7 @@ device_status_t
 oceanic_atom2_device_keepalive (device_t *device);
 
 parser_status_t
-oceanic_atom2_parser_create (parser_t **parser);
+oceanic_atom2_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }

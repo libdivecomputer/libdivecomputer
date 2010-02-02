@@ -36,12 +36,14 @@ struct oceanic_vtpro_parser_t {
 };
 
 static parser_status_t oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
 static parser_status_t oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t oceanic_vtpro_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t oceanic_vtpro_parser_backend = {
 	PARSER_TYPE_OCEANIC_VTPRO,
 	oceanic_vtpro_parser_set_data, /* set_data */
+	oceanic_vtpro_parser_get_datetime, /* datetime */
 	oceanic_vtpro_parser_samples_foreach, /* samples_foreach */
 	oceanic_vtpro_parser_destroy /* destroy */
 };
@@ -97,6 +99,32 @@ oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, un
 {
 	if (! parser_is_oceanic_vtpro (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+{
+	if (abstract->size < 8)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data;
+
+	if (datetime) {
+		datetime->year   = bcd2dec (p[4] & 0x0F) + 2000;
+		datetime->month  = (p[4] & 0xF0) >> 4;
+		datetime->day    = bcd2dec (p[3]);
+		datetime->hour   = bcd2dec (p[1] & 0x7F);
+		datetime->minute = bcd2dec (p[0]);
+		datetime->second = 0;
+
+		// Convert to a 24-hour clock.
+		datetime->hour %= 12;
+		if (p[1] & 0x80)
+			datetime->hour += 12;
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }

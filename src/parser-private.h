@@ -22,11 +22,11 @@
 #ifndef PARSER_PRIVATE_H
 #define PARSER_PRIVATE_H
 
+#include "parser.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "parser.h"
 
 struct parser_t;
 struct parser_backend_t;
@@ -43,6 +43,8 @@ struct parser_backend_t {
 	parser_type_t type;
 
 	parser_status_t (*set_data) (parser_t *parser, const unsigned char *data, unsigned int size);
+
+	parser_status_t (*datetime) (parser_t *parser, dc_datetime_t *datetime);
 
 	parser_status_t (*samples_foreach) (parser_t *parser, sample_callback_t callback, void *userdata);
 

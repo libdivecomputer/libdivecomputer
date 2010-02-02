@@ -60,6 +60,19 @@ parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size)
 
 
 parser_status_t
+parser_get_datetime (parser_t *parser, dc_datetime_t *datetime)
+{
+	if (parser == NULL)
+		return PARSER_STATUS_UNSUPPORTED;
+
+	if (parser->backend->datetime == NULL)
+		return PARSER_STATUS_UNSUPPORTED;
+
+	return parser->backend->datetime (parser, datetime);
+}
+
+
+parser_status_t
 parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata)
 {
 	if (parser == NULL)
