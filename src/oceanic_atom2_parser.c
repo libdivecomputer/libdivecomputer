@@ -139,6 +139,37 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->hour %= 12;
 		if (p[1] & 0x80)
 			datetime->hour += 12;
+
+		/*
+		 * Workaround for the year 2010 problem.
+		 *
+		 * In theory there are more than enough bits available to store years
+		 * past 2010. Unfortunately some models do not use all those bits and
+		 * store only the last digit of the year. We try to guess the missing
+		 * information based on the current year. This should work in most
+		 * cases, except when the dive is more than 10 years old or in the
+		 * future (due to an incorrect clock on the device or the host system).
+		 *
+		 * Note that we are careful not to apply any guessing when the year is
+		 * actually stored with more bits. We don't want the code to break when
+		 * a firmware update fixes this bug.
+		 */
+
+		if (datetime->year < 2010) {
+			// Retrieve the current year.
+			dc_datetime_t now = {0};
+			if (dc_datetime_localtime (&now, dc_datetime_now ()) &&
+				now.year >= 2010)
+			{
+				// Guess the correct decade.
+				int decade = (now.year / 10) * 10;
+				if (datetime->year % 10 > now.year % 10)
+					decade -= 10; /* Force back to the previous decade. */
+
+				// Adjust the year.
+				datetime->year += decade - 2000;
+			}
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
