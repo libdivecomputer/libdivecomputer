@@ -113,7 +113,12 @@ oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 	const unsigned char *p = abstract->data;
 
 	if (datetime) {
-		datetime->year   = bcd2dec (p[4] & 0x0F) + 2000;
+		// The logbook entry can only store the last digit of the year field,
+		// but the full year is also available in the dive header.
+		if (abstract->size < 40)
+			datetime->year = bcd2dec (p[4] & 0x0F) + 2000;
+		else
+			datetime->year = bcd2dec (((p[32 + 3] & 0xC0) >> 2) + ((p[32 + 2] & 0xF0) >> 4)) + 2000;
 		datetime->month  = (p[4] & 0xF0) >> 4;
 		datetime->day    = bcd2dec (p[3]);
 		datetime->hour   = bcd2dec (p[1] & 0x7F);
