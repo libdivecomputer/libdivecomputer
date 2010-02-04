@@ -118,13 +118,16 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 }
 
 static int
-dive_cb (const unsigned char *data, unsigned int size, void *userdata)
+dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata)
 {
 	static unsigned int count = 0;
 
 	count++;
 
-	message ("Dive: number=%u, size=%u\n", count, size);
+	message ("Dive: number=%u, size=%u, fingerprint=", count, size);
+	for (unsigned int i = 0; i < fsize; ++i)
+		message ("%02X", fingerprint[i]);
+	message ("\n");
 
 	return 1;
 }

@@ -127,7 +127,7 @@ suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common
 				return DEVICE_STATUS_SUCCESS;
 			}
 
-			if (callback && !callback (buffer, len, userdata)) {
+			if (callback && !callback (buffer, len, buffer + layout->fp_offset, sizeof (device->fingerprint), userdata)) {
 				free (buffer);
 				return DEVICE_STATUS_SUCCESS;
 			}

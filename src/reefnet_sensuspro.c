@@ -435,7 +435,7 @@ reefnet_sensuspro_extract_dives (device_t *abstract, const unsigned char data[],
 			if (device && timestamp <= device->timestamp)
 				return DEVICE_STATUS_SUCCESS;
 		
-			if (callback && !callback (data + current, offset + 2 - current, userdata))
+			if (callback && !callback (data + current, offset + 2 - current, data + current + 6, 4, userdata))
 				return DEVICE_STATUS_SUCCESS;
 
 			// Prepare for the next dive.

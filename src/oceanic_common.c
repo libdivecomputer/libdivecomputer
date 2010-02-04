@@ -469,7 +469,8 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		offset -= PAGESIZE / 2;
 		memcpy (profiles + offset + available, logbooks + current, PAGESIZE / 2);
 
-		if (callback && !callback (profiles + offset + available, rb_entry_size + PAGESIZE / 2, userdata)) {
+		unsigned char *p = profiles + offset + available;
+		if (callback && !callback (p, rb_entry_size + PAGESIZE / 2, p, PAGESIZE / 2, userdata)) {
 			free (logbooks);
 			free (profiles);
 			return DEVICE_STATUS_SUCCESS;

@@ -172,7 +172,7 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 			return DEVICE_STATUS_SUCCESS;
 		}
 
-		if (callback && !callback (buffer + offset, nbytes, userdata)) {
+		if (callback && !callback (buffer + offset, nbytes, buffer + fp_offset, sizeof (device->fingerprint), userdata)) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}

@@ -327,7 +327,7 @@ suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], u
 		if (data[peek] == 0x80) {
 			unsigned int len = ringbuffer_distance (previous, current, 0, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
-			if (callback && !callback (buffer + idx, len, userdata))
+			if (callback && !callback (buffer + idx, len, NULL, 0, userdata))
 				return DEVICE_STATUS_SUCCESS;
 
 			previous = current;

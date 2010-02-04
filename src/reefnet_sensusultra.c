@@ -672,7 +672,7 @@ reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 				return DEVICE_STATUS_SUCCESS;
 			}
 
-			if (callback && !callback (current, previous - current, userdata)) {
+			if (callback && !callback (current, previous - current, current + 4, 4, userdata)) {
 				if (aborted)
 					*aborted = 1;
 				return DEVICE_STATUS_SUCCESS;

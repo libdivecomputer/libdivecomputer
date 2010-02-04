@@ -413,7 +413,7 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 		if (device && timestamp <= device->timestamp)
 			return DEVICE_STATUS_SUCCESS;
 
-		if (callback && !callback (buffer, len + 18, userdata))
+		if (callback && !callback (buffer, len + 18, buffer + 11, 4, userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
 

@@ -89,7 +89,7 @@ typedef struct device_clock_t {
 
 typedef void (*device_event_callback_t) (device_t *device, device_event_t event, const void *data, void *userdata);
 
-typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, void *userdata);
+typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata);
 
 device_type_t device_get_type (device_t *device);
 

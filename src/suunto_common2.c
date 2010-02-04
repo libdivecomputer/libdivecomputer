@@ -365,8 +365,9 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		remaining -= size;
 		available = nbytes - size;
 
-		unsigned int prev = array_uint16_le (data + offset + available + 0);
-		unsigned int next = array_uint16_le (data + offset + available + 2);
+		unsigned char *p = data + offset + available;
+		unsigned int prev = array_uint16_le (p + 0);
+		unsigned int next = array_uint16_le (p + 2);
 		if (next != previous) {
 			WARNING ("Profiles are not continuous.");
 			return DEVICE_STATUS_ERROR;
@@ -376,10 +377,10 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		previous = current;
 		current = prev;
 
-		if (memcmp (data + offset + available + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0)
+		if (memcmp (p + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0)
 			return DEVICE_STATUS_SUCCESS;
 
-		if (callback && !callback (data + offset + available + 4, size - 4, userdata))
+		if (callback && !callback (p + 4, size - 4, p + FP_OFFSET, sizeof (device->fingerprint), userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
 
