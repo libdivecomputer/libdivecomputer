@@ -86,6 +86,42 @@ lookup_name (device_type_t type)
 	return NULL;
 }
 
+static unsigned char
+hex2dec (unsigned char value)
+{
+	if (value >= '0' && value <= '9')
+		return value - '0';
+	else if (value >= 'A' && value <= 'F')
+		return value - 'A' + 10;
+	else if (value >= 'a' && value <= 'f')
+		return value - 'a' + 10;
+	else
+		return 0;
+}
+
+static dc_buffer_t *
+fpconvert (const char *fingerprint)
+{
+	// Get the length of the fingerprint data.
+	size_t nbytes = (fingerprint ? strlen (fingerprint) / 2 : 0);
+	if (nbytes == 0)
+		return NULL;
+
+	// Allocate a memory buffer.
+	dc_buffer_t *buffer = dc_buffer_new (nbytes);
+
+	// Convert the hexadecimal string.
+	for (unsigned int i = 0; i < nbytes; ++i) {
+		unsigned char msn = hex2dec (fingerprint[i * 2 + 0]);
+		unsigned char lsn = hex2dec (fingerprint[i * 2 + 1]);
+		unsigned char byte = (msn << 4) + lsn;
+
+		dc_buffer_append (buffer, &byte, 1);
+	}
+
+	return buffer;
+}
+
 static void
 event_cb (device_t *device, device_event_t event, const void *data, void *userdata)
 {
@@ -166,6 +202,7 @@ usage (const char *filename)
 	fprintf (stderr, "   %s [options] devname\n\n", filename);
 	fprintf (stderr, "Options:\n\n");
 	fprintf (stderr, "   -b name        Set backend name (required).\n");
+	fprintf (stderr, "   -f hexdata     Set fingerprint data.\n");
 	fprintf (stderr, "   -l logfile     Set logfile.\n");
 	fprintf (stderr, "   -o output      Set output filename.\n");
 	fprintf (stderr, "   -d             Download dives only.\n");
@@ -189,7 +226,7 @@ usage (const char *filename)
 
 
 static device_status_t
-dowork (device_type_t backend, const char *devname, const char *filename, int memory, int dives)
+dowork (device_type_t backend, const char *devname, const char *filename, int memory, int dives, dc_buffer_t *fingerprint)
 {
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
 
@@ -271,6 +308,17 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 		return rc;
 	}
 
+	// Register the fingerprint data.
+	if (fingerprint) {
+		message ("Registering the fingerprint data.\n");
+		rc = device_set_fingerprint (device, dc_buffer_get_data (fingerprint), dc_buffer_get_size (fingerprint));
+		if (rc != DEVICE_STATUS_SUCCESS) {
+			WARNING ("Error registering the fingerprint data.");
+			device_close (device);
+			return rc;
+		}
+	}
+
 	if (memory) {
 		// Allocate a memory buffer.
 		dc_buffer_t *buffer = dc_buffer_new (0);
@@ -327,15 +375,19 @@ main (int argc, char *argv[])
 	const char *logfile = "output.log";
 	const char *filename = "output.bin";
 	const char *devname = NULL;
+	const char *fingerprint = NULL;
 	int memory = 1, dives = 1;
 
 #ifndef _MSC_VER
 	// Parse command-line options.
 	int opt = 0;
-	while ((opt = getopt (argc, argv, "b:l:o:mdh")) != -1) {
+	while ((opt = getopt (argc, argv, "b:f:l:o:mdh")) != -1) {
 		switch (opt) {
 		case 'b':
 			backend = lookup_type (optarg);
+			break;
+		case 'f':
+			fingerprint = optarg;
 			break;
 		case 'l':
 			logfile = optarg;
@@ -375,7 +427,9 @@ main (int argc, char *argv[])
 
 	message_set_logfile (logfile);
 
-	device_status_t rc = dowork (backend, devname, filename, memory, dives);
+	dc_buffer_t *fp = fpconvert (fingerprint);
+	device_status_t rc = dowork (backend, devname, filename, memory, dives, fp);
+	dc_buffer_free (fp);
 	message ("Result: %s\n", errmsg (rc));
 
 	message_set_logfile (NULL);
