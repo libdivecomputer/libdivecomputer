@@ -106,7 +106,7 @@ static parser_status_t
 suunto_vyper_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	if (abstract->size < 9 + 5)
-		return DEVICE_STATUS_ERROR;
+		return PARSER_STATUS_ERROR;
 
 	const unsigned char *p = abstract->data + 9;
 

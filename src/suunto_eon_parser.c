@@ -113,7 +113,7 @@ suunto_eon_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 	suunto_eon_parser_t *parser = (suunto_eon_parser_t *) abstract;
 
 	if (abstract->size < 6 + 5)
-		return DEVICE_STATUS_ERROR;
+		return PARSER_STATUS_ERROR;
 
 	const unsigned char *p = abstract->data + 6;
 
