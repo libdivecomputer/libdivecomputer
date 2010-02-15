@@ -59,7 +59,8 @@ typedef enum device_status_t {
 	DEVICE_STATUS_IO = -4,
 	DEVICE_STATUS_TIMEOUT = -5,
 	DEVICE_STATUS_PROTOCOL = -6,
-	DEVICE_STATUS_MEMORY = -7
+	DEVICE_STATUS_MEMORY = -7,
+	DEVICE_STATUS_CANCELLED = -8
 } device_status_t;
 
 typedef enum device_event_t {
@@ -87,11 +88,15 @@ typedef struct device_clock_t {
 	dc_ticks_t systime;
 } device_clock_t;
 
+typedef int (*device_cancel_callback_t) (void *userdata);
+
 typedef void (*device_event_callback_t) (device_t *device, device_event_t event, const void *data, void *userdata);
 
 typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata);
 
 device_type_t device_get_type (device_t *device);
+
+device_status_t device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata);
 
 device_status_t device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata);
 

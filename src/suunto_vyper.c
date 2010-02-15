@@ -238,6 +238,11 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 {
 	assert (asize >= size + 2);
 
+	device_t *abstract = (device_t *) device;
+
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
+
 	// Send the command to the dive computer.
 	device_status_t rc = suunto_vyper_send (device, command, csize);
 	if (rc != DEVICE_STATUS_SUCCESS) {
@@ -358,6 +363,9 @@ static device_status_t
 suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, device_progress_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
+
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {

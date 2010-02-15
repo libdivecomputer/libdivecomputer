@@ -228,6 +228,11 @@ mares_puck_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned c
 static device_status_t
 mares_puck_packet (mares_puck_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	device_t *abstract = (device_t *) device;
+
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
+
 	// Send the command to the device.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {

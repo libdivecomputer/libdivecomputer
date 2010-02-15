@@ -22,6 +22,7 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #ifndef _MSC_VER
 #include <unistd.h>
@@ -122,6 +123,25 @@ fpconvert (const char *fingerprint)
 	return buffer;
 }
 
+volatile sig_atomic_t g_cancel = 0;
+
+void
+sighandler (int signum)
+{
+#ifndef _WIN32
+	// Restore the default signal handler.
+	signal (signum, SIG_DFL);
+#endif
+
+	g_cancel = 1;
+}
+
+static int
+cancel_cb (void *userdata)
+{
+	return g_cancel;
+}
+
 static void
 event_cb (device_t *device, device_event_t event, const void *data, void *userdata)
 {
@@ -189,6 +209,8 @@ errmsg (device_status_t rc)
 		return "Protocol error";
 	case DEVICE_STATUS_TIMEOUT:
 		return "Timeout";
+	case DEVICE_STATUS_CANCELLED:
+		return "Cancelled";
 	default:
 		return "Unknown error";
 	}
@@ -304,6 +326,15 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 	rc = device_set_events (device, events, event_cb, NULL);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error registering the event handler.");
+		device_close (device);
+		return rc;
+	}
+
+	// Register the cancellation handler.
+	message ("Registering the cancellation handler.\n");
+	rc = device_set_cancel (device, cancel_cb, NULL);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Error registering the cancellation handler.");
 		device_close (device);
 		return rc;
 	}
@@ -424,6 +455,8 @@ main (int argc, char *argv[])
 		usage (argv[0]);
 		return EXIT_FAILURE;
 	}
+
+	signal (SIGINT, sighandler);
 
 	message_set_logfile (logfile);
 

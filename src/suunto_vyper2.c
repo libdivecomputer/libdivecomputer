@@ -157,6 +157,9 @@ suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], 
 {
 	suunto_vyper2_device_t *device = (suunto_vyper2_device_t *) abstract;
 
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
+
 	serial_sleep (0x190 + 0xC8);
 
 	// Set RTS to send the command.

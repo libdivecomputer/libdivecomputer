@@ -88,6 +88,8 @@ device_is_oceanic_atom2 (device_t *abstract)
 static device_status_t
 oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	device_t *abstract = (device_t *) device;
+
 	// Send the command to the device. If the device responds with an
 	// ACK byte, the command was received successfully and the answer
 	// (if any) follows after the ACK byte. If the device responds with
@@ -97,6 +99,9 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 	unsigned int nretries = 0;
 	unsigned char response = NAK;
 	while (response == NAK) {
+		if (device_is_cancelled (abstract))
+			return DEVICE_STATUS_CANCELLED;
+
 		// Send the command to the dive computer.
 		int n = serial_write (device->port, command, csize);
 		if (n != csize) {

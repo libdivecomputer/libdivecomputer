@@ -273,6 +273,11 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 {
 	assert (size >= header + 2);
 
+	device_t *abstract = (device_t *) device;
+
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
+
 	// Receive the data packet.
 	int rc = serial_read (device->port, data, size);
 	if (rc != size) {

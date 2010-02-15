@@ -43,6 +43,7 @@ device_dump
 device_foreach
 device_get_type
 device_read
+device_set_cancel
 device_set_events
 device_set_fingerprint
 device_version

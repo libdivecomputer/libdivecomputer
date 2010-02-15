@@ -218,6 +218,9 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	// Receive the header of the package.
 	for (unsigned int i = 0; i < 4;) {
+		if (device_is_cancelled (abstract))
+			return DEVICE_STATUS_CANCELLED;
+
 		int rc = serial_read (device->port, answer + i, 1);
 		if (rc != 1) {
 			WARNING ("Failed to receive the answer.");

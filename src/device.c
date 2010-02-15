@@ -33,6 +33,9 @@ device_init (device_t *device, const device_backend_t *backend)
 	device->event_mask = 0;
 	device->event_callback = NULL;
 	device->event_userdata = NULL;
+
+	device->cancel_callback = NULL;
+	device->cancel_userdata = NULL;
 }
 
 
@@ -43,6 +46,19 @@ device_get_type (device_t *device)
 		return DEVICE_TYPE_NULL;
 
 	return device->backend->type;
+}
+
+
+device_status_t
+device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata)
+{
+	if (device == NULL)
+		return DEVICE_STATUS_UNSUPPORTED;
+
+	device->cancel_callback = callback;
+	device->cancel_userdata = userdata;
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -222,4 +238,17 @@ device_event_emit (device_t *device, device_event_t event, const void *data)
 		return;
 
 	device->event_callback (device, event, data, device->event_userdata);
+}
+
+
+int
+device_is_cancelled (device_t *device)
+{
+	if (device == NULL)
+		return 0;
+
+	if (device->cancel_callback == NULL)
+		return 0;
+
+	return device->cancel_callback (device->cancel_userdata);
 }

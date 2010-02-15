@@ -89,6 +89,8 @@ device_is_oceanic_veo250 (device_t *abstract)
 static device_status_t
 oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	device_t *abstract = (device_t *) device;
+
 	// Send the command to the device. If the device responds with an
 	// ACK byte, the command was received successfully and the answer
 	// (if any) follows after the ACK byte. If the device responds with
@@ -98,6 +100,9 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 	unsigned int nretries = 0;
 	unsigned char response = NAK;
 	while (response == NAK) {
+		if (device_is_cancelled (abstract))
+			return DEVICE_STATUS_CANCELLED;
+
 		// Discard garbage bytes.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 

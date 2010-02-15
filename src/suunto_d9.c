@@ -157,6 +157,9 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 {
 	suunto_d9_device_t *device = (suunto_d9_device_t *) abstract;
 
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
+
 	// Clear RTS to send the command.
 	serial_set_rts (device->port, 0);
 

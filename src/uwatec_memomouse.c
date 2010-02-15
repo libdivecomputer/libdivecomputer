@@ -349,12 +349,17 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 static device_status_t
 uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *buffer)
 {
+	device_t *abstract = (device_t *) device;
+
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
 	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Waiting for greeting message.
 	while (serial_get_received (device->port) == 0) {
+		if (device_is_cancelled (abstract))
+			return DEVICE_STATUS_CANCELLED;
+
 		// Flush the input buffer.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
@@ -421,6 +426,9 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 
 	// Wait for the data packet.
 	while (serial_get_received (device->port) == 0) {
+		if (device_is_cancelled (abstract))
+			return DEVICE_STATUS_CANCELLED;
+
 		device_event_emit (&device->base, DEVICE_EVENT_WAITING, NULL);
 		serial_sleep (100);
 	}

@@ -43,6 +43,9 @@ struct device_t {
 	unsigned int event_mask;
 	device_event_callback_t event_callback;
 	void *event_userdata;
+	// Cancellation support.
+	device_cancel_callback_t cancel_callback;
+	void *cancel_userdata;
 };
 
 struct device_backend_t {
@@ -68,6 +71,9 @@ device_init (device_t *device, const device_backend_t *backend);
 
 void
 device_event_emit (device_t *device, device_event_t event, const void *data);
+
+int
+device_is_cancelled (device_t *device);
 
 device_status_t
 device_dump_read (device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize);
