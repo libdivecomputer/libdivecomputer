@@ -37,6 +37,10 @@
 #include <cressi.h>
 #include <utils.h>
 
+typedef struct dive_data_t {
+	unsigned int number;
+} dive_data_t;
+
 typedef struct backend_table_t {
 	const char *name;
 	device_type_t type;
@@ -176,11 +180,11 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 static int
 dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata)
 {
-	static unsigned int count = 0;
+	dive_data_t *divedata = (dive_data_t *) userdata;
 
-	count++;
+	divedata->number++;
 
-	message ("Dive: number=%u, size=%u, fingerprint=", count, size);
+	message ("Dive: number=%u, size=%u, fingerprint=", divedata->number, size);
 	for (unsigned int i = 0; i < fsize; ++i)
 		message ("%02X", fingerprint[i]);
 	message ("\n");
@@ -376,9 +380,13 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 	}
 
 	if (dives) {
+		// Initialize the dive data.
+		dive_data_t divedata = {0};
+		divedata.number = 0;
+
 		// Download the dives.
 		message ("Downloading the dives.\n");
-		rc = device_foreach (device, dive_cb, NULL);
+		rc = device_foreach (device, dive_cb, &divedata);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Error downloading the dives.");
 			device_close (device);
