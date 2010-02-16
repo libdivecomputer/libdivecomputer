@@ -44,8 +44,15 @@ typedef struct device_data_t {
 } device_data_t;
 
 typedef struct dive_data_t {
+	device_data_t *devdata;
+	FILE* fp;
 	unsigned int number;
 } dive_data_t;
+
+typedef struct sample_data_t {
+	FILE* fp;
+	unsigned int nsamples;
+} sample_data_t;
 
 typedef struct backend_table_t {
 	const char *name;
@@ -152,6 +159,171 @@ cancel_cb (void *userdata)
 	return g_cancel;
 }
 
+void
+sample_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdata)
+{
+	static const char *events[] = {
+		"none", "deco", "rbt", "ascent", "ceiling", "workload", "transmitter",
+		"violation", "bookmark", "surface", "safety stop", "gaschange",
+		"safety stop (voluntary)", "safety stop (mandatory)", "deepstop",
+		"ceiling (safety stop)", "unknown", "divetime", "maxdepth",
+		"OLF", "PO2", "airtime", "rgbm", "heading", "tissue level warning"};
+
+	sample_data_t *sampledata = (sample_data_t *) userdata;
+
+	switch (type) {
+	case SAMPLE_TYPE_TIME:
+		if (sampledata->nsamples++)
+			fprintf (sampledata->fp, "</sample>\n");
+		fprintf (sampledata->fp, "<sample>\n");
+		fprintf (sampledata->fp, "   <time>%02u:%02u</time>\n", value.time / 60, value.time % 60);
+		break;
+	case SAMPLE_TYPE_DEPTH:
+		fprintf (sampledata->fp, "   <depth>%.2f</depth>\n", value.depth);
+		break;
+	case SAMPLE_TYPE_PRESSURE:
+		fprintf (sampledata->fp, "   <pressure tank=\"%u\">%.2f</pressure>\n", value.pressure.tank, value.pressure.value);
+		break;
+	case SAMPLE_TYPE_TEMPERATURE:
+		fprintf (sampledata->fp, "   <temperature>%.2f</temperature>\n", value.temperature);
+		break;
+	case SAMPLE_TYPE_EVENT:
+		fprintf (sampledata->fp, "   <event type=\"%u\" time=\"%u\" flags=\"%u\" value=\"%u\">%s</event>\n",
+			value.event.type, value.event.time, value.event.flags, value.event.value, events[value.event.type]);
+		break;
+	case SAMPLE_TYPE_RBT:
+		fprintf (sampledata->fp, "   <rbt>%u</rbt>\n", value.rbt);
+		break;
+	case SAMPLE_TYPE_HEARTBEAT:
+		fprintf (sampledata->fp, "   <heartbeat>%u</heartbeat>\n", value.heartbeat);
+		break;
+	case SAMPLE_TYPE_BEARING:
+		fprintf (sampledata->fp, "   <bearing>%u</bearing>\n", value.bearing);
+		break;
+	case SAMPLE_TYPE_VENDOR:
+		fprintf (sampledata->fp, "   <vendor type=\"%u\" size=\"%u\">", value.vendor.type, value.vendor.size);
+		for (unsigned int i = 0; i < value.vendor.size; ++i)
+			fprintf (sampledata->fp, "%02X", ((unsigned char *) value.vendor.data)[i]);
+		fprintf (sampledata->fp, "</vendor>\n");
+		break;
+	default:
+		break;
+	}
+}
+
+static parser_status_t
+doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned int size)
+{
+	// Create the parser.
+	message ("Creating the parser.\n");
+	parser_t *parser = NULL;
+	parser_status_t rc = PARSER_STATUS_SUCCESS;
+	switch (devdata->backend) {
+	case DEVICE_TYPE_SUUNTO_SOLUTION:
+		rc = suunto_solution_parser_create (&parser);
+		break;
+	case DEVICE_TYPE_SUUNTO_EON:
+		rc = suunto_eon_parser_create (&parser, 0);
+		break;
+	case DEVICE_TYPE_SUUNTO_VYPER:
+		if (devdata->devinfo.model == 0x01)
+			rc = suunto_eon_parser_create (&parser, 1);
+		else
+			rc = suunto_vyper_parser_create (&parser);
+		break;
+	case DEVICE_TYPE_SUUNTO_VYPER2:
+	case DEVICE_TYPE_SUUNTO_D9:
+		rc = suunto_d9_parser_create (&parser, devdata->devinfo.model);
+		break;
+	case DEVICE_TYPE_UWATEC_ALADIN:
+	case DEVICE_TYPE_UWATEC_MEMOMOUSE:
+		rc = uwatec_memomouse_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
+		break;
+	case DEVICE_TYPE_UWATEC_SMART:
+		rc = uwatec_smart_parser_create (&parser, devdata->devinfo.model, devdata->clock.devtime, devdata->clock.systime);
+		break;
+	case DEVICE_TYPE_REEFNET_SENSUS:
+		rc = reefnet_sensus_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
+		break;
+	case DEVICE_TYPE_REEFNET_SENSUSPRO:
+		rc = reefnet_sensuspro_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
+		break;
+	case DEVICE_TYPE_REEFNET_SENSUSULTRA:
+		rc = reefnet_sensusultra_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
+		break;
+	case DEVICE_TYPE_OCEANIC_VTPRO:
+		rc = oceanic_vtpro_parser_create (&parser);
+		break;
+	case DEVICE_TYPE_OCEANIC_VEO250:
+		rc = oceanic_veo250_parser_create (&parser);
+		break;
+	case DEVICE_TYPE_OCEANIC_ATOM2:
+		rc = oceanic_atom2_parser_create (&parser, devdata->devinfo.model);
+		break;
+	case DEVICE_TYPE_MARES_NEMO:
+	case DEVICE_TYPE_MARES_PUCK:
+		rc = mares_nemo_parser_create (&parser);
+		break;
+	default:
+		rc = PARSER_STATUS_ERROR;
+		break;
+	}
+	if (rc != PARSER_STATUS_SUCCESS) {
+		WARNING ("Error creating the parser.");
+		return rc;
+	}
+
+	// Register the data.
+	message ("Registering the data.\n");
+	rc = parser_set_data (parser, data, size);
+	if (rc != PARSER_STATUS_SUCCESS) {
+		WARNING ("Error registering the data.");
+		parser_destroy (parser);
+		return rc;
+	}
+
+	// Parse the datetime.
+	message ("Parsing the datetime.\n");
+	dc_datetime_t dt = {0};
+	rc = parser_get_datetime (parser, &dt);
+	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the datetime.");
+		parser_destroy (parser);
+		return rc;
+	}
+
+	fprintf (fp, "<datetime>%04i-%02i-%02i %02i:%02i:%02i</datetime>\n",
+		dt.year, dt.month, dt.day,
+		dt.hour, dt.minute, dt.second);
+
+	// Initialize the sample data.
+	sample_data_t sampledata = {0};
+	sampledata.nsamples = 0;
+	sampledata.fp = fp;
+
+	// Parse the sample data.
+	message ("Parsing the sample data.\n");
+	rc = parser_samples_foreach (parser, sample_cb, &sampledata);
+	if (rc != PARSER_STATUS_SUCCESS) {
+		WARNING ("Error parsing the sample data.");
+		parser_destroy (parser);
+		return rc;
+	}
+
+	if (sampledata.nsamples)
+		fprintf (fp, "</sample>\n");
+
+	// Destroy the parser.
+	message ("Destroying the parser.\n");
+	rc = parser_destroy (parser);
+	if (rc != PARSER_STATUS_SUCCESS) {
+		WARNING ("Error destroying the parser.");
+		return rc;
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
 static void
 event_cb (device_t *device, device_event_t event, const void *data, void *userdata)
 {
@@ -199,6 +371,17 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 		message ("%02X", fingerprint[i]);
 	message ("\n");
 
+	if (divedata->fp) {
+		fprintf (divedata->fp, "<dive>\n<number>%u</number>\n<size>%u</size>\n<fingerprint>", divedata->number, size);
+		for (unsigned int i = 0; i < fsize; ++i)
+			fprintf (divedata->fp, "%02X", fingerprint[i]);
+		fprintf (divedata->fp, "</fingerprint>\n");
+
+		doparse (divedata->fp, divedata->devdata, data, size);
+
+		fprintf (divedata->fp, "</dive>\n");
+	}
+
 	return 1;
 }
 
@@ -240,9 +423,8 @@ usage (const char *filename)
 	fprintf (stderr, "   -b name        Set backend name (required).\n");
 	fprintf (stderr, "   -f hexdata     Set fingerprint data.\n");
 	fprintf (stderr, "   -l logfile     Set logfile.\n");
-	fprintf (stderr, "   -o output      Set output filename.\n");
-	fprintf (stderr, "   -d             Download dives only.\n");
-	fprintf (stderr, "   -m             Download memory dump only.\n");
+	fprintf (stderr, "   -d filename    Download dives.\n");
+	fprintf (stderr, "   -m filename    Download memory dump.\n");
 	fprintf (stderr, "   -h             Show this help message.\n\n");
 #else
 	fprintf (stderr, "Usage:\n\n");
@@ -262,7 +444,7 @@ usage (const char *filename)
 
 
 static device_status_t
-dowork (device_type_t backend, const char *devname, const char *filename, int memory, int dives, dc_buffer_t *fingerprint)
+dowork (device_type_t backend, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
 {
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
 
@@ -383,7 +565,7 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 		}
 
 		// Write the memory dump to disk.
-		FILE* fp = fopen (filename, "wb");
+		FILE* fp = fopen (rawfile, "wb");
 		if (fp != NULL) {
 			fwrite (dc_buffer_get_data (buffer), 1, dc_buffer_get_size (buffer), fp);
 			fclose (fp);
@@ -396,16 +578,24 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 	if (dives) {
 		// Initialize the dive data.
 		dive_data_t divedata = {0};
+		divedata.devdata = &devdata;
 		divedata.number = 0;
+
+		// Open the output file.
+		divedata.fp = fopen (xmlfile, "w");
 
 		// Download the dives.
 		message ("Downloading the dives.\n");
 		rc = device_foreach (device, dive_cb, &divedata);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Error downloading the dives.");
+			if (divedata.fp) fclose (divedata.fp);
 			device_close (device);
 			return rc;
 		}
+
+		// Close the output file.
+		if (divedata.fp) fclose (divedata.fp);
 	}
 
 	// Close the device.
@@ -426,15 +616,16 @@ main (int argc, char *argv[])
 	// Default values.
 	device_type_t backend = DEVICE_TYPE_NULL;
 	const char *logfile = "output.log";
-	const char *filename = "output.bin";
+	const char *rawfile = "output.bin";
+	const char *xmlfile = "output.xml";
 	const char *devname = NULL;
 	const char *fingerprint = NULL;
-	int memory = 1, dives = 1;
+	int memory = 0, dives = 0;
 
 #ifndef _MSC_VER
 	// Parse command-line options.
 	int opt = 0;
-	while ((opt = getopt (argc, argv, "b:f:l:o:mdh")) != -1) {
+	while ((opt = getopt (argc, argv, "b:f:l:m:d:h")) != -1) {
 		switch (opt) {
 		case 'b':
 			backend = lookup_type (optarg);
@@ -445,14 +636,13 @@ main (int argc, char *argv[])
 		case 'l':
 			logfile = optarg;
 			break;
-		case 'o':
-			filename = optarg;
-			break;
 		case 'm':
-			dives = 0;
+			memory = 1;
+			rawfile = optarg;
 			break;
 		case 'd':
-			memory = 0;
+			dives = 1;
+			xmlfile = optarg;
 			break;
 		case '?':
 		case 'h':
@@ -472,6 +662,12 @@ main (int argc, char *argv[])
 		devname = argv[2];
 #endif
 
+	// Set the default action.
+	if (!memory && !dives) {
+		memory = 1;
+		dives = 1;
+	}
+
 	// The backend is a mandatory argument.
 	if (backend == DEVICE_TYPE_NULL) {
 		usage (argv[0]);
@@ -483,7 +679,7 @@ main (int argc, char *argv[])
 	message_set_logfile (logfile);
 
 	dc_buffer_t *fp = fpconvert (fingerprint);
-	device_status_t rc = dowork (backend, devname, filename, memory, dives, fp);
+	device_status_t rc = dowork (backend, devname, rawfile, xmlfile, memory, dives, fp);
 	dc_buffer_free (fp);
 	message ("Result: %s\n", errmsg (rc));
 
