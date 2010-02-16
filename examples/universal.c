@@ -37,6 +37,12 @@
 #include <cressi.h>
 #include <utils.h>
 
+typedef struct device_data_t {
+	device_type_t backend;
+	device_devinfo_t devinfo;
+	device_clock_t clock;
+} device_data_t;
+
 typedef struct dive_data_t {
 	unsigned int number;
 } dive_data_t;
@@ -153,6 +159,8 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 	const device_devinfo_t *devinfo = (device_devinfo_t *) data;
 	const device_clock_t *clock = (device_clock_t *) data;
 
+	device_data_t *devdata = (device_data_t *) userdata;
+
 	switch (event) {
 	case DEVICE_EVENT_WAITING:
 		message ("Event: waiting for user action\n");
@@ -163,12 +171,14 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 			progress->current, progress->maximum);
 		break;
 	case DEVICE_EVENT_DEVINFO:
+		devdata->devinfo = *devinfo;
 		message ("Event: model=%u (0x%08x), firmware=%u (0x%08x), serial=%u (0x%08x)\n",
 			devinfo->model, devinfo->model,
 			devinfo->firmware, devinfo->firmware,
 			devinfo->serial, devinfo->serial);
 		break;
 	case DEVICE_EVENT_CLOCK:
+		devdata->clock = *clock;
 		message ("Event: systime=%u, devtime=%u\n",
 			clock->systime, clock->devtime);
 		break;
@@ -256,6 +266,10 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 {
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
 
+	// Initialize the device data.
+	device_data_t devdata = {0};
+	devdata.backend = backend;
+
 	// Open the device.
 	message ("Opening the device (%s, %s).\n",
 		lookup_name (backend), devname ? devname : "null");
@@ -327,7 +341,7 @@ dowork (device_type_t backend, const char *devname, const char *filename, int me
 	// Register the event handler.
 	message ("Registering the event handler.\n");
 	int events = DEVICE_EVENT_WAITING | DEVICE_EVENT_PROGRESS | DEVICE_EVENT_DEVINFO | DEVICE_EVENT_CLOCK;
-	rc = device_set_events (device, events, event_cb, NULL);
+	rc = device_set_events (device, events, event_cb, &devdata);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error registering the event handler.");
 		device_close (device);
