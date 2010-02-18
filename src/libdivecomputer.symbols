@@ -17,7 +17,7 @@ parser_get_type
 parser_set_data
 parser_get_datetime
 parser_samples_foreach
-parser_destroy 
+parser_destroy
 
 reefnet_sensus_parser_create
 reefnet_sensus_parser_set_calibration
@@ -26,9 +26,7 @@ reefnet_sensuspro_parser_set_calibration
 reefnet_sensusultra_parser_create
 reefnet_sensusultra_parser_set_calibration
 uwatec_memomouse_parser_create
-#ifdef IRDA
 uwatec_smart_parser_create
-#endif
 suunto_vyper_parser_create
 suunto_solution_parser_create
 suunto_eon_parser_create
@@ -52,7 +50,6 @@ device_write
 message
 message_set_logfile
 
-#ifdef SERIAL
 cressi_edy_device_open
 mares_nemo_device_open
 mares_nemo_extract_dives
@@ -102,11 +99,7 @@ uwatec_aladin_extract_dives
 uwatec_memomouse_device_open
 uwatec_memomouse_device_set_timestamp
 uwatec_memomouse_extract_dives
-hw_ostc_device_open
-#endif
-
-#ifdef IRDA
 uwatec_smart_device_open
 uwatec_smart_device_set_timestamp
 uwatec_smart_extract_dives
-#endif
+hw_ostc_device_open

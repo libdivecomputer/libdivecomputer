@@ -540,7 +540,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="echo EXPORTS &gt; &quot;$(OutDir)/libdivecomputer.def&quot; &amp;&amp; cl /nologo /EP -DSERIAL -DIRDA &quot;$(InputPath)&quot; &gt;&gt; &quot;$(OutDir)/libdivecomputer.def&quot;"
+						CommandLine="echo EXPORTS &gt; &quot;$(OutDir)/libdivecomputer.def&quot; &amp;&amp; type &quot;$(InputPath)&quot; &gt;&gt; &quot;$(OutDir)/libdivecomputer.def&quot;"
 						Outputs="$(OutDir)/libdivecomputer.def"
 					/>
 				</FileConfiguration>
@@ -549,7 +549,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="echo EXPORTS &gt; &quot;$(OutDir)/libdivecomputer.def&quot; &amp;&amp; cl /nologo /EP -DSERIAL -DIRDA &quot;$(InputPath)&quot; &gt;&gt; &quot;$(OutDir)/libdivecomputer.def&quot;"
+						CommandLine="echo EXPORTS &gt; &quot;$(OutDir)/libdivecomputer.def&quot; &amp;&amp; type &quot;$(InputPath)&quot; &gt;&gt; &quot;$(OutDir)/libdivecomputer.def&quot;"
 						Outputs="$(OutDir)/libdivecomputer.def"
 					/>
 				</FileConfiguration>

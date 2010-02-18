@@ -35,8 +35,6 @@ AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], [irda_linux=yes], [i
 ])
 
 AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"])
-AM_CONDITIONAL([IRDA_WIN32], [test "$irda_win32" = "yes"])
-AM_CONDITIONAL([IRDA_LINUX], [test "$irda_linux" = "yes"])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([localtime_r gmtime_r])

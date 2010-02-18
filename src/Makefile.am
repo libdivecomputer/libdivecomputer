@@ -65,6 +65,7 @@ libdivecomputer_la_SOURCES = \
 	uwatec.h \
 	uwatec_aladin.h uwatec_aladin.c \
 	uwatec_memomouse.h uwatec_memomouse.c uwatec_memomouse_parser.c \
+	uwatec_smart.h uwatec_smart.c uwatec_smart_parser.c \
 	oceanic.h \
 	oceanic_common.h oceanic_common.c \
 	oceanic_atom2.h oceanic_atom2.c oceanic_atom2_parser.c \
@@ -91,22 +92,18 @@ libdivecomputer_la_SOURCES += serial.h serial_posix.c
 endif
 
 if IRDA
-if IRDA_WIN32
+if OS_WIN32
 libdivecomputer_la_LIBADD = -lws2_32
 endif
-libdivecomputer_la_SOURCES += \
-	irda.h irda.c \
-	uwatec_smart.h uwatec_smart.c uwatec_smart_parser.c
+libdivecomputer_la_SOURCES += irda.h irda.c
+else
+libdivecomputer_la_SOURCES += irda.h irda_dummy.c
 endif
 
 libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp 
 
 libdivecomputer.exp: libdivecomputer.symbols
-if IRDA
-	$(AM_V_GEN) $(CPP) -P -DSERIAL -DIRDA - < $< | sed -e '/^$$/d' > $@
-else
-	$(AM_V_GEN) $(CPP) -P -DSERIAL - < $< | sed -e '/^$$/d' > $@
-endif
+	$(AM_V_GEN) sed -e '/^$$/d' $< > $@
 
 CLEANFILES = libdivecomputer.exp 
 EXTRA_DIST = libdivecomputer.symbols
