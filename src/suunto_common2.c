@@ -377,10 +377,14 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		previous = current;
 		current = prev;
 
-		if (memcmp (p + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0)
+		unsigned int fp_offset = FP_OFFSET;
+		if (devinfo.model == 0x15)
+			fp_offset += 6; // HelO2
+
+		if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0)
 			return DEVICE_STATUS_SUCCESS;
 
-		if (callback && !callback (p + 4, size - 4, p + FP_OFFSET, sizeof (device->fingerprint), userdata))
+		if (callback && !callback (p + 4, size - 4, p + fp_offset, sizeof (device->fingerprint), userdata))
 			return DEVICE_STATUS_SUCCESS;
 	}
 

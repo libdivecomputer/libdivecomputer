@@ -112,10 +112,16 @@ suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsign
 static parser_status_t
 suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
-	if (abstract->size < 0x15 - 4 + 7)
+	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
+
+	unsigned int offset = 0x15 - 4;
+	if (parser->model == 0x15)
+		offset += 6; // HelO2
+
+	if (abstract->size < offset + 7)
 		return PARSER_STATUS_ERROR;
 
-	const unsigned char *p = abstract->data + 0x15 - 4;
+	const unsigned char *p = abstract->data + offset;
 
 	if (datetime) {
 		datetime->hour   = p[0];
@@ -159,7 +165,10 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	assert (profile + 5 <= size);
 
 	// Sample recording interval.
-	unsigned int interval_sample = data[0x1C - SKIP];
+	unsigned int interval_sample_offset = 0x1C - SKIP;
+	if (parser->model == 0x15)
+		interval_sample_offset += 6; // HelO2
+	unsigned int interval_sample = data[interval_sample_offset];
 	assert (interval_sample > 0);
 
 	// Temperature recording interval.
