@@ -95,19 +95,31 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 
 	unsigned int offset = layout->rb_profile_end - layout->rb_profile_begin;
 	while (offset >= 3) {
+		// Check for the presence of extra header bytes, which can be detected
+		// by means of a three byte marker sequence.
+		unsigned int extra = 0;
+		const unsigned char marker[3] = {0xAA, 0xBB, 0xCC};
+		if (memcmp (buffer + offset - 3, marker, sizeof (marker)) == 0) {
+			extra = 12;
+		}
+
+		// Check for overflows due to incomplete dives.
+		if (offset < extra + 3)
+			break;
+
 		// Check the dive mode of the logbook entry. Valid modes are
 		// 0 (air), 1 (EANx), 2 (freedive) or 3 (bottom timer).
 		// If the ringbuffer has never reached the wrap point before,
 		// there will be "empty" memory (filled with 0xFF) and
 		// processing should stop at this point.
-		unsigned int mode = buffer[offset - 1];
+		unsigned int mode = buffer[offset - extra - 1];
 		if (mode == 0xFF)
 			break;
 
 		// The header and sample size are dependant on the dive mode. Only
 		// in freedive mode, the sizes are different from the other modes.
 		unsigned int header_size = 53;
-		unsigned int sample_size = 2;
+		unsigned int sample_size = (extra ? 5 : 2);
 		if (mode == 2) {
 			header_size = 28;
 			sample_size = 6;
@@ -115,13 +127,13 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 		}
 
 		// Get the number of samples in the profile data.
-		unsigned int nsamples = array_uint16_le (buffer + offset - 3);
+		unsigned int nsamples = array_uint16_le (buffer + offset - extra - 3);
 
 		// Calculate the total number of bytes for this dive.
 		// If the buffer does not contain that much bytes, we reached the
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
-		unsigned int nbytes = 2 + nsamples * sample_size + header_size;
+		unsigned int nbytes = 2 + nsamples * sample_size + header_size + extra;
 		if (offset < nbytes)
 			break;
 
@@ -169,7 +181,7 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 			nbytes += idx - layout->rb_freedives_begin;
 		}
 
-		unsigned int fp_offset = offset + length - FP_OFFSET;
+		unsigned int fp_offset = offset + length - extra - FP_OFFSET;
 		if (device && memcmp (buffer + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;

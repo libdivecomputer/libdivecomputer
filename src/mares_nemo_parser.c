@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "mares_nemo.h"
@@ -32,6 +33,13 @@ typedef struct mares_nemo_parser_t mares_nemo_parser_t;
 
 struct mares_nemo_parser_t {
 	parser_t base;
+	/* Internal state */
+	unsigned int mode;
+	unsigned int length;
+	unsigned int sample_count;
+	unsigned int sample_size;
+	unsigned int header;
+	unsigned int extra;
 };
 
 static parser_status_t mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -74,6 +82,14 @@ mares_nemo_parser_create (parser_t **out)
 	// Initialize the base class.
 	parser_init (&parser->base, &mares_nemo_parser_backend);
 
+	// Set the default values.
+	parser->mode = 0;
+	parser->length = 0;
+	parser->sample_count = 0;
+	parser->sample_size = 0;
+	parser->header = 0;
+	parser->extra = 0;
+
 	*out = (parser_t*) parser;
 
 	return PARSER_STATUS_SUCCESS;
@@ -96,8 +112,61 @@ mares_nemo_parser_destroy (parser_t *abstract)
 static parser_status_t
 mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_mares_nemo (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+	mares_nemo_parser_t *parser = (mares_nemo_parser_t *) abstract;
+
+	// Clear the previous state.
+	parser->base.data = NULL;
+	parser->base.size = 0;
+	parser->mode = 0;
+	parser->length = 0;
+	parser->sample_count = 0;
+	parser->sample_size = 0;
+	parser->header = 0;
+	parser->extra = 0;
+
+	if (size == 0)
+		return PARSER_STATUS_SUCCESS;
+
+	if (size < 2 + 3)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int length = array_uint16_le (data);
+	if (length > size)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int extra = 0;
+	const unsigned char marker[3] = {0xAA, 0xBB, 0xCC};
+	if (memcmp (data + length - 3, marker, sizeof (marker)) == 0) {
+		extra = 12;
+	}
+
+	if (length < 2 + extra + 3)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int mode = data[length - extra - 1];
+
+	unsigned int header_size = 53;
+	unsigned int sample_size = (extra ? 5 : 2);
+	if (mode == 2) {
+		header_size = 28;
+		sample_size = 6;
+	}
+
+	unsigned int nsamples = array_uint16_le (data + length - extra - 3);
+
+	unsigned int nbytes = 2 + nsamples * sample_size + header_size + extra;
+	if (length != nbytes)
+		return PARSER_STATUS_ERROR;
+
+	// Store the new state.
+	parser->base.data = data;
+	parser->base.size = size;
+	parser->mode = mode;
+	parser->length = length;
+	parser->sample_count = nsamples;
+	parser->sample_size = sample_size;
+	parser->header = header_size;
+	parser->extra = extra;
 
 	return PARSER_STATUS_SUCCESS;
 }
@@ -106,15 +175,12 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 static parser_status_t
 mares_nemo_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
-	if (abstract->size < 2)
+	mares_nemo_parser_t *parser = (mares_nemo_parser_t *) abstract;
+
+	if (abstract->size == 0)
 		return PARSER_STATUS_ERROR;
 
-	unsigned int length = array_uint16_le (abstract->data);
-
-	if (length < 8 || length > abstract->size)
-		return PARSER_STATUS_ERROR;
-
-	const unsigned char *p = abstract->data + length - 8;
+	const unsigned char *p = abstract->data + parser->length - parser->extra - 8;
 
 	if (datetime) {
 		datetime->year   = p[0] + 2000;
@@ -132,28 +198,20 @@ mares_nemo_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 static parser_status_t
 mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
-	if (! parser_is_mares_nemo (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+	mares_nemo_parser_t *parser = (mares_nemo_parser_t *) abstract;
+
+	if (abstract->size == 0)
+		return PARSER_STATUS_ERROR;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 5)
-		return PARSER_STATUS_ERROR;
-
-	unsigned int length = array_uint16_le (data);
-	assert (length <= size);
-
-	unsigned int mode = data[length - 1];
-
-	unsigned int nsamples = array_uint16_le (data + length - 3);
-
-	if (mode != 2) {
+	if (parser->mode != 2) {
 		unsigned int time = 0;
-		for (unsigned int i = 0; i < nsamples; ++i) {
+		for (unsigned int i = 0; i < parser->sample_count; ++i) {
 			parser_sample_value_t sample = {0};
 
-			unsigned int idx = 2 + 2 * i;
+			unsigned int idx = 2 + parser->sample_size * i;
 			unsigned int value = array_uint16_le (data + idx);
 			unsigned int depth = value & 0x0FFF;
 			unsigned int ascent = (value & 0xC000) >> 14;
@@ -202,14 +260,14 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 		// the normal dive data. We assume a freedive has a detailed profile
 		// when the buffer contains more data than the size indicated in the
 		// header.
-		int profiles = (size > length);
+		int profiles = (size > parser->length);
 
 		unsigned int time = 0;
-		unsigned int offset = length;
-		for (unsigned int i = 0; i < nsamples; ++i) {
+		unsigned int offset = parser->length;
+		for (unsigned int i = 0; i < parser->sample_count; ++i) {
 			parser_sample_value_t sample = {0};
 
-			unsigned int idx = 2 + 6 * i;
+			unsigned int idx = 2 + parser->sample_size * i;
 			unsigned int maxdepth = array_uint16_le (data + idx);
 			unsigned int divetime = data[idx + 2] + data[idx + 3] * 60;
 			unsigned int surftime = data[idx + 4] + data[idx + 5] * 60;
