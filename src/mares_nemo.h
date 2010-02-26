@@ -36,7 +36,7 @@ device_status_t
 mares_nemo_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-mares_nemo_parser_create (parser_t **parser);
+mares_nemo_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }

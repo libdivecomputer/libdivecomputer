@@ -68,6 +68,11 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 {
 	assert (layout != NULL);
 
+	// Get the freedive mode for this model.
+	unsigned int freedive = 2;
+	if (data[1] == 7)
+		freedive = 3;
+
 	// Get the end of the profile ring buffer.
 	unsigned int eop = array_uint16_le (data + 0x6B);
 
@@ -120,7 +125,7 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 		// in freedive mode, the sizes are different from the other modes.
 		unsigned int header_size = 53;
 		unsigned int sample_size = (extra ? 5 : 2);
-		if (mode == 2) {
+		if (mode == freedive) {
 			header_size = 28;
 			sample_size = 6;
 			nfreedives++;
@@ -153,7 +158,7 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 		// Process the profile data for the most recent freedive entry.
 		// Since we are processing the entries backwards (newest to oldest),
 		// this entry will always be the first one.
-		if (mode == 2 && nfreedives == 1) {
+		if (mode == freedive && nfreedives == 1) {
 			// Count the number of freedives in the profile data.
 			unsigned int count = 0;
 			unsigned int idx = layout->rb_freedives_begin;

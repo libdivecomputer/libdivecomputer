@@ -262,7 +262,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		break;
 	case DEVICE_TYPE_MARES_NEMO:
 	case DEVICE_TYPE_MARES_PUCK:
-		rc = mares_nemo_parser_create (&parser);
+		rc = mares_nemo_parser_create (&parser, devdata->devinfo.model);
 		break;
 	default:
 		rc = PARSER_STATUS_ERROR;
