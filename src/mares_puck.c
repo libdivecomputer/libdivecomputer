@@ -68,6 +68,14 @@ static const mares_common_layout_t mares_puck_layout = {
 	0x4000  /* rb_freedives_end */
 };
 
+static const mares_common_layout_t mares_nemoair_layout = {
+	0x8000, /* memsize */
+	0x0070, /* rb_profile_begin */
+	0x8000, /* rb_profile_end */
+	0x8000, /* rb_freedives_begin */
+	0x8000  /* rb_freedives_end */
+};
+
 static int
 device_is_mares_puck (device_t *abstract)
 {
@@ -93,9 +101,6 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	// Initialize the base class.
 	mares_common_device_init (&device->base, &mares_puck_device_backend);
-
-	// Override the base class values.
-	device->base.layout = &mares_puck_layout;
 
 	// Set the default values.
 	device->port = NULL;
@@ -133,6 +138,21 @@ mares_puck_device_open (device_t **out, const char* name)
 		free (device);
 		return DEVICE_STATUS_IO;
 	}
+
+	// Identify the model number.
+	unsigned char header[PACKETSIZE] = {0};
+	device_status_t status = mares_puck_device_read ((device_t *) device, 0, header, sizeof (header));
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
+
+	// Override the base class values.
+	if (header[1] == 4)
+		device->base.layout = &mares_nemoair_layout;
+	else
+		device->base.layout = &mares_puck_layout;
 
 	*out = (device_t*) device;
 
@@ -377,7 +397,7 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = data[1];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
@@ -398,7 +418,14 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (abstract && !device_is_mares_puck (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	const mares_common_layout_t *layout = &mares_puck_layout;
+	if (size < PACKETSIZE)
+		return DEVICE_STATUS_ERROR;
+
+	const mares_common_layout_t *layout = NULL;
+	if (data[1] == 4)
+		layout = &mares_nemoair_layout;
+	else
+		layout = &mares_puck_layout;
 
 	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
