@@ -44,7 +44,7 @@ void
 mares_common_device_init (mares_common_device_t *device, const device_backend_t *backend);
 
 device_status_t
-mares_common_device_set_fingerprint (mares_common_device_t *device, const unsigned char data[], unsigned int size);
+mares_common_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 
 device_status_t
 mares_common_extract_dives (mares_common_device_t *device, const mares_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata);

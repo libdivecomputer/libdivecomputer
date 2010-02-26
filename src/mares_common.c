@@ -44,8 +44,10 @@ mares_common_device_init (mares_common_device_t *device, const device_backend_t 
 
 
 device_status_t
-mares_common_device_set_fingerprint (mares_common_device_t *device, const unsigned char data[], unsigned int size)
+mares_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
+	mares_common_device_t *device = (mares_common_device_t *) abstract;
+
 	assert (device != NULL);
 
 	if (size && size != sizeof (device->fingerprint))

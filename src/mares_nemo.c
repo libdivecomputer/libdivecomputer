@@ -49,14 +49,13 @@ typedef struct mares_nemo_device_t {
 	struct serial *port;
 } mares_nemo_device_t;
 
-static device_status_t mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_nemo_device_close (device_t *abstract);
 
 static const device_backend_t mares_nemo_device_backend = {
 	DEVICE_TYPE_MARES_NEMO,
-	mares_nemo_device_set_fingerprint, /* set_fingerprint */
+	mares_common_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
@@ -159,18 +158,6 @@ mares_nemo_device_close (device_t *abstract)
 	free (device);
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
-mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	mares_common_device_t *device = (mares_common_device_t*) abstract;
-
-	if (! device_is_mares_nemo (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
-	return mares_common_device_set_fingerprint (device, data, size);
 }
 
 
