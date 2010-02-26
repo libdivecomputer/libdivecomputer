@@ -36,13 +36,7 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
-#define FP_OFFSET 8
-#define FP_SIZE   5
-
-#define RB_PROFILE_BEGIN			0x0070
-#define RB_PROFILE_END				0x3400
-#define RB_FREEDIVES_BEGIN			0x3400
-#define RB_FREEDIVES_END			0x4000
+#define PACKETSIZE 0x20
 
 typedef struct mares_nemo_device_t {
 	mares_common_device_t base;
@@ -65,6 +59,7 @@ static const device_backend_t mares_nemo_device_backend = {
 };
 
 static const mares_common_layout_t mares_nemo_layout = {
+	0x4000, /* memsize */
 	0x0070, /* rb_profile_begin */
 	0x3400, /* rb_profile_end */
 	0x3400, /* rb_freedives_begin */
@@ -96,6 +91,9 @@ mares_nemo_device_open (device_t **out, const char* name)
 
 	// Initialize the base class.
 	mares_common_device_init (&device->base, &mares_nemo_device_backend);
+
+	// Override the base class values.
+	device->base.layout = &mares_nemo_layout;
 
 	// Set the default values.
 	device->port = NULL;
@@ -166,19 +164,19 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
-	if (! device_is_mares_nemo (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+	assert (device != NULL);
+	assert (device->base.layout != NULL);
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, MARES_NEMO_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, device->base.layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = MARES_NEMO_MEMORY_SIZE + 20;
+	progress.maximum = device->base.layout->memsize + 20;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Receive the header of the package.
@@ -201,9 +199,9 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	unsigned int nbytes = 0;
-	while (nbytes < MARES_NEMO_MEMORY_SIZE) {
+	while (nbytes < device->base.layout->memsize) {
 		// Read the packet.
-		unsigned char packet[(MARES_NEMO_PACKET_SIZE + 1) * 2] = {0};
+		unsigned char packet[(PACKETSIZE + 1) * 2] = {0};
 		int n = serial_read (device->port, packet, sizeof (packet));
 		if (n != sizeof (packet)) {
 			WARNING ("Failed to receive the answer.");
@@ -211,35 +209,35 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		}
 
 		// Verify the checksums of the packet.
-		unsigned char crc1 = packet[MARES_NEMO_PACKET_SIZE];
-		unsigned char crc2 = packet[MARES_NEMO_PACKET_SIZE * 2 + 1];
-		unsigned char ccrc1 = checksum_add_uint8 (packet, MARES_NEMO_PACKET_SIZE, 0x00);
-		unsigned char ccrc2 = checksum_add_uint8 (packet + MARES_NEMO_PACKET_SIZE + 1, MARES_NEMO_PACKET_SIZE, 0x00);
+		unsigned char crc1 = packet[PACKETSIZE];
+		unsigned char crc2 = packet[PACKETSIZE * 2 + 1];
+		unsigned char ccrc1 = checksum_add_uint8 (packet, PACKETSIZE, 0x00);
+		unsigned char ccrc2 = checksum_add_uint8 (packet + PACKETSIZE + 1, PACKETSIZE, 0x00);
 		if (crc1 == ccrc1 && crc2 == ccrc2) {
 			// Both packets have a correct checksum.
-			if (memcmp (packet, packet + MARES_NEMO_PACKET_SIZE + 1, MARES_NEMO_PACKET_SIZE) != 0) {
+			if (memcmp (packet, packet + PACKETSIZE + 1, PACKETSIZE) != 0) {
 				WARNING ("Both packets are not equal.");
 				return DEVICE_STATUS_PROTOCOL;
 			}
-			dc_buffer_append (buffer, packet, MARES_NEMO_PACKET_SIZE);
+			dc_buffer_append (buffer, packet, PACKETSIZE);
 		} else if (crc1 == ccrc1) {
 			// Only the first packet has a correct checksum.
 			WARNING ("Only the first packet has a correct checksum.");
-			dc_buffer_append (buffer, packet, MARES_NEMO_PACKET_SIZE);
+			dc_buffer_append (buffer, packet, PACKETSIZE);
 		} else if (crc2 == ccrc2) {
 			// Only the second packet has a correct checksum.
 			WARNING ("Only the second packet has a correct checksum.");
-			dc_buffer_append (buffer, packet + MARES_NEMO_PACKET_SIZE + 1, MARES_NEMO_PACKET_SIZE);
+			dc_buffer_append (buffer, packet + PACKETSIZE + 1, PACKETSIZE);
 		} else {
 			WARNING ("Unexpected answer CRC.");
 			return DEVICE_STATUS_PROTOCOL;
 		}
 
 		// Update and emit a progress event.
-		progress.current += MARES_NEMO_PACKET_SIZE;
+		progress.current += PACKETSIZE;
 		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-		nbytes += MARES_NEMO_PACKET_SIZE;
+		nbytes += PACKETSIZE;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
@@ -249,10 +247,12 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 static device_status_t
 mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	if (! device_is_mares_nemo (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+	mares_common_device_t *device = (mares_common_device_t *) abstract;
 
-	dc_buffer_t *buffer = dc_buffer_new (MARES_NEMO_MEMORY_SIZE);
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
 
@@ -270,8 +270,7 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_nemo_extract_dives (abstract,
-		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+	rc = mares_common_extract_dives (device, device->layout, data, callback, userdata);
 
 	dc_buffer_free (buffer);
 
@@ -287,8 +286,10 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (abstract && !device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < MARES_NEMO_MEMORY_SIZE)
+	const mares_common_layout_t *layout = &mares_nemo_layout;
+
+	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
 
-	return mares_common_extract_dives (device, &mares_nemo_layout, data, callback, userdata);
+	return mares_common_extract_dives (device, layout, data, callback, userdata);
 }

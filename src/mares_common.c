@@ -40,6 +40,7 @@ mares_common_device_init (mares_common_device_t *device, const device_backend_t 
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	device->layout = NULL;
 }
 
 

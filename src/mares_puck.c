@@ -36,6 +36,7 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define PACKETSIZE 0x20
 #define MAXRETRIES 4
 
 typedef struct mares_puck_device_t {
@@ -60,6 +61,7 @@ static const device_backend_t mares_puck_device_backend = {
 };
 
 static const mares_common_layout_t mares_puck_layout = {
+	0x4000, /* memsize */
 	0x0070, /* rb_profile_begin */
 	0x3400, /* rb_profile_end */
 	0x3400, /* rb_freedives_begin */
@@ -91,6 +93,9 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	// Initialize the base class.
 	mares_common_device_init (&device->base, &mares_puck_device_backend);
+
+	// Override the base class values.
+	device->base.layout = &mares_puck_layout;
 
 	// Set the default values.
 	device->port = NULL;
@@ -294,14 +299,14 @@ mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char 
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	// The data transmission is split in packages
-	// of maximum $MARES_PUCK_PACKET_SIZE bytes.
+	// of maximum $PACKETSIZE bytes.
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the packet size.
 		unsigned int len = size - nbytes;
-		if (len > MARES_PUCK_PACKET_SIZE)
-			len = MARES_PUCK_PACKET_SIZE;
+		if (len > PACKETSIZE)
+			len = PACKETSIZE;
 
 		// Build the raw command.
 		unsigned char raw[] = {0x51,
@@ -314,7 +319,7 @@ mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char 
 		mares_puck_make_ascii (raw, sizeof (raw), command, sizeof (command));
 
 		// Send the command and receive the answer.
-		unsigned char answer[2 * (MARES_PUCK_PACKET_SIZE + 2)] = {0};
+		unsigned char answer[2 * (PACKETSIZE + 2)] = {0};
 		device_status_t rc = mares_puck_transfer (device, command, sizeof (command), answer, 2 * (len + 2));
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
@@ -334,28 +339,32 @@ mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char 
 static device_status_t
 mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
-	if (! device_is_mares_puck (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+	mares_common_device_t *device = (mares_common_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
 
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, MARES_PUCK_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), MARES_PUCK_PACKET_SIZE);
+		dc_buffer_get_size (buffer), PACKETSIZE);
 }
 
 
 static device_status_t
 mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	if (! device_is_mares_puck (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+	mares_common_device_t *device = (mares_common_device_t *) abstract;
 
-	dc_buffer_t *buffer = dc_buffer_new (MARES_PUCK_MEMORY_SIZE);
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
 
@@ -373,8 +382,7 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_puck_extract_dives (abstract,
-		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+	rc = mares_common_extract_dives (device, device->layout, data, callback, userdata);
 
 	dc_buffer_free (buffer);
 
@@ -390,8 +398,10 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (abstract && !device_is_mares_puck (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	if (size < MARES_PUCK_MEMORY_SIZE)
+	const mares_common_layout_t *layout = &mares_puck_layout;
+
+	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
 
-	return mares_common_extract_dives (device, &mares_puck_layout, data, callback, userdata);
+	return mares_common_extract_dives (device, layout, data, callback, userdata);
 }

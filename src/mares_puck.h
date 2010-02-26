@@ -29,9 +29,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define MARES_PUCK_MEMORY_SIZE 0x4000
-#define MARES_PUCK_PACKET_SIZE 0x20
-
 device_status_t
 mares_puck_device_open (device_t **device, const char* name);
 

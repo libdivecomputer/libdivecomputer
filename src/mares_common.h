@@ -28,17 +28,19 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct mares_common_device_t {
-	device_t base;
-	unsigned char fingerprint[5];
-} mares_common_device_t;
-
 typedef struct mares_common_layout_t {
+	unsigned int memsize;
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;
 	unsigned int rb_freedives_begin;
 	unsigned int rb_freedives_end;
 } mares_common_layout_t;
+
+typedef struct mares_common_device_t {
+	device_t base;
+	unsigned char fingerprint[5];
+	const mares_common_layout_t *layout;
+} mares_common_device_t;
 
 void
 mares_common_device_init (mares_common_device_t *device, const device_backend_t *backend);
