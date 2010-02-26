@@ -289,20 +289,25 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					case 0x0C: // PO2
 						sample.event.type = SAMPLE_EVENT_PO2;
 						break;
-					case 0x0D: //Air Time Warning
+					case 0x0D: // Air Time Warning
 						sample.event.type = SAMPLE_EVENT_AIRTIME;
 						break;
 					case 0x0E: // RGBM Warning
 						sample.event.type = SAMPLE_EVENT_RGBM;
 						break;
 					case 0x0F: // PO2 High
+					case 0x10: // PO2 Low
 						sample.event.type = SAMPLE_EVENT_PO2;
 						break;
 					case 0x11: // Tissue Level Warning
+					case 0x12: // Tissue Calc Overflow
 						sample.event.type = SAMPLE_EVENT_TISSUELEVEL;
 						break;
 					case 0x13: // Deep Safety Stop
 						sample.event.type = SAMPLE_EVENT_DEEPSTOP;
+						break;
+					case 0x14: // Mandatory Safety Stop
+						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_MANDATORY;
 						break;
 					default: // Unknown
 						WARNING ("Unknown event");
