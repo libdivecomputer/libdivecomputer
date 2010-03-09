@@ -1,0 +1,30 @@
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     @DC_VERSION_MAJOR@,@DC_VERSION_MINOR@,@DC_VERSION_MICRO@,0
+PRODUCTVERSION  @DC_VERSION_MAJOR@,@DC_VERSION_MINOR@,@DC_VERSION_MICRO@,0
+FILEFLAGSMASK   0
+FILEFLAGS       0
+FILEOS          VOS__WINDOWS32
+FILETYPE        VFT_DLL
+FILESUBTYPE     0
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904B0"
+		BEGIN
+			VALUE "CompanyName", "The libdivecomputer developers"
+			VALUE "FileDescription", "A library for communication with various dive computers."
+			VALUE "FileVersion", "@VERSION@"
+			VALUE "InternalName", "libdivecomputer"
+			VALUE "LegalCopyright", "Copyright © 2010 Jef Driesen"
+			VALUE "OriginalFilename", "libdivecomputer.dll"
+			VALUE "ProductName", "libdivecomputer"
+			VALUE "ProductVersion", "@VERSION@"
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 1033, 1200
+	END
+END

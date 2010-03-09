@@ -15,6 +15,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 # Initialize libtool.
 LT_PREREQ([2.2.0])
 LT_INIT([win32-dll])
+LT_PROG_RC
 
 # Checks for programs.
 AC_PROG_CC
@@ -67,6 +68,7 @@ AC_CONFIG_FILES([
    Makefile
    src/Makefile
    src/version.h
+   src/libdivecomputer.rc
    examples/Makefile
 ])
 AC_OUTPUT

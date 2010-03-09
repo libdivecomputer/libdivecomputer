@@ -101,10 +101,17 @@ else
 libdivecomputer_la_SOURCES += irda.h irda_dummy.c
 endif
 
+if OS_WIN32
+libdivecomputer_la_SOURCES += libdivecomputer.rc
+endif
+
 libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp 
 
 libdivecomputer.exp: libdivecomputer.symbols
 	$(AM_V_GEN) sed -e '/^$$/d' $< > $@
+
+.rc.lo:
+	$(AM_V_GEN) $(LIBTOOL) --silent --tag=RC --mode=compile $(RC) $< -o $@
 
 CLEANFILES = libdivecomputer.exp 
 EXTRA_DIST = libdivecomputer.symbols
