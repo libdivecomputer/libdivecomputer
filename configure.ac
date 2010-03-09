@@ -1,6 +1,11 @@
+# Versioning.
+m4_define([dc_version_major],[0])
+m4_define([dc_version_minor],[0])
+m4_define([dc_version_micro],[0])
+
 # Initialize autoconf.
 AC_PREREQ([2.60])
-AC_INIT([libdivecomputer], [0.1])
+AC_INIT([libdivecomputer],[dc_version_major.dc_version_minor.dc_version_micro])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 
@@ -52,10 +57,16 @@ AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"
 # Checks for library functions.
 AC_CHECK_FUNCS([localtime_r gmtime_r])
 
+# Versioning.
+AC_SUBST([DC_VERSION_MAJOR],[dc_version_major])
+AC_SUBST([DC_VERSION_MINOR],[dc_version_minor])
+AC_SUBST([DC_VERSION_MICRO],[dc_version_micro])
+
 AC_CONFIG_FILES([
    libdivecomputer.pc
    Makefile
    src/Makefile
+   src/version.h
    examples/Makefile
 ])
 AC_OUTPUT
