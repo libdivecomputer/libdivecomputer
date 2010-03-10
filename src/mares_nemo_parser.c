@@ -33,7 +33,7 @@ typedef struct mares_nemo_parser_t mares_nemo_parser_t;
 
 struct mares_nemo_parser_t {
 	parser_t base;
-	unsigned int model;
+	unsigned int freedive;
 	/* Internal state */
 	unsigned int mode;
 	unsigned int length;
@@ -83,8 +83,13 @@ mares_nemo_parser_create (parser_t **out, unsigned int model)
 	// Initialize the base class.
 	parser_init (&parser->base, &mares_nemo_parser_backend);
 
+	// Get the freedive mode for this model.
+	unsigned int freedive = 2;
+	if (model == 7)
+		freedive = 3;
+
 	// Set the default values.
-	parser->model = model;
+	parser->freedive = freedive;
 	parser->mode = 0;
 	parser->length = 0;
 	parser->sample_count = 0;
@@ -149,7 +154,7 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 
 	unsigned int header_size = 53;
 	unsigned int sample_size = (extra ? 5 : 2);
-	if (mode == 2) {
+	if (mode == parser->freedive) {
 		header_size = 28;
 		sample_size = 6;
 	}
@@ -208,12 +213,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	// Get the freedive mode for this model.
-	unsigned int freedive = 2;
-	if (parser->model == 7)
-		freedive = 3;
-
-	if (parser->mode != freedive) {
+	if (parser->mode != parser->freedive) {
 		unsigned int time = 0;
 		for (unsigned int i = 0; i < parser->sample_count; ++i) {
 			parser_sample_value_t sample = {0};
