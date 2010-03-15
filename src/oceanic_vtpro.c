@@ -64,6 +64,9 @@ static const device_backend_t oceanic_vtpro_device_backend = {
 	oceanic_vtpro_device_close /* close */
 };
 
+static const unsigned char oceanic_vtpro_version[]  = "VTPRO  r\0\0  256K";
+static const unsigned char oceanic_wisdom_version[] = "WISDOM r\0\0  256K";
+
 static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0x8000, /* memsize */
 	0x0000, /* cf_devinfo */
@@ -75,6 +78,16 @@ static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0 /* mode */
 };
 
+static const oceanic_common_layout_t oceanic_wisdom_layout = {
+	0x8000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x03D0, /* rb_logbook_begin */
+	0x05D0, /* rb_logbook_end */
+	0x05D0, /* rb_profile_begin */
+	0x8000, /* rb_profile_end */
+	0 /* mode */
+};
 
 static int
 device_is_oceanic_vtpro (device_t *abstract)
@@ -237,7 +250,6 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	oceanic_common_device_init (&device->base, &oceanic_vtpro_device_backend);
 
 	// Override the base class values.
-	device->base.layout = &oceanic_vtpro_layout;
 	device->base.multipage = MULTIPAGE;
 
 	// Set the default values.
@@ -311,6 +323,12 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 		free (device);
 		return status;
 	}
+
+	// Override the base class values.
+	if (oceanic_common_match (oceanic_wisdom_version, device->version, sizeof (device->version)))
+		device->base.layout = &oceanic_wisdom_layout;
+	else
+		device->base.layout = &oceanic_vtpro_layout;
 
 	*out = (device_t*) device;
 

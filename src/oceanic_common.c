@@ -82,6 +82,18 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 }
 
 
+int
+oceanic_common_match (const unsigned char *pattern, const unsigned char *string, unsigned int n)
+{
+	for (unsigned int i = 0; i < n; ++i, ++pattern, ++string) {
+		if (*pattern != '\0' && *pattern != *string)
+			return 0;
+	}
+
+	return 1;
+}
+
+
 void
 oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend)
 {

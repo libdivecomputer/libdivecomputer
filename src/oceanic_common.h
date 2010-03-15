@@ -57,6 +57,9 @@ typedef struct oceanic_common_device_t {
 	unsigned int multipage;
 } oceanic_common_device_t;
 
+int
+oceanic_common_match (const unsigned char *pattern, const unsigned char *string, unsigned int n);
+
 void
 oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend);
 
