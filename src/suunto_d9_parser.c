@@ -209,8 +209,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		// Temperature (degrees celcius).
 		if (nsamples % interval_temperature == 0) {
 			assert (offset + 1 <= size);
-			int temperature = data[offset];
-			sample.temperature = temperature;
+			sample.temperature = (signed char) data[offset];
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			offset += 1;
 		}
