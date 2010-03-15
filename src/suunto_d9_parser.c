@@ -331,7 +331,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 						sample.event.value = 0;
 					} else {
 						sample.event.type = SAMPLE_EVENT_HEADING;
-						sample.event.value = heading / 4;
+						sample.event.value = heading / 2;
 					}
 					sample.event.time = seconds;
 					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
