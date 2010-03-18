@@ -86,44 +86,26 @@ device_is_oceanic_atom2 (device_t *abstract)
 
 
 static device_status_t
-oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize)
 {
 	device_t *abstract = (device_t *) device;
 
-	// Send the command to the device. If the device responds with an
-	// ACK byte, the command was received successfully and the answer
-	// (if any) follows after the ACK byte. If the device responds with
-	// a NAK byte, we try to resend the command a number of times before
-	// returning an error.
+	if (device_is_cancelled (abstract))
+		return DEVICE_STATUS_CANCELLED;
 
-	unsigned int nretries = 0;
+	// Send the command to the dive computer.
+	int n = serial_write (device->port, command, csize);
+	if (n != csize) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Receive the response (ACK/NAK) of the dive computer.
 	unsigned char response = NAK;
-	while (response == NAK) {
-		if (device_is_cancelled (abstract))
-			return DEVICE_STATUS_CANCELLED;
-
-		// Send the command to the dive computer.
-		int n = serial_write (device->port, command, csize);
-		if (n != csize) {
-			WARNING ("Failed to send the command.");
-			return EXITCODE (n);
-		}
-
-		// Receive the response (ACK/NAK) of the dive computer.
-		n = serial_read (device->port, &response, 1);
-		if (n != 1) {
-			WARNING ("Failed to receive the answer.");
-			return EXITCODE (n);
-		}
-
-#ifndef NDEBUG
-		if (response != ACK)
-			message ("Received unexpected response (%02x).\n", response);
-#endif
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
-			break;
+	n = serial_read (device->port, &response, 1);
+	if (n != 1) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (n);
 	}
 
 	// Verify the response of the dive computer.
@@ -132,12 +114,36 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+{
+	// Send the command to the device. If the device responds with an
+	// ACK byte, the command was received successfully and the answer
+	// (if any) follows after the ACK byte. If the device responds with
+	// a NAK byte, we try to resend the command a number of times before
+	// returning an error.
+
+	unsigned int nretries = 0;
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
+	while ((rc = oceanic_atom2_send (device, command, csize)) != DEVICE_STATUS_SUCCESS) {
+		if (rc != DEVICE_STATUS_TIMEOUT && rc != DEVICE_STATUS_PROTOCOL)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+	}
+
 	if (asize) {
 		// Receive the answer of the dive computer.
-		int rc = serial_read (device->port, answer, asize);
-		if (rc != asize) {
+		int n = serial_read (device->port, answer, asize);
+		if (n != asize) {
 			WARNING ("Failed to receive the answer.");
-			return EXITCODE (rc);
+			return EXITCODE (n);
 		}
 
 		// Verify the checksum of the answer.
