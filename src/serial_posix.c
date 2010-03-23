@@ -479,10 +479,10 @@ serial_read (serial* device, void* data, unsigned int size)
 			}
 			timersub (&now, &timestamp, &delta);
 			long elapsed = delta.tv_sec * 1000 + delta.tv_usec / 1000;
-			if (elapsed >= device->timeout)
+			if (elapsed >= timeout)
 				timeout = 0;
 			else
-				timeout = device->timeout - elapsed;
+				timeout -= elapsed;
 			timestamp = now;
 		}	
 	}
