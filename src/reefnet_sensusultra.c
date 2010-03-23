@@ -749,7 +749,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 		// Abort the transfer if the page contains no useful data.
-		if (array_isequal (packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE, 0xFF))
+		if (array_isequal (packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE, 0xFF) && nbytes != 0)
 			break;
 
 		// Prepend the packet to the buffer.
