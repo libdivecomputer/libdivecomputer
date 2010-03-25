@@ -75,6 +75,10 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = array_uint16_le (data + 0x6B);
+	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
+		WARNING ("Ringbuffer pointer out of range.");
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// Make the ringbuffer linear, to avoid having to deal
 	// with the wrap point. The buffer has extra space to

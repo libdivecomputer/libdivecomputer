@@ -63,8 +63,8 @@ static const device_backend_t mares_puck_device_backend = {
 static const mares_common_layout_t mares_puck_layout = {
 	0x4000, /* memsize */
 	0x0070, /* rb_profile_begin */
-	0x3400, /* rb_profile_end */
-	0x3400, /* rb_freedives_begin */
+	0x4000, /* rb_profile_end */
+	0x4000, /* rb_freedives_begin */
 	0x4000  /* rb_freedives_end */
 };
 
@@ -74,6 +74,14 @@ static const mares_common_layout_t mares_nemoair_layout = {
 	0x8000, /* rb_profile_end */
 	0x8000, /* rb_freedives_begin */
 	0x8000  /* rb_freedives_end */
+};
+
+static const mares_common_layout_t mares_nemowide_layout = {
+	0x4000, /* memsize */
+	0x0070, /* rb_profile_begin */
+	0x3400, /* rb_profile_end */
+	0x3400, /* rb_freedives_begin */
+	0x4000  /* rb_freedives_end */
 };
 
 static int
@@ -149,10 +157,20 @@ mares_puck_device_open (device_t **out, const char* name)
 	}
 
 	// Override the base class values.
-	if (header[1] == 4)
+	switch (header[1]) {
+	case 1: // Nemo Wide
+		device->base.layout = &mares_nemowide_layout;
+		break;
+	case 4: // Nemo Air
 		device->base.layout = &mares_nemoair_layout;
-	else
+		break;
+	case 7: // Puck
 		device->base.layout = &mares_puck_layout;
+		break;
+	default: // Unknown, try puck
+		device->base.layout = &mares_puck_layout;
+		break;
+	}
 
 	*out = (device_t*) device;
 
@@ -422,10 +440,20 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 		return DEVICE_STATUS_ERROR;
 
 	const mares_common_layout_t *layout = NULL;
-	if (data[1] == 4)
+	switch (data[1]) {
+	case 1: // Nemo Wide
+		layout = &mares_nemowide_layout;
+		break;
+	case 4: // Nemo Air
 		layout = &mares_nemoair_layout;
-	else
+		break;
+	case 7: // Puck
 		layout = &mares_puck_layout;
+		break;
+	default: // Unknown, try puck
+		layout = &mares_puck_layout;
+		break;
+	}
 
 	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
