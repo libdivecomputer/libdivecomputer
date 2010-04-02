@@ -28,6 +28,12 @@
 #include <unistd.h>
 #endif
 
+#ifdef _WIN32
+#define DC_TICKS_FORMAT "%I64d"
+#else
+#define DC_TICKS_FORMAT "%lld"
+#endif
+
 #include <suunto.h>
 #include <reefnet.h>
 #include <uwatec.h>
@@ -351,7 +357,7 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 		break;
 	case DEVICE_EVENT_CLOCK:
 		devdata->clock = *clock;
-		message ("Event: systime=%u, devtime=%u\n",
+		message ("Event: systime=" DC_TICKS_FORMAT ", devtime=%u\n",
 			clock->systime, clock->devtime);
 		break;
 	default:
