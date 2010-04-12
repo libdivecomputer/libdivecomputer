@@ -86,6 +86,7 @@ static const backend_table_t g_backends[] = {
 	{"atom2",		DEVICE_TYPE_OCEANIC_ATOM2},
 	{"nemo",		DEVICE_TYPE_MARES_NEMO},
 	{"puck",		DEVICE_TYPE_MARES_PUCK},
+	{"iconhd",		DEVICE_TYPE_MARES_ICONHD},
 	{"ostc",		DEVICE_TYPE_HW_OSTC},
 	{"edy",			DEVICE_TYPE_CRESSI_EDY}
 };
@@ -586,6 +587,9 @@ dowork (device_type_t backend, const char *devname, const char *rawfile, const c
 		break;
 	case DEVICE_TYPE_MARES_PUCK:
 		rc = mares_puck_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_MARES_ICONHD:
+		rc = mares_iconhd_device_open (&device, devname);
 		break;
 	case DEVICE_TYPE_HW_OSTC:
 		rc = hw_ostc_device_open (&device, devname);

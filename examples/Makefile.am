@@ -18,6 +18,7 @@ bin_PROGRAMS = \
 	vtpro \
 	nemo \
 	puck \
+	iconhd \
 	ostc \
 	edy
 
@@ -56,6 +57,8 @@ vtpro_SOURCES = oceanic_vtpro_test.c
 nemo_SOURCES = mares_nemo_test.c
 
 puck_SOURCES = mares_puck_test.c
+
+iconhd_SOURCES = mares_iconhd_test.c
 
 ostc_SOURCES = hw_ostc_test.c
 
