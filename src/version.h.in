@@ -29,6 +29,7 @@ extern "C" {
 #define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
 #define DC_VERSION_MINOR @DC_VERSION_MINOR@
 #define DC_VERSION_MICRO @DC_VERSION_MICRO@
+#define DC_VERSION_EXTRA "@DC_VERSION_EXTRA@"
 
 #ifdef __cplusplus
 }

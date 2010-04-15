@@ -113,5 +113,25 @@ libdivecomputer.exp: libdivecomputer.symbols
 .rc.lo:
 	$(AM_V_GEN) $(LIBTOOL) --silent --tag=RC --mode=compile $(RC) $< -o $@
 
-CLEANFILES = libdivecomputer.exp 
-EXTRA_DIST = libdivecomputer.symbols
+FORCE:
+$(top_srcdir)/revision: FORCE
+	@if (test -d $(top_srcdir)/.svn && cd $(top_srcdir) \
+	     && svnversion | sed -e 's/[MSP]//g') > revision-t 2>/dev/null \
+	  && ! cmp -s revision-t $@; then \
+	  mv -f revision-t $@; \
+	else \
+	  rm -f revision-t; \
+	  if ! test -f $@; then touch $@; fi; \
+	fi
+
+version.h: $(top_srcdir)/revision version.h.in Makefile.am
+	$(AM_V_GEN) sed \
+		-e 's/\@DC_VERSION_MAJOR\@/@DC_VERSION_MAJOR@/' \
+		-e 's/\@DC_VERSION_MINOR\@/@DC_VERSION_MINOR@/' \
+		-e 's/\@DC_VERSION_MICRO\@/@DC_VERSION_MICRO@/' \
+		-e 's/\@DC_VERSION_EXTRA\@/'`cat $(top_srcdir)/revision`'/' \
+		$(srcdir)/version.h.in > $@
+
+BUILT_SOURCES = version.h
+EXTRA_DIST = libdivecomputer.symbols $(top_srcdir)/revision version.h.in
+CLEANFILES = libdivecomputer.exp revision-t
