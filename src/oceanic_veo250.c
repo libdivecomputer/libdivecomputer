@@ -140,6 +140,9 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 		// Abort if the maximum number of retries is reached.
 		if (nretries++ >= MAXRETRIES)
 			return rc;
+
+		// Delay the next attempt.
+		serial_sleep (100);
 	}
 
 	// Receive the answer of the dive computer.
