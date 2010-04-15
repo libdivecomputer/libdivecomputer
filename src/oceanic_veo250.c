@@ -171,7 +171,7 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 	}
 
 	// Receive the answer of the dive computer.
-	unsigned char answer[14] = {0};
+	unsigned char answer[13] = {0};
 	n = serial_read (device->port, answer, sizeof (answer));
 	if (n != sizeof (answer)) {
 		WARNING ("Failed to receive the answer.");
@@ -179,9 +179,9 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 	}
 
 	// Verify the answer.
-	const unsigned char response[14] = {
+	const unsigned char response[13] = {
 		0x50, 0x50, 0x53, 0x2D, 0x2D, 0x4F, 0x4B,
-		0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30, 0x00};
+		0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30};
 	if (memcmp (answer, response, sizeof (response)) != 0) {
 		WARNING ("Unexpected answer byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
