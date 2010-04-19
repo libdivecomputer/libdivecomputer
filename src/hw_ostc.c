@@ -38,19 +38,22 @@
 typedef struct hw_ostc_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned char fingerprint[5];
 } hw_ostc_device_t;
 
+static device_status_t hw_ostc_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static device_status_t hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t hw_ostc_device_close (device_t *abstract);
 
 static const device_backend_t hw_ostc_device_backend = {
 	DEVICE_TYPE_HW_OSTC,
-	NULL, /* set_fingerprint */
+	hw_ostc_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	hw_ostc_device_dump, /* dump */
-	NULL, /* foreach */
+	hw_ostc_device_foreach, /* foreach */
 	hw_ostc_device_close /* close */
 };
 
@@ -83,6 +86,7 @@ hw_ostc_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -109,6 +113,9 @@ hw_ostc_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_IO;
 	}
 
+	// Make sure everything is in a sane state.
+	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+
 	*out = (device_t*) device;
 
 	return DEVICE_STATUS_SUCCESS;
@@ -131,6 +138,23 @@ hw_ostc_device_close (device_t *abstract)
 
 	// Free memory.
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+hw_ostc_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
+
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -172,9 +196,90 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return EXITCODE (rc);
 	}
 
+	// Verify the header.
+	unsigned char header[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x55};
+	if (memcmp (data, header, sizeof (header)) != 0) {
+		WARNING ("Unexpected answer header.");
+		return DEVICE_STATUS_ERROR;
+	}
+
 	// Update and emit a progress event.
 	progress.current += HW_OSTC_MEMORY_SIZE;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	dc_buffer_t *buffer = dc_buffer_new (HW_OSTC_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
+
+	device_status_t rc = hw_ostc_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
+		return rc;
+	}
+
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	device_devinfo_t devinfo;
+	devinfo.model = 0;
+	devinfo.firmware = array_uint16_be (data + 264);
+	devinfo.serial = array_uint16_le (data + 6);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
+	rc = hw_ostc_extract_dives (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
+}
+
+
+device_status_t
+hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
+
+	if (abstract && !device_is_hw_ostc (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	const unsigned char header[2] = {0xFA, 0xFA};
+	const unsigned char footer[2] = {0xFD, 0xFD};
+
+	// Initialize the data stream pointers.
+	const unsigned char *current  = data + size;
+	const unsigned char *previous = data + size;
+
+	// Search the data stream for header markers.
+	while ((current = array_search_backward (data + 266, current - data - 266, header, sizeof (header))) != NULL) {
+		// Move the pointer to the begin of the header.
+		current -= sizeof (header);
+
+		// Once a header marker is found, start searching
+		// for the corresponding footer marker. The search is
+		// now limited to the start of the previous dive.
+		previous = array_search_forward (current, previous - current, footer, sizeof (footer));
+
+		if (previous) {
+			// Move the pointer to the end of the footer.
+			previous += sizeof (footer);
+
+			if (device && memcmp (current + 3, device->fingerprint, sizeof (device->fingerprint)) == 0)
+				return DEVICE_STATUS_SUCCESS;
+
+			if (callback && !callback (current, previous - current, current + 3, 5, userdata))
+				return DEVICE_STATUS_SUCCESS;
+		}
+
+		// Prepare for the next iteration.
+		previous = current;
+	}
 
 	return DEVICE_STATUS_SUCCESS;
 }

@@ -22,16 +22,19 @@
 #ifndef HW_OSTC_H
 #define HW_OSTC_H
 
+#include "device.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-#include "device.h"
 
 #define HW_OSTC_MEMORY_SIZE 33034
 
 device_status_t
 hw_ostc_device_open (device_t **device, const char* name);
+
+device_status_t
+hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
