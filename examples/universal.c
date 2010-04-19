@@ -270,6 +270,9 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	case DEVICE_TYPE_MARES_PUCK:
 		rc = mares_nemo_parser_create (&parser, devdata->devinfo.model);
 		break;
+	case DEVICE_TYPE_HW_OSTC:
+		rc = hw_ostc_parser_create (&parser);
+		break;
 	default:
 		rc = PARSER_STATUS_ERROR;
 		break;

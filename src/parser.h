@@ -42,7 +42,8 @@ typedef enum parser_type_t {
 	PARSER_TYPE_MARES_NEMO,
 	PARSER_TYPE_OCEANIC_VTPRO,
 	PARSER_TYPE_OCEANIC_VEO250,
-	PARSER_TYPE_OCEANIC_ATOM2
+	PARSER_TYPE_OCEANIC_ATOM2,
+	PARSER_TYPE_HW_OSTC
 } parser_type_t;
 
 typedef enum parser_status_t {

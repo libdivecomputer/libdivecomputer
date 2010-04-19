@@ -35,6 +35,7 @@ mares_nemo_parser_create
 oceanic_vtpro_parser_create
 oceanic_veo250_parser_create
 oceanic_atom2_parser_create
+hw_ostc_parser_create
 
 device_close
 device_dump

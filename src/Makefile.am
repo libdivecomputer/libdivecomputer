@@ -77,7 +77,7 @@ libdivecomputer_la_SOURCES = \
 	mares_nemo.h mares_nemo.c mares_nemo_parser.c \
 	mares_puck.h mares_puck.c \
 	hw.h \
-	hw_ostc.h hw_ostc.c \
+	hw_ostc.h hw_ostc.c hw_ostc_parser.c \
 	cressi.h \
 	cressi_edy.h cressi_edy.c \
 	ringbuffer.h ringbuffer.c \
