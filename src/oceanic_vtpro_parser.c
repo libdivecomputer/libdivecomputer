@@ -149,7 +149,7 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 	unsigned int time = 0;
 	unsigned int interval = 0;
-	switch ((data[0x27] >> 4) & 0x03) {
+	switch ((data[0x27] >> 4) & 0x07) {
 	case 0:
 		interval = 2;
 		break;
@@ -162,7 +162,13 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	case 3:
 		interval = 60;
 		break;
+	default:
+		interval = 0;
+		break;
 	}
+
+	// Initialize the state for the timestamp processing.
+	unsigned int timestamp = 0, count = 0, i = 0;
 
 	unsigned int offset = 5 * PAGESIZE / 2;
 	while (offset + PAGESIZE / 2 <= size - PAGESIZE) {
@@ -174,8 +180,64 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			continue;
 		}
 
+		// Get the current timestamp.
+		unsigned int current = bcd2dec (data[offset + 1] & 0x0F) * 60 + bcd2dec (data[offset + 0]);
+		if (current < timestamp) {
+			WARNING ("Timestamp moved backwards.");
+			return PARSER_STATUS_ERROR;
+		}
+
+		if (current != timestamp || count == 0) {
+			// A sample with a new timestamp.
+			i = 0;
+			if (interval) {
+				// With a time based sample interval, the maximum number
+				// of samples for a single timestamp is always fixed.
+				count = 60 / interval;
+			} else {
+				// With a depth based sample interval, the exact number
+				// of samples for a single timestamp needs to be counted.
+				count = 1;
+				unsigned int idx = offset + PAGESIZE / 2 ;
+				while (idx + PAGESIZE / 2 <= size - PAGESIZE) {
+					// Ignore empty samples.
+					if (array_isequal (data + idx, PAGESIZE / 2, 0x00)) {
+						idx += PAGESIZE / 2;
+						continue;
+					}
+
+					unsigned int next = bcd2dec (data[idx + 1] & 0x0F) * 60 + bcd2dec (data[idx + 0]);
+					if (next != current)
+						break;
+
+					idx += PAGESIZE / 2;
+					count++;
+				}
+			}
+		} else {
+			// A sample with the same timestamp.
+			i++;
+		}
+
+		if (interval) {
+			if (current > timestamp + 1) {
+				WARNING ("Unexpected timestamp jump.");
+				return PARSER_STATUS_ERROR;
+			}
+			if (i >= count) {
+				WARNING ("Unexpected number of samples with the same timestamp.");
+				return PARSER_STATUS_ERROR;
+			}
+		}
+
+		// Store the current timestamp.
+		timestamp = current;
+
 		// Time.
-		time += interval;
+		if (interval)
+			time += interval;
+		else
+			time = timestamp * 60 + (i + 1) * 60.0 / count + 0.5;
 		sample.time = time;
 		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
