@@ -179,13 +179,19 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 static parser_status_t
 oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
+	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
+
 	if (! parser_is_oceanic_atom2 (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 11 * PAGESIZE / 2)
+	unsigned int header = 4 * PAGESIZE;
+	if (parser->model == 0x4344 || parser->model == 0x4347)
+		header -= PAGESIZE;
+
+	if (size < header + 3 * PAGESIZE / 2)
 		return PARSER_STATUS_ERROR;
 
 	unsigned int time = 0;
@@ -208,10 +214,10 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	int complete = 1;
 
 	unsigned int tank = 0;
-	unsigned int pressure = data[0x42] + (data[0x42 + 1] << 8);
-	unsigned int temperature = data[0x47];
+	unsigned int pressure = data[header + 2] + (data[header + 3] << 8);
+	unsigned int temperature = data[header + 7];
 
-	unsigned int offset = 9 * PAGESIZE / 2;
+	unsigned int offset = header + PAGESIZE / 2;
 	while (offset + PAGESIZE / 2 <= size - PAGESIZE) {
 		parser_sample_value_t sample = {0};
 
@@ -236,19 +242,27 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 		// Check for a tank switch sample.
 		if (data[offset + 0] == 0xAA) {
-			// Tank Number (one based index)
-			tank = (data[offset + 1] & 0x03) - 1;
-
-			// Tank Pressure (2 psi)
-			pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
+			if (parser->model == 0x4347) {
+				// Tank pressure (1 psi) and number
+				tank = 0;
+				pressure = (((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF);
+			} else {
+				// Tank pressure (2 psi) and number (one based index)
+				tank = (data[offset + 1] & 0x03) - 1;
+				pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
+			}
 
 			complete = 0;
 		} else {
 			// Temperature (°F)
-			if (data[offset + 0] & 0x80)
-				temperature += (data[offset + 7] & 0xFC) >> 2;
-			else
-				temperature -= (data[offset + 7] & 0xFC) >> 2;
+			if (parser->model == 0x4344) {
+				temperature = data[offset + 6];
+			} else {
+				if (data[offset + 0] & 0x80)
+					temperature += (data[offset + 7] & 0xFC) >> 2;
+				else
+					temperature -= (data[offset + 7] & 0xFC) >> 2;
+			}
 			sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
