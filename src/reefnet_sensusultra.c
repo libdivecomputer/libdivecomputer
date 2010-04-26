@@ -655,6 +655,11 @@ reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 		// Move the pointer to the begin of the header.
 		current -= sizeof (header);
 
+		// If there is a sequence of more than 4 zero bytes present, the header
+		// marker is located at the start of this sequence, not the end.
+		while (current > data && current[-1] == 0x00)
+			current--;
+
 		// Once a header marker is found, start searching
 		// for the corresponding footer marker. The search is
 		// now limited to the start of the previous dive.
