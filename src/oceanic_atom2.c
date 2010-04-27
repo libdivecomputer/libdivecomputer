@@ -71,7 +71,8 @@ static const oceanic_common_layout_t oceanic_atom2_layout = {
 	0x0A40, /* rb_logbook_end */
 	0x0A40, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
-	0 /* mode */
+	0, /* pt_mode_global */
+	0 /* pt_mode_logbook */
 };
 
 

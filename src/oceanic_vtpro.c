@@ -75,7 +75,8 @@ static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0x0440, /* rb_logbook_end */
 	0x0440, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
-	0 /* mode */
+	0, /* pt_mode_global */
+	0 /* pt_mode_logbook */
 };
 
 static const oceanic_common_layout_t oceanic_wisdom_layout = {
@@ -86,7 +87,8 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 	0x05D0, /* rb_logbook_end */
 	0x05D0, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
-	0 /* mode */
+	0, /* pt_mode_global */
+	0 /* pt_mode_logbook */
 };
 
 static int

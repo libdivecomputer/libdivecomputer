@@ -47,7 +47,8 @@ typedef struct oceanic_common_layout_t {
 	// should be interpreted (a first/last or a begin/end pair), and
 	// how the profile pointers are stored in each logbook entry (two
 	// 12-bit values or two 16-bit values with each 4 bits padding).
-	unsigned int mode;
+	unsigned int pt_mode_global;
+	unsigned int pt_mode_logbook;
 } oceanic_common_layout_t;
 
 typedef struct oceanic_common_device_t {

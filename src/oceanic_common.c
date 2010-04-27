@@ -57,7 +57,7 @@ get_profile_first (const unsigned char data[], const oceanic_common_layout_t *la
 {
 	unsigned int value;
 
-	if (layout->mode == 0) {
+	if (layout->pt_mode_logbook == 0) {
 		value = array_uint16_le (data + 5);
 	} else {
 		value = array_uint16_le (data + 4);
@@ -72,7 +72,7 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 {
 	unsigned int value;
 
-	if (layout->mode == 0) {
+	if (layout->pt_mode_logbook == 0) {
 		value = array_uint16_le (data + 6) >> 4;
 	} else {
 		value = array_uint16_le (data + 6);
@@ -181,7 +181,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	device_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = 0;
-	if (layout->mode == 0)
+	if (layout->pt_mode_global == 0)
 		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
 	else
 		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];
@@ -215,7 +215,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		rb_logbook_entry_end   = layout->rb_logbook_begin;
 		rb_logbook_entry_size  = 0;
 	} else {
-		if (layout->mode == 0) {
+		if (layout->pt_mode_global == 0) {
 			rb_logbook_entry_begin = rb_logbook_first;
 			rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, PAGESIZE / 2, layout);
 			rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout) + PAGESIZE / 2;
