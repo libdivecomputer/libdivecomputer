@@ -48,6 +48,7 @@ libdivecomputer_la_LDFLAGS = \
 	-export-symbols libdivecomputer.exp
 
 libdivecomputer_la_SOURCES = \
+	version.c \
 	device.h device-private.h device.c \
 	parser.h parser-private.h parser.c \
 	datetime.h datetime.c \

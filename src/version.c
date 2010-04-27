@@ -19,30 +19,15 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_VERSION_H
-#define DC_VERSION_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
-#define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
-#define DC_VERSION_MINOR @DC_VERSION_MINOR@
-#define DC_VERSION_MICRO @DC_VERSION_MICRO@
-#define DC_VERSION_EXTRA "@DC_VERSION_EXTRA@"
-
-typedef struct dc_version_t {
-	unsigned int major;
-	unsigned int minor;
-	unsigned int micro;
-	const char *extra;
-} dc_version_t;
+#include "version.h"
 
 void
-dc_version (dc_version_t *version);
-
-#ifdef __cplusplus
+dc_version (dc_version_t *version)
+{
+	if (version) {
+		version->major = DC_VERSION_MAJOR;
+		version->minor = DC_VERSION_MINOR;
+		version->micro = DC_VERSION_MICRO;
+		version->extra = DC_VERSION_EXTRA;
+	}
 }
-#endif /* __cplusplus */
-
-#endif /* DC_VERSION_H */
