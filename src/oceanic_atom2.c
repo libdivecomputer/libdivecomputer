@@ -63,6 +63,9 @@ static const device_backend_t oceanic_atom2_device_backend = {
 	oceanic_atom2_device_close /* close */
 };
 
+static const unsigned char oceanic_atom2_version[] = "2M ATOM r\0\0 512K";
+static const unsigned char oceanic_oc1_version[]   = "OCWATCH R\0\0 1024";
+
 static const oceanic_common_layout_t oceanic_atom2_layout = {
 	0x10000, /* memsize */
 	0x0000, /* cf_devinfo */
@@ -73,6 +76,18 @@ static const oceanic_common_layout_t oceanic_atom2_layout = {
 	0x10000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	0 /* pt_mode_logbook */
+};
+
+static const oceanic_common_layout_t oceanic_oc1_layout = {
+	0x20000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0240, /* rb_logbook_begin */
+	0x0A40, /* rb_logbook_end */
+	0x0A40, /* rb_profile_begin */
+	0x20000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1 /* pt_mode_logbook */
 };
 
 
@@ -234,9 +249,6 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Initialize the base class.
 	oceanic_common_device_init (&device->base, &oceanic_atom2_device_backend);
 
-	// Override the base class values.
-	device->base.layout = &oceanic_atom2_layout;
-
 	// Set the default values.
 	device->port = NULL;
 	memset (device->version, 0, sizeof (device->version));
@@ -292,6 +304,12 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		free (device);
 		return status;
 	}
+
+	// Override the base class values.
+	if (oceanic_common_match (oceanic_oc1_version, device->version, sizeof (device->version)))
+		device->base.layout = &oceanic_oc1_layout;
+	else
+		device->base.layout = &oceanic_atom2_layout;
 
 	*out = (device_t*) device;
 
