@@ -32,6 +32,12 @@ extern "C" {
 #define DC_VERSION_MICRO @DC_VERSION_MICRO@
 #define DC_VERSION_EXTRA "@DC_VERSION_EXTRA@"
 
+#define DC_VERSION_CHECK(major,minor,micro) \
+	(DC_VERSION_MAJOR > (major) || \
+	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR > (minor)) || \
+	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR == (minor) && \
+		DC_VERSION_MICRO >= (micro)))
+
 typedef struct dc_version_t {
 	unsigned int major;
 	unsigned int minor;
@@ -41,6 +47,9 @@ typedef struct dc_version_t {
 
 const char *
 dc_version (dc_version_t *version);
+
+int
+dc_version_check (unsigned int major, unsigned int minor, unsigned int micro);
 
 #ifdef __cplusplus
 }

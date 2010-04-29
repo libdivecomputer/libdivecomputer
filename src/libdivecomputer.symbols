@@ -1,4 +1,5 @@
 dc_version
+dc_version_check
 
 dc_buffer_new
 dc_buffer_free

@@ -33,3 +33,9 @@ dc_version (dc_version_t *version)
 
 	return DC_VERSION;
 }
+
+int
+dc_version_check (unsigned int major, unsigned int minor, unsigned int micro)
+{
+	return DC_VERSION_CHECK (major,minor,micro);
+}
