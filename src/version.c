@@ -21,7 +21,7 @@
 
 #include "version.h"
 
-void
+const char *
 dc_version (dc_version_t *version)
 {
 	if (version) {
@@ -30,4 +30,6 @@ dc_version (dc_version_t *version)
 		version->micro = DC_VERSION_MICRO;
 		version->extra = DC_VERSION_EXTRA;
 	}
+
+	return DC_VERSION;
 }

@@ -26,6 +26,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define DC_VERSION "@DC_VERSION_MAJOR@.@DC_VERSION_MINOR@.@DC_VERSION_MICRO@"
 #define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
 #define DC_VERSION_MINOR @DC_VERSION_MINOR@
 #define DC_VERSION_MICRO @DC_VERSION_MICRO@
@@ -38,7 +39,7 @@ typedef struct dc_version_t {
 	const char *extra;
 } dc_version_t;
 
-void
+const char *
 dc_version (dc_version_t *version);
 
 #ifdef __cplusplus
