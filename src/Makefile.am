@@ -44,6 +44,7 @@ libdivecomputer_HEADERS = 	\
 lib_LTLIBRARIES = libdivecomputer.la
 
 libdivecomputer_la_LDFLAGS = \
+	-version-info $(DC_VERSION_LIBTOOL) \
 	-no-undefined \
 	-export-symbols libdivecomputer.exp
 

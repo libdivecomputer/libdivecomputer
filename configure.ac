@@ -3,6 +3,11 @@ m4_define([dc_version_major],[0])
 m4_define([dc_version_minor],[0])
 m4_define([dc_version_micro],[0])
 
+# Libtool versioning.
+m4_define([dc_version_lt_current],[0])
+m4_define([dc_version_lt_revision],[0])
+m4_define([dc_version_lt_age],[0])
+
 # Initialize autoconf.
 AC_PREREQ([2.60])
 AC_INIT([libdivecomputer],[dc_version_major.dc_version_minor.dc_version_micro])
@@ -62,6 +67,7 @@ AC_CHECK_FUNCS([localtime_r gmtime_r])
 AC_SUBST([DC_VERSION_MAJOR],[dc_version_major])
 AC_SUBST([DC_VERSION_MINOR],[dc_version_minor])
 AC_SUBST([DC_VERSION_MICRO],[dc_version_micro])
+AC_SUBST([DC_VERSION_LIBTOOL],[dc_version_lt_current:dc_version_lt_revision:dc_version_lt_age])
 
 AC_CONFIG_FILES([
    libdivecomputer.pc
