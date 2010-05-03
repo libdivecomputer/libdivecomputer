@@ -80,7 +80,7 @@ libdivecomputer_la_SOURCES = \
 	hw.h \
 	hw_ostc.h hw_ostc.c hw_ostc_parser.c \
 	cressi.h \
-	cressi_edy.h cressi_edy.c \
+	cressi_edy.h cressi_edy.c cressi_edy_parser.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \

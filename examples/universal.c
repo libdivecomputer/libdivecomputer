@@ -273,6 +273,9 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	case DEVICE_TYPE_HW_OSTC:
 		rc = hw_ostc_parser_create (&parser);
 		break;
+	case DEVICE_TYPE_CRESSI_EDY:
+		rc = cressi_edy_parser_create (&parser);
+		break;
 	default:
 		rc = PARSER_STATUS_ERROR;
 		break;
