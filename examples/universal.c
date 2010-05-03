@@ -43,6 +43,9 @@
 #include <cressi.h>
 #include <utils.h>
 
+static const char *g_cachedir = NULL;
+static int g_cachedir_read = 1;
+
 typedef struct device_data_t {
 	device_type_t backend;
 	device_devinfo_t devinfo;
@@ -53,6 +56,7 @@ typedef struct dive_data_t {
 	device_data_t *devdata;
 	FILE* fp;
 	unsigned int number;
+	dc_buffer_t *fingerprint;
 } dive_data_t;
 
 typedef struct sample_data_t {
@@ -144,6 +148,59 @@ fpconvert (const char *fingerprint)
 	}
 
 	return buffer;
+}
+
+static dc_buffer_t *
+fpread (const char *dirname, device_type_t backend, unsigned int serial)
+{
+	// Build the filename.
+	char filename[1024] = {0};
+	snprintf (filename, sizeof (filename), "%s/%s-%08X.bin",
+		dirname, lookup_name (backend), serial);
+
+	// Open the fingerprint file.
+	FILE *fp = fopen (filename, "rb");
+	if (fp == NULL)
+		return NULL;
+
+	// Allocate a memory buffer.
+	dc_buffer_t *buffer = dc_buffer_new (0);
+
+	// Read the entire file into the buffer.
+	size_t n = 0;
+	unsigned char block[1024] = {0};
+	while ((n = fread (block, 1, sizeof (block), fp)) > 0) {
+		dc_buffer_append (buffer, block, n);
+	}
+
+	// Close the file.
+	fclose (fp);
+
+	return buffer;
+}
+
+static void
+fpwrite (dc_buffer_t *buffer, const char *dirname, device_type_t backend, unsigned int serial)
+{
+	// Check the buffer size.
+	if (dc_buffer_get_size (buffer) == 0)
+		return;
+
+	// Build the filename.
+	char filename[1024] = {0};
+	snprintf (filename, sizeof (filename), "%s/%s-%08X.bin",
+		dirname, lookup_name (backend), serial);
+
+	// Open the fingerprint file.
+	FILE *fp = fopen (filename, "wb");
+	if (fp == NULL)
+		return;
+
+	// Write the fingerprint data.
+	fwrite (dc_buffer_get_data (buffer), 1, dc_buffer_get_size (buffer), fp);
+
+	// Close the file.
+	fclose (fp);
 }
 
 volatile sig_atomic_t g_cancel = 0;
@@ -360,6 +417,13 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 			devinfo->model, devinfo->model,
 			devinfo->firmware, devinfo->firmware,
 			devinfo->serial, devinfo->serial);
+		if (g_cachedir && g_cachedir_read) {
+			dc_buffer_t *fingerprint = fpread (g_cachedir, devdata->backend, devinfo->serial);
+			device_set_fingerprint (device,
+				dc_buffer_get_data (fingerprint),
+				dc_buffer_get_size (fingerprint));
+			dc_buffer_free (fingerprint);
+		}
 		break;
 	case DEVICE_EVENT_CLOCK:
 		devdata->clock = *clock;
@@ -382,6 +446,11 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 	for (unsigned int i = 0; i < fsize; ++i)
 		message ("%02X", fingerprint[i]);
 	message ("\n");
+
+	if (divedata->number == 1) {
+		divedata->fingerprint = dc_buffer_new (fsize);
+		dc_buffer_append (divedata->fingerprint, fingerprint, fsize);
+	}
 
 	if (divedata->fp) {
 		fprintf (divedata->fp, "<dive>\n<number>%u</number>\n<size>%u</size>\n<fingerprint>", divedata->number, size);
@@ -437,6 +506,7 @@ usage (const char *filename)
 	fprintf (stderr, "   -l logfile     Set logfile.\n");
 	fprintf (stderr, "   -d filename    Download dives.\n");
 	fprintf (stderr, "   -m filename    Download memory dump.\n");
+	fprintf (stderr, "   -c cachedir    Set cache directory.\n");
 	fprintf (stderr, "   -h             Show this help message.\n\n");
 #else
 	fprintf (stderr, "Usage:\n\n");
@@ -591,6 +661,7 @@ dowork (device_type_t backend, const char *devname, const char *rawfile, const c
 		// Initialize the dive data.
 		dive_data_t divedata = {0};
 		divedata.devdata = &devdata;
+		divedata.fingerprint = NULL;
 		divedata.number = 0;
 
 		// Open the output file.
@@ -601,10 +672,19 @@ dowork (device_type_t backend, const char *devname, const char *rawfile, const c
 		rc = device_foreach (device, dive_cb, &divedata);
 		if (rc != DEVICE_STATUS_SUCCESS) {
 			WARNING ("Error downloading the dives.");
+			dc_buffer_free (divedata.fingerprint);
 			if (divedata.fp) fclose (divedata.fp);
 			device_close (device);
 			return rc;
 		}
+
+		// Store the fingerprint data.
+		if (g_cachedir) {
+			fpwrite (divedata.fingerprint, g_cachedir, devdata.backend, devdata.devinfo.serial);
+		}
+
+		// Free the fingerprint buffer.
+		dc_buffer_free (divedata.fingerprint);
 
 		// Close the output file.
 		if (divedata.fp) fclose (divedata.fp);
@@ -637,13 +717,14 @@ main (int argc, char *argv[])
 #ifndef _MSC_VER
 	// Parse command-line options.
 	int opt = 0;
-	while ((opt = getopt (argc, argv, "b:f:l:m:d:h")) != -1) {
+	while ((opt = getopt (argc, argv, "b:f:l:m:d:c:h")) != -1) {
 		switch (opt) {
 		case 'b':
 			backend = lookup_type (optarg);
 			break;
 		case 'f':
 			fingerprint = optarg;
+			g_cachedir_read = 0;
 			break;
 		case 'l':
 			logfile = optarg;
@@ -655,6 +736,9 @@ main (int argc, char *argv[])
 		case 'd':
 			dives = 1;
 			xmlfile = optarg;
+			break;
+		case 'c':
+			g_cachedir = optarg;
 			break;
 		case '?':
 		case 'h':
