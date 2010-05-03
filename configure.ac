@@ -67,6 +67,7 @@ AC_CONFIG_FILES([
    libdivecomputer.pc
    Makefile
    src/Makefile
+   src/version.h
    src/libdivecomputer.rc
    examples/Makefile
 ])

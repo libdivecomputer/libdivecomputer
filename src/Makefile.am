@@ -125,14 +125,9 @@ $(top_srcdir)/revision: FORCE
 	  if ! test -f $@; then touch $@; fi; \
 	fi
 
-version.h: $(top_srcdir)/revision version.h.in Makefile.am
-	$(AM_V_GEN) sed \
-		-e 's/\@DC_VERSION_MAJOR\@/@DC_VERSION_MAJOR@/' \
-		-e 's/\@DC_VERSION_MINOR\@/@DC_VERSION_MINOR@/' \
-		-e 's/\@DC_VERSION_MICRO\@/@DC_VERSION_MICRO@/' \
-		-e 's/\@DC_VERSION_EXTRA\@/'`cat $(top_srcdir)/revision`'/' \
-		$(srcdir)/version.h.in > $@
+revision.h: $(top_srcdir)/revision Makefile.am
+	$(AM_V_GEN) echo "#define DC_VERSION_REVISION \""`cat $(top_srcdir)/revision`"\"" > $@
 
-BUILT_SOURCES = version.h
-EXTRA_DIST = libdivecomputer.symbols $(top_srcdir)/revision version.h.in
-CLEANFILES = libdivecomputer.exp revision-t
+BUILT_SOURCES = revision.h
+EXTRA_DIST = libdivecomputer.symbols $(top_srcdir)/revision
+CLEANFILES = libdivecomputer.exp revision.h revision-t

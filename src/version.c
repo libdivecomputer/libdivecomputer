@@ -28,7 +28,6 @@ dc_version (dc_version_t *version)
 		version->major = DC_VERSION_MAJOR;
 		version->minor = DC_VERSION_MINOR;
 		version->micro = DC_VERSION_MICRO;
-		version->extra = DC_VERSION_EXTRA;
 	}
 
 	return DC_VERSION;
