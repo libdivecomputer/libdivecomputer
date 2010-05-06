@@ -22,6 +22,8 @@
 #ifndef DC_BUFFER_H
 #define DC_BUFFER_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
