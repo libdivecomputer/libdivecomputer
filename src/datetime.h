@@ -26,7 +26,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#ifdef _WIN32
+#if defined (_WIN32) && !defined (__GNUC__)
 typedef __int64 dc_ticks_t;
 #else
 typedef long long int dc_ticks_t;
