@@ -325,30 +325,6 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device)
 		serial_flush (device->port, SERIAL_QUEUE_BOTH);
 	}
 
-#ifndef NDEBUG
-	message (
-		"Version:    %u\n"
-		"Serial:     %u\n"
-		"Time:       %u\n"
-		"Boot Count: %u\n"
-		"Boot Time:  %u\n"
-		"Dive Count: %u\n"
-		"Interval:   %u\n"
-		"Threshold:  %u\n"
-		"End Count:  %u\n"
-		"Averaging:  %u\n",
-		array_uint16_le (handshake + 0),
-		array_uint16_le (handshake + 2),
-		array_uint32_le (handshake + 4),
-		array_uint16_le (handshake + 8),
-		array_uint32_le (handshake + 10),
-		array_uint16_le (handshake + 14),
-		array_uint16_le (handshake + 16),
-		array_uint16_le (handshake + 18),
-		array_uint16_le (handshake + 20),
-		array_uint16_le (handshake + 22));
-#endif
-
 	// Store the clock calibration values.
 	device->systime = dc_datetime_now ();
 	device->devtime = array_uint32_le (handshake + 4);

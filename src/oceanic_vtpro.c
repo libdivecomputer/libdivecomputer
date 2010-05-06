@@ -422,11 +422,6 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-#ifndef NDEBUG
-	ans[PAGESIZE / 2] = 0;
-	message ("VTPROVersion(init)=\"%s\"\n", ans);
-#endif
-
 	// Obtain the device identification string. This string is
 	// split over two packets, but we join both parts again.
 
@@ -453,11 +448,6 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 
 		// Append the answer to the output buffer.
 		memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
-
-#ifndef NDEBUG
-		answer[PAGESIZE / 2] = 0;
-		message ("VTPROVersion(%u)=\"%s\"\n", i, answer);
-#endif
 	}
 
 	return DEVICE_STATUS_SUCCESS;
@@ -510,14 +500,6 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 			}
 
 			memcpy (data, answer + offset, PAGESIZE);
-
-#ifndef NDEBUG
-			message ("VTPRORead(0x%04x,%d)=\"", address, PAGESIZE);
-			for (unsigned int i = 0; i < PAGESIZE; ++i) {
-				message("%02x", data[i]);
-			}
-			message("\"\n");
-#endif
 
 			offset += PAGESIZE + 1;
 			nbytes += PAGESIZE;

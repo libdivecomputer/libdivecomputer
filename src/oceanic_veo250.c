@@ -380,11 +380,6 @@ oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigne
 
 	memcpy (data, answer, PAGESIZE);
 
-#ifndef NDEBUG
-	answer[PAGESIZE] = 0;
-	message ("VEO250ReadVersion()=\"%s\"\n", answer);
-#endif
-
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -437,14 +432,6 @@ oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned c
 			}
 
 			memcpy (data, answer + offset, PAGESIZE);
-
-#ifndef NDEBUG
-			message ("VEO250Read(0x%04x,%d)=\"", address, PAGESIZE);
-			for (unsigned int i = 0; i < PAGESIZE; ++i) {
-				message("%02x", data[i]);
-			}
-			message("\"\n");
-#endif
 
 			offset += PAGESIZE + 1;
 			nbytes += PAGESIZE;

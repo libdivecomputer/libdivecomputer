@@ -254,22 +254,6 @@ reefnet_sensus_handshake (reefnet_sensus_device_t *device)
 	// The device is now waiting for a data request.
 	device->waiting = 1;
 
-#ifndef NDEBUG
-	message (
-		"Response Header: %c%c\n"
-		"Product Code:    %d\n"
-		"Product Version: %d\n"
-		"Battery:         %d\n"
-		"Interval:        %d\n"
-		"Device ID:       %d\n"
-		"Current Time:    %d\n",
-		handshake[0], handshake[1],
-		handshake[2], handshake[3],
-		handshake[4], handshake[5],
-		array_uint16_le (handshake + 6),
-		array_uint32_le (handshake + 8));
-#endif
-
 	// Store the clock calibration values.
 	device->systime = dc_datetime_now ();
 	device->devtime = array_uint32_le (handshake + 8);

@@ -225,20 +225,6 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
-#ifndef NDEBUG
-	message (
-		"Product Code:    %u\n"
-		"Version Code:    %u\n"
-		"Battery Voltage: %u\n"
-		"Sample Interval: %u\n"
-		"Device ID:       %u\n"
-		"Current Time:    %u\n",
-		handshake[0], handshake[1],
-		handshake[2], handshake[3],
-		array_uint16_le (handshake + 4),
-		array_uint32_le (handshake + 6));
-#endif
-
 	// Store the clock calibration values.
 	device->systime = dc_datetime_now ();
 	device->devtime = array_uint32_le (handshake + 6);

@@ -378,11 +378,6 @@ oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned
 
 	memcpy (data, answer, PAGESIZE);
 
-#ifndef NDEBUG
-	answer[PAGESIZE] = 0;
-	message ("ATOM2ReadVersion()=\"%s\"\n", answer);
-#endif
-
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -415,14 +410,6 @@ oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned ch
 			return rc;
 
 		memcpy (data, answer, PAGESIZE);
-
-#ifndef NDEBUG
-		message ("ATOM2Read(0x%04x,%d)=\"", address, PAGESIZE);
-		for (unsigned int i = 0; i < PAGESIZE; ++i) {
-			message("%02x", data[i]);
-		}
-		message("\"\n");
-#endif
 
 		nbytes += PAGESIZE;
 		address += PAGESIZE;
@@ -459,10 +446,6 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
 
-#ifndef NDEBUG
-		message ("ATOM2PrepareWrite(0x%04x,%d)\n", address, PAGESIZE);
-#endif
-
 		// Write the package.
 		unsigned char command[PAGESIZE + 2] = {0};
 		memcpy (command, data, PAGESIZE);
@@ -470,14 +453,6 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 		rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
-
-#ifndef NDEBUG
-		message ("ATOM2Write(0x%04x,%d)=\"", address, PAGESIZE);
-		for (unsigned int i = 0; i < PAGESIZE; ++i) {
-			message("%02x", data[i]);
-		}
-		message("\"\n");
-#endif
 
 		nbytes += PAGESIZE;
 		address += PAGESIZE;
