@@ -117,8 +117,8 @@ libdivecomputer.exp: libdivecomputer.symbols
 
 FORCE:
 $(top_srcdir)/revision: FORCE
-	@if (test -d $(top_srcdir)/.svn && cd $(top_srcdir) \
-	     && svnversion | sed -e 's/[MSP]//g') > revision-t 2>/dev/null \
+	@if (test -d $(top_srcdir)/.git && cd $(top_srcdir) \
+	     && git rev-parse --verify HEAD) > revision-t 2>/dev/null \
 	  && ! cmp -s revision-t $@; then \
 	  mv -f revision-t $@; \
 	else \
