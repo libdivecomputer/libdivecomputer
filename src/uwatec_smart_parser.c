@@ -366,6 +366,11 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		table = uwatec_smart_aladin_table;
 		entries = NELEMENTS (uwatec_smart_aladin_table);
 		break;
+	case 0x13: // Aladin Tec 2G
+		header = 116;
+		table = uwatec_smart_aladin_table;
+		entries = NELEMENTS (uwatec_smart_aladin_table);
+		break;
 	case 0x14: // Smart Com
 		header = 100;
 		table = uwatec_smart_com_table;
