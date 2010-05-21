@@ -152,21 +152,27 @@ suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 
 	unsigned int time = 0, depth = 0;
 	unsigned int interval = data[3];
+	unsigned int complete = 1;
 
 	unsigned int offset = 11;
 	while (offset < size && data[offset] != 0x80) {
 		parser_sample_value_t sample = {0};
 		unsigned char value = data[offset++];
-		if (value < 0x7d || value > 0x82) {
+
+		if (complete) {
 			// Time (seconds).
 			time += interval;
 			sample.time = time;
 			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+			complete = 0;
+		}
 
+		if (value < 0x7d || value > 0x82) {
 			// Depth (ft).
 			depth += (signed char) value;
 			sample.depth = depth * FEET;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+			complete = 1;
 		} else {
 			// Event.
 			sample.event.time = 0;
