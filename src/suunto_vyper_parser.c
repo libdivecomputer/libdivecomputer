@@ -163,7 +163,7 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 	// Temperature (°C)
-	sample.temperature = data[8];
+	sample.temperature = (signed char) data[8];
 	if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
 	// Tank Pressure (2 bar)
@@ -194,7 +194,7 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 			// Temperature at maximum depth (°C)
 			if (depth == maxdepth) {
-				sample.temperature = data[marker + 1];
+				sample.temperature = (signed char) data[marker + 1];
 				if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			}
 
@@ -252,7 +252,7 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	}
 
 	// Temperature (°C)
-	sample.temperature = data[offset + 2];
+	sample.temperature = (signed char) data[offset + 2];
 	if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
 	// Tank Pressure (2 bar)

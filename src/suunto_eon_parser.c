@@ -209,7 +209,7 @@ suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 			// Temperature at maximum depth (°C)
 			if (depth == maxdepth) {
 				if (parser->spyder)
-					sample.temperature = data[marker + 1];
+					sample.temperature = (signed char) data[marker + 1];
 				else
 					sample.temperature = data[marker + 1] - 40;
 				if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
