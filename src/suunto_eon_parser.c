@@ -169,6 +169,9 @@ suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 	if (marker + 2 >= size || data[marker] != 0x80)
 		return PARSER_STATUS_ERROR;
 
+	// The Solution Nitrox/Vario stores nitrox data, not tank pressure.
+	unsigned int nitrox = !parser->spyder && (data[4] & 0x80);
+
 	unsigned int time = 0;
 	unsigned int interval = data[3];
 	unsigned int complete = 1;
@@ -180,9 +183,11 @@ suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 	if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 	// Tank Pressure (2 bar)
-	sample.pressure.tank = 0;
-	sample.pressure.value = data[5] * 2;
-	if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+	if (!nitrox) {
+		sample.pressure.tank = 0;
+		sample.pressure.value = data[5] * 2;
+		if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+	}
 
 	// Depth (0 ft)
 	sample.depth = 0;
@@ -255,9 +260,11 @@ suunto_eon_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 	}
 
 	// Tank Pressure (2 bar)
-	sample.pressure.tank = 0;
-	sample.pressure.value = data[offset + 2] * 2;
-	if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+	if (!nitrox) {
+		sample.pressure.tank = 0;
+		sample.pressure.value = data[offset + 2] * 2;
+		if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+	}
 
 	// Depth (0 ft)
 	sample.depth = 0;
