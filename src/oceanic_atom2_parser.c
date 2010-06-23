@@ -258,7 +258,10 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
 				tank = (data[offset + 1] & 0x03) - 1;
-				pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
+				if (parser->model == 0x4342)
+					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
+				else
+					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
 			}
 
 			complete = 0;
@@ -267,10 +270,15 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			if (parser->model == 0x4344) {
 				temperature = data[offset + 6];
 			} else {
-				if (data[offset + 0] & 0x80)
-					temperature += (data[offset + 7] & 0xFC) >> 2;
+				unsigned int sign;
+				if (parser->model == 0x4342)
+					sign = (data[offset + 0] & 0x80) >> 7;
 				else
-					temperature -= (data[offset + 7] & 0xFC) >> 2;
+					sign = (~data[offset + 0] & 0x80) >> 7;
+				if (sign)
+					temperature -= (data[offset + 7] & 0x0C) >> 2;
+				else
+					temperature += (data[offset + 7] & 0x0C) >> 2;
 			}
 			sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
