@@ -43,6 +43,7 @@ static const parser_backend_t uwatec_memomouse_parser_backend = {
 	PARSER_TYPE_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_parser_set_data, /* set_data */
 	uwatec_memomouse_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	uwatec_memomouse_parser_samples_foreach, /* samples_foreach */
 	uwatec_memomouse_parser_destroy /* destroy */
 };

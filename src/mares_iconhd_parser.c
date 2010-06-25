@@ -41,6 +41,7 @@ static const parser_backend_t mares_iconhd_parser_backend = {
 	PARSER_TYPE_MARES_ICONHD,
 	mares_iconhd_parser_set_data, /* set_data */
 	mares_iconhd_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	mares_iconhd_parser_samples_foreach, /* samples_foreach */
 	mares_iconhd_parser_destroy /* destroy */
 };

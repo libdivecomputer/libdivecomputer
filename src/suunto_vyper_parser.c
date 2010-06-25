@@ -41,6 +41,7 @@ static const parser_backend_t suunto_vyper_parser_backend = {
 	PARSER_TYPE_SUUNTO_VYPER,
 	suunto_vyper_parser_set_data, /* set_data */
 	suunto_vyper_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	suunto_vyper_parser_samples_foreach, /* samples_foreach */
 	suunto_vyper_parser_destroy /* destroy */
 };

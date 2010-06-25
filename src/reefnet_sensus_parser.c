@@ -50,6 +50,7 @@ static const parser_backend_t reefnet_sensus_parser_backend = {
 	PARSER_TYPE_REEFNET_SENSUS,
 	reefnet_sensus_parser_set_data, /* set_data */
 	reefnet_sensus_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	reefnet_sensus_parser_samples_foreach, /* samples_foreach */
 	reefnet_sensus_parser_destroy /* destroy */
 };

@@ -52,6 +52,7 @@ static const parser_backend_t mares_nemo_parser_backend = {
 	PARSER_TYPE_MARES_NEMO,
 	mares_nemo_parser_set_data, /* set_data */
 	mares_nemo_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	mares_nemo_parser_samples_foreach, /* samples_foreach */
 	mares_nemo_parser_destroy /* destroy */
 };

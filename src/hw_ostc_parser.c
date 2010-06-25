@@ -48,6 +48,7 @@ static const parser_backend_t hw_ostc_parser_backend = {
 	PARSER_TYPE_HW_OSTC,
 	hw_ostc_parser_set_data, /* set_data */
 	hw_ostc_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	hw_ostc_parser_samples_foreach, /* samples_foreach */
 	hw_ostc_parser_destroy /* destroy */
 };

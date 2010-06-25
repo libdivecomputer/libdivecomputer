@@ -71,6 +71,18 @@ parser_get_datetime (parser_t *parser, dc_datetime_t *datetime)
 	return parser->backend->datetime (parser, datetime);
 }
 
+parser_status_t
+parser_get_field (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value)
+{
+	if (parser == NULL)
+		return PARSER_STATUS_UNSUPPORTED;
+
+	if (parser->backend->field == NULL)
+		return PARSER_STATUS_UNSUPPORTED;
+
+	return parser->backend->field (parser, type, flags, value);
+}
+
 
 parser_status_t
 parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata)

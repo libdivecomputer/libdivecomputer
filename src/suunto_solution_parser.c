@@ -40,6 +40,7 @@ static const parser_backend_t suunto_solution_parser_backend = {
 	PARSER_TYPE_SUUNTO_SOLUTION,
 	suunto_solution_parser_set_data, /* set_data */
 	NULL, /* datetime */
+	NULL, /* fields */
 	suunto_solution_parser_samples_foreach, /* samples_foreach */
 	suunto_solution_parser_destroy /* destroy */
 };

@@ -49,6 +49,7 @@ static const parser_backend_t uwatec_smart_parser_backend = {
 	PARSER_TYPE_UWATEC_SMART,
 	uwatec_smart_parser_set_data, /* set_data */
 	uwatec_smart_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	uwatec_smart_parser_samples_foreach, /* samples_foreach */
 	uwatec_smart_parser_destroy /* destroy */
 };

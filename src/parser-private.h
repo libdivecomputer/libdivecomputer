@@ -46,6 +46,8 @@ struct parser_backend_t {
 
 	parser_status_t (*datetime) (parser_t *parser, dc_datetime_t *datetime);
 
+	parser_status_t (*field) (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value);
+
 	parser_status_t (*samples_foreach) (parser_t *parser, sample_callback_t callback, void *userdata);
 
 	parser_status_t (*destroy) (parser_t *parser);

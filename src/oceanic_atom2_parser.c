@@ -57,6 +57,7 @@ static const parser_backend_t oceanic_atom2_parser_backend = {
 	PARSER_TYPE_OCEANIC_ATOM2,
 	oceanic_atom2_parser_set_data, /* set_data */
 	oceanic_atom2_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	oceanic_atom2_parser_samples_foreach, /* samples_foreach */
 	oceanic_atom2_parser_destroy /* destroy */
 };

@@ -42,6 +42,7 @@ static const parser_backend_t cressi_edy_parser_backend = {
 	PARSER_TYPE_CRESSI_EDY,
 	cressi_edy_parser_set_data, /* set_data */
 	cressi_edy_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	cressi_edy_parser_samples_foreach, /* samples_foreach */
 	cressi_edy_parser_destroy /* destroy */
 };

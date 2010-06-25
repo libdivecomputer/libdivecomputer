@@ -45,6 +45,7 @@ static const parser_backend_t suunto_d9_parser_backend = {
 	PARSER_TYPE_SUUNTO_D9,
 	suunto_d9_parser_set_data, /* set_data */
 	suunto_d9_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	suunto_d9_parser_samples_foreach, /* samples_foreach */
 	suunto_d9_parser_destroy /* destroy */
 };

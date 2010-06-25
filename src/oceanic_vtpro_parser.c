@@ -43,6 +43,7 @@ static const parser_backend_t oceanic_vtpro_parser_backend = {
 	PARSER_TYPE_OCEANIC_VTPRO,
 	oceanic_vtpro_parser_set_data, /* set_data */
 	oceanic_vtpro_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	oceanic_vtpro_parser_samples_foreach, /* samples_foreach */
 	oceanic_vtpro_parser_destroy /* destroy */
 };

@@ -44,6 +44,7 @@ static const parser_backend_t oceanic_veo250_parser_backend = {
 	PARSER_TYPE_OCEANIC_VEO250,
 	oceanic_veo250_parser_set_data, /* set_data */
 	oceanic_veo250_parser_get_datetime, /* datetime */
+	NULL, /* fields */
 	oceanic_veo250_parser_samples_foreach, /* samples_foreach */
 	oceanic_veo250_parser_destroy /* destroy */
 };
