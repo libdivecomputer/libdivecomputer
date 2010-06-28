@@ -23,6 +23,7 @@
 #define MARES_ICONHD_H
 
 #include "device.h"
+#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +33,9 @@ extern "C" {
 
 device_status_t
 mares_iconhd_device_open (device_t **device, const char* name);
+
+parser_status_t
+mares_iconhd_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }

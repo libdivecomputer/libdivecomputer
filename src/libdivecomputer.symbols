@@ -35,6 +35,7 @@ suunto_solution_parser_create
 suunto_eon_parser_create
 suunto_d9_parser_create
 mares_nemo_parser_create
+mares_iconhd_parser_create
 oceanic_vtpro_parser_create
 oceanic_veo250_parser_create
 oceanic_atom2_parser_create

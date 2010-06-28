@@ -79,7 +79,7 @@ libdivecomputer_la_SOURCES = \
 	mares_common.h mares_common.c \
 	mares_nemo.h mares_nemo.c mares_nemo_parser.c \
 	mares_puck.h mares_puck.c \
-	mares_iconhd.h mares_iconhd.c \
+	mares_iconhd.h mares_iconhd.c mares_iconhd_parser.c \
 	hw.h \
 	hw_ostc.h hw_ostc.c hw_ostc_parser.c \
 	cressi.h \
