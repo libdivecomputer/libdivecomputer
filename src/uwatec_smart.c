@@ -409,11 +409,20 @@ uwatec_smart_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	unsigned int nbytes = 0;
 	while (nbytes < length) {
-		unsigned int len = length - nbytes;
-		if (len > 32)
-			len = 32;
+		// Set the minimum packet size.
+		unsigned int len = 32;
+
+		// Increase the packet size if more data is immediately available.
+		int available = irda_socket_available (device->socket);
+		if (available > len)
+			len = available;
+
+		// Limit the packet size to the total size.
+		if (nbytes + len > length)
+			len = length - nbytes;
+
 		int n = irda_socket_read (device->socket, data + nbytes, len);
-		if (n < 0) {
+		if (n != len) {
 			WARNING ("Failed to receive the answer.");
 			return EXITCODE (n);
 		}
