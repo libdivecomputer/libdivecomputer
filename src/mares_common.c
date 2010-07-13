@@ -69,8 +69,9 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 	assert (layout != NULL);
 
 	// Get the freedive mode for this model.
+	unsigned int model = data[1];
 	unsigned int freedive = 2;
-	if (data[1] == 1 || data[1] == 7)
+	if (model == 1 || model == 7)
 		freedive = 3;
 
 	// Get the end of the profile ring buffer.
@@ -109,7 +110,10 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 		unsigned int extra = 0;
 		const unsigned char marker[3] = {0xAA, 0xBB, 0xCC};
 		if (memcmp (buffer + offset - 3, marker, sizeof (marker)) == 0) {
-			extra = 12;
+			if (model == 19)
+				extra = 7;
+			else
+				extra = 12;
 		}
 
 		// Check for overflows due to incomplete dives.
@@ -128,7 +132,13 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 		// The header and sample size are dependant on the dive mode. Only
 		// in freedive mode, the sizes are different from the other modes.
 		unsigned int header_size = 53;
-		unsigned int sample_size = (extra ? 5 : 2);
+		unsigned int sample_size = 2;
+		if (extra) {
+			if (model == 19)
+				sample_size = 3;
+			else
+				sample_size = 5;
+		}
 		if (mode == freedive) {
 			header_size = 28;
 			sample_size = 6;

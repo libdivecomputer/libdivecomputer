@@ -33,6 +33,7 @@ typedef struct mares_nemo_parser_t mares_nemo_parser_t;
 
 struct mares_nemo_parser_t {
 	parser_t base;
+	unsigned int model;
 	unsigned int freedive;
 	/* Internal state */
 	unsigned int mode;
@@ -89,6 +90,7 @@ mares_nemo_parser_create (parser_t **out, unsigned int model)
 		freedive = 3;
 
 	// Set the default values.
+	parser->model = model;
 	parser->freedive = freedive;
 	parser->mode = 0;
 	parser->length = 0;
@@ -144,7 +146,10 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 	unsigned int extra = 0;
 	const unsigned char marker[3] = {0xAA, 0xBB, 0xCC};
 	if (memcmp (data + length - 3, marker, sizeof (marker)) == 0) {
-		extra = 12;
+		if (parser->model == 19)
+			extra = 7;
+		else
+			extra = 12;
 	}
 
 	if (length < 2 + extra + 3)
@@ -153,7 +158,13 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 	unsigned int mode = data[length - extra - 1];
 
 	unsigned int header_size = 53;
-	unsigned int sample_size = (extra ? 5 : 2);
+	unsigned int sample_size = 2;
+	if (extra) {
+		if (parser->model == 19)
+			sample_size = 3;
+		else
+			sample_size = 5;
+	}
 	if (mode == parser->freedive) {
 		header_size = 28;
 		sample_size = 6;
