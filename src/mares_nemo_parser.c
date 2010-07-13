@@ -271,6 +271,13 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 				sample.event.value = 0;
 				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
 			}
+
+			// Pressure (1 bar).
+			if (parser->sample_size == 3) {
+				sample.pressure.tank = 0;
+				sample.pressure.value = data[idx + 2];
+				if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			}
 		}
 	} else {
 		// A freedive session contains only summaries for each individual
