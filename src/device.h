@@ -49,7 +49,8 @@ typedef enum device_type_t {
 	DEVICE_TYPE_MARES_PUCK,
 	DEVICE_TYPE_MARES_ICONHD,
 	DEVICE_TYPE_HW_OSTC,
-	DEVICE_TYPE_CRESSI_EDY
+	DEVICE_TYPE_CRESSI_EDY,
+	DEVICE_TYPE_ZEAGLE_N2ITION3
 } device_type_t;
 
 typedef enum device_status_t {

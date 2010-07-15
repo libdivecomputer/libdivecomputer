@@ -36,7 +36,9 @@ libdivecomputer_HEADERS = 	\
 	hw.h \
 	hw_ostc.h \
 	cressi.h \
-	cressi_edy.h
+	cressi_edy.h \
+	zeagle.h \
+	zeagle_n2ition3.h
 
 #
 # Source files.
@@ -84,6 +86,8 @@ libdivecomputer_la_SOURCES = \
 	hw_ostc.h hw_ostc.c hw_ostc_parser.c \
 	cressi.h \
 	cressi_edy.h cressi_edy.c cressi_edy_parser.c \
+	zeagle.h \
+	zeagle_n2ition3.h zeagle_n2ition3.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \

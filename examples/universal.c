@@ -41,6 +41,7 @@
 #include <mares.h>
 #include <hw.h>
 #include <cressi.h>
+#include <zeagle.h>
 #include <utils.h>
 
 static const char *g_cachedir = NULL;
@@ -88,7 +89,8 @@ static const backend_table_t g_backends[] = {
 	{"puck",		DEVICE_TYPE_MARES_PUCK},
 	{"iconhd",		DEVICE_TYPE_MARES_ICONHD},
 	{"ostc",		DEVICE_TYPE_HW_OSTC},
-	{"edy",			DEVICE_TYPE_CRESSI_EDY}
+	{"edy",			DEVICE_TYPE_CRESSI_EDY},
+	{"n2ition3",	DEVICE_TYPE_ZEAGLE_N2ITION3}
 };
 
 static device_type_t
@@ -599,6 +601,9 @@ dowork (device_type_t backend, const char *devname, const char *rawfile, const c
 		break;
 	case DEVICE_TYPE_CRESSI_EDY:
 		rc = cressi_edy_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_ZEAGLE_N2ITION3:
+		rc = zeagle_n2ition3_device_open (&device, devname);
 		break;
 	default:
 		rc = DEVICE_STATUS_ERROR;
