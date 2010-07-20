@@ -381,7 +381,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		return PARSER_STATUS_ERROR;
 	}
 
-	int complete = 1;
+	int complete = 0;
 	int calibrated = 0;
 
 	unsigned int time = 0;
@@ -391,7 +391,11 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	double temperature = 0;
 	double pressure = 0;
 	unsigned int heartrate = 0;
-	unsigned char alarms = 0;
+	unsigned int bearing = 0;
+	unsigned char alarms[3] = {0, 0, 0};
+
+	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
+		have_heartrate = 0, have_alarms = 0, have_bearing = 0;
 
 	unsigned int offset = header;
 	while (offset < size) {
@@ -439,53 +443,37 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		// Fix the sign bit.
 		signed int svalue = uwatec_smart_fixsignbit (value, nbits);
 
-		if (complete && table[id].type != TIME) {
-			complete = 0;
-			sample.time = time;
-			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
-		}
-
 		// Parse the value.
 		switch (table[id].type) {
 		case PRESSURE_DEPTH:
 			pressure += ((signed char) ((svalue >> NBITS) & 0xFF)) / 4.0;
 			depth += ((signed char) (svalue & 0xFF)) / 50.0;
-			sample.pressure.tank = tank;
-			sample.pressure.value = pressure;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
-			sample.depth = depth - depth_calibration;
-			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 			complete = 1;
-			time += 4;
 			break;
 		case RBT:
 			if (table[id].absolute) {
 				rbt = value;
+				have_rbt = 1;
 			} else {
 				rbt += svalue;
 			}
-			sample.rbt = rbt;
-			if (callback) callback (SAMPLE_TYPE_RBT, sample, userdata);
 			break;
 		case TEMPERATURE:
 			if (table[id].absolute) {
 				temperature = value / 2.5;
+				have_temperature = 1;
 			} else {
 				temperature += svalue / 2.5;
 			}
-			sample.temperature = temperature;
-			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			break;
 		case PRESSURE:
 			if (table[id].absolute) {
 				tank = table[id].index;
 				pressure = value / 4.0;
+				have_pressure = 1;
 			} else {
 				pressure += svalue / 4.0;
 			}
-			sample.pressure.tank = tank;
-			sample.pressure.value = pressure;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
 			break;
 		case DEPTH:
 			if (table[id].absolute) {
@@ -494,41 +482,83 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 					calibrated = 1;
 					depth_calibration = depth;
 				}
+				have_depth = 1;
 			} else {
 				depth += svalue / 50.0;
 			}
-			sample.depth = depth - depth_calibration;
-			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 			complete = 1;
-			time += 4;
 			break;
 		case HEARTRATE:
 			if (table[id].absolute) {
 				heartrate = value;
+				have_heartrate = 1;
 			} else {
 				heartrate += svalue;
 			}
-			sample.heartbeat = heartrate;
-			if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
 			break;
 		case BEARING:
-			sample.bearing = value;
-			if (callback) callback (SAMPLE_TYPE_BEARING, sample, userdata);
+			bearing = value;
+			have_bearing = 1;
 			break;
 		case ALARMS:
-			alarms = value;
-			sample.vendor.type = SAMPLE_VENDOR_UWATEC_SMART;
-			sample.vendor.size = sizeof (alarms);
-			sample.vendor.data = &alarms;
-			if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
+			alarms[table[id].index] = value;
+			have_alarms = 1;
 			break;
 		case TIME:
-			complete = 1;
-			time += value * 4;
+			complete = value;
 			break;
 		default:
 			WARNING ("Unknown sample type.");
 			break;
+		}
+
+		while (complete) {
+			sample.time = time;
+			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+
+			if (have_temperature) {
+				sample.temperature = temperature;
+				if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+			}
+
+			if (have_alarms) {
+				sample.vendor.type = SAMPLE_VENDOR_UWATEC_SMART;
+				sample.vendor.size = sizeof (alarms);
+				sample.vendor.data = alarms;
+				if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
+				memset (alarms, 0, sizeof (alarms));
+				have_alarms = 0;
+			}
+
+			if (have_rbt || have_pressure) {
+				sample.rbt = rbt;
+				if (callback) callback (SAMPLE_TYPE_RBT, sample, userdata);
+			}
+
+			if (have_pressure) {
+				sample.pressure.tank = tank;
+				sample.pressure.value = pressure;
+				if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			}
+
+			if (have_heartrate) {
+				sample.heartbeat = heartrate;
+				if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
+			}
+
+			if (have_bearing) {
+				sample.bearing = bearing;
+				if (callback) callback (SAMPLE_TYPE_BEARING, sample, userdata);
+				have_bearing = 0;
+			}
+
+			if (have_depth) {
+				sample.depth = depth - depth_calibration;
+				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+			}
+
+			time += 4;
+			complete--;
 		}
 	}
 
