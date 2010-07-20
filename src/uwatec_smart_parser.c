@@ -229,26 +229,21 @@ uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
 
 
 typedef enum {
-	DELTA_TANK_PRESSURE_DEPTH,
-	DELTA_RBT,
-	DELTA_TEMPERATURE,
-	DELTA_TANK_PRESSURE,
-	DELTA_DEPTH,
-	DELTA_HEARTRATE,
+	PRESSURE_DEPTH,
+	RBT,
+	TEMPERATURE,
+	PRESSURE,
+	DEPTH,
+	HEARTRATE,
 	BEARING,
 	ALARMS,
 	TIME,
-	ABSOLUTE_DEPTH,
-	ABSOLUTE_TEMPERATURE,
-	ABSOLUTE_TANK_1_PRESSURE,
-	ABSOLUTE_TANK_2_PRESSURE,
-	ABSOLUTE_TANK_D_PRESSURE,
-	ABSOLUTE_RBT,
-	ABSOLUTE_HEARTRATE
 } uwatec_smart_sample_t;
 
 typedef struct uwatec_smart_sample_info_t {
 	uwatec_smart_sample_t type;
+	unsigned int absolute;
+	unsigned int index;
 	unsigned int ntypebits;
 	unsigned int ignoretype;
 	unsigned int extrabytes;
@@ -256,82 +251,82 @@ typedef struct uwatec_smart_sample_info_t {
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_pro_table [] = {
-	{DELTA_DEPTH, 				1, 0, 0}, // 0ddddddd
-	{DELTA_TEMPERATURE, 		2, 0, 0}, // 10dddddd
-	{TIME, 						3, 0, 0}, // 110ddddd
-	{ALARMS, 					4, 0, 0}, // 1110dddd
-	{DELTA_DEPTH, 				5, 0, 1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		6, 0, 1}, // 111110dd dddddddd
-	{ABSOLUTE_DEPTH, 			7, 1, 2}, // 1111110d dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		8, 0, 2}, // 11111110 dddddddd dddddddd
+	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
+	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
+	{TIME,           1, 0, 3, 0, 0}, // 110ddddd
+	{ALARMS,         1, 0, 4, 0, 0}, // 1110dddd
+	{DEPTH,          0, 0, 5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0, 6, 0, 1}, // 111110dd dddddddd
+	{DEPTH,          1, 0, 7, 1, 2}, // 1111110d dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 8, 0, 2}, // 11111110 dddddddd dddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_aladin_table [] = {
-	{DELTA_DEPTH, 				1, 0, 0}, // 0ddddddd
-	{DELTA_TEMPERATURE, 		2, 0, 0}, // 10dddddd
-	{TIME, 						3, 0, 0}, // 110ddddd
-	{ALARMS, 					4, 0, 0}, // 1110dddd
-	{DELTA_DEPTH, 				5, 0, 1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		6, 0, 1}, // 111110dd dddddddd
-	{ABSOLUTE_DEPTH, 			7, 1, 2}, // 1111110d dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		8, 0, 2}, // 11111110 dddddddd dddddddd
-	{ALARMS, 					9, 0, 0}, // 11111111 0ddddddd
+	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
+	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
+	{TIME,           1, 0, 3, 0, 0}, // 110ddddd
+	{ALARMS,         1, 0, 4, 0, 0}, // 1110dddd
+	{DEPTH,          0, 0, 5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0, 6, 0, 1}, // 111110dd dddddddd
+	{DEPTH,          1, 0, 7, 1, 2}, // 1111110d dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 8, 0, 2}, // 11111110 dddddddd dddddddd
+	{ALARMS,         1, 1, 9, 0, 0}, // 11111111 0ddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_com_table [] = {
-	{DELTA_TANK_PRESSURE_DEPTH,  1, 0, 1}, // 0ddddddd dddddddd
-	{DELTA_RBT, 				 2, 0, 0}, // 10dddddd
-	{DELTA_TEMPERATURE, 		 3, 0, 0}, // 110ddddd
-	{DELTA_TANK_PRESSURE, 		 4, 0, 1}, // 1110dddd dddddddd
-	{DELTA_DEPTH, 				 5, 0, 1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		 6, 0, 1}, // 111110dd dddddddd
-	{ALARMS, 					 7, 1, 1}, // 1111110d dddddddd
-	{TIME, 						 8, 0, 1}, // 11111110 dddddddd
-	{ABSOLUTE_DEPTH, 			 9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
-	{ABSOLUTE_TANK_1_PRESSURE, 	10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
-	{ABSOLUTE_RBT, 				12, 1, 1}, // 11111111 1110dddd dddddddd
+	{PRESSURE_DEPTH, 0, 0,  1, 0, 1}, // 0ddddddd dddddddd
+	{RBT,            0, 0,  2, 0, 0}, // 10dddddd
+	{TEMPERATURE,    0, 0,  3, 0, 0}, // 110ddddd
+	{PRESSURE,       0, 0,  4, 0, 1}, // 1110dddd dddddddd
+	{DEPTH,          0, 0,  5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0,  6, 0, 1}, // 111110dd dddddddd
+	{ALARMS,         1, 0,  7, 1, 1}, // 1111110d dddddddd
+	{TIME,           1, 0,  8, 0, 1}, // 11111110 dddddddd
+	{DEPTH,          1, 0,  9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
+	{PRESSURE,       1, 0, 10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
+	{RBT,            1, 0, 12, 1, 1}, // 11111111 1110dddd dddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_smart_tec_table [] = {
-	{DELTA_TANK_PRESSURE_DEPTH,	 1, 0, 1}, // 0ddddddd dddddddd
-	{DELTA_RBT, 				 2, 0, 0}, // 10dddddd
-	{DELTA_TEMPERATURE, 		 3, 0, 0}, // 110ddddd
-	{DELTA_TANK_PRESSURE, 		 4, 0, 1}, // 1110dddd dddddddd
-	{DELTA_DEPTH, 				 5, 0, 1}, // 11110ddd dddddddd
-	{DELTA_TEMPERATURE, 		 6, 0, 1}, // 111110dd dddddddd
-	{ALARMS, 					 7, 1, 1}, // 1111110d dddddddd
-	{TIME, 						 8, 0, 1}, // 11111110 dddddddd
-	{ABSOLUTE_DEPTH, 			 9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
-	{ABSOLUTE_TEMPERATURE, 		10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
-	{ABSOLUTE_TANK_1_PRESSURE, 	11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
-	{ABSOLUTE_TANK_2_PRESSURE, 	12, 1, 2}, // 11111111 1110dddd dddddddd dddddddd
-	{ABSOLUTE_TANK_D_PRESSURE, 	13, 1, 2}, // 11111111 11110ddd dddddddd dddddddd
-	{ABSOLUTE_RBT, 				14, 1, 1}, // 11111111 111110dd dddddddd
+	{PRESSURE_DEPTH, 0, 0,  1, 0, 1}, // 0ddddddd dddddddd
+	{RBT,            0, 0,  2, 0, 0}, // 10dddddd
+	{TEMPERATURE,    0, 0,  3, 0, 0}, // 110ddddd
+	{PRESSURE,       0, 0,  4, 0, 1}, // 1110dddd dddddddd
+	{DEPTH,          0, 0,  5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0,  6, 0, 1}, // 111110dd dddddddd
+	{ALARMS,         1, 0,  7, 1, 1}, // 1111110d dddddddd
+	{TIME,           1, 0,  8, 0, 1}, // 11111110 dddddddd
+	{DEPTH,          1, 0,  9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
+	{PRESSURE,       1, 0, 11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
+	{PRESSURE,       1, 1, 12, 1, 2}, // 11111111 1110dddd dddddddd dddddddd
+	{PRESSURE,       1, 2, 13, 1, 2}, // 11111111 11110ddd dddddddd dddddddd
+	{RBT,            1, 0, 14, 1, 1}, // 11111111 111110dd dddddddd
 };
 
 static const
 uwatec_smart_sample_info_t uwatec_galileo_sol_table [] = {
-	{DELTA_DEPTH,				1, 0, 0}, // 0ddd dddd
-	{DELTA_RBT,					3, 0, 0}, // 100d dddd
-	{DELTA_TANK_PRESSURE,		4, 0, 0}, // 1010 dddd
-	{DELTA_TEMPERATURE,			4, 0, 0}, // 1011 dddd
-	{TIME,						4, 0, 0}, // 1100 dddd
-	{DELTA_HEARTRATE,			4, 0, 0}, // 1101 dddd
-	{ALARMS,					4, 0, 0}, // 1110 dddd
-	{ALARMS,					8, 0, 1}, // 1111 0000 dddddddd
-	{ABSOLUTE_DEPTH,			8, 0, 2}, // 1111 0001 dddddddd dddddddd
-	{ABSOLUTE_RBT,				8, 0, 1}, // 1111 0010 dddddddd
-	{ABSOLUTE_TEMPERATURE,		8, 0, 2}, // 1111 0011 dddddddd dddddddd
-	{ABSOLUTE_TANK_1_PRESSURE,	8, 0, 2}, // 1111 0100 dddddddd dddddddd
-	{ABSOLUTE_TANK_2_PRESSURE,	8, 0, 2}, // 1111 0101 dddddddd dddddddd
-	{ABSOLUTE_TANK_D_PRESSURE,	8, 0, 2}, // 1111 0110 dddddddd dddddddd
-	{ABSOLUTE_HEARTRATE,		8, 0, 1}, // 1111 0111 dddddddd
-	{BEARING,					8, 0, 2}, // 1111 1000 dddddddd dddddddd
-	{ALARMS,					8, 0, 1}, // 1111 1001 dddddddd
+	{DEPTH,          0, 0, 1, 0, 0}, // 0ddd dddd
+	{RBT,            0, 0, 3, 0, 0}, // 100d dddd
+	{PRESSURE,       0, 0, 4, 0, 0}, // 1010 dddd
+	{TEMPERATURE,    0, 0, 4, 0, 0}, // 1011 dddd
+	{TIME,           1, 0, 4, 0, 0}, // 1100 dddd
+	{HEARTRATE,      0, 0, 4, 0, 0}, // 1101 dddd
+	{ALARMS,         1, 0, 4, 0, 0}, // 1110 dddd
+	{ALARMS,         1, 1, 8, 0, 1}, // 1111 0000 dddddddd
+	{DEPTH,          1, 0, 8, 0, 2}, // 1111 0001 dddddddd dddddddd
+	{RBT,            1, 0, 8, 0, 1}, // 1111 0010 dddddddd
+	{TEMPERATURE,    1, 0, 8, 0, 2}, // 1111 0011 dddddddd dddddddd
+	{PRESSURE,       1, 0, 8, 0, 2}, // 1111 0100 dddddddd dddddddd
+	{PRESSURE,       1, 1, 8, 0, 2}, // 1111 0101 dddddddd dddddddd
+	{PRESSURE,       1, 2, 8, 0, 2}, // 1111 0110 dddddddd dddddddd
+	{HEARTRATE,      1, 0, 8, 0, 1}, // 1111 0111 dddddddd
+	{BEARING,        1, 0, 8, 0, 2}, // 1111 1000 dddddddd dddddddd
+	{ALARMS,         1, 2, 8, 0, 1}, // 1111 1001 dddddddd
 };
 
 static parser_status_t
@@ -452,7 +447,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 		// Parse the value.
 		switch (table[id].type) {
-		case DELTA_TANK_PRESSURE_DEPTH:
+		case PRESSURE_DEPTH:
 			pressure += ((signed char) ((svalue >> NBITS) & 0xFF)) / 4.0;
 			depth += ((signed char) (svalue & 0xFF)) / 50.0;
 			sample.pressure.tank = tank;
@@ -463,31 +458,56 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			complete = 1;
 			time += 4;
 			break;
-		case DELTA_RBT:
-			rbt += svalue;
+		case RBT:
+			if (table[id].absolute) {
+				rbt = value;
+			} else {
+				rbt += svalue;
+			}
 			sample.rbt = rbt;
 			if (callback) callback (SAMPLE_TYPE_RBT, sample, userdata);
 			break;
-		case DELTA_TEMPERATURE:
-			temperature += svalue / 2.5;
+		case TEMPERATURE:
+			if (table[id].absolute) {
+				temperature = value / 2.5;
+			} else {
+				temperature += svalue / 2.5;
+			}
 			sample.temperature = temperature;
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			break;
-		case DELTA_TANK_PRESSURE:
-			pressure += svalue / 4.0;
+		case PRESSURE:
+			if (table[id].absolute) {
+				tank = table[id].index;
+				pressure = value / 4.0;
+			} else {
+				pressure += svalue / 4.0;
+			}
 			sample.pressure.tank = tank;
 			sample.pressure.value = pressure;
 			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
 			break;
-		case DELTA_DEPTH:
-			depth += svalue / 50.0;
+		case DEPTH:
+			if (table[id].absolute) {
+				depth = value / 50.0;
+				if (!calibrated) {
+					calibrated = 1;
+					depth_calibration = depth;
+				}
+			} else {
+				depth += svalue / 50.0;
+			}
 			sample.depth = depth - depth_calibration;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 			complete = 1;
 			time += 4;
 			break;
-		case DELTA_HEARTRATE:
-			heartrate += svalue;
+		case HEARTRATE:
+			if (table[id].absolute) {
+				heartrate = value;
+			} else {
+				heartrate += svalue;
+			}
 			sample.heartbeat = heartrate;
 			if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
 			break;
@@ -505,53 +525,6 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		case TIME:
 			complete = 1;
 			time += value * 4;
-			break;
-		case ABSOLUTE_DEPTH:
-			depth = value / 50.0;
-			if (!calibrated) {
-				calibrated = 1;
-				depth_calibration = depth;
-			}
-			sample.depth = depth - depth_calibration;
-			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
-			complete = 1;
-			time += 4;
-			break;
-		case ABSOLUTE_TEMPERATURE:
-			temperature = value / 2.5;
-			sample.temperature = temperature;
-			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
-			break;
-		case ABSOLUTE_TANK_D_PRESSURE:
-			tank = 2;
-			pressure = value / 4.0;
-			sample.pressure.tank = tank;
-			sample.pressure.value = pressure;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
-			break;
-		case ABSOLUTE_TANK_2_PRESSURE:
-			tank = 1;
-			pressure = value / 4.0;
-			sample.pressure.tank = tank;
-			sample.pressure.value = pressure;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
-			break;
-		case ABSOLUTE_TANK_1_PRESSURE:
-			tank = 0;
-			pressure = value / 4.0;
-			sample.pressure.tank = tank;
-			sample.pressure.value = pressure;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
-			break;
-		case ABSOLUTE_RBT:
-			rbt = value;
-			sample.rbt = rbt;
-			if (callback) callback (SAMPLE_TYPE_RBT, sample, userdata);
-			break;
-		case ABSOLUTE_HEARTRATE:
-			heartrate = value;
-			sample.heartbeat = heartrate;
-			if (callback) callback (SAMPLE_TYPE_HEARTBEAT, sample, userdata);
 			break;
 		default:
 			WARNING ("Unknown sample type.");
