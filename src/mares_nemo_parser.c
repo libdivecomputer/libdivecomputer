@@ -307,9 +307,14 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
 			if (profiles) {
+				// Get the freedive sample interval for this model.
+				unsigned int interval = 4;
+				if (parser->model == 18)
+					interval = 1;
+
 				// Calculate the number of samples that should be present
 				// in the profile data, based on the divetime in the summary.
-				unsigned int n = (divetime + 3) / 4;
+				unsigned int n = (divetime + interval - 1) / interval;
 
 				// The last sample interval can be smaller than the normal
 				// 4 seconds. We keep track of the maximum divetime, to be
@@ -330,7 +335,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 					assert (count <= n);
 
 					// Time (seconds).
-					time += 4;
+					time += interval;
 					if (time > maxtime)
 						time = maxtime; // Adjust the last sample.
 					sample.time = time;

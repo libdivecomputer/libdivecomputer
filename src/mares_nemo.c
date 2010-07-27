@@ -36,6 +36,7 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define MEMORYSIZE 0x4000
 #define PACKETSIZE 0x20
 
 typedef struct mares_nemo_device_t {
@@ -59,10 +60,18 @@ static const device_backend_t mares_nemo_device_backend = {
 };
 
 static const mares_common_layout_t mares_nemo_layout = {
-	0x4000, /* memsize */
+	MEMORYSIZE, /* memsize */
 	0x0070, /* rb_profile_begin */
 	0x3400, /* rb_profile_end */
 	0x3400, /* rb_freedives_begin */
+	0x4000  /* rb_freedives_end */
+};
+
+static const mares_common_layout_t mares_nemo_apneist_layout = {
+	MEMORYSIZE, /* memsize */
+	0x0070, /* rb_profile_begin */
+	0x0800, /* rb_profile_end */
+	0x0800, /* rb_freedives_begin */
 	0x4000  /* rb_freedives_end */
 };
 
@@ -91,9 +100,6 @@ mares_nemo_device_open (device_t **out, const char* name)
 
 	// Initialize the base class.
 	mares_common_device_init (&device->base, &mares_nemo_device_backend);
-
-	// Override the base class values.
-	device->base.layout = &mares_nemo_layout;
 
 	// Set the default values.
 	device->port = NULL;
@@ -165,18 +171,18 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
 	assert (device != NULL);
-	assert (device->base.layout != NULL);
+	assert (device->base.layout == NULL);
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, device->base.layout->memsize)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, MEMORYSIZE)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = device->base.layout->memsize + 20;
+	progress.maximum = MEMORYSIZE + 20;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Receive the header of the package.
@@ -199,7 +205,7 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	unsigned int nbytes = 0;
-	while (nbytes < device->base.layout->memsize) {
+	while (nbytes < MEMORYSIZE) {
 		// Read the packet.
 		unsigned char packet[(PACKETSIZE + 1) * 2] = {0};
 		int n = serial_read (device->port, packet, sizeof (packet));
@@ -250,9 +256,9 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	mares_common_device_t *device = (mares_common_device_t *) abstract;
 
 	assert (device != NULL);
-	assert (device->layout != NULL);
+	assert (device->layout == NULL);
 
-	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
+	dc_buffer_t *buffer = dc_buffer_new (MEMORYSIZE);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
 
@@ -265,12 +271,12 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = data[1];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_common_extract_dives (device, device->layout, data, callback, userdata);
+	rc = mares_nemo_extract_dives (abstract, data, MEMORYSIZE, callback, userdata);
 
 	dc_buffer_free (buffer);
 
@@ -286,7 +292,22 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (abstract && !device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	const mares_common_layout_t *layout = &mares_nemo_layout;
+	if (size < PACKETSIZE)
+		return DEVICE_STATUS_ERROR;
+
+	const mares_common_layout_t *layout = NULL;
+	switch (data[1]) {
+	case 0: // Nemo
+	case 17: // Nemo Excel
+		layout = &mares_nemo_layout;
+		break;
+	case 18: // Nemo Apneist
+		layout = &mares_nemo_apneist_layout;
+		break;
+	default: // Unknown, try nemo
+		layout = &mares_nemo_layout;
+		break;
+	}
 
 	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
