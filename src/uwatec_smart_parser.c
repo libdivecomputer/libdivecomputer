@@ -381,6 +381,16 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		return PARSER_STATUS_ERROR;
 	}
 
+	// Get the maximum number of alarm bytes.
+	unsigned int nalarms = 0;
+	for (unsigned int i = 0; i < entries; ++i) {
+		if (table[i].type == ALARMS &&
+			table[i].index >= nalarms)
+		{
+			nalarms = table[i].index + 1;
+		}
+	}
+
 	int complete = 0;
 	int calibrated = 0;
 
@@ -523,7 +533,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 			if (have_alarms) {
 				sample.vendor.type = SAMPLE_VENDOR_UWATEC_SMART;
-				sample.vendor.size = sizeof (alarms);
+				sample.vendor.size = nalarms;
 				sample.vendor.data = alarms;
 				if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
 				memset (alarms, 0, sizeof (alarms));
