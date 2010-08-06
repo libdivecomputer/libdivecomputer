@@ -26,34 +26,34 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct serial serial;
+typedef struct serial_t serial_t;
 
-enum parity_t {
+typedef enum serial_parity_t {
 	SERIAL_PARITY_NONE,
 	SERIAL_PARITY_EVEN,
 	SERIAL_PARITY_ODD
-};
+} serial_parity_t;
 
-enum flowcontrol_t {
+typedef enum serial_flowcontrol_t {
 	SERIAL_FLOWCONTROL_NONE,
 	SERIAL_FLOWCONTROL_HARDWARE,
 	SERIAL_FLOWCONTROL_SOFTWARE
-};
+} serial_flowcontrol_t;
 
-enum queue_t {
+typedef enum serial_queue_t {
 	SERIAL_QUEUE_INPUT = 0x01,
 	SERIAL_QUEUE_OUTPUT = 0x02,
 	SERIAL_QUEUE_BOTH = SERIAL_QUEUE_INPUT | SERIAL_QUEUE_OUTPUT
-};
+} serial_queue_t;
 
 int serial_errcode (void);
 const char* serial_errmsg (void);
 
-int serial_open (serial **device, const char* name);
+int serial_open (serial_t **device, const char* name);
 
-int serial_close (serial *device);
+int serial_close (serial_t *device);
 
-int serial_configure (serial *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol);
+int serial_configure (serial_t *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol);
 
 //
 // Available read modes:
@@ -77,24 +77,24 @@ int serial_configure (serial *device, int baudrate, int databits, int parity, in
 // with the bytes that have already been received.
 //
 
-int serial_set_timeout (serial *device, long timeout /* milliseconds */);
+int serial_set_timeout (serial_t *device, long timeout /* milliseconds */);
 
-int serial_set_queue_size (serial *device, unsigned int input, unsigned int output);
+int serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output);
 
-int serial_read (serial *device, void* data, unsigned int size);
-int serial_write (serial *device, const void* data, unsigned int size);
+int serial_read (serial_t *device, void* data, unsigned int size);
+int serial_write (serial_t *device, const void* data, unsigned int size);
 
-int serial_flush (serial *device, int queue);
-int serial_drain (serial *device);
+int serial_flush (serial_t *device, int queue);
+int serial_drain (serial_t *device);
 
-int serial_send_break (serial *device);
+int serial_send_break (serial_t *device);
 
-int serial_set_break (serial *device, int level);
-int serial_set_dtr (serial *device, int level);
-int serial_set_rts (serial *device, int level);
+int serial_set_break (serial_t *device, int level);
+int serial_set_dtr (serial_t *device, int level);
+int serial_set_rts (serial_t *device, int level);
 
-int serial_get_received (serial *device);
-int serial_get_transmitted (serial *device);
+int serial_get_received (serial_t *device);
+int serial_get_transmitted (serial_t *device);
 
 int serial_sleep (unsigned long timeout /* milliseconds */);
 

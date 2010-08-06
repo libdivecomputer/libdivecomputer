@@ -46,7 +46,7 @@
 
 typedef struct suunto_vyper_device_t {
 	suunto_common_device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned int delay;
 } suunto_vyper_device_t;
 

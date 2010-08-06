@@ -45,7 +45,7 @@
 
 typedef struct zeagle_n2ition3_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char fingerprint[16];
 } zeagle_n2ition3_device_t;
 

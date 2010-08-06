@@ -63,7 +63,7 @@
 #define snprintf _snprintf
 #endif
 
-struct irda {
+struct irda_t {
 #ifdef _WIN32
 	SOCKET fd;
 #else
@@ -152,13 +152,13 @@ int irda_cleanup (void)
 
 
 int
-irda_socket_open (irda **out)
+irda_socket_open (irda_t **out)
 {
 	if (out == NULL)
 		return -1; // EINVAL (Invalid argument)
 
 	// Allocate memory.
-	struct irda *device = (struct irda *) malloc (sizeof (struct irda));
+	irda_t *device = (irda_t *) malloc (sizeof (irda_t));
 	if (device == NULL) {
 		TRACE ("malloc");
 		return -1; // ENOMEM (Not enough space)
@@ -186,7 +186,7 @@ irda_socket_open (irda **out)
 
 
 int
-irda_socket_close (irda *device)
+irda_socket_close (irda_t *device)
 {
 	if (device == NULL)
 		return -1;
@@ -214,7 +214,7 @@ irda_socket_close (irda *device)
 
 
 int
-irda_socket_set_timeout (irda *device, long timeout)
+irda_socket_set_timeout (irda_t *device, long timeout)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -237,7 +237,7 @@ irda_socket_set_timeout (irda *device, long timeout)
 #endif
 
 int
-irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
+irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata)
 {
 	if (device == NULL)
 		return -1;
@@ -319,7 +319,7 @@ irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
 
 
 int
-irda_socket_connect_name (irda *device, unsigned int address, const char *name)
+irda_socket_connect_name (irda_t *device, unsigned int address, const char *name)
 {
 	if (device == NULL)
 		return -1;
@@ -354,7 +354,7 @@ irda_socket_connect_name (irda *device, unsigned int address, const char *name)
 }
 
 int
-irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap)
+irda_socket_connect_lsap (irda_t *device, unsigned int address, unsigned int lsap)
 {
 	if (device == NULL)
 		return -1;
@@ -385,7 +385,7 @@ irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap)
 
 
 int
-irda_socket_available (irda* device)
+irda_socket_available (irda_t *device)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -407,7 +407,7 @@ irda_socket_available (irda* device)
 
 
 int
-irda_socket_read (irda* device, void* data, unsigned int size)
+irda_socket_read (irda_t *device, void *data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -448,7 +448,7 @@ irda_socket_read (irda* device, void* data, unsigned int size)
 
 
 int
-irda_socket_write (irda* device, const void *data, unsigned int size)
+irda_socket_write (irda_t *device, const void *data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)

@@ -36,7 +36,7 @@
 
 typedef struct reefnet_sensuspro_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE];
 	unsigned int timestamp;
 	unsigned int devtime;

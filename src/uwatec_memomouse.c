@@ -42,7 +42,7 @@
 
 typedef struct uwatec_memomouse_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;

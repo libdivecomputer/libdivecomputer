@@ -39,7 +39,7 @@
 
 typedef struct suunto_solution_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 } suunto_solution_device_t;
 
 static device_status_t suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer);

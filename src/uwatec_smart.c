@@ -35,7 +35,7 @@
 
 typedef struct uwatec_smart_device_t {
 	device_t base;
-	struct irda *socket;
+	irda_t *socket;
 	unsigned int address;
 	unsigned int timestamp;
 	unsigned int devtime;

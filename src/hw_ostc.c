@@ -37,7 +37,7 @@
 
 typedef struct hw_ostc_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char fingerprint[5];
 } hw_ostc_device_t;
 

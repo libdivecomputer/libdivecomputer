@@ -41,7 +41,7 @@
 
 typedef struct mares_nemo_device_t {
 	mares_common_device_t base;
-	struct serial *port;
+	serial_t *port;
 } mares_nemo_device_t;
 
 static device_status_t mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer);

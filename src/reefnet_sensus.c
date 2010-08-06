@@ -37,7 +37,7 @@
 
 typedef struct reefnet_sensus_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char handshake[REEFNET_SENSUS_HANDSHAKE_SIZE];
 	unsigned int waiting;
 	unsigned int timestamp;

@@ -26,7 +26,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct irda irda;
+typedef struct irda_t irda_t;
 
 typedef void (*irda_callback_t) (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata);
 
@@ -38,22 +38,22 @@ int irda_init (void);
 
 int irda_cleanup (void);
 
-int irda_socket_open (irda **device);
+int irda_socket_open (irda_t **device);
 
-int irda_socket_close (irda *device);
+int irda_socket_close (irda_t *device);
 
-int irda_socket_set_timeout (irda *device, long timeout);
+int irda_socket_set_timeout (irda_t *device, long timeout);
 
-int irda_socket_discover (irda *device, irda_callback_t callback, void *userdata);
+int irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata);
 
-int irda_socket_connect_name (irda *device, unsigned int address, const char *name);
-int irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap);
+int irda_socket_connect_name (irda_t *device, unsigned int address, const char *name);
+int irda_socket_connect_lsap (irda_t *device, unsigned int address, unsigned int lsap);
 
-int irda_socket_available (irda* device);
+int irda_socket_available (irda_t *device);
 
-int irda_socket_read (irda* device, void* data, unsigned int size);
+int irda_socket_read (irda_t *device, void *data, unsigned int size);
 
-int irda_socket_write (irda* device, const void *data, unsigned int size);
+int irda_socket_write (irda_t *device, const void *data, unsigned int size);
 
 #ifdef __cplusplus
 }

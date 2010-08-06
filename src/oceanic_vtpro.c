@@ -45,7 +45,7 @@
 
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char version[PAGESIZE];
 } oceanic_vtpro_device_t;
 

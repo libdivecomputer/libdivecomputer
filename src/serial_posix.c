@@ -44,7 +44,7 @@
 	errno = error; \
 }
 
-struct serial {
+struct serial_t {
 	/*
 	 * The file descriptor corresponding to the serial port.
 	 */
@@ -78,13 +78,13 @@ const char* serial_errmsg (void)
 //
 
 int
-serial_open (serial** out, const char* name)
+serial_open (serial_t **out, const char* name)
 {
 	if (out == NULL)
 		return -1; // EINVAL (Invalid argument)
 
 	// Allocate memory.
-	struct serial *device = (struct serial *) malloc (sizeof (struct serial));
+	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
 	if (device == NULL) {
 		TRACE ("malloc");
 		return -1; // ENOMEM (Not enough space)
@@ -123,7 +123,7 @@ serial_open (serial** out, const char* name)
 //
 
 int
-serial_close (serial* device)
+serial_close (serial_t *device)
 {
 	if (device == NULL)
 		return 0;
@@ -154,7 +154,7 @@ serial_close (serial* device)
 //
 
 int
-serial_configure (serial *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol)
+serial_configure (serial_t *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -328,7 +328,7 @@ serial_configure (serial *device, int baudrate, int databits, int parity, int st
 //
 
 int
-serial_set_timeout (serial *device, long timeout)
+serial_set_timeout (serial_t *device, long timeout)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -344,7 +344,7 @@ serial_set_timeout (serial *device, long timeout)
 //
 
 int
-serial_set_queue_size (serial *device, unsigned int input, unsigned int output)
+serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output)
 {
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
@@ -431,7 +431,7 @@ serial_poll_internal (int fd, int queue, long timeout, const struct timeval *tim
 
 
 int
-serial_read (serial* device, void* data, unsigned int size)
+serial_read (serial_t *device, void* data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -492,7 +492,7 @@ serial_read (serial* device, void* data, unsigned int size)
 
 
 int
-serial_write (serial* device, const void* data, unsigned int size)
+serial_write (serial_t *device, const void* data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -527,7 +527,7 @@ serial_write (serial* device, const void* data, unsigned int size)
 
 
 int
-serial_flush (serial *device, int queue)
+serial_flush (serial_t *device, int queue)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -556,7 +556,7 @@ serial_flush (serial *device, int queue)
 
 
 int
-serial_drain (serial *device)
+serial_drain (serial_t *device)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -573,7 +573,7 @@ serial_drain (serial *device)
 
 
 int
-serial_send_break (serial *device)
+serial_send_break (serial_t *device)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -588,7 +588,7 @@ serial_send_break (serial *device)
 
 
 int
-serial_set_break (serial *device, int level)
+serial_set_break (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -619,7 +619,7 @@ serial_set_status (int fd, int value, int level)
 
 
 int
-serial_set_dtr (serial *device, int level)
+serial_set_dtr (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -629,7 +629,7 @@ serial_set_dtr (serial *device, int level)
 
 
 int
-serial_set_rts (serial *device, int level)
+serial_set_rts (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -639,7 +639,7 @@ serial_set_rts (serial *device, int level)
 
 
 int
-serial_get_received (serial *device)
+serial_get_received (serial_t *device)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -655,7 +655,7 @@ serial_get_received (serial *device)
 
 
 int
-serial_get_transmitted (serial *device)
+serial_get_transmitted (serial_t *device)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)

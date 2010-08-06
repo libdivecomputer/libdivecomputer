@@ -52,63 +52,63 @@ irda_cleanup (void)
 
 
 int
-irda_socket_open (irda **out)
+irda_socket_open (irda_t **out)
 {
     return -1;
 }
 
 
 int
-irda_socket_close (irda *device)
+irda_socket_close (irda_t *device)
 {
 	return -1;
 }
 
 
 int
-irda_socket_set_timeout (irda *device, long timeout)
+irda_socket_set_timeout (irda_t *device, long timeout)
 {
 	return -1;
 }
 
 
 int
-irda_socket_discover (irda *device, irda_callback_t callback, void *userdata)
+irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata)
 {
 	return -1;
 }
 
 
 int
-irda_socket_connect_name (irda *device, unsigned int address, const char *name)
+irda_socket_connect_name (irda_t *device, unsigned int address, const char *name)
 {
 	return -1;
 }
 
 
 int
-irda_socket_connect_lsap (irda *device, unsigned int address, unsigned int lsap)
+irda_socket_connect_lsap (irda_t *device, unsigned int address, unsigned int lsap)
 {
 	return -1;
 }
 
 
 int
-irda_socket_available (irda* device)
+irda_socket_available (irda_t *device)
 {
 	return -1;
 }
 
 
 int
-irda_socket_read (irda* device, void* data, unsigned int size)
+irda_socket_read (irda_t *device, void *data, unsigned int size)
 {
 	return -1;
 }
 
 
 int
-irda_socket_write (irda* device, const void *data, unsigned int size)
+irda_socket_write (irda_t *device, const void *data, unsigned int size)
 {
 	return -1;
 }

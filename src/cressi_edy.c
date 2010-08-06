@@ -49,7 +49,7 @@
 
 typedef struct cressi_edy_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char fingerprint[PAGESIZE / 2];
 } cressi_edy_device_t;
 

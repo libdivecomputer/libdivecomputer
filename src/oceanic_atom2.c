@@ -43,7 +43,7 @@
 
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char version[PAGESIZE];
 } oceanic_atom2_device_t;
 

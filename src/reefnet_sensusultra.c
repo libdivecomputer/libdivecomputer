@@ -41,7 +41,7 @@
 
 typedef struct reefnet_sensusultra_device_t {
 	device_t base;
-	struct serial *port;
+	serial_t *port;
 	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE];
 	unsigned int maxretries;
 	unsigned int timestamp;

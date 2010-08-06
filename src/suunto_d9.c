@@ -37,7 +37,7 @@
 
 typedef struct suunto_d9_device_t {
 	suunto_common2_device_t base;
-	struct serial *port;
+	serial_t *port;
 } suunto_d9_device_t;
 
 static device_status_t suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);

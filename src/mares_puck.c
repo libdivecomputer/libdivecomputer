@@ -41,7 +41,7 @@
 
 typedef struct mares_puck_device_t {
 	mares_common_device_t base;
-	struct serial *port;
+	serial_t *port;
 } mares_puck_device_t;
 
 static device_status_t mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
