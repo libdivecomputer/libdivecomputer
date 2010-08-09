@@ -319,7 +319,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		rc = oceanic_vtpro_parser_create (&parser);
 		break;
 	case DEVICE_TYPE_OCEANIC_VEO250:
-		rc = oceanic_veo250_parser_create (&parser);
+		rc = oceanic_veo250_parser_create (&parser, devdata->devinfo.model);
 		break;
 	case DEVICE_TYPE_OCEANIC_ATOM2:
 		rc = oceanic_atom2_parser_create (&parser, devdata->devinfo.model);

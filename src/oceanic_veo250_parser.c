@@ -33,6 +33,7 @@ typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
 
 struct oceanic_veo250_parser_t {
 	parser_t base;
+	unsigned int model;
 };
 
 static parser_status_t oceanic_veo250_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -60,7 +61,7 @@ parser_is_oceanic_veo250 (parser_t *abstract)
 
 
 parser_status_t
-oceanic_veo250_parser_create (parser_t **out)
+oceanic_veo250_parser_create (parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -74,6 +75,9 @@ oceanic_veo250_parser_create (parser_t **out)
 
 	// Initialize the base class.
 	parser_init (&parser->base, &oceanic_veo250_parser_backend);
+
+	// Set the default values.
+	parser->model = model;
 
 	*out = (parser_t*) parser;
 
@@ -107,18 +111,23 @@ oceanic_veo250_parser_set_data (parser_t *abstract, const unsigned char *data, u
 static parser_status_t
 oceanic_veo250_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
+	oceanic_veo250_parser_t *parser = (oceanic_veo250_parser_t *) abstract;
+
 	if (abstract->size < 8)
 		return PARSER_STATUS_ERROR;
 
 	const unsigned char *p = abstract->data;
 
 	if (datetime) {
-		datetime->year   = ((p[5] & 0xF0) >> 4) + ((p[1] & 0xE0) >> 1) + 2003;
+		datetime->year   = ((p[5] & 0xF0) >> 4) + ((p[1] & 0xE0) >> 1) + 2000;
 		datetime->month  = ((p[7] & 0xF0) >> 4);
 		datetime->day    = p[1] & 0x1F;
 		datetime->hour   = p[3];
 		datetime->minute = p[2];
 		datetime->second = 0;
+
+		if (parser->model == 0x424B || parser->model == 0x424C)
+			datetime->year += 3;
 	}
 
 	return PARSER_STATUS_SUCCESS;
