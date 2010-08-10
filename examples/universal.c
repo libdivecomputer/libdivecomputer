@@ -337,6 +337,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		rc = hw_ostc_parser_create (&parser);
 		break;
 	case DEVICE_TYPE_CRESSI_EDY:
+	case DEVICE_TYPE_ZEAGLE_N2ITION3:
 		rc = cressi_edy_parser_create (&parser);
 		break;
 	default:

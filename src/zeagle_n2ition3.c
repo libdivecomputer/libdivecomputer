@@ -36,23 +36,33 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define RB_PROFILE_BEGIN  0x3FA0
+#define RB_PROFILE_END    0x7EC0
+
+#define RB_LOGBOOK_OFFSET 0x7EC0
+#define RB_LOGBOOK_BEGIN  0
+#define RB_LOGBOOK_END    60
+
 typedef struct zeagle_n2ition3_device_t {
 	device_t base;
 	struct serial *port;
+	unsigned char fingerprint[16];
 } zeagle_n2ition3_device_t;
 
+static device_status_t zeagle_n2ition3_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t zeagle_n2ition3_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t zeagle_n2ition3_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static device_status_t zeagle_n2ition3_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t zeagle_n2ition3_device_close (device_t *abstract);
 
 static const device_backend_t zeagle_n2ition3_device_backend = {
 	DEVICE_TYPE_ZEAGLE_N2ITION3,
-	NULL, /* set_fingerprint */
+	zeagle_n2ition3_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	zeagle_n2ition3_device_read, /* read */
 	NULL, /* write */
 	zeagle_n2ition3_device_dump, /* dump */
-	NULL, /* foreach */
+	zeagle_n2ition3_device_foreach, /* foreach */
 	zeagle_n2ition3_device_close /* close */
 };
 
@@ -202,6 +212,23 @@ zeagle_n2ition3_device_close (device_t *abstract)
 
 
 static device_status_t
+zeagle_n2ition3_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	zeagle_n2ition3_device_t *device = (zeagle_n2ition3_device_t *) abstract;
+
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
 zeagle_n2ition3_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	zeagle_n2ition3_device_t *device = (zeagle_n2ition3_device_t*) abstract;
@@ -257,4 +284,95 @@ zeagle_n2ition3_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), ZEAGLE_N2ITION3_PACKET_SIZE);
+}
+
+
+static device_status_t
+zeagle_n2ition3_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	zeagle_n2ition3_device_t *device = (zeagle_n2ition3_device_t *) abstract;
+
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = (RB_LOGBOOK_END - RB_LOGBOOK_BEGIN) * 2 + 8 +
+		(RB_PROFILE_END - RB_PROFILE_BEGIN);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Read the configuration data.
+	unsigned char config[(RB_LOGBOOK_END - RB_LOGBOOK_BEGIN) * 2 + 8] = {0};
+	device_status_t rc = zeagle_n2ition3_device_read (abstract, RB_LOGBOOK_OFFSET, config, sizeof (config));
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to read the configuration data.");
+		return rc;
+	}
+
+	// Update and emit a progress event.
+	progress.current += sizeof (config);
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Get the logbook pointers.
+	unsigned int last  = config[0x7C];
+	unsigned int first = config[0x7D];
+
+	// Get the number of logbook items.
+	unsigned int count = ringbuffer_distance (first, last, 0, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END) + 1;
+
+	// Get the profile pointer.
+	unsigned int eop = array_uint16_le (config + 0x7E);
+
+	// Memory buffer for the profile data.
+	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
+
+	unsigned int available = 0;
+	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
+
+	unsigned int previous = eop;
+	unsigned int address = previous;
+	
+	unsigned int idx = last;
+	for (unsigned int i = 0; i < count; ++i) {
+		// Get the pointer to the profile data.
+		unsigned int current = array_uint16_le (config + 2 * idx);
+
+		// Get the profile length.
+		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
+
+		unsigned nbytes = available;
+		while (nbytes < length) {
+			if (address == RB_PROFILE_BEGIN)
+				address = RB_PROFILE_END;
+			address -= ZEAGLE_N2ITION3_PACKET_SIZE;
+			offset -= ZEAGLE_N2ITION3_PACKET_SIZE;
+
+			// Read the memory page.
+			rc = zeagle_n2ition3_device_read (abstract, address, buffer + offset, ZEAGLE_N2ITION3_PACKET_SIZE);
+			if (rc != DEVICE_STATUS_SUCCESS) {
+				WARNING ("Failed to read the memory page.");
+				return rc;
+			}
+
+			// Update and emit a progress event.
+			progress.current += ZEAGLE_N2ITION3_PACKET_SIZE;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+			nbytes += ZEAGLE_N2ITION3_PACKET_SIZE;
+		}
+
+		available = nbytes - length;
+		previous = current;
+
+		unsigned char *p = buffer + offset + available;
+
+		if (memcmp (p, device->fingerprint, sizeof (device->fingerprint)) == 0)
+			return DEVICE_STATUS_SUCCESS;
+
+		if (callback && !callback (p, length, p, sizeof (device->fingerprint), userdata))
+			return DEVICE_STATUS_SUCCESS;
+
+		if (idx == RB_LOGBOOK_BEGIN)
+			idx = RB_LOGBOOK_END;
+		idx--;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
 }
