@@ -128,6 +128,8 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 			datetime->minute = bcd2dec (p[0] & 0x7F);
 			break;
 		case 0x4258: // VT3
+		case 0x4359: // Veo 2.0
+		case 0x4446: // Geo 2.0
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
@@ -197,7 +199,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int size = abstract->size;
 
 	unsigned int header = 4 * PAGESIZE;
-	if (parser->model == 0x4344 || parser->model == 0x4347)
+	if (parser->model == 0x4344 || parser->model == 0x4347 ||
+		parser->model == 0x4446 || parser->model == 0x4359)
 		header -= PAGESIZE;
 
 	if (size < header + 3 * PAGESIZE / 2)
@@ -269,6 +272,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			// Temperature (°F)
 			if (parser->model == 0x4344) {
 				temperature = data[offset + 6];
+			} else if (parser->model == 0x4446 || parser->model == 0x4359) {
+				temperature = data[offset + 3];
 			} else {
 				unsigned int sign;
 				if (parser->model == 0x4342)
@@ -290,7 +295,11 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			if (callback && pressure != 10000) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
 
 			// Depth (1/16 ft)
-			unsigned int depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
+			unsigned int depth;
+			if (parser->model == 0x4446 || parser->model == 0x4359)
+				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
+			else
+				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
