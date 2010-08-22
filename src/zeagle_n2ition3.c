@@ -306,10 +306,6 @@ zeagle_n2ition3_device_foreach (device_t *abstract, dive_callback_t callback, vo
 		return rc;
 	}
 
-	// Update and emit a progress event.
-	progress.current += sizeof (config);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
-
 	// Get the logbook pointers.
 	unsigned int last  = config[0x7C];
 	unsigned int first = config[0x7D];
@@ -319,17 +315,51 @@ zeagle_n2ition3_device_foreach (device_t *abstract, dive_callback_t callback, vo
 
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_le (config + 0x7E);
+	
+	// The logbook ringbuffer can store at most 60 dives, even if the profile
+	// data could store more (e.g. many small dives). But it's also possible
+	// that the profile ringbuffer is filled faster than the logbook ringbuffer
+	// (e.g. many large dives). We detect this by checking the total length.
+	unsigned int total = 0;
+	unsigned int idx = last;
+	unsigned int previous = eop;
+	for (unsigned int i = 0; i < count; ++i) {
+		// Get the pointer to the profile data.
+		unsigned int current = array_uint16_le (config + 2 * idx);
+
+		// Get the profile length.
+		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
+		
+		// Check for a ringbuffer overflow.
+		if (total + length > RB_PROFILE_END - RB_PROFILE_BEGIN) {
+			count = i;
+			break;
+		}
+
+		total += length;
+
+		previous = current;
+
+		if (idx == RB_LOGBOOK_BEGIN)
+			idx = RB_LOGBOOK_END;
+		idx--;
+	}
+
+	// Update and emit a progress event.
+	progress.current += sizeof (config);
+	progress.maximum = (RB_LOGBOOK_END - RB_LOGBOOK_BEGIN) * 2 + 8 + total;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Memory buffer for the profile data.
 	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 
 	unsigned int available = 0;
+	unsigned int remaining = total;
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-
-	unsigned int previous = eop;
 	unsigned int address = previous;
 	
-	unsigned int idx = last;
+	idx = last;
+	previous = eop;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx);
@@ -341,23 +371,31 @@ zeagle_n2ition3_device_foreach (device_t *abstract, dive_callback_t callback, vo
 		while (nbytes < length) {
 			if (address == RB_PROFILE_BEGIN)
 				address = RB_PROFILE_END;
-			address -= ZEAGLE_N2ITION3_PACKET_SIZE;
-			offset -= ZEAGLE_N2ITION3_PACKET_SIZE;
+			
+			unsigned int len = ZEAGLE_N2ITION3_PACKET_SIZE;
+			if (RB_PROFILE_BEGIN + len > address)
+				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.
+			if (nbytes + len > remaining)
+				len = remaining - nbytes; // End of profile.
+
+			address -= len;
+			offset -= len;
 
 			// Read the memory page.
-			rc = zeagle_n2ition3_device_read (abstract, address, buffer + offset, ZEAGLE_N2ITION3_PACKET_SIZE);
+			rc = zeagle_n2ition3_device_read (abstract, address, buffer + offset, len);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Failed to read the memory page.");
 				return rc;
 			}
 
 			// Update and emit a progress event.
-			progress.current += ZEAGLE_N2ITION3_PACKET_SIZE;
+			progress.current += len;
 			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-			nbytes += ZEAGLE_N2ITION3_PACKET_SIZE;
+			nbytes += len;
 		}
 
+		remaining -= length;
 		available = nbytes - length;
 		previous = current;
 
