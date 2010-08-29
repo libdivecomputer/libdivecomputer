@@ -139,17 +139,21 @@ cressi_edy_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 		if (data[offset] == 0xFF)
 			break;
 
+		unsigned int extra = 0;
+		if (data[offset] & 0x80)
+			extra = 4;
+
 		// Time (seconds).
 		time += interval;
 		sample.time = time;
 		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 		// Depth (1/10 m).
-		unsigned int depth = bcd2dec (data[offset + 0]) * 100 + bcd2dec (data[offset + 1]);
+		unsigned int depth = bcd2dec (data[offset + 0] & 0x0F) * 100 + bcd2dec (data[offset + 1]);
 		sample.depth = depth / 10.0;
 		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
-		offset += 2;
+		offset += 2 + extra;
 	}
 
 	return PARSER_STATUS_SUCCESS;
