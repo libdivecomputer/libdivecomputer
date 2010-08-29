@@ -356,10 +356,10 @@ zeagle_n2ition3_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	unsigned int available = 0;
 	unsigned int remaining = total;
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-	unsigned int address = previous;
 	
 	idx = last;
 	previous = eop;
+	unsigned int address = previous;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx);
