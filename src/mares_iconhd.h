@@ -34,6 +34,9 @@ extern "C" {
 device_status_t
 mares_iconhd_device_open (device_t **device, const char* name);
 
+device_status_t
+mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+
 parser_status_t
 mares_iconhd_parser_create (parser_t **parser);
 

@@ -26,6 +26,7 @@
 #include "device-private.h"
 #include "mares_iconhd.h"
 #include "serial.h"
+#include "array.h"
 #include "utils.h"
 
 #define EXITCODE(rc) \
@@ -39,6 +40,7 @@ typedef struct mares_iconhd_device_t {
 } mares_iconhd_device_t;
 
 static device_status_t mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static device_status_t mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_iconhd_device_close (device_t *abstract);
 
 static const device_backend_t mares_iconhd_device_backend = {
@@ -48,7 +50,7 @@ static const device_backend_t mares_iconhd_device_backend = {
 	NULL, /* read */
 	NULL, /* write */
 	mares_iconhd_device_dump, /* dump */
-	NULL, /* foreach */
+	mares_iconhd_device_foreach, /* foreach */
 	mares_iconhd_device_close /* close */
 };
 
@@ -241,6 +243,72 @@ mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	if (answer[0] != 0xEA) {
 		WARNING ("Unexpected answer byte.");
 		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+{
+	dc_buffer_t *buffer = dc_buffer_new (MARES_ICONHD_MEMORY_SIZE);
+	if (buffer == NULL)
+		return DEVICE_STATUS_MEMORY;
+
+	device_status_t rc = mares_iconhd_device_dump (abstract, buffer);
+	if (rc != DEVICE_STATUS_SUCCESS) {
+		dc_buffer_free (buffer);
+		return rc;
+	}
+
+	rc = mares_iconhd_extract_dives (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), callback, userdata);
+
+	dc_buffer_free (buffer);
+
+	return rc;
+}
+
+
+device_status_t
+mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+{
+	if (abstract && !device_is_mares_iconhd (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	if (size < MARES_ICONHD_MEMORY_SIZE)
+		return DEVICE_STATUS_ERROR;
+
+	unsigned int ndives = 0;
+	unsigned int offset = 0xA000;
+	while (offset + 4 <= MARES_ICONHD_MEMORY_SIZE) {
+		// Get the length of the profile data.
+		unsigned int len = array_uint32_le (data + offset);
+		if (len == 0xFFFFFFFF)
+			break;
+
+		offset += len;
+		ndives++;
+	}
+
+	for (unsigned int i = 0; i < ndives; ++i) {
+		// Skip the older dives.
+		unsigned int offset = 0xA000;
+		unsigned int skip = ndives - i - 1;
+		while (skip) {
+			// Get the length of the profile data.
+			unsigned int len = array_uint32_le (data + offset);
+			// Move to the next dive.
+			offset += len;
+			skip--;
+		}
+
+		// Get the length of the profile data.
+		unsigned int length = array_uint32_le (data + offset);
+
+		if (callback && !callback (data + offset, length, NULL, 0, userdata))
+			return DEVICE_STATUS_SUCCESS;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
