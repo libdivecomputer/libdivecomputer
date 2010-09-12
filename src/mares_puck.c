@@ -147,6 +147,9 @@ mares_puck_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_IO;
 	}
 
+	// Make sure everything is in a sane state.
+	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+
 	// Identify the model number.
 	unsigned char header[PACKETSIZE] = {0};
 	device_status_t status = mares_puck_device_read ((device_t *) device, 0, header, sizeof (header));
