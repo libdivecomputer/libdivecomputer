@@ -34,6 +34,12 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#ifdef _WIN32
+#define BAUDRATE 256000
+#else
+#define BAUDRATE 230400
+#endif
+
 typedef struct mares_iconhd_device_t {
 	device_t base;
 	struct serial *port;
@@ -92,7 +98,7 @@ mares_iconhd_device_open (device_t **out, const char* name)
 	}
 
 	// Set the serial communication protocol (256000 8N1).
-	rc = serial_configure (device->port, 256000, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
+	rc = serial_configure (device->port, BAUDRATE, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
