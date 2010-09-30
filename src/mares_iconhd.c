@@ -268,6 +268,14 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 		return rc;
 	}
 
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	device_devinfo_t devinfo;
+	devinfo.model = 0;
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint16_le (data + 12);
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+
 	rc = mares_iconhd_extract_dives (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), callback, userdata);
 
