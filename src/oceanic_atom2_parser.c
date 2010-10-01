@@ -136,6 +136,13 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 			datetime->hour   = bcd2dec (p[1] & 0x7F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
+		case 0x4442: // Tusa Zen Air
+			datetime->year   = (p[3] & 0x0F) + 2000;
+			datetime->month  = (p[7] & 0xF0) >> 4;
+			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
+			datetime->hour   = bcd2dec (p[1] & 0x1F);
+			datetime->minute = bcd2dec (p[0]);
+			break;
 		default: // Atom 2
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
