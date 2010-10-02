@@ -298,32 +298,13 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 
 
 static device_status_t
-reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device)
+reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device, unsigned short value)
 {
-	// Flush the input and output buffers.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
-
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	unsigned int nretries = 0;
+	// Wake-up the device.
 	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE + 2] = {0};
-	while ((rc = reefnet_sensusultra_packet (device, handshake, sizeof (handshake), 0)) != DEVICE_STATUS_SUCCESS) {
-		// Automatically discard a corrupted handshake packet, 
-		// and wait for the next one.
-		if (rc != DEVICE_STATUS_PROTOCOL)
-			return rc;
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= device->maxretries)
-			return rc;
-
-		// According to the developers guide, a 250 ms delay is suggested to
-		// guarantee that the prompt byte sent after the handshake packet is 
-		// not accidentally buffered by the host and (mis)interpreted as part 
-		// of the next packet.
-
-		serial_sleep (250);
-		serial_flush (device->port, SERIAL_QUEUE_BOTH);
-	}
+	device_status_t rc = reefnet_sensusultra_packet (device, handshake, sizeof (handshake), 0);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
 	// Store the clock calibration values.
 	device->systime = dc_datetime_now ();
@@ -344,6 +325,11 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device)
 	devinfo.firmware = handshake[0];
 	devinfo.serial = array_uint16_le (handshake + 2);
 	device_event_emit (&device->base, DEVICE_EVENT_DEVINFO, &devinfo);
+
+	// Send the instruction code to the device.
+	rc = reefnet_sensusultra_send_ushort (device, value);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -386,15 +372,30 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 static device_status_t
 reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short command)
 {
-	// Wake-up the device.
-	device_status_t rc = reefnet_sensusultra_handshake (device);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
+	// Flush the input and output buffers.
+	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the instruction code to the device.
-	rc = reefnet_sensusultra_send_ushort (device, command);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
+	// Wake-up the device and send the instruction code.
+	unsigned int nretries = 0;
+	device_status_t rc = DEVICE_STATUS_SUCCESS;
+	while ((rc = reefnet_sensusultra_handshake (device, command)) != DEVICE_STATUS_SUCCESS) {
+		// Automatically discard a corrupted handshake packet,
+		// and wait for the next one.
+		if (rc != DEVICE_STATUS_PROTOCOL && rc != DEVICE_STATUS_TIMEOUT)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= device->maxretries)
+			return rc;
+
+		// According to the developers guide, a 250 ms delay is suggested to
+		// guarantee that the prompt byte sent after the handshake packet is
+		// not accidentally buffered by the host and (mis)interpreted as part
+		// of the next packet.
+
+		serial_sleep (250);
+		serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	}
 
 	return DEVICE_STATUS_SUCCESS;
 }
