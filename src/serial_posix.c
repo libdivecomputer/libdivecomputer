@@ -671,6 +671,35 @@ serial_get_transmitted (serial_t *device)
 
 
 int
+serial_get_line (serial_t *device, int line)
+{
+	if (device == NULL)
+		return -1; // EINVAL (Invalid argument)
+
+	int status = 0;
+	if (ioctl (device->fd, TIOCMGET, &status) != 0) {
+		TRACE ("ioctl");
+		return -1;
+	}
+
+	switch (line) {
+	case SERIAL_LINE_DCD:
+		return (status & TIOCM_CAR) == TIOCM_CAR;
+	case SERIAL_LINE_CTS:
+		return (status & TIOCM_CTS) == TIOCM_CTS;
+	case SERIAL_LINE_DSR:
+		return (status & TIOCM_DSR) == TIOCM_DSR;
+	case SERIAL_LINE_RNG:
+		return (status & TIOCM_RNG) == TIOCM_RNG;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+
+int
 serial_sleep (unsigned long timeout)
 {
 	struct timespec ts;

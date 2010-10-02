@@ -530,6 +530,35 @@ serial_get_transmitted (serial_t *device)
 
 
 int
+serial_get_line (serial_t *device, int line)
+{
+	if (device == NULL)
+		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	DWORD stats = 0;
+	if (!GetCommModemStatus (device->hFile, &stats)) {
+		TRACE ("GetCommModemStatus");
+		return -1;
+	}
+
+	switch (line) {
+	case SERIAL_LINE_DCD:
+		return (stats & MS_RLSD_ON) == MS_RLSD_ON;
+	case SERIAL_LINE_CTS:
+		return (stats & MS_CTS_ON) == MS_CTS_ON;
+	case SERIAL_LINE_DSR:
+		return (stats & MS_DSR_ON) == MS_DSR_ON;
+	case SERIAL_LINE_RNG:
+		return (stats & MS_RING_ON) == MS_RING_ON;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+
+int
 serial_sleep (unsigned long timeout)
 {
 	Sleep (timeout);

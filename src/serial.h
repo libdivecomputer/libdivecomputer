@@ -46,6 +46,13 @@ typedef enum serial_queue_t {
 	SERIAL_QUEUE_BOTH = SERIAL_QUEUE_INPUT | SERIAL_QUEUE_OUTPUT
 } serial_queue_t;
 
+typedef enum serial_line_t {
+	SERIAL_LINE_DCD, // Data carrier detect
+	SERIAL_LINE_CTS, // Clear to send
+	SERIAL_LINE_DSR, // Data set ready
+	SERIAL_LINE_RNG, // Ring indicator
+} serial_line_t;
+
 int serial_errcode (void);
 const char* serial_errmsg (void);
 
@@ -95,6 +102,8 @@ int serial_set_rts (serial_t *device, int level);
 
 int serial_get_received (serial_t *device);
 int serial_get_transmitted (serial_t *device);
+
+int serial_get_line (serial_t *device, int line);
 
 int serial_sleep (unsigned long timeout /* milliseconds */);
 
