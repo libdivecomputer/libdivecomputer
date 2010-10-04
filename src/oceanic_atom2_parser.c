@@ -272,7 +272,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			// Temperature (°F)
 			if (parser->model == 0x4344) {
 				temperature = data[offset + 6];
-			} else if (parser->model == 0x4446 || parser->model == 0x4359) {
+			} else if (parser->model == 0x4446 || parser->model == 0x4359 ||
+				parser->model == 0x435A) {
 				temperature = data[offset + 3];
 			} else {
 				unsigned int sign;
@@ -296,7 +297,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 			// Depth (1/16 ft)
 			unsigned int depth;
-			if (parser->model == 0x4446 || parser->model == 0x4359)
+			if (parser->model == 0x4446 || parser->model == 0x4359 ||
+				parser->model == 0x435A)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
