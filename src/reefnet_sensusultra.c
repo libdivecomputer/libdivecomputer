@@ -514,6 +514,11 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 		return DEVICE_STATUS_MEMORY;
 	}
 
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = REEFNET_SENSUSULTRA_MEMORY_USER_SIZE + 2;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	// Wake-up the device and send the instruction code.
 	device_status_t rc = reefnet_sensusultra_send (device, 0xB430);
 	if (rc != DEVICE_STATUS_SUCCESS)
@@ -524,6 +529,10 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 		rc = reefnet_sensusultra_send_uchar (device, data[i]);
 		if (rc != DEVICE_STATUS_SUCCESS)
 			return rc;
+
+		// Update and emit a progress event.
+		progress.current += 1;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 	}
 
 	// Send the checksum to the device.
@@ -531,6 +540,10 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 	rc = reefnet_sensusultra_send_ushort (device, crc);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
+
+	// Update and emit a progress event.
+	progress.current += 2;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	return DEVICE_STATUS_SUCCESS;
 }
