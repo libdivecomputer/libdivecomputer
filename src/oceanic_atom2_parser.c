@@ -257,9 +257,18 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			complete = 0;
 		}
 
+		// The sample size is usually fixed, but some sample types have a
+		// larger size. Check whether we have that many bytes available.
+		unsigned int length = PAGESIZE / 2;
+		if (data[offset + 0] == 0xBB) {
+			length += PAGESIZE / 2;
+			if (offset + length > size - PAGESIZE)
+				return PARSER_STATUS_ERROR;
+		}
+
 		// Vendor specific data
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
-		sample.vendor.size = PAGESIZE / 2;
+		sample.vendor.size = length;
 		sample.vendor.data = data + offset;
 		if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
 
@@ -276,6 +285,24 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
+			}
+		} else if (data[offset + 0] == 0xBB) {
+			// The surface time is not always a nice multiple of the samplerate.
+			// The number of inserted surface samples is therefore rounded down
+			// to keep the timestamps aligned at multiples of the samplerate.
+			unsigned int surftime = 60 * bcd2dec (data[offset + 1]) + bcd2dec (data[offset + 2]);
+			unsigned int nsamples = surftime / interval;
+
+			for (unsigned int i = 0; i < nsamples; ++i) {
+				if (complete) {
+					time += interval;
+					sample.time = time;
+					if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+				}
+
+				sample.depth = 0.0;
+				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+				complete = 1;
 			}
 		} else {
 			// Temperature (°F)
@@ -317,7 +344,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			complete = 1;
 		}
 
-		offset += PAGESIZE / 2;
+		offset += length;
 	}
 
 	return PARSER_STATUS_SUCCESS;
