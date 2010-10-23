@@ -209,6 +209,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	if (parser->model == 0x4344 || parser->model == 0x4347 ||
 		parser->model == 0x4446 || parser->model == 0x4359)
 		header -= PAGESIZE;
+	else if (parser->model == 0x435A)
+		header -= PAGESIZE / 2;
 
 	if (size < header + 3 * PAGESIZE / 2)
 		return PARSER_STATUS_ERROR;
