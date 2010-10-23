@@ -251,6 +251,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			time += interval;
 			sample.time = time;
 			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+
+			complete = 0;
 		}
 
 		// Vendor specific data
@@ -273,8 +275,6 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
 			}
-
-			complete = 0;
 		} else {
 			// Temperature (°F)
 			if (parser->model == 0x4344) {
