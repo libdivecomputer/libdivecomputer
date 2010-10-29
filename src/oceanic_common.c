@@ -285,6 +285,9 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		end -= rb_logbook_page_end - rb_logbook_entry_end;
 	}
 
+	// Error status for delayed errors.
+	device_status_t status = DEVICE_STATUS_SUCCESS;
+
 	// The logbook ringbuffer is read backwards to retrieve the most recent
 	// entries first. If an already downloaded entry is identified (by means
 	// of its fingerprint), the transfer is aborted immediately to reduce
@@ -363,6 +366,25 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 				break;
 			}
 
+			// Check for invalid ringbuffer pointers. Such pointers shouldn't
+			// be present, but some devices appear to have them anyway. In that
+			// case the error is not returned immediately, but delayed until the
+			// end of the download. With this approach we can download at least
+			// the dives before the problematic logbook entry.
+			unsigned int rb_entry_first = get_profile_first (logbooks + current, layout);
+			unsigned int rb_entry_last  = get_profile_last (logbooks + current, layout);
+			if (rb_entry_first < layout->rb_profile_begin ||
+				rb_entry_first >= layout->rb_profile_end ||
+				rb_entry_last < layout->rb_profile_begin ||
+				rb_entry_last >= layout->rb_profile_end)
+			{
+				WARNING("Invalid ringbuffer pointer detected!");
+				status = DEVICE_STATUS_ERROR;
+				begin = current + PAGESIZE / 2;
+				abort = 1;
+				break;
+			}
+
 			// Compare the fingerprint to identify previously downloaded entries.
 			if (memcmp (logbooks + current, device->fingerprint, PAGESIZE / 2) == 0) {
 				begin = current + PAGESIZE / 2;
@@ -379,7 +401,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// Exit if there are no (new) dives.
 	if (begin == end) {
 		free (logbooks);
-		return DEVICE_STATUS_SUCCESS;
+		return status;
 	}
 
 	// Calculate the total amount of bytes in the profile ringbuffer,
@@ -498,5 +520,5 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	free (logbooks);
 	free (profiles);
 
-	return DEVICE_STATUS_SUCCESS;
+	return status;
 }
