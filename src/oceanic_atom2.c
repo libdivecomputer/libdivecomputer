@@ -337,7 +337,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Override the base class values.
 	if (oceanic_common_match (oceanic_oc1_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_oc1_layout;
-	if (oceanic_common_match (tusa_zenair_version, device->version, sizeof (device->version)))
+	else if (oceanic_common_match (tusa_zenair_version, device->version, sizeof (device->version)))
 		device->base.layout = &tusa_zenair_layout;
 	else if (oceanic_common_match (oceanic_atom2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_epic_version, device->version, sizeof (device->version)) ||
