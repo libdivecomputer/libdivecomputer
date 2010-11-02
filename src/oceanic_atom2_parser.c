@@ -121,6 +121,7 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 	if (datetime) {
 		switch (parser->model) {
 		case 0x434E: // OC1
+		case 0x4449: // OC1
 			datetime->year   = ((p[5] & 0xE0) >> 5) + ((p[7] & 0xE0) >> 2) + 2000;
 			datetime->month  = (p[3] & 0x0F);
 			datetime->day    = ((p[0] & 0x80) >> 3) + ((p[3] & 0xF0) >> 4);
@@ -232,6 +233,10 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		break;
 	}
 
+	unsigned int samplesize = PAGESIZE / 2;
+	if (parser->model == 0x434E || parser->model == 0x4449)
+		samplesize = PAGESIZE;
+
 	int complete = 1;
 
 	unsigned int tank = 0;
@@ -239,12 +244,12 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int temperature = data[header + 7];
 
 	unsigned int offset = header + PAGESIZE / 2;
-	while (offset + PAGESIZE / 2 <= size - PAGESIZE) {
+	while (offset + samplesize <= size - PAGESIZE) {
 		parser_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, PAGESIZE / 2, 0x00)) {
-			offset += PAGESIZE / 2;
+		if (array_isequal (data + offset, samplesize, 0x00)) {
+			offset += samplesize;
 			continue;
 		}
 
@@ -259,9 +264,9 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 		// The sample size is usually fixed, but some sample types have a
 		// larger size. Check whether we have that many bytes available.
-		unsigned int length = PAGESIZE / 2;
+		unsigned int length = samplesize;
 		if (data[offset + 0] == 0xBB) {
-			length += PAGESIZE / 2;
+			length = PAGESIZE;
 			if (offset + length > size - PAGESIZE)
 				return PARSER_STATUS_ERROR;
 		}
@@ -309,7 +314,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			if (parser->model == 0x4344) {
 				temperature = data[offset + 6];
 			} else if (parser->model == 0x4446 || parser->model == 0x4359 ||
-				parser->model == 0x435A) {
+				parser->model == 0x435A || parser->model == 0x434E ||
+				parser->model == 0x4449) {
 				temperature = data[offset + 3];
 			} else {
 				unsigned int sign;
@@ -326,7 +332,10 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
 			// Tank Pressure (psi)
-			pressure -= data[offset + 1];
+			if (parser->model == 0x434E || parser->model == 0x4449)
+				pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
+			else
+				pressure -= data[offset + 1];
 			sample.pressure.tank = tank;
 			sample.pressure.value = pressure * PSI / BAR;
 			if (callback && pressure != 10000) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
@@ -334,7 +343,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			// Depth (1/16 ft)
 			unsigned int depth;
 			if (parser->model == 0x4446 || parser->model == 0x4359 ||
-				parser->model == 0x435A)
+				parser->model == 0x435A || parser->model == 0x434E ||
+				parser->model == 0x4449)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
