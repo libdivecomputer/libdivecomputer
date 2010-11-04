@@ -181,6 +181,10 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 		// Abort if the maximum number of retries is reached.
 		if (nretries++ >= MAXRETRIES)
 			return rc;
+
+		// Delay the next attempt.
+		serial_sleep (100);
+		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 	}
 
 	if (asize) {
