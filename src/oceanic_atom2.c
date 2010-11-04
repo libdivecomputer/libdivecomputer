@@ -131,7 +131,7 @@ device_is_oceanic_atom2 (device_t *abstract)
 
 
 static device_status_t
-oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize)
+oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
 {
 	device_t *abstract = (device_t *) device;
 
@@ -146,7 +146,7 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 	}
 
 	// Receive the response (ACK/NAK) of the dive computer.
-	unsigned char response = NAK;
+	unsigned char response = 0;
 	n = serial_read (device->port, &response, 1);
 	if (n != 1) {
 		WARNING ("Failed to receive the answer.");
@@ -154,7 +154,7 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 	}
 
 	// Verify the response of the dive computer.
-	if (response != ACK) {
+	if (response != ack) {
 		WARNING ("Unexpected answer start byte(s).");
 		return DEVICE_STATUS_PROTOCOL;
 	}
@@ -174,7 +174,7 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 
 	unsigned int nretries = 0;
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = oceanic_atom2_send (device, command, csize)) != DEVICE_STATUS_SUCCESS) {
+	while ((rc = oceanic_atom2_send (device, command, csize, ACK)) != DEVICE_STATUS_SUCCESS) {
 		if (rc != DEVICE_STATUS_TIMEOUT && rc != DEVICE_STATUS_PROTOCOL)
 			return rc;
 
@@ -209,25 +209,9 @@ oceanic_atom2_init (oceanic_atom2_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[3] = {0xA8, 0x99, 0x00};
-	int n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (n);
-	}
-
-	// Receive the answer of the dive computer.
-	unsigned char answer[1] = {0};
-	n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (n);
-	}
-
-	// Verify the answer.
-	if (answer[0] != NAK) {
-		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
-	}
+	device_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -238,25 +222,9 @@ oceanic_atom2_quit (oceanic_atom2_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
-	int n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
-		WARNING ("Failed to send the command.");
-		return EXITCODE (n);
-	}
-
-	// Receive the answer of the dive computer.
-	unsigned char answer[1] = {0};
-	n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (n);
-	}
-
-	// Verify the answer.
-	if (answer[0] != NAK) {
-		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
-	}
+	device_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
 
 	return DEVICE_STATUS_SUCCESS;
 }
