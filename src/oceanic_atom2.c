@@ -213,6 +213,9 @@ oceanic_atom2_init (oceanic_atom2_device_t *device)
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
+	// Discard all additional bytes (if there are any)
+	serial_flush (device->port, SERIAL_QUEUE_INPUT);
+
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -288,9 +291,6 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		free (device);
 		return status;
 	}
-
-	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
