@@ -353,138 +353,72 @@ serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output
 }
 
 
-#define MYSELECT(nfds, fds, queue, timeout) \
-	(queue == SERIAL_QUEUE_INPUT ? \
-	select (nfds, fds, NULL, NULL, timeout) : \
-	select (nfds, NULL, fds, NULL, timeout))
-
-
-static int
-serial_poll_internal (int fd, int queue, long timeout, const struct timeval *timestamp)
-{
-	// Calculate the initial timeout, and obtain
-	// a timestamp for updating the timeout.
-
-	struct timeval tvt, tve;
-	if (timeout > 0) {
-		// Calculate the initial timeout.
-		tvt.tv_sec  = (timeout / 1000);
-		tvt.tv_usec = (timeout % 1000) * 1000;
-		// Calculate the timestamp.
-		if (timestamp == NULL) {
-			struct timeval now;
-			if (gettimeofday (&now, NULL) != 0) {
-				TRACE ("gettimeofday");
-				return -1;
-			}
-			timeradd (&now, &tvt, &tve);
-		} else {
-			timeradd (timestamp, &tvt, &tve);
-		}
-	} else if (timeout == 0) {
-		timerclear (&tvt);
-	}
-
-	// Wait until the file descriptor is ready for reading/writing, or 
-	// the timeout expires. A file descriptor is considered ready for 
-	// reading/writing when a call to an input/output function with 
-	// O_NONBLOCK clear would not block, whether or not the function 
-	// would transfer data successfully. 
-
-	fd_set fds;
-	FD_ZERO (&fds);
-	FD_SET (fd, &fds);
-
-	int rc = 0;
-	while ((rc = MYSELECT (fd + 1, &fds, queue, timeout >= 0 ? &tvt : NULL)) == -1) {
-		if (errno != EINTR ) {
-			TRACE ("select");
-			return -1;
-		}
-
-		// According to the select() man pages, the file descriptor sets 
-		// and the timeout become undefined after select() returns an error.
-		// We follow the advise and do not rely on their contents.
-
-		FD_ZERO (&fds);
-		FD_SET (fd, &fds);
-
-		// Calculate the remaining timeout.
-
-		if (timeout > 0) {
-			struct timeval now;
-			if (gettimeofday (&now, NULL) != 0) {
-				TRACE ("gettimeofday");
-				return -1;
-			}
-			if (timercmp (&now, &tve, >=))
-				timerclear (&tvt);
-			else
-				timersub (&tve, &now, &tvt);				
-		} else if (timeout == 0) {
-			timerclear (&tvt);
-		}
-	}
-
-	return rc;
-}
-
-
 int
-serial_read (serial_t *device, void* data, unsigned int size)
+serial_read (serial_t *device, void *data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	// The total timeout.
 	long timeout = device->timeout;
 
-	struct timeval timestamp;
-	if (timeout > 0) {
-		if (gettimeofday (&timestamp, NULL) != 0) {
-			TRACE ("gettimeofday");
-			return -1;
-		}
-	}
+	// The absolute target time.
+	struct timeval tve;
 
+	int init = 1;
 	unsigned int nbytes = 0;
-	for (;;) {
-		// Attempt to read data from the file descriptor.
-		int n = read (device->fd, (char*) data + nbytes, size - nbytes);
-		if (n < 0) {
-			if (errno == EINTR)
-				continue; // Retry.
-			if (errno != EAGAIN) {
-				TRACE ("read");
-				return -1; // Error during read call.
-			}
-		} else {
-			nbytes += n;
-			if (!n || nbytes == size)
-				break; // Success or EOF.
-		}
+	while (nbytes < size) {
+		fd_set fds;
+		FD_ZERO (&fds);
+		FD_SET (device->fd, &fds);
 
-		// Wait until the file descriptor is ready for reading, or the timeout expires.
-		int rc = serial_poll_internal (device->fd, SERIAL_QUEUE_INPUT, timeout, timeout > 0 ? &timestamp : NULL);
-		if (rc < 0) {
-			return -1; // Error during select/poll call.
-		} else if (rc == 0)
-			break; // Timeout.
-
-		// Calculate the remaining timeout.
+		struct timeval tvt;
 		if (timeout > 0) {
-			struct timeval now, delta;
+			struct timeval now;
 			if (gettimeofday (&now, NULL) != 0) {
 				TRACE ("gettimeofday");
 				return -1;
 			}
-			timersub (&now, &timestamp, &delta);
-			long elapsed = delta.tv_sec * 1000 + delta.tv_usec / 1000;
-			if (elapsed >= timeout)
-				timeout = 0;
-			else
-				timeout -= elapsed;
-			timestamp = now;
-		}	
+
+			if (init) {
+				// Calculate the initial timeout.
+				tvt.tv_sec  = (timeout / 1000);
+				tvt.tv_usec = (timeout % 1000) * 1000;
+				// Calculate the target time.
+				timeradd (&now, &tvt, &tve);
+			} else {
+				// Calculate the remaining timeout.
+				if (timercmp (&now, &tve, <))
+					timersub (&tve, &now, &tvt);
+				else
+					timerclear (&tvt);
+			}
+			init = 0;
+		} else if (timeout == 0) {
+			timerclear (&tvt);
+		}
+
+		int rc = select (device->fd + 1, &fds, NULL, NULL, timeout >= 0 ? &tvt : NULL);
+		if (rc < 0) {
+			if (errno == EINTR)
+				continue; // Retry.
+			TRACE ("select");
+			return -1; // Error during select call.
+		} else if (rc == 0) {
+			break; // Timeout.
+		}
+
+		int n = read (device->fd, (char *) data + nbytes, size - nbytes);
+		if (n < 0) {
+			if (errno == EINTR || errno == EAGAIN)
+				continue; // Retry.
+			TRACE ("read");
+			return -1; // Error during read call.
+		} else if (n == 0) {
+			 break; // EOF.
+		}
+
+		nbytes += n;
 	}
 
 	return nbytes;
@@ -492,34 +426,38 @@ serial_read (serial_t *device, void* data, unsigned int size)
 
 
 int
-serial_write (serial_t *device, const void* data, unsigned int size)
+serial_write (serial_t *device, const void *data, unsigned int size)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
 	unsigned int nbytes = 0;
-	for (;;) {
-		// Attempt to write data to the file descriptor.
-		int n = write (device->fd, (char*) data + nbytes, size - nbytes);
-		if (n < 0) {
+	while (nbytes < size) {
+		fd_set fds;
+		FD_ZERO (&fds);
+		FD_SET (device->fd, &fds);
+
+		int rc = select (device->fd + 1, NULL, &fds, NULL, NULL);
+		if (rc < 0) {
 			if (errno == EINTR)
 				continue; // Retry.
-			if (errno != EAGAIN) {
-				TRACE ("write");
-				return -1; // Error during write call.
-			}
-		} else {
-			nbytes += n;
-			if (nbytes == size)
-				break; // Success.
-		}
-		
-		// Wait until the file descriptor is ready for writing, or the timeout expires.
-		int rc = serial_poll_internal (device->fd, SERIAL_QUEUE_OUTPUT, -1, NULL);
-		if (rc < 0) {
-			return -1; // Error during select/poll call.
-		} else if (rc == 0)
+			TRACE ("select");
+			return -1; // Error during select call.
+		} else if (rc == 0) {
 			break; // Timeout.
+		}
+
+		int n = write (device->fd, (char *) data + nbytes, size - nbytes);
+		if (n < 0) {
+			if (errno == EINTR || errno == EAGAIN)
+				continue; // Retry.
+			TRACE ("write");
+			return -1; // Error during write call.
+		} else if (n == 0) {
+			 break; // EOF.
+		}
+
+		nbytes += n;
 	}
 
 	return nbytes;
