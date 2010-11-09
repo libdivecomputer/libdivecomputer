@@ -40,6 +40,9 @@
 #define BAUDRATE 230400
 #endif
 
+#define RB_PROFILE_BEGIN 0xA000
+#define RB_PROFILE_END   MARES_ICONHD_MEMORY_SIZE
+
 typedef struct mares_iconhd_device_t {
 	device_t base;
 	serial_t *port;
@@ -294,36 +297,56 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	if (size < MARES_ICONHD_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
 
-	unsigned int ndives = 0;
-	unsigned int offset = 0xA000;
-	while (offset + 4 <= MARES_ICONHD_MEMORY_SIZE) {
-		// Get the length of the profile data.
-		unsigned int len = array_uint32_le (data + offset);
-		if (len == 0xFFFFFFFF)
+	// Get the end of the profile ring buffer.
+	unsigned int eop = array_uint32_le (data + 0x2001);
+	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
+		WARNING ("Ringbuffer pointer out of range.");
+		return DEVICE_STATUS_ERROR;
+	}
+
+	// Make the ringbuffer linear, to avoid having to deal with the wrap point.
+	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN);
+	if (buffer == NULL) {
+		WARNING ("Out of memory.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	memcpy (buffer + 0, data + eop, RB_PROFILE_END - eop);
+	memcpy (buffer + RB_PROFILE_END - eop, data + RB_PROFILE_BEGIN, eop - RB_PROFILE_BEGIN);
+
+	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
+	while (offset >= 0x60) {
+		// Get the number of samples in the profile data.
+		unsigned int nsamples = array_uint16_le (buffer + offset - 0x5A);
+
+		// Calculate the total number of bytes for this dive.
+		// If the buffer does not contain that much bytes, we reached the
+		// end of the ringbuffer. The current dive is incomplete (partially
+		// overwritten with newer data), and processing should stop.
+		unsigned int nbytes = nsamples * 8 + 0x60;
+		if (offset < nbytes)
 			break;
 
-		offset += len;
-		ndives++;
-	}
+		// Move to the start of the dive.
+		offset -= nbytes;
 
-	for (unsigned int i = 0; i < ndives; ++i) {
-		// Skip the older dives.
-		unsigned int offset = 0xA000;
-		unsigned int skip = ndives - i - 1;
-		while (skip) {
-			// Get the length of the profile data.
-			unsigned int len = array_uint32_le (data + offset);
-			// Move to the next dive.
-			offset += len;
-			skip--;
+		// Verify that the length that is stored in the profile data
+		// equals the calculated length. If both values are different,
+		// something is wrong and an error is returned.
+		unsigned int length = array_uint32_le (buffer + offset);
+		if (length != nbytes) {
+			WARNING ("Calculated and stored size are not equal.");
+			free (buffer);
+			return DEVICE_STATUS_ERROR;
 		}
 
-		// Get the length of the profile data.
-		unsigned int length = array_uint32_le (data + offset);
-
-		if (callback && !callback (data + offset, length, NULL, 0, userdata))
+		if (callback && !callback (buffer + offset, length, NULL, 0, userdata)) {
+			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
+		}
 	}
+
+	free (buffer);
 
 	return DEVICE_STATUS_SUCCESS;
 }
