@@ -46,15 +46,17 @@
 typedef struct mares_iconhd_device_t {
 	device_t base;
 	serial_t *port;
+	unsigned char fingerprint[10];
 } mares_iconhd_device_t;
 
+static device_status_t mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_iconhd_device_close (device_t *abstract);
 
 static const device_backend_t mares_iconhd_device_backend = {
 	DEVICE_TYPE_MARES_ICONHD,
-	NULL, /* set_fingerprint */
+	mares_iconhd_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
@@ -152,6 +154,23 @@ mares_iconhd_device_close (device_t *abstract)
 
 	// Free memory.
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
+
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -291,6 +310,8 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 device_status_t
 mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
+	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
+
 	if (abstract && !device_is_mares_iconhd (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
@@ -340,7 +361,13 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 			return DEVICE_STATUS_ERROR;
 		}
 
-		if (callback && !callback (buffer + offset, length, NULL, 0, userdata)) {
+		unsigned char *fp = buffer + offset + length - 0x56;
+		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+			free (buffer);
+			return DEVICE_STATUS_SUCCESS;
+		}
+
+		if (callback && !callback (buffer + offset, length, fp, sizeof (device->fingerprint), userdata)) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}
