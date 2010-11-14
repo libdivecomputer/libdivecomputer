@@ -122,7 +122,7 @@ mares_nemo_device_open (device_t **out, const char* name)
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, -1) == -1) {
+	if (serial_set_timeout (device->port, 1000) == -1) {
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
@@ -137,6 +137,9 @@ mares_nemo_device_open (device_t **out, const char* name)
 		free (device);
 		return DEVICE_STATUS_IO;
 	}
+
+	// Make sure everything is in a sane state.
+	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	*out = (device_t*) device;
 
@@ -184,6 +187,15 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
 	progress.maximum = MEMORYSIZE + 20;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Wait until some data arrives.
+	while (serial_get_received (device->port) == 0) {
+		if (device_is_cancelled (abstract))
+			return DEVICE_STATUS_CANCELLED;
+
+		device_event_emit (abstract, DEVICE_EVENT_WAITING, NULL);
+		serial_sleep (100);
+	}
 
 	// Receive the header of the package.
 	unsigned char header = 0x00;
