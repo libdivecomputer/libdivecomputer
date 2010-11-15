@@ -42,6 +42,7 @@ struct uwatec_smart_parser_t {
 
 static parser_status_t uwatec_smart_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t uwatec_smart_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t uwatec_smart_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t uwatec_smart_parser_destroy (parser_t *abstract);
 
@@ -49,7 +50,7 @@ static const parser_backend_t uwatec_smart_parser_backend = {
 	PARSER_TYPE_UWATEC_SMART,
 	uwatec_smart_parser_set_data, /* set_data */
 	uwatec_smart_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	uwatec_smart_parser_get_field, /* fields */
 	uwatec_smart_parser_samples_foreach, /* samples_foreach */
 	uwatec_smart_parser_destroy /* destroy */
 };
@@ -129,6 +130,136 @@ uwatec_smart_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 	if (!dc_datetime_localtime (datetime, ticks))
 		return PARSER_STATUS_ERROR;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+typedef struct uwatec_smart_header_info_t {
+	unsigned int maxdepth;
+	unsigned int divetime;
+	unsigned int gasmix;
+	unsigned int ngases;
+} uwatec_smart_header_info_t;
+
+static const
+uwatec_smart_header_info_t uwatec_smart_pro_header = {
+	18,
+	20,
+	24, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_aladin_header = {
+	22,
+	24,
+	30, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
+	22,
+	26,
+	32, 3
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_com_header = {
+	18,
+	20,
+	24, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_tec_header = {
+	18,
+	20,
+	28, 3
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_z_header = {
+	18,
+	20,
+	28, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_galileo_sol_header = {
+	22,
+	26,
+	44, 3
+};
+
+static parser_status_t
+uwatec_smart_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
+
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	unsigned int header = 0;
+	const uwatec_smart_header_info_t *table = NULL;
+
+	// Load the correct table.
+	switch (parser->model) {
+	case 0x10: // Smart Pro
+		header = 92;
+		table = &uwatec_smart_pro_header;
+		break;
+	case 0x11: // Galileo Sol
+		header = 152;
+		table = &uwatec_galileo_sol_header;
+		break;
+	case 0x12: // Aladin Tec, Prime
+		header = 108;
+		table = &uwatec_smart_aladin_header;
+		break;
+	case 0x13: // Aladin Tec 2G
+		header = 116;
+		table = &uwatec_smart_aladin_tec2g_header;
+		break;
+	case 0x14: // Smart Com
+		header = 100;
+		table = &uwatec_smart_com_header;
+		break;
+	case 0x18: // Smart Tec
+		header = 132;
+		table = &uwatec_smart_tec_header;
+		break;
+	case 0x1C: // Smart Z
+		header = 132;
+		table = &uwatec_smart_z_header;
+		break;
+	default:
+		return PARSER_STATUS_ERROR;
+	}
+
+	if (size < header)
+		return PARSER_STATUS_ERROR;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = array_uint16_le (data + table->divetime) * 60;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = table->ngases;
+			break;
+		case FIELD_TYPE_GASMIX:
+			gasmix->helium = 0.0;
+			gasmix->oxygen = array_uint16_le (data + table->gasmix + flags * 2) / 100.0;
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }

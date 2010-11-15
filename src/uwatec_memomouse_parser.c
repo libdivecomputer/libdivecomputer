@@ -36,6 +36,7 @@ struct uwatec_memomouse_parser_t {
 
 static parser_status_t uwatec_memomouse_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t uwatec_memomouse_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t uwatec_memomouse_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t uwatec_memomouse_parser_destroy (parser_t *abstract);
 
@@ -43,7 +44,7 @@ static const parser_backend_t uwatec_memomouse_parser_backend = {
 	PARSER_TYPE_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_parser_set_data, /* set_data */
 	uwatec_memomouse_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	uwatec_memomouse_parser_get_field, /* fields */
 	uwatec_memomouse_parser_samples_foreach, /* samples_foreach */
 	uwatec_memomouse_parser_destroy /* destroy */
 };
@@ -122,6 +123,67 @@ uwatec_memomouse_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetim
 
 	if (!dc_datetime_localtime (datetime, ticks))
 		return PARSER_STATUS_ERROR;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+uwatec_memomouse_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	if (size < 18)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int model = data[3];
+
+	int is_nitrox = 0, is_oxygen = 0, is_air = 0;
+	if ((model & 0xF0) == 0xF0)
+		is_nitrox = 1;
+	if ((model & 0xF0) == 0xA0)
+		is_oxygen = 1;
+	if ((model & 0xF0) % 4 == 0)
+		is_air = 1;
+
+	unsigned int header = 22;
+	if (is_nitrox)
+		header += 2;
+	if (is_oxygen)
+		header += 3;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = ((data[4] & 0x04 ? 100 : 0) + bcd2dec (data[5])) * 60;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = ((array_uint16_be (data + 6) & 0xFFC0) >> 6) * 10.0 / 64.0;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = 1;
+			break;
+		case FIELD_TYPE_GASMIX:
+			gasmix->helium = 0.0;
+			if (size >= header + 18) {
+				if (is_oxygen)
+					gasmix->oxygen = data[18 + 23] / 100.0;
+				else if (is_nitrox)
+					gasmix->oxygen = (data[18 + 23] & 0x0F ? 20.0 + 2 * (data[18 + 23] & 0x0F) : 21.0) / 100.0;
+				else
+					gasmix->oxygen = 0.21;
+			} else {
+				gasmix->oxygen = 0.21;
+			}
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }
