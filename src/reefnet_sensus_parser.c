@@ -39,10 +39,15 @@ struct reefnet_sensus_parser_t {
 	// Clock synchronization.
 	unsigned int devtime;
 	dc_ticks_t systime;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int divetime;
+	unsigned int maxdepth;
 };
 
 static parser_status_t reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t reefnet_sensus_parser_destroy (parser_t *abstract);
 
@@ -50,7 +55,7 @@ static const parser_backend_t reefnet_sensus_parser_backend = {
 	PARSER_TYPE_REEFNET_SENSUS,
 	reefnet_sensus_parser_set_data, /* set_data */
 	reefnet_sensus_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	reefnet_sensus_parser_get_field, /* fields */
 	reefnet_sensus_parser_samples_foreach, /* samples_foreach */
 	reefnet_sensus_parser_destroy /* destroy */
 };
@@ -87,6 +92,9 @@ reefnet_sensus_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t s
 	parser->hydrostatic = 1025.0 * GRAVITY;
 	parser->devtime = devtime;
 	parser->systime = systime;
+	parser->cached = 0;
+	parser->divetime = 0;
+	parser->maxdepth = 0;
 
 	*out = (parser_t*) parser;
 
@@ -110,8 +118,15 @@ reefnet_sensus_parser_destroy (parser_t *abstract)
 static parser_status_t
 reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
+	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
+
 	if (! parser_is_reefnet_sensus (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->divetime = 0;
+	parser->maxdepth = 0;
 
 	return PARSER_STATUS_SUCCESS;
 }
@@ -146,6 +161,73 @@ reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 	if (!dc_datetime_localtime (datetime, ticks))
 		return PARSER_STATUS_ERROR;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
+
+	if (abstract->size < 7)
+		return PARSER_STATUS_ERROR;
+
+	if (!parser->cached) {
+		const unsigned char *data = abstract->data;
+		unsigned int size = abstract->size;
+
+		unsigned int maxdepth = 0;
+		unsigned int interval = data[1];
+		unsigned int nsamples = 0, count = 0;
+
+		unsigned int offset = 7;
+		while (offset + 1 <= size) {
+			// Depth.
+			unsigned int depth = data[offset++];
+			if (depth > maxdepth)
+				maxdepth = depth;
+
+			// Skip temperature byte.
+			if ((nsamples % 6) == 0)
+				offset++;
+
+			// Current sample is complete.
+			nsamples++;
+
+			// The end of a dive is reached when 17 consecutive
+			// depth samples of less than 3 feet have been found.
+			if (depth < SAMPLE_DEPTH_ADJUST + 3) {
+				count++;
+				if (count == 17) {
+					break;
+				}
+			} else {
+				count = 0;
+			}
+		}
+
+		parser->cached = 1;
+		parser->divetime = nsamples * interval;
+		parser->maxdepth = maxdepth;
+	}
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = parser->divetime;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = ((parser->maxdepth + 33.0 - (double) SAMPLE_DEPTH_ADJUST) * FSW - parser->atmospheric) / parser->hydrostatic;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = 0;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
+	}
 
 	return PARSER_STATUS_SUCCESS;
 }
