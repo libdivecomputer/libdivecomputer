@@ -38,6 +38,7 @@ struct suunto_d9_parser_t {
 
 static parser_status_t suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t suunto_d9_parser_destroy (parser_t *abstract);
 
@@ -45,7 +46,7 @@ static const parser_backend_t suunto_d9_parser_backend = {
 	PARSER_TYPE_SUUNTO_D9,
 	suunto_d9_parser_set_data, /* set_data */
 	suunto_d9_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	suunto_d9_parser_get_field, /* fields */
 	suunto_d9_parser_samples_foreach, /* samples_foreach */
 	suunto_d9_parser_destroy /* destroy */
 };
@@ -130,6 +131,64 @@ suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->year   = p[3] + (p[4] << 8);
 		datetime->month  = p[5];
 		datetime->day    = p[6];
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
+
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	// Offset to the configuration data.
+	unsigned int config = 0x3E - SKIP;
+	if (parser->model == 0x12)
+		config += 1; // D4
+	if (parser->model == 0x15)
+		config += 74; // HelO2
+	if (size < config)
+		return PARSER_STATUS_ERROR;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			if (parser->model == 0x12)
+				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP);
+			else if (parser->model == 0x15)
+				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP + 2) * 60;
+			else
+				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP) * 60;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = array_uint16_le (data + 0x0D - SKIP) / 100.0;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			if (parser->model == 0x15) {
+				*((unsigned int *) value) = 8;
+			} else {
+				*((unsigned int *) value) = 3;
+			}
+			break;
+		case FIELD_TYPE_GASMIX:
+			if (parser->model == 0x15) {
+				gasmix->helium = data[0x58 - SKIP + 6 * flags + 2] / 100.0;
+				gasmix->oxygen = data[0x58 - SKIP + 6 * flags + 1] / 100.0;
+			} else {
+				gasmix->helium = 0.0;
+				gasmix->oxygen = data[0x25 - SKIP + flags] / 100.0;
+			}
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
