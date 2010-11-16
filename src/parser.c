@@ -108,3 +108,22 @@ parser_destroy (parser_t *parser)
 
 	return parser->backend->destroy (parser);
 }
+
+
+void
+sample_statistics_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdata)
+{
+	sample_statistics_t *statistics  = (sample_statistics_t *) userdata;
+
+	switch (type) {
+	case SAMPLE_TYPE_TIME:
+		statistics->divetime = value.time;
+		break;
+	case SAMPLE_TYPE_DEPTH:
+		if (statistics->maxdepth < value.depth)
+			statistics->maxdepth = value.depth;
+		break;
+	default:
+		break;
+	}
+}

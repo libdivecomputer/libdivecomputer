@@ -46,10 +46,15 @@ typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 struct oceanic_atom2_parser_t {
 	parser_t base;
 	unsigned int model;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int divetime;
+	double maxdepth;
 };
 
 static parser_status_t oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t oceanic_atom2_parser_destroy (parser_t *abstract);
 
@@ -57,7 +62,7 @@ static const parser_backend_t oceanic_atom2_parser_backend = {
 	PARSER_TYPE_OCEANIC_ATOM2,
 	oceanic_atom2_parser_set_data, /* set_data */
 	oceanic_atom2_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	oceanic_atom2_parser_get_field, /* fields */
 	oceanic_atom2_parser_samples_foreach, /* samples_foreach */
 	oceanic_atom2_parser_destroy /* destroy */
 };
@@ -91,6 +96,9 @@ oceanic_atom2_parser_create (parser_t **out, unsigned int model)
 
 	// Set the default values.
 	parser->model = model;
+	parser->cached = 0;
+	parser->divetime = 0;
+	parser->maxdepth = 0.0;
 
 	*out = (parser_t*) parser;
 
@@ -114,8 +122,15 @@ oceanic_atom2_parser_destroy (parser_t *abstract)
 static parser_status_t
 oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
+	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
+
 	if (! parser_is_oceanic_atom2 (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->divetime = 0;
+	parser->maxdepth = 0.0;
 
 	return PARSER_STATUS_SUCCESS;
 }
@@ -201,6 +216,76 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 				// Adjust the year.
 				datetime->year += decade - 2000;
 			}
+		}
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
+
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	unsigned int length = 11 * PAGESIZE / 2;
+	unsigned int header = 4 * PAGESIZE;
+	unsigned int footer = size - PAGESIZE;
+	if (parser->model == GEO || parser->model == DATAMASK ||
+		parser->model == GEO20 || parser->model == VEO20 ||
+		parser->model == VEO30)
+	{
+		length -= PAGESIZE;
+		header -= PAGESIZE;
+	}
+
+	if (size < length)
+		return PARSER_STATUS_ERROR;
+
+	if (!parser->cached) {
+		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
+		parser_status_t rc = oceanic_atom2_parser_samples_foreach (
+			abstract, sample_statistics_cb, &statistics);
+		if (rc != PARSER_STATUS_SUCCESS)
+			return rc;
+
+		parser->cached = 1;
+		parser->divetime = statistics.divetime;
+		parser->maxdepth = statistics.maxdepth;
+	}
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	unsigned int nitrox = 0;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = parser->divetime;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			if (parser->model == DATAMASK)
+				*((unsigned int *) value) = 1;
+			else
+				*((unsigned int *) value) = 3;
+			break;
+		case FIELD_TYPE_GASMIX:
+			if (parser->model == DATAMASK)
+				nitrox = data[header + 3];
+			else
+				nitrox = data[header + 4 + flags];
+			gasmix->helium = 0.0;
+			gasmix->oxygen = (nitrox ? nitrox / 100.0 : 0.21);
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
 		}
 	}
 

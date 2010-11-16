@@ -32,10 +32,15 @@ typedef struct oceanic_vtpro_parser_t oceanic_vtpro_parser_t;
 
 struct oceanic_vtpro_parser_t {
 	parser_t base;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int divetime;
+	double maxdepth;
 };
 
 static parser_status_t oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t oceanic_vtpro_parser_destroy (parser_t *abstract);
 
@@ -43,7 +48,7 @@ static const parser_backend_t oceanic_vtpro_parser_backend = {
 	PARSER_TYPE_OCEANIC_VTPRO,
 	oceanic_vtpro_parser_set_data, /* set_data */
 	oceanic_vtpro_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	oceanic_vtpro_parser_get_field, /* fields */
 	oceanic_vtpro_parser_samples_foreach, /* samples_foreach */
 	oceanic_vtpro_parser_destroy /* destroy */
 };
@@ -75,6 +80,11 @@ oceanic_vtpro_parser_create (parser_t **out)
 	// Initialize the base class.
 	parser_init (&parser->base, &oceanic_vtpro_parser_backend);
 
+	// Set the default values.
+	parser->cached = 0;
+	parser->divetime = 0;
+	parser->maxdepth = 0.0;
+
 	*out = (parser_t*) parser;
 
 	return PARSER_STATUS_SUCCESS;
@@ -97,8 +107,15 @@ oceanic_vtpro_parser_destroy (parser_t *abstract)
 static parser_status_t
 oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
+	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
+
 	if (! parser_is_oceanic_vtpro (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->divetime = 0;
+	parser->maxdepth = 0.0;
 
 	return PARSER_STATUS_SUCCESS;
 }
@@ -129,6 +146,61 @@ oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->hour %= 12;
 		if (p[1] & 0x80)
 			datetime->hour += 12;
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
+
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	if (size < 7 * PAGESIZE / 2)
+		return PARSER_STATUS_ERROR;
+
+	if (!parser->cached) {
+		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
+		parser_status_t rc = oceanic_vtpro_parser_samples_foreach (
+			abstract, sample_statistics_cb, &statistics);
+		if (rc != PARSER_STATUS_SUCCESS)
+			return rc;
+
+		parser->cached = 1;
+		parser->divetime = statistics.divetime;
+		parser->maxdepth = statistics.maxdepth;
+	}
+
+	unsigned int footer = size - PAGESIZE;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = parser->divetime;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = (data[footer + 0] + ((data[footer + 1] & 0x0F) << 8)) * 1;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = 1;
+			break;
+		case FIELD_TYPE_GASMIX:
+			gasmix->helium = 0.0;
+			if (data[footer + 3])
+				gasmix->oxygen = data[footer + 3] / 100.0;
+			else
+				gasmix->oxygen = 0.21;
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
