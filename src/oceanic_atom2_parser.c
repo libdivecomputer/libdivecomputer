@@ -29,6 +29,17 @@
 #include "units.h"
 #include "utils.h"
 
+#define VT3         0x4258
+#define ATOM2       0x4342
+#define GEO         0x4344
+#define DATAMASK    0x4347
+#define OC1A        0x434E
+#define VEO20       0x4359
+#define VEO30       0x435A
+#define ZENAIR      0x4442
+#define GEO20       0x4446
+#define OC1B        0x4449
+
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
 struct oceanic_atom2_parser_t {
@@ -120,31 +131,31 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 	if (datetime) {
 		switch (parser->model) {
-		case 0x434E: // OC1
-		case 0x4449: // OC1
+		case OC1A:
+		case OC1B:
 			datetime->year   = ((p[5] & 0xE0) >> 5) + ((p[7] & 0xE0) >> 2) + 2000;
 			datetime->month  = (p[3] & 0x0F);
 			datetime->day    = ((p[0] & 0x80) >> 3) + ((p[3] & 0xF0) >> 4);
 			datetime->hour   = bcd2dec (p[1] & 0x1F);
 			datetime->minute = bcd2dec (p[0] & 0x7F);
 			break;
-		case 0x4258: // VT3
-		case 0x4359: // Veo 2.0
-		case 0x4446: // Geo 2.0
+		case VT3:
+		case VEO20:
+		case GEO20:
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
 			datetime->hour   = bcd2dec (p[1] & 0x7F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
-		case 0x4442: // Tusa Zen Air
+		case ZENAIR:
 			datetime->year   = (p[3] & 0x0F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
 			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
 			datetime->hour   = bcd2dec (p[1] & 0x1F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
-		default: // Atom 2
+		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = bcd2dec (p[3] & 0x3F);
@@ -207,10 +218,10 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int size = abstract->size;
 
 	unsigned int header = 4 * PAGESIZE;
-	if (parser->model == 0x4344 || parser->model == 0x4347 ||
-		parser->model == 0x4446 || parser->model == 0x4359)
+	if (parser->model == GEO || parser->model == DATAMASK ||
+		parser->model == GEO20 || parser->model == VEO20)
 		header -= PAGESIZE;
-	else if (parser->model == 0x435A)
+	else if (parser->model == VEO30)
 		header -= PAGESIZE / 2;
 
 	if (size < header + 3 * PAGESIZE / 2)
@@ -234,7 +245,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	}
 
 	unsigned int samplesize = PAGESIZE / 2;
-	if (parser->model == 0x434E || parser->model == 0x4449)
+	if (parser->model == OC1A || parser->model == OC1B)
 		samplesize = PAGESIZE;
 
 	int complete = 1;
@@ -279,14 +290,14 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 		// Check for a tank switch sample.
 		if (data[offset + 0] == 0xAA) {
-			if (parser->model == 0x4347) {
+			if (parser->model == DATAMASK) {
 				// Tank pressure (1 psi) and number
 				tank = 0;
 				pressure = (((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF);
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
 				tank = (data[offset + 1] & 0x03) - 1;
-				if (parser->model == 0x4342)
+				if (parser->model == ATOM2)
 					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
@@ -311,15 +322,15 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			}
 		} else {
 			// Temperature (°F)
-			if (parser->model == 0x4344) {
+			if (parser->model == GEO) {
 				temperature = data[offset + 6];
-			} else if (parser->model == 0x4446 || parser->model == 0x4359 ||
-				parser->model == 0x435A || parser->model == 0x434E ||
-				parser->model == 0x4449) {
+			} else if (parser->model == GEO20 || parser->model == VEO20 ||
+				parser->model == VEO30 || parser->model == OC1A ||
+				parser->model == OC1B) {
 				temperature = data[offset + 3];
 			} else {
 				unsigned int sign;
-				if (parser->model == 0x4342)
+				if (parser->model == ATOM2)
 					sign = (data[offset + 0] & 0x80) >> 7;
 				else
 					sign = (~data[offset + 0] & 0x80) >> 7;
@@ -332,7 +343,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
 			// Tank Pressure (psi)
-			if (parser->model == 0x434E || parser->model == 0x4449)
+			if (parser->model == OC1A || parser->model == OC1B)
 				pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
 			else
 				pressure -= data[offset + 1];
@@ -342,9 +353,9 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 			// Depth (1/16 ft)
 			unsigned int depth;
-			if (parser->model == 0x4446 || parser->model == 0x4359 ||
-				parser->model == 0x435A || parser->model == 0x434E ||
-				parser->model == 0x4449)
+			if (parser->model == GEO20 || parser->model == VEO20 ||
+				parser->model == VEO30 || parser->model == OC1A ||
+				parser->model == OC1B)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
