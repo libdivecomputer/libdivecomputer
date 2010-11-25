@@ -41,6 +41,7 @@ typedef struct hw_ostc_sample_info_t {
 
 static parser_status_t hw_ostc_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t hw_ostc_parser_destroy (parser_t *abstract);
 
@@ -48,7 +49,7 @@ static const parser_backend_t hw_ostc_parser_backend = {
 	PARSER_TYPE_HW_OSTC,
 	hw_ostc_parser_set_data, /* set_data */
 	hw_ostc_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	hw_ostc_parser_get_field, /* fields */
 	hw_ostc_parser_samples_foreach, /* samples_foreach */
 	hw_ostc_parser_destroy /* destroy */
 };
@@ -124,6 +125,42 @@ hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->hour   = p[6];
 		datetime->minute = p[7];
 		datetime->second = 0;
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+static parser_status_t
+hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	// Check the profile version
+	if (size < 47 || data[2] != 0x20)
+		return PARSER_STATUS_ERROR;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = array_uint16_le (data + 10) * 60 + data[12];
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = array_uint16_le (data + 8) / 100.0;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = 6;
+			break;
+		case FIELD_TYPE_GASMIX:
+			gasmix->oxygen = data[19 + 2 * flags] / 100.0;
+			gasmix->helium = data[20 + 2 * flags] / 100.0;
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
