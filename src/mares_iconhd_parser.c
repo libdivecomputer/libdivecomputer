@@ -34,6 +34,7 @@ struct mares_iconhd_parser_t {
 
 static parser_status_t mares_iconhd_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t mares_iconhd_parser_destroy (parser_t *abstract);
 
@@ -41,7 +42,7 @@ static const parser_backend_t mares_iconhd_parser_backend = {
 	PARSER_TYPE_MARES_ICONHD,
 	mares_iconhd_parser_set_data, /* set_data */
 	mares_iconhd_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	mares_iconhd_parser_get_field, /* fields */
 	mares_iconhd_parser_samples_foreach, /* samples_foreach */
 	mares_iconhd_parser_destroy /* destroy */
 };
@@ -119,6 +120,46 @@ mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->day    = array_uint16_le (p + 4);
 		datetime->month  = array_uint16_le (p + 6) + 1;
 		datetime->year   = array_uint16_le (p + 8) + 1900;
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	if (abstract->size < 4)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int length = array_uint32_le (abstract->data);
+
+	if (abstract->size < length || length < 0x60)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data + length - 0x60;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			*((unsigned int *) value) = array_uint16_le (p + 0x06) * 5;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = array_uint16_le (p + 0x08) / 10.0;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = 3;
+			break;
+		case FIELD_TYPE_GASMIX:
+			gasmix->helium = 0.0;
+			gasmix->oxygen = p[0x18 + flags * 4] / 100.0;
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;

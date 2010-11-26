@@ -45,6 +45,7 @@ struct mares_nemo_parser_t {
 
 static parser_status_t mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t mares_nemo_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t mares_nemo_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t mares_nemo_parser_destroy (parser_t *abstract);
 
@@ -52,7 +53,7 @@ static const parser_backend_t mares_nemo_parser_backend = {
 	PARSER_TYPE_MARES_NEMO,
 	mares_nemo_parser_set_data, /* set_data */
 	mares_nemo_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	mares_nemo_parser_get_field, /* fields */
 	mares_nemo_parser_samples_foreach, /* samples_foreach */
 	mares_nemo_parser_destroy /* destroy */
 };
@@ -207,6 +208,64 @@ mares_nemo_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->hour   = p[3];
 		datetime->minute = p[4];
 		datetime->second = 0;
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+mares_nemo_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	mares_nemo_parser_t *parser = (mares_nemo_parser_t *) abstract;
+
+	if (abstract->size == 0)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *data = abstract->data;
+	const unsigned char *p = abstract->data + 2 + parser->sample_count * parser->sample_size;
+
+	if (value) {
+		if (parser->mode != parser->freedive) {
+			gasmix_t *gasmix = (gasmix_t *) value;
+			switch (type) {
+			case FIELD_TYPE_DIVETIME:
+				*((unsigned int *) value) = parser->sample_count * 20;
+				break;
+			case FIELD_TYPE_MAXDEPTH:
+				*((double *) value) = array_uint16_le (p + 53 - 10) / 10.0;
+				break;
+			case FIELD_TYPE_GASMIX_COUNT:
+				*((unsigned int *) value) = 1;
+				break;
+			case FIELD_TYPE_GASMIX:
+				gasmix->helium = 0.0;
+				gasmix->oxygen = p[53 - 43] / 100.0;
+				gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+				break;
+			default:
+				return PARSER_STATUS_UNSUPPORTED;
+			}
+		} else {
+			unsigned int divetime = 0;
+			switch (type) {
+			case FIELD_TYPE_DIVETIME:
+				for (unsigned int i = 0; i < parser->sample_count; ++i) {
+					unsigned int idx = 2 + parser->sample_size * i;
+					divetime += data[idx + 2] + data[idx + 3] * 60;
+				}
+				*((unsigned int *) value) = divetime;
+				break;
+			case FIELD_TYPE_MAXDEPTH:
+				*((double *) value) = array_uint16_le (p + 28 - 10) / 10.0;
+				break;
+			case FIELD_TYPE_GASMIX_COUNT:
+				*((unsigned int *) value) = 0;
+				break;
+			default:
+				return PARSER_STATUS_UNSUPPORTED;
+			}
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
