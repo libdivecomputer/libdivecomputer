@@ -219,10 +219,9 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 	unsigned int header = 4 * PAGESIZE;
 	if (parser->model == GEO || parser->model == DATAMASK ||
-		parser->model == GEO20 || parser->model == VEO20)
+		parser->model == GEO20 || parser->model == VEO20 ||
+		parser->model == VEO30)
 		header -= PAGESIZE;
-	else if (parser->model == VEO30)
-		header -= PAGESIZE / 2;
 
 	if (size < header + 3 * PAGESIZE / 2)
 		return PARSER_STATUS_ERROR;
