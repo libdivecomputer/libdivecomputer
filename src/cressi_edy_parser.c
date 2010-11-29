@@ -35,6 +35,7 @@ struct cressi_edy_parser_t {
 
 static parser_status_t cressi_edy_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t cressi_edy_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t cressi_edy_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
 static parser_status_t cressi_edy_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
 static parser_status_t cressi_edy_parser_destroy (parser_t *abstract);
 
@@ -42,7 +43,7 @@ static const parser_backend_t cressi_edy_parser_backend = {
 	PARSER_TYPE_CRESSI_EDY,
 	cressi_edy_parser_set_data, /* set_data */
 	cressi_edy_parser_get_datetime, /* datetime */
-	NULL, /* fields */
+	cressi_edy_parser_get_field, /* fields */
 	cressi_edy_parser_samples_foreach, /* samples_foreach */
 	cressi_edy_parser_destroy /* destroy */
 };
@@ -121,6 +122,46 @@ cressi_edy_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->hour = bcd2dec (p[14]);
 		datetime->minute = bcd2dec (p[15]);
 		datetime->second = 0;
+	}
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
+static parser_status_t
+cressi_edy_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+{
+	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) abstract;
+
+	if (abstract->size < 32)
+		return PARSER_STATUS_ERROR;
+
+	const unsigned char *p = abstract->data;
+
+	gasmix_t *gasmix = (gasmix_t *) value;
+
+	if (value) {
+		switch (type) {
+		case FIELD_TYPE_DIVETIME:
+			if (parser->model == 0x08)
+				*((unsigned int *) value) = bcd2dec (p[0x0C] & 0x0F) * 60 + bcd2dec (p[0x0D]);
+			else
+				*((unsigned int *) value) = (bcd2dec (p[0x0C] & 0x0F) * 100 + bcd2dec (p[0x0D])) * 60;
+			break;
+		case FIELD_TYPE_MAXDEPTH:
+			*((double *) value) = (bcd2dec (p[0x02] & 0x0F) * 100 + bcd2dec (p[0x03])) / 10.0;
+			break;
+		case FIELD_TYPE_GASMIX_COUNT:
+			*((unsigned int *) value) = 3;
+			break;
+		case FIELD_TYPE_GASMIX:
+			gasmix->helium = 0.0;
+			gasmix->oxygen = bcd2dec (p[0x17 - flags]) / 100.0;
+			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		default:
+			return PARSER_STATUS_UNSUPPORTED;
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
