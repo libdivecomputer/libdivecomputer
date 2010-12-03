@@ -30,6 +30,7 @@ typedef struct cressi_edy_parser_t cressi_edy_parser_t;
 
 struct cressi_edy_parser_t {
 	parser_t base;
+	unsigned int model;
 };
 
 static parser_status_t cressi_edy_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -57,7 +58,7 @@ parser_is_cressi_edy (parser_t *abstract)
 
 
 parser_status_t
-cressi_edy_parser_create (parser_t **out)
+cressi_edy_parser_create (parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -71,6 +72,9 @@ cressi_edy_parser_create (parser_t **out)
 
 	// Initialize the base class.
 	parser_init (&parser->base, &cressi_edy_parser_backend);
+
+	// Set the default values.
+	parser->model = model;
 
 	*out = (parser_t*) parser;
 
@@ -125,11 +129,17 @@ cressi_edy_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 static parser_status_t
 cressi_edy_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
+	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) abstract;
+
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
 	unsigned int time = 0;
-	unsigned int interval = 1;
+	unsigned int interval = 0;
+	if (parser->model == 0x08)
+		interval = 1;
+	else
+		interval = 30;
 
 	unsigned int offset = 32;
 	while (offset + 2 <= size) {

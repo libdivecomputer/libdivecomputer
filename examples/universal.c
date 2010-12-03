@@ -338,7 +338,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		break;
 	case DEVICE_TYPE_CRESSI_EDY:
 	case DEVICE_TYPE_ZEAGLE_N2ITION3:
-		rc = cressi_edy_parser_create (&parser);
+		rc = cressi_edy_parser_create (&parser, devdata->devinfo.model);
 		break;
 	default:
 		rc = PARSER_STATUS_ERROR;
