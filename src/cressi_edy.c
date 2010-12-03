@@ -51,6 +51,7 @@ typedef struct cressi_edy_device_t {
 	device_t base;
 	serial_t *port;
 	unsigned char fingerprint[PAGESIZE / 2];
+	unsigned int model;
 } cressi_edy_device_t;
 
 static device_status_t cressi_edy_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -138,7 +139,13 @@ cressi_edy_init2 (cressi_edy_device_t *device)
 	unsigned char command[1] = {0x44};
 	unsigned char answer[2] = {0};
 
-	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+	device_status_t rc = cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	device->model = answer[1];
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -180,6 +187,7 @@ cressi_edy_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->model = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -341,6 +349,13 @@ cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	progress.maximum = CRESSI_EDY_PACKET_SIZE +
 		(RB_PROFILE_END - RB_PROFILE_BEGIN);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Emit a device info event.
+	device_devinfo_t devinfo;
+	devinfo.model = device->model;
+	devinfo.firmware = 0;
+	devinfo.serial = 0;
+	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
 	// Read the configuration data.
 	unsigned char config[CRESSI_EDY_PACKET_SIZE] = {0};
