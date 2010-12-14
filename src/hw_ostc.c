@@ -104,8 +104,8 @@ hw_ostc_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_IO;
 	}
 
-	// Set the timeout for receiving data (INFINITE).
-	if (serial_set_timeout (device->port, -1) == -1) {
+	// Set the timeout for receiving data (3000ms).
+	if (serial_set_timeout (device->port, 3000) == -1) {
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
@@ -187,12 +187,34 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return EXITCODE (rc);
 	}
 
-	// Receive the answer.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	rc = serial_read (device->port, data, HW_OSTC_MEMORY_SIZE);
-	if (rc != HW_OSTC_MEMORY_SIZE) {
-		WARNING ("Failed to receive the answer.");
-		return EXITCODE (rc);
+
+	unsigned int nbytes = 0;
+	while (nbytes < HW_OSTC_MEMORY_SIZE) {
+		// Set the minimum packet size.
+		unsigned int len = 1024;
+
+		// Increase the packet size if more data is immediately available.
+		int available = serial_get_received (device->port);
+		if (available > len)
+			len = available;
+
+		// Limit the packet size to the total size.
+		if (nbytes + len > HW_OSTC_MEMORY_SIZE)
+			len = HW_OSTC_MEMORY_SIZE - nbytes;
+
+		// Read the packet.
+		int n = serial_read (device->port, data + nbytes, len);
+		if (n != len) {
+			WARNING ("Failed to receive the answer.");
+			return EXITCODE (n);
+		}
+
+		// Update and emit a progress event.
+		progress.current += len;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+		nbytes += len;
 	}
 
 	// Verify the header.
@@ -201,10 +223,6 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		WARNING ("Unexpected answer header.");
 		return DEVICE_STATUS_ERROR;
 	}
-
-	// Update and emit a progress event.
-	progress.current += HW_OSTC_MEMORY_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	return DEVICE_STATUS_SUCCESS;
 }
