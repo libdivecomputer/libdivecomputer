@@ -459,7 +459,7 @@ uwatec_smart_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	dc_buffer_free (buffer);
 
-	return DEVICE_STATUS_SUCCESS;
+	return rc;
 }
 
 
