@@ -183,6 +183,7 @@ reefnet_sensuspro_parser_samples_foreach (parser_t *abstract, sample_callback_t 
 				parser_sample_value_t sample = {0};
 
 				// Time (seconds)
+				time += interval;
 				sample.time = time;
 				if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
@@ -194,7 +195,6 @@ reefnet_sensuspro_parser_samples_foreach (parser_t *abstract, sample_callback_t 
 				sample.depth = (depth * FSW - parser->atmospheric) / parser->hydrostatic;
 				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
-				time += interval;
 				offset += 2;
 			}
 			break;

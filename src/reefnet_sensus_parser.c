@@ -175,6 +175,7 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 				parser_sample_value_t sample = {0};
 
 				// Time (seconds)
+				time += interval;
 				sample.time = time;
 				if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
@@ -193,7 +194,6 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 
 				// Current sample is complete.
 				nsamples++;
-				time += interval;
 
 				// The end of a dive is reached when 17 consecutive  
 				// depth samples of less than 3 feet have been found.
