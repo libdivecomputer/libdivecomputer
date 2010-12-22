@@ -29,6 +29,7 @@
 #include "units.h"
 #include "utils.h"
 
+#define EPIC        0x4257
 #define VT3         0x4258
 #define ATOM2       0x4342
 #define GEO         0x4344
@@ -329,7 +330,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				temperature = data[offset + 3];
 			} else {
 				unsigned int sign;
-				if (parser->model == ATOM2)
+				if (parser->model == ATOM2 || parser->model == EPIC)
 					sign = (data[offset + 0] & 0x80) >> 7;
 				else
 					sign = (~data[offset + 0] & 0x80) >> 7;
