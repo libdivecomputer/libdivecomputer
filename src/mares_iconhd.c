@@ -345,6 +345,8 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	while (offset >= 0x60) {
 		// Get the number of samples in the profile data.
 		unsigned int nsamples = array_uint16_le (buffer + offset - 0x5A);
+		if (nsamples == 0xFFFF)
+			break;
 
 		// Calculate the total number of bytes for this dive.
 		// If the buffer does not contain that much bytes, we reached the
@@ -361,6 +363,8 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		// equals the calculated length. If both values are different,
 		// something is wrong and an error is returned.
 		unsigned int length = array_uint32_le (buffer + offset);
+		if (length == 0)
+			break;
 		if (length != nbytes) {
 			WARNING ("Calculated and stored size are not equal.");
 			free (buffer);
