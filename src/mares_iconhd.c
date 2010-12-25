@@ -40,6 +40,9 @@
 #define BAUDRATE 230400
 #endif
 
+#define ACK 0xAA
+#define EOF 0xEA
+
 #define RB_PROFILE_BEGIN 0xA000
 #define RB_PROFILE_END   MARES_ICONHD_MEMORY_SIZE
 
@@ -72,6 +75,35 @@ device_is_mares_iconhd (device_t *abstract)
 		return 0;
 
     return abstract->backend == &mares_iconhd_device_backend;
+}
+
+
+static device_status_t
+mares_iconhd_version (mares_iconhd_device_t *device)
+{
+	// Send the command to the dive computer.
+	unsigned char command[2] = {0xC2, 0x67};
+	int n = serial_write (device->port, command, sizeof (command));
+	if (n != sizeof (command)) {
+		WARNING ("Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Receive the answer of the dive computer.
+	unsigned char answer[142] = {0};
+	n = serial_read (device->port, answer, sizeof (answer));
+	if (n != sizeof (answer)) {
+		WARNING ("Failed to receive the answer.");
+		return EXITCODE (n);
+	}
+
+	// Verify the first and last byte.
+	if (answer[0] != ACK || answer[sizeof (answer) - 1] != EOF) {
+		WARNING ("Unexpected answer byte.");
+		return DEVICE_STATUS_PROTOCOL;
+	}
+
+	return DEVICE_STATUS_SUCCESS;
 }
 
 
@@ -131,6 +163,14 @@ mares_iconhd_device_open (device_t **out, const char* name)
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+
+	// Send the version command.
+	device_status_t status = mares_iconhd_version (device);
+	if (status != DEVICE_STATUS_SUCCESS) {
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	*out = (device_t *) device;
 
@@ -193,6 +233,12 @@ mares_iconhd_init (mares_iconhd_device_t *device)
 	if (n != sizeof (answer)) {
 		WARNING ("Failed to receive the answer.");
 		return EXITCODE (n);
+	}
+
+	// Verify the first byte.
+	if (answer[0] != ACK) {
+		WARNING ("Unexpected answer byte.");
+		return DEVICE_STATUS_PROTOCOL;
 	}
 
 	return DEVICE_STATUS_SUCCESS;
@@ -268,7 +314,7 @@ mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Verify the last byte.
-	if (answer[0] != 0xEA) {
+	if (answer[0] != EOF) {
 		WARNING ("Unexpected answer byte.");
 		return DEVICE_STATUS_PROTOCOL;
 	}
