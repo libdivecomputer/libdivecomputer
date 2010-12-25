@@ -319,7 +319,13 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		return DEVICE_STATUS_ERROR;
 
 	// Get the end of the profile ring buffer.
-	unsigned int eop = array_uint32_le (data + 0x2001);
+	unsigned int eop = 0;
+	const unsigned int config[] = {0x2001, 0x3001};
+	for (unsigned int i = 0; i < sizeof (config) / sizeof (*config); ++i) {
+		eop = array_uint32_le (data + config[i]);
+		if (eop != 0xFFFFFFFF)
+			break;
+	}
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
 		WARNING ("Ringbuffer pointer out of range.");
 		return DEVICE_STATUS_ERROR;
