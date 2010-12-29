@@ -288,6 +288,10 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// Error status for delayed errors.
 	device_status_t status = DEVICE_STATUS_SUCCESS;
 
+	// Keep track of the previous dive.
+	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
+	unsigned int previous = 0;
+
 	// The logbook ringbuffer is read backwards to retrieve the most recent
 	// entries first. If an already downloaded entry is identified (by means
 	// of its fingerprint), the transfer is aborted immediately to reduce
@@ -385,6 +389,31 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 				break;
 			}
 
+			// Get the profile pointers.
+			unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, PAGESIZE, layout);
+			unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
+
+			// Make sure the profiles are continuous.
+			if (previous && rb_entry_end != previous) {
+				WARNING ("Profiles are not continuous.");
+				status = DEVICE_STATUS_ERROR;
+				begin = current + PAGESIZE / 2;
+				abort = 1;
+				break;
+			}
+
+			// Make sure the profile size is valid.
+			if (rb_entry_size > remaining) {
+				WARNING ("Unexpected profile size.");
+				status = DEVICE_STATUS_ERROR;
+				begin = current + PAGESIZE / 2;
+				abort = 1;
+				break;
+			}
+
+			remaining -= rb_entry_size;
+			previous = rb_entry_first;
+
 			// Compare the fingerprint to identify previously downloaded entries.
 			if (memcmp (logbooks + current, device->fingerprint, PAGESIZE / 2) == 0) {
 				begin = current + PAGESIZE / 2;
@@ -425,11 +454,11 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// When using multipage reads, the last packet can contain data from more
 	// than one dive. Therefore, the remaining data of this package (and its
 	// size) needs to be preserved for the next dive.
-	unsigned int remaining = rb_profile_size;
 	unsigned int available = 0;
 
 	// Keep track of the previous dive.
-	unsigned int previous = rb_profile_end;
+	remaining = rb_profile_size;
+	previous = rb_profile_end;
 
 	// Traverse the logbook ringbuffer backwards to retrieve the most recent
 	// dives first. The logbook ringbuffer is linearized at this point, so
@@ -445,24 +474,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		// Get the profile pointers.
 		unsigned int rb_entry_first = get_profile_first (logbooks + current, layout);
 		unsigned int rb_entry_last  = get_profile_last (logbooks + current, layout);
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, PAGESIZE, layout);
 		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
-
-		// Make sure the profiles are continuous.
-		if (rb_entry_end != previous) {
-			WARNING ("Profiles are not continuous.");
-			free (logbooks);
-			free (profiles);
-			return DEVICE_STATUS_ERROR;
-		}
-
-		// Make sure the profile size is valid.
-		if (rb_entry_size > remaining) {
-			WARNING ("Unexpected profile size.");
-			free (logbooks);
-			free (profiles);
-			return DEVICE_STATUS_ERROR;
-		}
 
 		// Read the profile data.
 		unsigned int nbytes = available;
