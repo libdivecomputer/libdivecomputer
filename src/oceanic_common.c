@@ -405,7 +405,6 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			// Make sure the profile size is valid.
 			if (rb_entry_size > remaining) {
 				WARNING ("Unexpected profile size.");
-				status = DEVICE_STATUS_ERROR;
 				begin = current + PAGESIZE / 2;
 				abort = 1;
 				break;
