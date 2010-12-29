@@ -365,6 +365,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			// This appears to happen on some devices, and we attempt to
 			// fix this here.
 			if (array_isequal (logbooks + current, PAGESIZE / 2, 0xFF)) {
+				WARNING("Uninitialized logbook entries detected!");
 				begin = current + PAGESIZE / 2;
 				abort = 1;
 				break;
