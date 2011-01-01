@@ -91,6 +91,19 @@ serial_open (serial_t **out, const char* name)
 	if (out == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
+	// Build the device name.
+	const char *devname = NULL;
+	char buffer[MAX_PATH] = "\\\\.\\";
+	if (name && strncmp (name, buffer, 4) != 0) {
+		size_t length = strlen (name) + 1;
+		if (length + 4 > sizeof (buffer))
+			return -1;
+		memcpy (buffer + 4, name, length);
+		devname = buffer;
+	} else {
+		devname = name;
+	}
+
 	// Allocate memory.
 	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
 	if (device == NULL) {
@@ -99,7 +112,7 @@ serial_open (serial_t **out, const char* name)
 	}
 
 	// Open the device.
-	device->hFile = CreateFileA (name, 
+	device->hFile = CreateFileA (devname,
 			GENERIC_READ | GENERIC_WRITE, 0,
 			NULL, // No security attributes.
 			OPEN_EXISTING,
