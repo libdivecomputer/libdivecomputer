@@ -29,6 +29,7 @@
 #include "units.h"
 #include "utils.h"
 
+#define ATOM1       0x4250
 #define EPIC        0x4257
 #define VT3         0x4258
 #define ATOM2       0x4342
@@ -223,6 +224,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		parser->model == GEO20 || parser->model == VEO20 ||
 		parser->model == VEO30)
 		header -= PAGESIZE;
+	else if (parser->model == ATOM1)
+		header -= 2 * PAGESIZE;
 
 	if (size < header + 3 * PAGESIZE / 2)
 		return PARSER_STATUS_ERROR;
@@ -322,7 +325,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			}
 		} else {
 			// Temperature (°F)
-			if (parser->model == GEO) {
+			if (parser->model == GEO || parser->model == ATOM1) {
 				temperature = data[offset + 6];
 			} else if (parser->model == GEO20 || parser->model == VEO20 ||
 				parser->model == VEO30 || parser->model == OC1A ||
@@ -357,6 +360,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				parser->model == VEO30 || parser->model == OC1A ||
 				parser->model == OC1B)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
+			else if (parser->model == ATOM1)
+				depth = data[offset + 3] * 16;
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;

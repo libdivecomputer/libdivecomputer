@@ -65,6 +65,7 @@ static const device_backend_t oceanic_atom2_device_backend = {
 
 static const unsigned char oceanic_proplus2_version[] = "PROPLUS2 \0\0 512K";
 static const unsigned char oceanic_wisdom2_version[] = "WISDOM R\0\0  512K";
+static const unsigned char oceanic_atom1_version[] = "ATOM rev\0\0  256K";
 static const unsigned char oceanic_atom2_version[] = "2M ATOM r\0\0 512K";
 static const unsigned char oceanic_epic_version[]  = "2M EPIC r\0\0 512K";
 static const unsigned char oceanic_geo2_version[]  = "OCEGEO20 \0\0 512K";
@@ -79,6 +80,18 @@ static const oceanic_common_layout_t oceanic_default_layout = {
 	0x0A40, /* rb_logbook_end */
 	0x0A40, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	0 /* pt_mode_logbook */
+};
+
+static const oceanic_common_layout_t oceanic_atom1_layout = {
+	0x8000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0240, /* rb_logbook_begin */
+	0x0A40, /* rb_logbook_end */
+	0x0A40, /* rb_profile_begin */
+	0x8000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	0 /* pt_mode_logbook */
 };
@@ -317,6 +330,8 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		oceanic_common_match (oceanic_proplus2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_wisdom2_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom2_layout;
+	else if (oceanic_common_match (oceanic_atom1_version, device->version, sizeof (device->version)))
+		device->base.layout = &oceanic_atom1_layout;
 	else
 		device->base.layout = &oceanic_default_layout;
 
