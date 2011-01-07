@@ -21,7 +21,6 @@
 
 #include <stdlib.h> // malloc, free
 #include <memory.h> // memcpy
-#include <assert.h> // assert
 
 #include "device-private.h"
 #include "uwatec_aladin.h"

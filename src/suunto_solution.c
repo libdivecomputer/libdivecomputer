@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "device-private.h"
 #include "suunto_solution.h"
@@ -296,8 +295,12 @@ suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], u
 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = data[0x18];
-	assert (eop >= RB_PROFILE_BEGIN && eop < RB_PROFILE_END);
-	assert (data[eop] == 0x82);
+	if (eop < RB_PROFILE_BEGIN ||
+		eop >= RB_PROFILE_END ||
+		data[eop] != 0x82)
+	{
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// The profile data is stored backwards in the ringbuffer. To locate
 	// the most recent dive, we start from the end of profile marker and
@@ -334,7 +337,8 @@ suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], u
 		}
 	}
 
-	assert (data[current] == 0x82);
+	if (data[current] != 0x82)
+		return DEVICE_STATUS_ERROR;
 
 	return DEVICE_STATUS_SUCCESS;
 }

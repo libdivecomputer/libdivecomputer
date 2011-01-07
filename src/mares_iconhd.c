@@ -21,7 +21,6 @@
 
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "device-private.h"
 #include "mares_iconhd.h"

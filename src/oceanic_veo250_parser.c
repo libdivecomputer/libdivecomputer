@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "oceanic_veo250.h"
 #include "oceanic_common.h"

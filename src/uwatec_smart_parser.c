@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>	// memcmp
-#include <assert.h>
 
 #include "uwatec_smart.h"
 #include "parser-private.h"
@@ -148,8 +147,6 @@ uwatec_smart_identify (const unsigned char data[], unsigned int size)
 		}
 	}
 
-	assert (0);
-
 	return (unsigned int) -1;
 }
 
@@ -177,7 +174,8 @@ uwatec_galileo_identify (unsigned char value)
 static unsigned int
 uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
 {
-	assert (n > 0);
+	if (n <= 0 || n > 32)
+		return 0;
 
 	unsigned int signbit = (1 << (n - 1));
 	unsigned int mask = (0xFFFFFFFF << n);
@@ -384,7 +382,10 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			// Uwatec Smart
 			id = uwatec_smart_identify (data + offset, size - offset);
 		}
-		assert (id < entries);
+		if (id >= entries) {
+			WARNING ("Invalid type bits.");
+			return PARSER_STATUS_ERROR;
+		}
 
 		// Skip the processed type bytes.
 		offset += table[id].ntypebits / NBITS;
@@ -405,8 +406,13 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			offset++;
 		}
 
+		// Check for buffer overflows.
+		if (offset + table[id].extrabytes > size) {
+			WARNING ("Incomplete sample data.");
+			return PARSER_STATUS_ERROR;
+		}
+
 		// Process the extra data bytes.
-		assert (offset + table[id].extrabytes <= size);
 		for (unsigned int i = 0; i < table[id].extrabytes; ++i) {
 			nbits += NBITS;
 			value <<= NBITS;
@@ -535,8 +541,6 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			complete--;
 		}
 	}
-
-	assert (offset == size);
 
 	return PARSER_STATUS_SUCCESS;
 }

@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "hw_ostc.h"
 #include "parser-private.h"
@@ -151,6 +150,15 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 	for (unsigned int i = 0; i < NINFO; ++i) {
 		info[i].divisor = (data[37 + i] & 0x0F);
 		info[i].size    = (data[37 + i] & 0xF0) >> 4;
+		switch (i) {
+		case 0: // Temperature
+		case 2: // Tank pressure
+			if (info[i].size != 2)
+				return PARSER_STATUS_ERROR;
+			break;
+		default: // Not yet used.
+			break;
+		}
 	}
 
 	unsigned int time = 0;
@@ -217,7 +225,6 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 				unsigned int value = 0;
 				switch (i) {
 				case 0: // Temperature (0.1 °C).
-					assert (info[i].size == 2);
 					value = array_uint16_le (data + offset);
 					sample.temperature = value / 10.0;
 					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
@@ -225,7 +232,6 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 				case 1: // Deco/NDL Status
 					break;
 				case 2: // Tank pressure
-					assert (info[i].size == 2);
 					value = array_uint16_le (data + offset);
 					sample.pressure.tank = 0;
 					sample.pressure.value = value;
@@ -242,7 +248,8 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 		}
 	}
 
-	assert (data[offset] == 0xFD && data[offset + 1] == 0xFD);
+	if (data[offset] != 0xFD || data[offset + 1] != 0xFD)
+		return PARSER_STATUS_ERROR;
 
 	return PARSER_STATUS_SUCCESS;
 }

@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "mares_nemo.h"
 #include "parser-private.h"
@@ -332,7 +331,9 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 						break;
 
 					count++;
-					assert (count <= n);
+
+					if (count > n)
+						break;
 
 					// Time (seconds).
 					time += interval;
@@ -350,8 +351,10 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 				// equals the predicted number of samples (from the divetime
 				// in the summary entry). If both values are different, the
 				// the profile data is probably incorrect.
-				assert (count == n);
-
+				if (count != n) {
+					WARNING ("Unexpected number of samples.");
+					return PARSER_STATUS_ERROR;
+				}
 			} else {
 				// Dive Time (seconds).
 				time += divetime;
@@ -363,7 +366,6 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 			}
 		}
-		assert (offset == size);
 	}
 
 	return PARSER_STATUS_SUCCESS;

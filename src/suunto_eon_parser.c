@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "suunto_eon.h"
 #include "parser-private.h"

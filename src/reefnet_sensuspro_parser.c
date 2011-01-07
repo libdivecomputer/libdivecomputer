@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>	// memcmp
-#include <assert.h>
 
 #include "reefnet_sensuspro.h"
 #include "parser-private.h"
@@ -167,7 +166,8 @@ reefnet_sensuspro_parser_samples_foreach (parser_t *abstract, sample_callback_t 
 	unsigned int offset = 0;
 	while (offset + sizeof (header) <= size) {
 		if (memcmp (data + offset, header, sizeof (header)) == 0) {
-			assert (offset + 10 <= size);
+			if (offset + 10 > size)
+				return PARSER_STATUS_ERROR;
 
 			unsigned int time = 0;
 			unsigned int interval = array_uint16_le (data + offset + 4);	

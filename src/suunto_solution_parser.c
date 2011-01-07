@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "suunto_solution.h"
 #include "parser-private.h"
@@ -131,7 +130,8 @@ suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t ca
 				// A value of 0x7D (125) or 0x83 (-125) indicates a descent
 				// or ascent greater than 124 feet. The remaining part of
 				// the total delta value is stored in the next byte.
-				assert (offset < size);
+				if (offset + 1 > size)
+					return PARSER_STATUS_ERROR;
 				depth += (signed char) data[offset++];
 			}
 			sample.depth = depth * FEET;
@@ -160,7 +160,8 @@ suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t ca
 		}
 	}
 
-	assert (data[offset] == 0x80);
+	if (data[offset] != 0x80)
+		return PARSER_STATUS_ERROR;
 
 	return PARSER_STATUS_SUCCESS;
 }

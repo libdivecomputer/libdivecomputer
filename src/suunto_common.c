@@ -138,7 +138,8 @@ suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common
 
 	free (buffer);
 
-	assert (data[current] == 0x82);
+	if (data[current] != 0x82)
+		return DEVICE_STATUS_ERROR;
 
 	return DEVICE_STATUS_SUCCESS;
 }

@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "suunto_vyper.h"
 #include "parser-private.h"
@@ -231,7 +230,8 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 				sample.event.type = SAMPLE_EVENT_SAFETYSTOP;
 				break;
 			case 0x87: // Gas Change
-				assert (offset < size);
+				if (offset + 1 > size)
+					return PARSER_STATUS_ERROR;
 				sample.event.type = SAMPLE_EVENT_GASCHANGE;
 				sample.event.value = data[offset++];
 				break;

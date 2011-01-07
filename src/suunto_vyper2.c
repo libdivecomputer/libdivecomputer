@@ -21,7 +21,6 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "suunto_common2.h"
 #include "suunto_vyper2.h"

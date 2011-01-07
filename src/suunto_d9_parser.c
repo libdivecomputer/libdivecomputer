@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>	// memcmp
-#include <assert.h>
 
 #include "suunto_d9.h"
 #include "parser-private.h"
@@ -153,7 +152,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		config += 1; // D4
 	if (parser->model == 0x15)
 		config += 74; // HelO2
-	assert (config + 1 <= size);
+	if (config + 1 > size)
+		return PARSER_STATUS_ERROR;
 
 	// Number of parameters in the configuration data.
 	unsigned int nparams = data[config];
@@ -162,18 +162,21 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	unsigned int profile = config + 2 + nparams * 3;
 	if (parser->model == 0x15)
 		profile += 12; // HelO2
-	assert (profile + 5 <= size);
+	if (profile + 5 > size)
+		return PARSER_STATUS_ERROR;
 
 	// Sample recording interval.
 	unsigned int interval_sample_offset = 0x1C - SKIP;
 	if (parser->model == 0x15)
 		interval_sample_offset += 6; // HelO2
 	unsigned int interval_sample = data[interval_sample_offset];
-	assert (interval_sample > 0);
+	if (interval_sample == 0)
+		return PARSER_STATUS_ERROR;
 
 	// Temperature recording interval.
 	unsigned int interval_temperature = data[config + 2 + (nparams - 1) * 3 + 1];
-	assert (interval_temperature > 0);
+	if (interval_temperature == 0)
+		return PARSER_STATUS_ERROR;
 
 	// Offset to the first marker position.
 	unsigned int marker = array_uint16_le (data + profile + 3);
@@ -196,7 +199,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 		// Tank pressure (1/100 bar).
 		if (nparams == 3) {
-			assert (offset + 2 <= size);
+			if (offset + 2 > size)
+				return PARSER_STATUS_ERROR;
 			unsigned int pressure = array_uint16_le (data + offset);
 			if (pressure != 0xFFFF) {
 				sample.pressure.tank = 0;
@@ -208,7 +212,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 		// Temperature (degrees celcius).
 		if (nsamples % interval_temperature == 0) {
-			assert (offset + 1 <= size);
+			if (offset + 1 > size)
+				return PARSER_STATUS_ERROR;
 			sample.temperature = (signed char) data[offset];
 			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			offset += 1;
@@ -226,15 +231,18 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 				sample.event.value = 0;
 				switch (event) {
 				case 0x01: // Next Event Marker
-					assert (offset + 4 <= size);
+					if (offset + 4 > size)
+						return PARSER_STATUS_ERROR;
 					current = array_uint16_le (data + offset + 0);
 					next    = array_uint16_le (data + offset + 2);
-					assert (marker == current);
+					if (marker != current)
+						return PARSER_STATUS_ERROR;
 					marker += next;
 					offset += 4;
 					break;
 				case 0x02: // Surfaced
-					assert (offset + 2 <= size);
+					if (offset + 2 > size)
+						return PARSER_STATUS_ERROR;
 					unknown = data[offset + 0];
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_SURFACE;
@@ -243,7 +251,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					offset += 2;
 					break;
 				case 0x03: // Event
-					assert (offset + 2 <= size);
+					if (offset + 2 > size)
+						return PARSER_STATUS_ERROR;
 					type    = data[offset + 0];
 					seconds = data[offset + 1];
 					switch (type & 0x7F) {
@@ -321,7 +330,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					offset += 2;
 					break;
 				case 0x04: // Bookmark/Heading
-					assert (offset + 4 <= size);
+					if (offset + 4 > size)
+						return PARSER_STATUS_ERROR;
 					unknown = data[offset + 0];
 					seconds = data[offset + 1];
 					heading = array_uint16_le (data + offset + 2);
@@ -337,7 +347,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					offset += 4;
 					break;
 				case 0x05: // Gas Change
-					assert (offset + 2 <= size);
+					if (offset + 2 > size)
+						return PARSER_STATUS_ERROR;
 					percentage = data[offset + 0];
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
@@ -347,7 +358,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
-					assert (offset + 4 <= size);
+					if (offset + 4 > size)
+						return PARSER_STATUS_ERROR;
 					unknown = data[offset + 0];
 					unknown = data[offset + 1];
 					percentage = data[offset + 2];

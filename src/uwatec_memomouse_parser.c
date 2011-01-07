@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "uwatec_memomouse.h"
 #include "parser-private.h"
@@ -210,13 +209,15 @@ uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t c
 			sample.vendor.data = data + offset;
 			
 			// Decompression information.
-			assert (offset + 1 <= size);
+			if (offset + 1 > size)
+				return PARSER_STATUS_ERROR;
 			sample.vendor.size++;
 			offset++;
 
 			// Oxygen percentage (O2 series only).
 			if (is_oxygen) {
-				assert (offset + 1 <= size);
+				if (offset + 1 > size)
+					return PARSER_STATUS_ERROR;
 				sample.vendor.size++;
 				offset++;
 			}

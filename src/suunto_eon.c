@@ -21,7 +21,6 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "device-private.h"
 #include "suunto_eon.h"

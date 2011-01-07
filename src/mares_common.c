@@ -191,7 +191,11 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 			// Verify that the number of freedive entries in the session
 			// equals the number of freedives in the profile data. If
 			// both values are different, the profile data is incomplete.
-			assert (count == nsamples);
+			if (count != nsamples) {
+				WARNING ("Unexpected number of freedive sessions.");
+				free (buffer);
+				return DEVICE_STATUS_ERROR;
+			}
 
 			// Append the profile data to the main logbook entry. The
 			// buffer is guaranteed to have enough space, and the dives

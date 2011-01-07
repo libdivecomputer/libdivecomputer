@@ -21,7 +21,6 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "device-private.h"
 #include "reefnet_sensus.h"
@@ -412,7 +411,8 @@ reefnet_sensus_extract_dives (device_t *abstract, const unsigned char data[], un
 
 				// Temperature (degrees Fahrenheit)
 				if ((nsamples % 6) == 0) {
-					assert (offset + 1 <= previous);
+					if (offset + 1 > previous)
+						break;
 					offset++;
 				}
 

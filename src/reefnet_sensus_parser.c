@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>	// malloc, free
-#include <assert.h>	// assert
 
 #include "reefnet_sensus.h"
 #include "parser-private.h"
@@ -186,7 +185,8 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 
 				// Temperature (degrees Fahrenheit)
 				if ((nsamples % 6) == 0) {
-					assert (offset + 1 <= size);
+					if (offset + 1 > size)
+						return PARSER_STATUS_ERROR;
 					unsigned int temperature = data[offset++];
 					sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);

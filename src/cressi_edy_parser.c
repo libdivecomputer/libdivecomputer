@@ -20,7 +20,6 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include "cressi_edy.h"
 #include "parser-private.h"
