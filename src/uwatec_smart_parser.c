@@ -155,58 +155,22 @@ uwatec_smart_identify (const unsigned char data[], unsigned int size)
 
 
 static unsigned int
-uwatec_galileo_identify (const unsigned char data[], unsigned int size)
+uwatec_galileo_identify (unsigned char value)
 {
-	assert (size > 0);
-
-	unsigned char value = data[0];
-
-	if ((value & 0x80) == 0) // Delta Depth
+	// Bits: 0ddd dddd
+	if ((value & 0x80) == 0)
 		return 0;
 
-	if ((value & 0xE0) == 0x80) // Delta RBT
+	// Bits: 100d dddd
+	if ((value & 0xE0) == 0x80)
 		return 1;
 
-	switch (value & 0xF0) {
-	case 0xA0: // Delta Tank Pressure
-		return 2;
-	case 0xB0: // Delta Temperature
-		return 3;
-	case 0xC0: // Time
-		return 4;
-	case 0xD0: // Delta Heart Rate
-		return 5;
-	case 0xE0: // Alarms
-		return 6;
-	case 0xF0:
-		switch (value & 0xFF) {
-		case 0xF0: // More Alarms
-			return 7;
-		case 0xF1: // Absolute Depth
-			return 8;
-		case 0xF2: // Absolute RBT
-			return 9;
-		case 0xF3: // Absolute Temperature
-			return 10;
-		case 0xF4: // Absolute Pressure T1
-			return 11;
-		case 0xF5: // Absolute Pressure T2
-			return 12;
-		case 0xF6: // Absolute Pressure T3
-			return 13;
-		case 0xF7: // Absolute Heart Rate
-			return 14;
-		case 0xF8: // Compass Bearing
-			return 15;
-		case 0xF9: // Even More Alarms
-			return 16;
-		}
-		break;
-	}
+	// Bits: 1XXX dddd
+	if ((value & 0xF0) != 0xF0)
+		return (value & 0x70) >> 8;
 
-	assert (0);
-
-	return (unsigned int) -1;
+	// Bits: 1111 XXXX
+	return (value & 0x0F) + 7;
 }
 
 
@@ -415,7 +379,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		unsigned int id = 0;
 		if (parser->model == 0x11) {
 			// Uwatec Galileo
-			id = uwatec_galileo_identify (data + offset, size - offset);
+			id = uwatec_galileo_identify (data[offset]);
 		} else {
 			// Uwatec Smart
 			id = uwatec_smart_identify (data + offset, size - offset);
