@@ -372,6 +372,62 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		dt.year, dt.month, dt.day,
 		dt.hour, dt.minute, dt.second);
 
+	// Parse the divetime.
+	message ("Parsing the divetime.\n");
+	unsigned int divetime = 0;
+	rc = parser_get_field (parser, FIELD_TYPE_DIVETIME, 0, &divetime);
+	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the divetime.");
+		parser_destroy (parser);
+		return rc;
+	}
+
+	fprintf (fp, "<divetime>%02u:%02u</divetime>\n",
+		divetime / 60, divetime % 60);
+
+	// Parse the maxdepth.
+	message ("Parsing the maxdepth.\n");
+	double maxdepth = 0.0;
+	rc = parser_get_field (parser, FIELD_TYPE_MAXDEPTH, 0, &maxdepth);
+	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the maxdepth.");
+		parser_destroy (parser);
+		return rc;
+	}
+
+	fprintf (fp, "<maxdepth>%.2f</maxdepth>\n",
+		maxdepth);
+
+	// Parse the gas mixes.
+	message ("Parsing the gas mixes.\n");
+	unsigned int ngases = 0;
+	rc = parser_get_field (parser, FIELD_TYPE_GASMIX_COUNT, 0, &ngases);
+	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the gas mix count.");
+		parser_destroy (parser);
+		return rc;
+	}
+
+	for (unsigned int i = 0; i < ngases; ++i) {
+		gasmix_t gasmix = {0};
+		rc = parser_get_field (parser, FIELD_TYPE_GASMIX, i, &gasmix);
+		if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+			WARNING ("Error parsing the gas mix.");
+			parser_destroy (parser);
+			return rc;
+		}
+
+		fprintf (fp,
+			"<gasmix>\n"
+			"   <he>%.1f</he>\n"
+			"   <o2>%.1f</o2>\n"
+			"   <n2>%.1f</n2>\n"
+			"</gasmix>\n",
+			gasmix.helium * 100.0,
+			gasmix.oxygen * 100.0,
+			gasmix.nitrogen * 100.0);
+	}
+
 	// Initialize the sample data.
 	sample_data_t sampledata = {0};
 	sampledata.nsamples = 0;
