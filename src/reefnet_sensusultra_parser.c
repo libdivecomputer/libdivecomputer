@@ -180,6 +180,7 @@ reefnet_sensusultra_parser_get_field (parser_t *abstract, parser_field_type_t ty
 		unsigned int size = abstract->size;
 
 		unsigned int interval = array_uint16_le (data + 8);
+		unsigned int threshold = array_uint16_le (data + 10);
 
 		unsigned int maxdepth = 0;
 		unsigned int nsamples = 0;
@@ -188,10 +189,11 @@ reefnet_sensusultra_parser_get_field (parser_t *abstract, parser_field_type_t ty
 			memcmp (data + offset, footer, sizeof (footer)) != 0)
 		{
 			unsigned int depth = array_uint16_le (data + offset + 2);
-			if (depth > maxdepth)
-				maxdepth = depth;
-
-			nsamples++;
+			if (depth >= threshold) {
+				if (depth > maxdepth)
+					maxdepth = depth;
+				nsamples++;
+			}
 
 			offset += 4;
 		}
