@@ -129,7 +129,6 @@ zeagle_n2ition3_init (zeagle_n2ition3_device_t *device)
 {
 	unsigned char answer[6 + 13] = {0};
 	unsigned char command[6] = {0x02, 0x01, 0x00, 0x41, 0xBF, 0x03};
-	command[11] = ~checksum_add_uint8 (command + 3, 8, 0x00) + 1;
 
 	return zeagle_n2ition3_packet (device, command, sizeof (command), answer, sizeof (answer));
 }
