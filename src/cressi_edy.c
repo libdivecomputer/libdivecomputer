@@ -372,12 +372,21 @@ cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	// Get the logbook pointers.
 	unsigned int last  = config[0x7C];
 	unsigned int first = config[0x7D];
+	if (first < RB_LOGBOOK_BEGIN || first >= RB_LOGBOOK_END ||
+		last < RB_LOGBOOK_BEGIN || last >= RB_LOGBOOK_END) {
+		WARNING ("Invalid ringbuffer pointer detected.");
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// Get the number of logbook items.
 	unsigned int count = ringbuffer_distance (first, last, 0, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END) + 1;
 
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_le (config + 0x7E) * PAGESIZE + BASE;
+	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
+		WARNING ("Invalid ringbuffer pointer detected.");
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// Memory buffer for the profile data.
 	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
@@ -392,6 +401,10 @@ cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx) * PAGESIZE + BASE;
+		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
+			WARNING ("Invalid ringbuffer pointer detected.");
+			return DEVICE_STATUS_ERROR;
+		}
 
 		// Position the pointer at the start of the header.
 		if (current == RB_PROFILE_BEGIN)
