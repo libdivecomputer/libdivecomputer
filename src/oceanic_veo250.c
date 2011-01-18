@@ -179,6 +179,8 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 	n = serial_read (device->port, answer, sizeof (answer));
 	if (n != sizeof (answer)) {
 		WARNING ("Failed to receive the answer.");
+		if (n == 0)
+			return DEVICE_STATUS_SUCCESS;
 		return EXITCODE (n);
 	}
 
