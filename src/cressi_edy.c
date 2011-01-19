@@ -374,6 +374,8 @@ cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	unsigned int first = config[0x7D];
 	if (first < RB_LOGBOOK_BEGIN || first >= RB_LOGBOOK_END ||
 		last < RB_LOGBOOK_BEGIN || last >= RB_LOGBOOK_END) {
+		if (last == 0xFF)
+			return DEVICE_STATUS_SUCCESS;
 		WARNING ("Invalid ringbuffer pointer detected.");
 		return DEVICE_STATUS_ERROR;
 	}
