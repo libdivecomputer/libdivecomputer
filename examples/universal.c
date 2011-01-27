@@ -42,6 +42,7 @@
 #include <hw.h>
 #include <cressi.h>
 #include <zeagle.h>
+#include <atomics.h>
 #include <utils.h>
 
 static const char *g_cachedir = NULL;
@@ -90,7 +91,8 @@ static const backend_table_t g_backends[] = {
 	{"iconhd",		DEVICE_TYPE_MARES_ICONHD},
 	{"ostc",		DEVICE_TYPE_HW_OSTC},
 	{"edy",			DEVICE_TYPE_CRESSI_EDY},
-	{"n2ition3",	DEVICE_TYPE_ZEAGLE_N2ITION3}
+	{"n2ition3",	DEVICE_TYPE_ZEAGLE_N2ITION3},
+	{"cobalt",		DEVICE_TYPE_ATOMICS_COBALT}
 };
 
 static device_type_t
@@ -339,6 +341,9 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	case DEVICE_TYPE_CRESSI_EDY:
 	case DEVICE_TYPE_ZEAGLE_N2ITION3:
 		rc = cressi_edy_parser_create (&parser, devdata->devinfo.model);
+		break;
+	case DEVICE_TYPE_ATOMICS_COBALT:
+		rc = atomics_cobalt_parser_create (&parser);
 		break;
 	default:
 		rc = PARSER_STATUS_ERROR;
@@ -661,6 +666,9 @@ dowork (device_type_t backend, const char *devname, const char *rawfile, const c
 		break;
 	case DEVICE_TYPE_ZEAGLE_N2ITION3:
 		rc = zeagle_n2ition3_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_ATOMICS_COBALT:
+		rc = atomics_cobalt_device_open (&device);
 		break;
 	default:
 		rc = DEVICE_STATUS_ERROR;

@@ -42,6 +42,7 @@ oceanic_veo250_parser_create
 oceanic_atom2_parser_create
 hw_ostc_parser_create
 cressi_edy_parser_create
+atomics_cobalt_parser_create
 
 device_close
 device_dump
@@ -114,3 +115,4 @@ uwatec_smart_extract_dives
 hw_ostc_device_open
 hw_ostc_extract_dives
 zeagle_n2ition3_device_open
+atomics_cobalt_device_open
