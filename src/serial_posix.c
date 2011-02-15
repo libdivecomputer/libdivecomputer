@@ -103,6 +103,14 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 		return -1; // Error during open call.
 	}
 
+	// Enable exclusive access mode.
+	if (ioctl (device->fd, TIOCEXCL, NULL) != 0) {
+		SYSERROR (context, errno);
+		close (device->fd);
+		free (device);
+		return -1;
+	}
+
 	// Retrieve the current terminal attributes, to 
 	// be able to restore them when closing the device.
 	// It is also used to check if the obtained
