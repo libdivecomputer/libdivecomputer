@@ -33,7 +33,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #define SZ_DISPLAY    15
@@ -63,10 +63,10 @@ typedef struct hw_frog_device_t {
 	unsigned char fingerprint[5];
 } hw_frog_device_t;
 
-static device_status_t hw_frog_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t hw_frog_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static device_status_t hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t hw_frog_device_close (device_t *abstract);
+static dc_status_t hw_frog_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t hw_frog_device_version (device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t hw_frog_device_close (device_t *abstract);
 
 static const device_backend_t hw_frog_device_backend = {
 	DEVICE_TYPE_HW_FROG,
@@ -90,7 +90,7 @@ device_is_hw_frog (device_t *abstract)
 }
 
 
-static device_status_t
+static dc_status_t
 hw_frog_transfer (hw_frog_device_t *device,
                   device_progress_t *progress,
                   unsigned char cmd,
@@ -119,7 +119,7 @@ hw_frog_transfer (hw_frog_device_t *device,
 		// Verify the echo.
 		if (memcmp (answer, command, sizeof (command)) != 0) {
 			WARNING ("Unexpected echo.");
-			return DEVICE_STATUS_ERROR;
+			return DC_STATUS_PROTOCOL;
 		}
 	}
 
@@ -176,25 +176,25 @@ hw_frog_transfer (hw_frog_device_t *device,
 		// Verify the ready byte.
 		if (answer[0] != READY) {
 			WARNING ("Unexpected ready byte.");
-			return DEVICE_STATUS_ERROR;
+			return DC_STATUS_PROTOCOL;
 		}
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 hw_frog_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	hw_frog_device_t *device = (hw_frog_device_t *) malloc (sizeof (hw_frog_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -209,7 +209,7 @@ hw_frog_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
@@ -218,7 +218,7 @@ hw_frog_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000ms).
@@ -226,7 +226,7 @@ hw_frog_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Make sure everything is in a sane state.
@@ -234,8 +234,8 @@ hw_frog_device_open (device_t **out, const char* name)
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Send the init command.
-	device_status_t status = hw_frog_transfer (device, NULL, INIT, NULL, 0, NULL, 0);
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = hw_frog_transfer (device, NULL, INIT, NULL, 0, NULL, 0);
+	if (status != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to send the init command.");
 		serial_close (device->port);
 		free (device);
@@ -244,18 +244,18 @@ hw_frog_device_open (device_t **out, const char* name)
 
 	*out = (device_t *) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 hw_frog_device_close (device_t *abstract)
 {
 	hw_frog_device_t *device = (hw_frog_device_t*) abstract;
 
 	// Send the exit command.
-	device_status_t status = hw_frog_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = hw_frog_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
+	if (status != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to send the exit command.");
 		serial_close (device->port);
 		free (device);
@@ -265,54 +265,54 @@ hw_frog_device_close (device_t *abstract)
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 hw_frog_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
 	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
 	else
 		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 hw_frog_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
 	if (!device_is_hw_frog (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size != SZ_VERSION)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Send the command.
-	device_status_t rc = hw_frog_transfer (device, NULL, IDENTITY, NULL, 0, data, size);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = hw_frog_transfer (device, NULL, IDENTITY, NULL, 0, data, size);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
@@ -325,8 +325,8 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 
 	// Download the version data.
 	unsigned char id[SZ_VERSION] = {0};
-	device_status_t rc = hw_frog_device_version (abstract, id, sizeof (id));
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = hw_frog_device_version (abstract, id, sizeof (id));
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to read the version.");
 		return rc;
 	}
@@ -342,13 +342,13 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 	unsigned char *header = malloc (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT);
 	if (header == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Download the logbook headers.
 	rc = hw_frog_transfer (device, &progress, HEADER,
               NULL, 0, header, RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to read the header.");
 		free (header);
 		return rc;
@@ -396,7 +396,7 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 		{
 			WARNING("Invalid ringbuffer pointer detected!");
 			free (header);
-			return DEVICE_STATUS_ERROR;
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		// Calculate the profile length.
@@ -421,7 +421,7 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 	if (profile == NULL) {
 		WARNING ("Failed to allocate memory.");
 		free (header);
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Download the dives.
@@ -440,7 +440,7 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 		unsigned char number[1] = {idx};
 		rc = hw_frog_transfer (device, &progress, DIVE,
 			number, sizeof (number), profile, length);
-		if (rc != DEVICE_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Failed to read the dive.");
 			free (profile);
 			free (header);
@@ -454,48 +454,48 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 	free (profile);
 	free (header);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 hw_frog_device_clock (device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
 	if (!device_is_hw_frog (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (datetime == NULL) {
 		WARNING ("Invalid parameter specified.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Send the command.
 	unsigned char packet[6] = {
 		datetime->hour, datetime->minute, datetime->second,
 		datetime->month, datetime->day, datetime->year - 2000};
-	device_status_t rc = hw_frog_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = hw_frog_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 hw_frog_device_display (device_t *abstract, const char *text)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
 	if (!device_is_hw_frog (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Check the maximum length.
 	size_t length = (text ? strlen (text) : 0);
 	if (length > SZ_DISPLAY) {
 		WARNING ("Invalid parameter specified.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Pad the data packet with spaces.
@@ -505,27 +505,27 @@ hw_frog_device_display (device_t *abstract, const char *text)
 	memset (packet + length, 0x20, sizeof (packet) - length);
 
 	// Send the command.
-	device_status_t rc = hw_frog_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = hw_frog_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 hw_frog_device_customtext (device_t *abstract, const char *text)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
 	if (!device_is_hw_frog (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Check the maximum length.
 	size_t length = (text ? strlen (text) : 0);
 	if (length > SZ_CUSTOMTEXT) {
 		WARNING ("Invalid parameter specified.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Pad the data packet with spaces.
@@ -535,9 +535,9 @@ hw_frog_device_customtext (device_t *abstract, const char *text)
 	memset (packet + length, 0x20, sizeof (packet) - length);
 
 	// Send the command.
-	device_status_t rc = hw_frog_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = hw_frog_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

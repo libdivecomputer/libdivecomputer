@@ -36,7 +36,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #define ACK 0x5A
@@ -49,9 +49,9 @@ typedef struct oceanic_vtpro_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_vtpro_device_t;
 
-static device_status_t oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static device_status_t oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t oceanic_vtpro_device_close (device_t *abstract);
+static dc_status_t oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_vtpro_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_vtpro_device_backend = {
 	DEVICE_TYPE_OCEANIC_VTPRO,
@@ -103,13 +103,13 @@ device_is_oceanic_vtpro (device_t *abstract)
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_send (oceanic_vtpro_device_t *device, const unsigned char command[], unsigned int csize)
 {
 	device_t *abstract = (device_t *) device;
 
 	if (device_is_cancelled (abstract))
-		return DEVICE_STATUS_CANCELLED;
+		return DC_STATUS_CANCELLED;
 
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
@@ -129,14 +129,14 @@ oceanic_vtpro_send (oceanic_vtpro_device_t *device, const unsigned char command[
 	// Verify the response of the dive computer.
 	if (response != ACK) {
 		WARNING ("Unexpected answer start byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
 	// Send the command to the device. If the device responds with an
@@ -146,9 +146,9 @@ oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char comm
 	// returning an error.
 
 	unsigned int nretries = 0;
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = oceanic_vtpro_send (device, command, csize)) != DEVICE_STATUS_SUCCESS) {
-		if (rc != DEVICE_STATUS_TIMEOUT && rc != DEVICE_STATUS_PROTOCOL)
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = oceanic_vtpro_send (device, command, csize)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
 			return rc;
 
 		// Abort if the maximum number of retries is reached.
@@ -163,11 +163,11 @@ oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char comm
 		return EXITCODE (n);
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 {
 	// Send the command to the dive computer.
@@ -192,34 +192,34 @@ oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 		0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30};
 	if (memcmp (answer, response, sizeof (response)) != 0) {
 		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_quit (oceanic_vtpro_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char answer[1] = {0};
 	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
-	device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the last byte of the answer.
 	if (answer[0] != END) {
 		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 {
 	// Send the command to the dive computer.
@@ -228,32 +228,32 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 	unsigned char answer[2] = {0};
 	unsigned char command[2] = {0x18, 0x00};
 	serial_set_timeout (device->port, 9000);
-	device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	dc_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	serial_set_timeout (device->port, 3000);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the last byte of the answer.
 	if (answer[1] != 0x00) {
 		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 oceanic_vtpro_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) malloc (sizeof (oceanic_vtpro_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -271,7 +271,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
@@ -280,7 +280,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
@@ -288,7 +288,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the DTR and RTS lines.
@@ -297,7 +297,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -307,8 +307,8 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Initialize the data cable (MOD mode).
-	device_status_t status = oceanic_vtpro_init (device);
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = oceanic_vtpro_init (device);
+	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
@@ -318,7 +318,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	// this command, the device needs to be in PC mode (manually activated by
 	// the user), or already in download mode.
 	status = oceanic_vtpro_device_version ((device_t *) device, device->version, sizeof (device->version));
-	if (status != DEVICE_STATUS_SUCCESS) {
+	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
@@ -328,7 +328,7 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 	// recommended because it reduces the transfer time considerably, even
 	// when processing the command itself is quite slow.
 	status = oceanic_vtpro_calibrate (device);
-	if (status != DEVICE_STATUS_SUCCESS) {
+	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
@@ -342,17 +342,17 @@ oceanic_vtpro_device_open (device_t **out, const char* name)
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_device_close (device_t *abstract)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
 	if (! device_is_oceanic_vtpro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Switch the device back to surface mode.
 	oceanic_vtpro_quit (device);
@@ -360,51 +360,51 @@ oceanic_vtpro_device_close (device_t *abstract)
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 oceanic_vtpro_device_keepalive (device_t *abstract)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
 	if (! device_is_oceanic_vtpro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Send the command to the dive computer.
 	unsigned char answer[1] = {0};
 	unsigned char command[4] = {0x6A, 0x08, 0x00, 0x00};
-	device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the last byte of the answer.
 	if (answer[0] != END) {
 		WARNING ("Unexpected answer byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
 	if (! device_is_oceanic_vtpro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < PAGESIZE)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_INVALIDARGS;
 
 	// Switch the device into download mode. The response is ignored here,
 	// since it is identical (except for the missing trailing byte) to the
@@ -412,8 +412,8 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 
 	unsigned char cmd[2] = {0x88, 0x00};
 	unsigned char ans[PAGESIZE / 2 + 1] = {0};
-	device_status_t rc = oceanic_vtpro_transfer (device, cmd, sizeof (cmd), ans, sizeof (ans));
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = oceanic_vtpro_transfer (device, cmd, sizeof (cmd), ans, sizeof (ans));
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the checksum of the answer.
@@ -421,7 +421,7 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 	unsigned char ccrc = checksum_add_uint4 (ans, PAGESIZE / 2, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Obtain the device identification string. This string is
@@ -431,7 +431,7 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 		unsigned char command[4] = {0x72, 0x03, i * 0x10, 0x00};
 		unsigned char answer[PAGESIZE / 2 + 2] = {0};
 		rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-		if (rc != DEVICE_STATUS_SUCCESS)
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		// Verify the checksum of the answer.
@@ -439,34 +439,34 @@ oceanic_vtpro_device_version (device_t *abstract, unsigned char data[], unsigned
 		unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
-			return DEVICE_STATUS_PROTOCOL;
+			return DC_STATUS_PROTOCOL;
 		}
 
 		// Verify the last byte of the answer.
 		if (answer[PAGESIZE / 2 + 1] != END) {
 			WARNING ("Unexpected answer byte.");
-			return DEVICE_STATUS_PROTOCOL;
+			return DC_STATUS_PROTOCOL;
 		}
 
 		// Append the answer to the output buffer.
 		memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
 	if (! device_is_oceanic_vtpro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// The data transmission is split in packages
 	// of maximum $PAGESIZE bytes.
@@ -488,8 +488,8 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 				(last >> 8) & 0xFF, // high
 				(last     ) & 0xFF, // low
 				0x00};
-		device_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, (PAGESIZE + 1) * npackets);
-		if (rc != DEVICE_STATUS_SUCCESS)
+		dc_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, (PAGESIZE + 1) * npackets);
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		unsigned int offset = 0;
@@ -499,7 +499,7 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 			unsigned char ccrc = checksum_add_uint8 (answer + offset, PAGESIZE, 0x00);
 			if (crc != ccrc) {
 				WARNING ("Unexpected answer CRC.");
-				return DEVICE_STATUS_PROTOCOL;
+				return DC_STATUS_PROTOCOL;
 			}
 
 			memcpy (data, answer + offset, PAGESIZE);
@@ -511,5 +511,5 @@ oceanic_vtpro_device_read (device_t *abstract, unsigned int address, unsigned ch
 		}
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

@@ -37,11 +37,11 @@ struct suunto_vyper_parser_t {
 	unsigned int maxdepth;
 };
 
-static parser_status_t suunto_vyper_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t suunto_vyper_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t suunto_vyper_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t suunto_vyper_parser_destroy (parser_t *abstract);
+static dc_status_t suunto_vyper_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t suunto_vyper_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t suunto_vyper_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static dc_status_t suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static dc_status_t suunto_vyper_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_vyper_parser_backend = {
 	PARSER_TYPE_SUUNTO_VYPER,
@@ -63,17 +63,17 @@ parser_is_suunto_vyper (parser_t *abstract)
 }
 
 
-parser_status_t
+dc_status_t
 suunto_vyper_parser_create (parser_t **out)
 {
 	if (out == NULL)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	suunto_vyper_parser_t *parser = (suunto_vyper_parser_t *) malloc (sizeof (suunto_vyper_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return PARSER_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -86,45 +86,45 @@ suunto_vyper_parser_create (parser_t **out)
 
 	*out = (parser_t*) parser;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 suunto_vyper_parser_destroy (parser_t *abstract)
 {
 	if (! parser_is_suunto_vyper (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Free memory.	
 	free (abstract);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 suunto_vyper_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	suunto_vyper_parser_t *parser = (suunto_vyper_parser_t *) abstract;
 
 	if (! parser_is_suunto_vyper (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 suunto_vyper_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	if (abstract->size < 9 + 5)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data + 9;
 
@@ -137,11 +137,11 @@ suunto_vyper_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->second = 0;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 suunto_vyper_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
 	suunto_vyper_parser_t *parser = (suunto_vyper_parser_t *) abstract;
@@ -150,7 +150,7 @@ suunto_vyper_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 	unsigned int size = abstract->size;
 
 	if (size < 18)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	if (!parser->cached) {
 		unsigned int interval = data[3];
@@ -170,7 +170,7 @@ suunto_vyper_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 		// Store the offset to the end marker.
 		unsigned int marker = offset;
 		if (marker + 4 >= size || data[marker] != 0x80)
-			return PARSER_STATUS_ERROR;
+			return DC_STATUS_DATAFORMAT;
 
 		parser->cached = 1;
 		parser->divetime = nsamples * interval;
@@ -199,24 +199,24 @@ suunto_vyper_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 			gas->nitrogen = 1.0 - gas->oxygen;
 			break;
 		default:
-			return PARSER_STATUS_UNSUPPORTED;
+			return DC_STATUS_UNSUPPORTED;
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
-static parser_status_t
+static dc_status_t
 suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
 	if (! parser_is_suunto_vyper (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
 	if (size < 18)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	// Find the maximum depth.
 	unsigned int depth = 0, maxdepth = 0;
@@ -233,7 +233,7 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	// Store the offset to the end marker.
 	unsigned int marker = offset;
 	if (marker + 4 >= size || data[marker] != 0x80)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int time = 0;
 	unsigned int interval = data[3];
@@ -315,7 +315,7 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 				break;
 			case 0x87: // Gas Change
 				if (offset + 1 > size)
-					return PARSER_STATUS_ERROR;
+					return DC_STATUS_DATAFORMAT;
 				sample.event.type = SAMPLE_EVENT_GASCHANGE;
 				sample.event.value = data[offset++];
 				break;
@@ -348,5 +348,5 @@ suunto_vyper_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	sample.depth = 0;
 	if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

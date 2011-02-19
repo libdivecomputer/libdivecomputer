@@ -43,7 +43,7 @@ suunto_common_device_init (suunto_common_device_t *device, const device_backend_
 }
 
 
-device_status_t
+dc_status_t
 suunto_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	suunto_common_device_t *device = (suunto_common_device_t *) abstract;
@@ -51,18 +51,18 @@ suunto_common_device_set_fingerprint (device_t *abstract, const unsigned char da
 	assert (device != NULL);
 
 	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
 	else
 		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata)
 {
 	assert (layout != NULL);
@@ -87,14 +87,14 @@ suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common
 		eop >= layout->rb_profile_end ||
 		data[eop] != 0x82)
 	{
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Memory buffer for the profile ringbuffer.
 	unsigned int length = layout->rb_profile_end - layout->rb_profile_begin;
 	unsigned char *buffer = (unsigned char *) malloc (length);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
 	unsigned int current = eop;
 	unsigned int previous = eop;
@@ -124,12 +124,12 @@ suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common
 
 			if (device && memcmp (buffer + layout->fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 				free (buffer);
-				return DEVICE_STATUS_SUCCESS;
+				return DC_STATUS_SUCCESS;
 			}
 
 			if (callback && !callback (buffer, len, buffer + layout->fp_offset, sizeof (device->fingerprint), userdata)) {
 				free (buffer);
-				return DEVICE_STATUS_SUCCESS;
+				return DC_STATUS_SUCCESS;
 			}
 
 			previous = current;
@@ -139,7 +139,7 @@ suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common
 	free (buffer);
 
 	if (data[current] != 0x82)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

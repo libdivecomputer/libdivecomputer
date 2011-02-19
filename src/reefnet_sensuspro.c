@@ -32,7 +32,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 typedef struct reefnet_sensuspro_device_t {
@@ -44,10 +44,10 @@ typedef struct reefnet_sensuspro_device_t {
 	dc_ticks_t systime;
 } reefnet_sensuspro_device_t;
 
-static device_status_t reefnet_sensuspro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t reefnet_sensuspro_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t reefnet_sensuspro_device_close (device_t *abstract);
+static dc_status_t reefnet_sensuspro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t reefnet_sensuspro_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t reefnet_sensuspro_device_close (device_t *abstract);
 
 static const device_backend_t reefnet_sensuspro_device_backend = {
 	DEVICE_TYPE_REEFNET_SENSUSPRO,
@@ -70,17 +70,17 @@ device_is_reefnet_sensuspro (device_t *abstract)
 }
 
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t *) malloc (sizeof (reefnet_sensuspro_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -98,7 +98,7 @@ reefnet_sensuspro_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (19200 8N1).
@@ -107,7 +107,7 @@ reefnet_sensuspro_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000ms).
@@ -115,7 +115,7 @@ reefnet_sensuspro_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Make sure everything is in a sane state.
@@ -123,85 +123,85 @@ reefnet_sensuspro_device_open (device_t **out, const char* name)
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 reefnet_sensuspro_device_close (device_t *abstract)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < REEFNET_SENSUSPRO_HANDSHAKE_SIZE) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	memcpy (data, device->handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_set_timestamp (device_t *abstract, unsigned int timestamp)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	device->timestamp = timestamp;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 reefnet_sensuspro_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size && size != 4)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 {
 	// Assert a break condition.
@@ -223,7 +223,7 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Store the clock calibration values.
@@ -248,16 +248,16 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 
 	serial_sleep (10);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 reefnet_sensuspro_send (reefnet_sensuspro_device_t *device, unsigned char command)
 {
 	// Wake-up the device.
-	device_status_t rc = reefnet_sensuspro_handshake (device);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = reefnet_sensuspro_handshake (device);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Send the instruction code to the device.
@@ -267,23 +267,23 @@ reefnet_sensuspro_send (reefnet_sensuspro_device_t *device, unsigned char comman
 		return EXITCODE (n);
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 reefnet_sensuspro_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, REEFNET_SENSUSPRO_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Enable progress notifications.
@@ -292,8 +292,8 @@ reefnet_sensuspro_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Wake-up the device and send the instruction code.
-	device_status_t rc = reefnet_sensuspro_send  (device, 0xB4);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = reefnet_sensuspro_send  (device, 0xB4);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	unsigned int nbytes = 0;
@@ -320,27 +320,27 @@ reefnet_sensuspro_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	dc_buffer_append (buffer, answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	dc_buffer_t *buffer = dc_buffer_new (REEFNET_SENSUSPRO_MEMORY_SIZE);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
-	device_status_t rc = reefnet_sensuspro_device_dump (abstract, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = reefnet_sensuspro_device_dump (abstract, buffer);
+	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
 	}
@@ -354,20 +354,20 @@ reefnet_sensuspro_device_foreach (device_t *abstract, dive_callback_t callback, 
 }
 
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_write_interval (device_t *abstract, unsigned char interval)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (! device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (interval < 1 || interval > 127)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Wake-up the device and send the instruction code.
-	device_status_t rc = reefnet_sensuspro_send  (device, 0xB5);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = reefnet_sensuspro_send  (device, 0xB5);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	serial_sleep (10);
@@ -378,17 +378,17 @@ reefnet_sensuspro_device_write_interval (device_t *abstract, unsigned char inter
 		return EXITCODE (n);
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
 	if (abstract && !device_is_reefnet_sensuspro (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[2] = {0xFF, 0xFF};
@@ -415,15 +415,15 @@ reefnet_sensuspro_extract_dives (device_t *abstract, const unsigned char data[],
 
 			// Report an error if no stop marker was found.
 			if (!found)
-				return DEVICE_STATUS_ERROR;
+				return DC_STATUS_DATAFORMAT;
 
 			// Automatically abort when a dive is older than the provided timestamp.
 			unsigned int timestamp = array_uint32_le (data + current + 6);
 			if (device && timestamp <= device->timestamp)
-				return DEVICE_STATUS_SUCCESS;
+				return DC_STATUS_SUCCESS;
 		
 			if (callback && !callback (data + current, offset + 2 - current, data + current + 6, 4, userdata))
-				return DEVICE_STATUS_SUCCESS;
+				return DC_STATUS_SUCCESS;
 
 			// Prepare for the next dive.
 			previous = current;
@@ -431,5 +431,5 @@ reefnet_sensuspro_extract_dives (device_t *abstract, const unsigned char data[],
 		}
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

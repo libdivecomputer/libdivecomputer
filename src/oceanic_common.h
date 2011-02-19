@@ -66,13 +66,13 @@ oceanic_common_match (const unsigned char *pattern, const unsigned char *string,
 void
 oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend);
 
-device_status_t
+dc_status_t
 oceanic_common_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 
-device_status_t
+dc_status_t
 oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer);
 
-device_status_t
+dc_status_t
 oceanic_common_device_foreach (device_t *device, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus

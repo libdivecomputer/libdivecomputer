@@ -37,11 +37,11 @@ struct mares_iconhd_parser_t {
 	unsigned int model;
 };
 
-static parser_status_t mares_iconhd_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t mares_iconhd_parser_destroy (parser_t *abstract);
+static dc_status_t mares_iconhd_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static dc_status_t mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static dc_status_t mares_iconhd_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t mares_iconhd_parser_backend = {
 	PARSER_TYPE_MARES_ICONHD,
@@ -63,17 +63,17 @@ parser_is_mares_iconhd (parser_t *abstract)
 }
 
 
-parser_status_t
+dc_status_t
 mares_iconhd_parser_create (parser_t **out, unsigned int model)
 {
 	if (out == NULL)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) malloc (sizeof (mares_iconhd_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return PARSER_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -84,31 +84,31 @@ mares_iconhd_parser_create (parser_t **out, unsigned int model)
 
 	*out = (parser_t*) parser;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 mares_iconhd_parser_destroy (parser_t *abstract)
 {
 	if (! parser_is_mares_iconhd (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Free memory.
 	free (abstract);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 mares_iconhd_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
@@ -119,12 +119,12 @@ mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 	}
 
 	if (abstract->size < 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int length = array_uint32_le (abstract->data);
 
 	if (abstract->size < length || length < header + 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data + length - header + 6;
 
@@ -137,11 +137,11 @@ mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->year   = array_uint16_le (p + 8) + 1900;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
@@ -152,12 +152,12 @@ mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 	}
 
 	if (abstract->size < 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int length = array_uint32_le (abstract->data);
 
 	if (abstract->size < length || length < header + 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data + length - header;
 
@@ -180,15 +180,15 @@ mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
-			return PARSER_STATUS_UNSUPPORTED;
+			return DC_STATUS_UNSUPPORTED;
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
@@ -201,12 +201,12 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	}
 
 	if (abstract->size < 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int length = array_uint32_le (abstract->data);
 
 	if (abstract->size < length || length < header + 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = length - header;
@@ -240,7 +240,7 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		// Some extra data.
 		if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
 			if (offset + 8 > size)
-				return PARSER_STATUS_ERROR;
+				return DC_STATUS_DATAFORMAT;
 
 			// Pressure (1/100 bar).
 			unsigned int pressure = array_uint16_le(data + offset);
@@ -252,5 +252,5 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

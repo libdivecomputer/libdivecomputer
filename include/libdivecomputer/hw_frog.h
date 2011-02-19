@@ -30,16 +30,16 @@
 extern "C" {
 #endif /* __cplusplus */
 
-device_status_t
+dc_status_t
 hw_frog_device_open (device_t **device, const char *name);
 
-device_status_t
+dc_status_t
 hw_frog_device_clock (device_t *device, const dc_datetime_t *datetime);
 
-device_status_t
+dc_status_t
 hw_frog_device_display (device_t *device, const char *text);
 
-device_status_t
+dc_status_t
 hw_frog_device_customtext (device_t *abstract, const char *text);
 
 #ifdef __cplusplus

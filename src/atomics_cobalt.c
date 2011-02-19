@@ -57,10 +57,10 @@ typedef struct atomics_cobalt_device_t {
 	unsigned char version[SZ_VERSION];
 } atomics_cobalt_device_t;
 
-static device_status_t atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static device_status_t atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t atomics_cobalt_device_close (device_t *abstract);
+static dc_status_t atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t atomics_cobalt_device_close (device_t *abstract);
 
 static const device_backend_t atomics_cobalt_device_backend = {
 	DEVICE_TYPE_ATOMICS_COBALT,
@@ -83,18 +83,18 @@ device_is_atomics_cobalt (device_t *abstract)
 }
 
 
-device_status_t
+dc_status_t
 atomics_cobalt_device_open (device_t **out)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 #ifdef HAVE_LIBUSB
 	// Allocate memory.
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) malloc (sizeof (atomics_cobalt_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -110,7 +110,7 @@ atomics_cobalt_device_open (device_t **out)
 	if (rc < 0) {
 		WARNING ("Failed to initialize usb support.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	device->handle = libusb_open_device_with_vid_pid (device->context, VID, PID);
@@ -118,7 +118,7 @@ atomics_cobalt_device_open (device_t **out)
 		WARNING ("Failed to open the usb device.");
 		libusb_exit (device->context);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	rc = libusb_claim_interface (device->handle, 0);
@@ -127,11 +127,11 @@ atomics_cobalt_device_open (device_t **out)
 		libusb_close (device->handle);
 		libusb_exit (device->context);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
-	device_status_t status = atomics_cobalt_device_version ((device_t *) device, device->version, sizeof (device->version));
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = atomics_cobalt_device_version ((device_t *) device, device->version, sizeof (device->version));
+	if (status != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to identify the dive computer.");
 		libusb_close (device->handle);
 		libusb_exit (device->context);
@@ -141,20 +141,20 @@ atomics_cobalt_device_open (device_t **out)
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 #else
-	return DEVICE_STATUS_UNSUPPORTED;
+	return DC_STATUS_UNSUPPORTED;
 #endif
 }
 
 
-static device_status_t
+static dc_status_t
 atomics_cobalt_device_close (device_t *abstract)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (! device_is_atomics_cobalt (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 #ifdef HAVE_LIBUSB
 	libusb_release_interface(device->handle, 0);
@@ -165,51 +165,51 @@ atomics_cobalt_device_close (device_t *abstract)
 	// Free memory.
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (! device_is_atomics_cobalt (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
 	else
 		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulation)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (! device_is_atomics_cobalt (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	device->simulation = simulation;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (size < SZ_VERSION)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_INVALIDARGS;
 
 #ifdef HAVE_LIBUSB
 	// Send the command to the dive computer.
@@ -219,7 +219,7 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS) {
 		WARNING ("Failed to send the command.");
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Receive the answer from the dive computer.
@@ -229,7 +229,7 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 		packet, sizeof (packet), &length, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS || length != sizeof (packet)) {
 		WARNING ("Failed to receive the answer.");
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Verify the checksum of the packet.
@@ -237,31 +237,31 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 	unsigned short ccrc = checksum_add_uint16 (packet, SZ_VERSION, 0x0);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	memcpy (data, packet, SZ_VERSION);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 #else
-	return DEVICE_STATUS_UNSUPPORTED;
+	return DC_STATUS_UNSUPPORTED;
 #endif
 }
 
 
-static device_status_t
+static dc_status_t
 atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, device_progress_t *progress)
 {
 #ifdef HAVE_LIBUSB
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (device_is_cancelled (abstract))
-		return DEVICE_STATUS_CANCELLED;
+		return DC_STATUS_CANCELLED;
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Send the command to the dive computer.
@@ -275,7 +275,7 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS) {
 		WARNING ("Failed to send the command.");
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	unsigned int nbytes = 0;
@@ -287,7 +287,7 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 			packet, sizeof (packet), &length, TIMEOUT);
 		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT) {
 			WARNING ("Failed to receive the answer.");
-			return DEVICE_STATUS_IO;
+			return DC_STATUS_IO;
 		}
 
 		// Update and emit a progress event.
@@ -308,20 +308,20 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 	// Check for a buffer error.
 	if (dc_buffer_get_size (buffer) != nbytes) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Check for the minimum length.
 	if (nbytes < 2) {
 		WARNING ("Data packet is too short.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// When only two 0xFF bytes are received, there are no more dives.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	if (nbytes == 2 && data[0] == 0xFF && data[1] == 0xFF) {
 		dc_buffer_clear (buffer);
-		return DEVICE_STATUS_SUCCESS;
+		return DC_STATUS_SUCCESS;
 	}
 
 	// Verify the checksum of the packet.
@@ -329,26 +329,26 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 	unsigned short ccrc = checksum_add_uint16 (data, nbytes - 2, 0x0);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Remove the checksum bytes.
 	dc_buffer_slice (buffer, 0, nbytes - 2);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 #else
-	return DEVICE_STATUS_UNSUPPORTED;
+	return DC_STATUS_UNSUPPORTED;
 #endif
 }
 
 
-static device_status_t
+static dc_status_t
 atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (! device_is_atomics_cobalt (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
@@ -370,27 +370,27 @@ atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// Allocate a memory buffer.
 	dc_buffer_t *buffer = dc_buffer_new (0);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
 	unsigned int ndives = 0;
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = atomics_cobalt_read_dive (abstract, buffer, (ndives == 0), &progress)) == DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = atomics_cobalt_read_dive (abstract, buffer, (ndives == 0), &progress)) == DC_STATUS_SUCCESS) {
 		unsigned char *data = dc_buffer_get_data (buffer);
 		unsigned int size = dc_buffer_get_size (buffer);
 
 		if (size == 0) {
 			dc_buffer_free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 
 		if (memcmp (data + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			dc_buffer_free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 
 		if (callback && !callback (data, size, data + FP_OFFSET, sizeof (device->fingerprint), userdata)) {
 			dc_buffer_free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 
 		// Adjust the maximum value to take into account the two checksum bytes

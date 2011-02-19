@@ -42,11 +42,11 @@ struct atomics_cobalt_parser_t {
 	double hydrostatic;
 };
 
-static parser_status_t atomics_cobalt_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t atomics_cobalt_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t atomics_cobalt_parser_destroy (parser_t *abstract);
+static dc_status_t atomics_cobalt_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t atomics_cobalt_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static dc_status_t atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static dc_status_t atomics_cobalt_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t atomics_cobalt_parser_backend = {
 	PARSER_TYPE_ATOMICS_COBALT,
@@ -68,17 +68,17 @@ parser_is_atomics_cobalt (parser_t *abstract)
 }
 
 
-parser_status_t
+dc_status_t
 atomics_cobalt_parser_create (parser_t **out)
 {
 	if (out == NULL)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t *) malloc (sizeof (atomics_cobalt_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return PARSER_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -90,53 +90,53 @@ atomics_cobalt_parser_create (parser_t **out)
 
 	*out = (parser_t*) parser;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 atomics_cobalt_parser_destroy (parser_t *abstract)
 {
 	if (! parser_is_atomics_cobalt (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Free memory.
 	free (abstract);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 atomics_cobalt_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	if (! parser_is_atomics_cobalt (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-parser_status_t
+dc_status_t
 atomics_cobalt_parser_set_calibration (parser_t *abstract, double atmospheric, double hydrostatic)
 {
 	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t*) abstract;
 
 	if (! parser_is_atomics_cobalt (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	parser->atmospheric = atmospheric;
 	parser->hydrostatic = hydrostatic;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 atomics_cobalt_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	if (abstract->size < SZ_HEADER)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data;
 
@@ -149,17 +149,17 @@ atomics_cobalt_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		datetime->second = 0;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
 	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t *) abstract;
 
 	if (abstract->size < SZ_HEADER)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data;
 
@@ -188,15 +188,15 @@ atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, u
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
-			return PARSER_STATUS_UNSUPPORTED;
+			return DC_STATUS_UNSUPPORTED;
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
 	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t *) abstract;
@@ -205,7 +205,7 @@ atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 	unsigned int size = abstract->size;
 
 	if (size < SZ_HEADER)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int interval = data[0x1a];
 	unsigned int ngasmixes = data[0x2a];
@@ -216,7 +216,7 @@ atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		SZ_GASSWITCH * nswitches;
 
 	if (size < header + SZ_SEGMENT * nsegments)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	double atmospheric = 0.0;
 	if (parser->atmospheric)
@@ -253,5 +253,5 @@ atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		offset += SZ_SEGMENT;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

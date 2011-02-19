@@ -32,10 +32,10 @@ extern "C" {
 #define SUUNTO_VYPER2_PACKET_SIZE 0x78
 #define SUUNTO_VYPER2_VERSION_SIZE 0x04
 
-device_status_t
+dc_status_t
 suunto_vyper2_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 suunto_vyper2_device_reset_maxdepth (device_t *device);
 
 #ifdef __cplusplus

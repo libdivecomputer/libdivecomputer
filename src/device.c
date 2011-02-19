@@ -49,106 +49,106 @@ device_get_type (device_t *device)
 }
 
 
-device_status_t
+dc_status_t
 device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	device->cancel_callback = callback;
 	device->cancel_userdata = userdata;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	device->event_mask = events;
 	device->event_callback = callback;
 	device->event_userdata = userdata;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->set_fingerprint == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->set_fingerprint (device, data, size);
 }
 
 
-device_status_t
+dc_status_t
 device_version (device_t *device, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->version == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->version (device, data, size);
 }
 
 
-device_status_t
+dc_status_t
 device_read (device_t *device, unsigned int address, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->read == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->read (device, address, data, size);
 }
 
 
-device_status_t
+dc_status_t
 device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->write == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->write (device, address, data, size);
 }
 
 
-device_status_t
+dc_status_t
 device_dump (device_t *device, dc_buffer_t *buffer)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->dump == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->dump (device, buffer);
 }
 
 
-device_status_t
+dc_status_t
 device_dump_read (device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->read == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
@@ -163,8 +163,8 @@ device_dump_read (device_t *device, unsigned char data[], unsigned int size, uns
 			len = blocksize;
 
 		// Read the packet.
-		device_status_t rc = device->backend->read (device, nbytes, data + nbytes, len);
-		if (rc != DEVICE_STATUS_SUCCESS)
+		dc_status_t rc = device->backend->read (device, nbytes, data + nbytes, len);
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		// Update and emit a progress event.
@@ -174,31 +174,31 @@ device_dump_read (device_t *device, unsigned char data[], unsigned int size, uns
 		nbytes += len;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 device_foreach (device_t *device, dive_callback_t callback, void *userdata)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (device->backend->foreach == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->foreach (device, callback, userdata);
 }
 
 
-device_status_t
+dc_status_t
 device_close (device_t *device)
 {
 	if (device == NULL)
-		return DEVICE_STATUS_SUCCESS;
+		return DC_STATUS_SUCCESS;
 
 	if (device->backend->close == NULL)
-		return DEVICE_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return device->backend->close (device);
 }

@@ -22,26 +22,30 @@
 #include "common.h"
 
 const char *
-errmsg (device_status_t rc)
+errmsg (dc_status_t rc)
 {
 	switch (rc) {
-	case DEVICE_STATUS_SUCCESS:
+	case DC_STATUS_SUCCESS:
 		return "Success";
-	case DEVICE_STATUS_UNSUPPORTED:
+	case DC_STATUS_UNSUPPORTED:
 		return "Unsupported operation";
-	case DEVICE_STATUS_TYPE_MISMATCH:
-		return "Device type mismatch";
-	case DEVICE_STATUS_ERROR:
-		return "Generic error";
-	case DEVICE_STATUS_IO:
+	case DC_STATUS_INVALIDARGS:
+		return "Invalid arguments";
+	case DC_STATUS_NOMEMORY:
+		return "Out of memory";
+	case DC_STATUS_NODEVICE:
+		return "No device found";
+	case DC_STATUS_NOACCESS:
+		return "Access denied";
+	case DC_STATUS_IO:
 		return "Input/output error";
-	case DEVICE_STATUS_MEMORY:
-		return "Memory error";
-	case DEVICE_STATUS_PROTOCOL:
-		return "Protocol error";
-	case DEVICE_STATUS_TIMEOUT:
+	case DC_STATUS_TIMEOUT:
 		return "Timeout";
-	case DEVICE_STATUS_CANCELLED:
+	case DC_STATUS_PROTOCOL:
+		return "Protocol error";
+	case DC_STATUS_DATAFORMAT:
+		return "Data format error";
+	case DC_STATUS_CANCELLED:
 		return "Cancelled";
 	default:
 		return "Unknown error";

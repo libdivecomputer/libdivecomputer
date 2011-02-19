@@ -43,10 +43,10 @@ typedef struct mares_puck_device_t {
 	unsigned char fingerprint[5];
 } mares_puck_device_t;
 
-static device_status_t mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t mares_puck_device_close (device_t *abstract);
+static dc_status_t mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t mares_puck_device_close (device_t *abstract);
 
 static const device_backend_t mares_puck_device_backend = {
 	DEVICE_TYPE_MARES_PUCK,
@@ -93,17 +93,17 @@ device_is_mares_puck (device_t *abstract)
 }
 
 
-device_status_t
+dc_status_t
 mares_puck_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	mares_puck_device_t *device = (mares_puck_device_t *) malloc (sizeof (mares_puck_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -118,7 +118,7 @@ mares_puck_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (38400 8N1).
@@ -127,7 +127,7 @@ mares_puck_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->base.port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
@@ -135,7 +135,7 @@ mares_puck_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->base.port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Clear the DTR/RTS lines.
@@ -144,7 +144,7 @@ mares_puck_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->base.port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Make sure everything is in a sane state.
@@ -152,8 +152,8 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	// Identify the model number.
 	unsigned char header[PACKETSIZE] = {0};
-	device_status_t status = mares_common_device_read ((device_t *) device, 0, header, sizeof (header));
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = mares_common_device_read ((device_t *) device, 0, header, sizeof (header));
+	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->base.port);
 		free (device);
 		return status;
@@ -178,11 +178,11 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_puck_device_close (device_t *abstract)
 {
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
@@ -190,34 +190,34 @@ mares_puck_device_close (device_t *abstract)
 	// Close the device.
 	if (serial_close (device->base.port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
 	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
 	else
 		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
@@ -228,7 +228,7 @@ mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
@@ -236,7 +236,7 @@ mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 }
 
 
-static device_status_t
+static dc_status_t
 mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
@@ -245,10 +245,10 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
-	device_status_t rc = mares_puck_device_dump (abstract, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = mares_puck_device_dump (abstract, buffer);
+	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
 	}
@@ -269,16 +269,16 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 }
 
 
-device_status_t
+dc_status_t
 mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
 
 	if (abstract && !device_is_mares_puck (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < PACKETSIZE)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
 
@@ -300,7 +300,7 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	}
 
 	if (size < layout->memsize)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	return mares_common_extract_dives (layout, fingerprint, data, callback, userdata);
 }

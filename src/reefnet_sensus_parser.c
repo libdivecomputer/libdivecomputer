@@ -46,11 +46,11 @@ struct reefnet_sensus_parser_t {
 	unsigned int maxdepth;
 };
 
-static parser_status_t reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t reefnet_sensus_parser_destroy (parser_t *abstract);
+static dc_status_t reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static dc_status_t reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static dc_status_t reefnet_sensus_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t reefnet_sensus_parser_backend = {
 	PARSER_TYPE_REEFNET_SENSUS,
@@ -72,17 +72,17 @@ parser_is_reefnet_sensus (parser_t *abstract)
 }
 
 
-parser_status_t
+dc_status_t
 reefnet_sensus_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) malloc (sizeof (reefnet_sensus_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return PARSER_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -99,81 +99,81 @@ reefnet_sensus_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t s
 
 	*out = (parser_t*) parser;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 reefnet_sensus_parser_destroy (parser_t *abstract)
 {
 	if (! parser_is_reefnet_sensus (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Free memory.	
 	free (abstract);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
 	if (! parser_is_reefnet_sensus (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-parser_status_t
+dc_status_t
 reefnet_sensus_parser_set_calibration (parser_t *abstract, double atmospheric, double hydrostatic)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
 	if (! parser_is_reefnet_sensus (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	parser->atmospheric = atmospheric;
 	parser->hydrostatic = hydrostatic;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
 
 	if (abstract->size < 2 + 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 2);
 
 	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp);
 
 	if (!dc_datetime_localtime (datetime, ticks))
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
 
 	if (abstract->size < 7)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	if (!parser->cached) {
 		const unsigned char *data = abstract->data;
@@ -226,21 +226,21 @@ reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, u
 			*((unsigned int *) value) = 0;
 			break;
 		default:
-			return PARSER_STATUS_UNSUPPORTED;
+			return DC_STATUS_UNSUPPORTED;
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
 	if (! parser_is_reefnet_sensus (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
@@ -270,7 +270,7 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 				// Temperature (degrees Fahrenheit)
 				if ((nsamples % 6) == 0) {
 					if (offset + 1 > size)
-						return PARSER_STATUS_ERROR;
+						return DC_STATUS_DATAFORMAT;
 					unsigned int temperature = data[offset++];
 					sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
@@ -296,5 +296,5 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

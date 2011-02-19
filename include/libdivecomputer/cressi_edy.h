@@ -32,10 +32,10 @@ extern "C" {
 #define CRESSI_EDY_MEMORY_SIZE 0x8000
 #define CRESSI_EDY_PACKET_SIZE 128
 
-device_status_t
+dc_status_t
 cressi_edy_device_open (device_t **device, const char* name);
 
-parser_status_t
+dc_status_t
 cressi_edy_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus

@@ -39,11 +39,11 @@ struct oceanic_vtpro_parser_t {
 	double maxdepth;
 };
 
-static parser_status_t oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t oceanic_vtpro_parser_destroy (parser_t *abstract);
+static dc_status_t oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static dc_status_t oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static dc_status_t oceanic_vtpro_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t oceanic_vtpro_parser_backend = {
 	PARSER_TYPE_OCEANIC_VTPRO,
@@ -65,17 +65,17 @@ parser_is_oceanic_vtpro (parser_t *abstract)
 }
 
 
-parser_status_t
+dc_status_t
 oceanic_vtpro_parser_create (parser_t **out)
 {
 	if (out == NULL)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) malloc (sizeof (oceanic_vtpro_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return PARSER_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -88,45 +88,45 @@ oceanic_vtpro_parser_create (parser_t **out)
 
 	*out = (parser_t*) parser;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 oceanic_vtpro_parser_destroy (parser_t *abstract)
 {
 	if (! parser_is_oceanic_vtpro (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Free memory.
 	free (abstract);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
 
 	if (! parser_is_oceanic_vtpro (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	if (abstract->size < 8)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data;
 
@@ -149,11 +149,11 @@ oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 			datetime->hour += 12;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
 	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
@@ -162,13 +162,13 @@ oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 	unsigned int size = abstract->size;
 
 	if (size < 7 * PAGESIZE / 2)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	if (!parser->cached) {
 		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
-		parser_status_t rc = oceanic_vtpro_parser_samples_foreach (
+		dc_status_t rc = oceanic_vtpro_parser_samples_foreach (
 			abstract, sample_statistics_cb, &statistics);
-		if (rc != PARSER_STATUS_SUCCESS)
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		parser->cached = 1;
@@ -200,25 +200,25 @@ oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
-			return PARSER_STATUS_UNSUPPORTED;
+			return DC_STATUS_UNSUPPORTED;
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
 	if (! parser_is_oceanic_vtpro (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
 	if (size < 7 * PAGESIZE / 2)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int time = 0;
 	unsigned int interval = 0;
@@ -257,7 +257,7 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		unsigned int current = bcd2dec (data[offset + 1] & 0x0F) * 60 + bcd2dec (data[offset + 0]);
 		if (current < timestamp) {
 			WARNING ("Timestamp moved backwards.");
-			return PARSER_STATUS_ERROR;
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		if (current != timestamp || count == 0) {
@@ -295,11 +295,11 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		if (interval) {
 			if (current > timestamp + 1) {
 				WARNING ("Unexpected timestamp jump.");
-				return PARSER_STATUS_ERROR;
+				return DC_STATUS_DATAFORMAT;
 			}
 			if (i >= count) {
 				WARNING ("Unexpected number of samples with the same timestamp.");
-				return PARSER_STATUS_ERROR;
+				return DC_STATUS_DATAFORMAT;
 			}
 		}
 
@@ -333,5 +333,5 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		offset += PAGESIZE / 2;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

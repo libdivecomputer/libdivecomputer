@@ -32,25 +32,25 @@ extern "C" {
 #define REEFNET_SENSUSPRO_MEMORY_SIZE 56320
 #define REEFNET_SENSUSPRO_HANDSHAKE_SIZE 10
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_set_timestamp (device_t *device, unsigned int timestamp);
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size);
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_device_write_interval (device_t *device, unsigned char interval);
 
-device_status_t
+dc_status_t
 reefnet_sensuspro_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-parser_status_t
+dc_status_t
 reefnet_sensuspro_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
-parser_status_t
+dc_status_t
 reefnet_sensuspro_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus

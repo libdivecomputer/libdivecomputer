@@ -29,13 +29,13 @@
 extern "C" {
 #endif /* __cplusplus */
 
-device_status_t
+dc_status_t
 oceanic_atom2_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 oceanic_atom2_device_keepalive (device_t *device);
 
-parser_status_t
+dc_status_t
 oceanic_atom2_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus

@@ -120,7 +120,7 @@ oceanic_common_device_init (oceanic_common_device_t *device, const device_backen
 }
 
 
-device_status_t
+dc_status_t
 oceanic_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
@@ -132,18 +132,18 @@ oceanic_common_device_set_fingerprint (device_t *abstract, const unsigned char d
 	unsigned int fpsize = device->layout->rb_logbook_entry_size;
 
 	if (size && size != fpsize)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, fpsize);
 	else
 		memset (device->fingerprint, 0, fpsize);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
@@ -155,7 +155,7 @@ oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
@@ -163,7 +163,7 @@ oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
 }
 
 
-device_status_t
+dc_status_t
 oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
@@ -183,8 +183,8 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Read the device id.
 	unsigned char id[PAGESIZE] = {0};
-	device_status_t rc = device_read (abstract, layout->cf_devinfo, id, sizeof (id));
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = device_read (abstract, layout->cf_devinfo, id, sizeof (id));
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read device id.");
 		return rc;
 	}
@@ -206,7 +206,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// Read the pointer data.
 	unsigned char pointers[PAGESIZE] = {0};
 	rc = device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read pointers.");
 		return rc;
 	}
@@ -282,7 +282,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// Memory buffer for the logbook entries.
 	unsigned char *logbooks = (unsigned char *) malloc (rb_logbook_page_size);
 	if (logbooks == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
 	// Since entries are not necessary aligned on page boundaries,
 	// the memory buffer may contain padding entries on both sides.
@@ -296,7 +296,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	}
 
 	// Error status for delayed errors.
-	device_status_t status = DEVICE_STATUS_SUCCESS;
+	dc_status_t status = DC_STATUS_SUCCESS;
 
 	// Keep track of the previous dive.
 	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
@@ -329,7 +329,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 		// Read the logbook page.
 		rc = device_read (abstract, address, logbooks + offset, len);
-		if (rc != DEVICE_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_SUCCESS) {
 			free (logbooks);
 			return rc;
 		}
@@ -396,7 +396,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 				rb_entry_last >= layout->rb_profile_end)
 			{
 				WARNING("Invalid ringbuffer pointer detected!");
-				status = DEVICE_STATUS_ERROR;
+				status = DC_STATUS_DATAFORMAT;
 				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
@@ -458,7 +458,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	unsigned char *profiles = (unsigned char *) malloc (rb_profile_size + (end - begin));
 	if (profiles == NULL) {
 		free (logbooks);
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// When using multipage reads, the last packet can contain data from more
@@ -514,7 +514,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 			// Read the profile page.
 			rc = device_read (abstract, address, profiles + offset, len);
-			if (rc != DEVICE_STATUS_SUCCESS) {
+			if (rc != DC_STATUS_SUCCESS) {
 				free (logbooks);
 				free (profiles);
 				return rc;
@@ -543,7 +543,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		if (callback && !callback (p, rb_entry_size + layout->rb_logbook_entry_size, p, layout->rb_logbook_entry_size, userdata)) {
 			free (logbooks);
 			free (profiles);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 	}
 

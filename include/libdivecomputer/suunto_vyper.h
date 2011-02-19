@@ -32,19 +32,19 @@ extern "C" {
 #define SUUNTO_VYPER_MEMORY_SIZE 0x2000
 #define SUUNTO_VYPER_PACKET_SIZE 32
 
-device_status_t
+dc_status_t
 suunto_vyper_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 suunto_vyper_device_set_delay (device_t *device, unsigned int delay);
 
-device_status_t
+dc_status_t
 suunto_vyper_device_read_dive (device_t *device, dc_buffer_t *buffer, int init);
 
-device_status_t
+dc_status_t
 suunto_vyper_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-parser_status_t
+dc_status_t
 suunto_vyper_parser_create (parser_t **parser);
 
 #ifdef __cplusplus

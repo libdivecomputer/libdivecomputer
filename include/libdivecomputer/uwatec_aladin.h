@@ -30,13 +30,13 @@ extern "C" {
 
 #define UWATEC_ALADIN_MEMORY_SIZE 2048
 
-device_status_t
+dc_status_t
 uwatec_aladin_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 uwatec_aladin_device_set_timestamp (device_t *device, unsigned int timestamp);
 
-device_status_t
+dc_status_t
 uwatec_aladin_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus

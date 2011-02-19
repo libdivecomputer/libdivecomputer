@@ -33,7 +33,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #define RB_PROFILE_BEGIN			0x000
@@ -51,10 +51,10 @@ typedef struct uwatec_aladin_device_t {
 	dc_ticks_t systime;
 } uwatec_aladin_device_t ;
 
-static device_status_t uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t uwatec_aladin_device_close (device_t *abstract);
+static dc_status_t uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t uwatec_aladin_device_close (device_t *abstract);
 
 static const device_backend_t uwatec_aladin_device_backend = {
 	DEVICE_TYPE_UWATEC_ALADIN,
@@ -77,17 +77,17 @@ device_is_uwatec_aladin (device_t *abstract)
 }
 
 
-device_status_t
+dc_status_t
 uwatec_aladin_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t *) malloc (sizeof (uwatec_aladin_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -104,7 +104,7 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (19200 8N1).
@@ -113,7 +113,7 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (INFINITE).
@@ -121,7 +121,7 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Clear the RTS line and set the DTR line.
@@ -130,83 +130,83 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 uwatec_aladin_device_close (device_t *abstract)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	if (! device_is_uwatec_aladin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 uwatec_aladin_device_set_timestamp (device_t *abstract, unsigned int timestamp)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	if (! device_is_uwatec_aladin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	device->timestamp = timestamp;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	if (! device_is_uwatec_aladin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size && size != 4)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		device->timestamp = array_uint32_le (data);
 	else
 		device->timestamp = 0;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	if (! device_is_uwatec_aladin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, UWATEC_ALADIN_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Enable progress notifications.
@@ -219,7 +219,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	// Receive the header of the package.
 	for (unsigned int i = 0; i < 4;) {
 		if (device_is_cancelled (abstract))
-			return DEVICE_STATUS_CANCELLED;
+			return DC_STATUS_CANCELLED;
 
 		int rc = serial_read (device->port, answer + i, 1);
 		if (rc != 1) {
@@ -260,7 +260,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	unsigned short ccrc = checksum_add_uint16 (answer, UWATEC_ALADIN_MEMORY_SIZE, 0x0000);
 	if (ccrc != crc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Store the clock calibration values.
@@ -275,22 +275,22 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	dc_buffer_append (buffer, answer, UWATEC_ALADIN_MEMORY_SIZE);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	if (! device_is_uwatec_aladin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	dc_buffer_t *buffer = dc_buffer_new (UWATEC_ALADIN_MEMORY_SIZE);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
-	device_status_t rc = uwatec_aladin_device_dump (abstract, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = uwatec_aladin_device_dump (abstract, buffer);
+	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
 	}
@@ -312,16 +312,16 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 }
 
 
-device_status_t
+dc_status_t
 uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	if (abstract && !device_is_uwatec_aladin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < UWATEC_ALADIN_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	// The logbook ring buffer can store up to 37 dives. But
 	// if the total number of dives is less, not all logbook
@@ -414,11 +414,11 @@ uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsi
 		// Automatically abort when a dive is older than the provided timestamp.
 		unsigned int timestamp = array_uint32_le (buffer + 11);
 		if (device && timestamp <= device->timestamp)
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 
 		if (callback && !callback (buffer, len + 18, buffer + 11, 4, userdata))
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

@@ -43,14 +43,14 @@ parser_get_type (parser_t *parser)
 }
 
 
-parser_status_t
+dc_status_t
 parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size)
 {
 	if (parser == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (parser->backend->set_data == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	parser->data = data;
 	parser->size = size;
@@ -59,52 +59,52 @@ parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size)
 }
 
 
-parser_status_t
+dc_status_t
 parser_get_datetime (parser_t *parser, dc_datetime_t *datetime)
 {
 	if (parser == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (parser->backend->datetime == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return parser->backend->datetime (parser, datetime);
 }
 
-parser_status_t
+dc_status_t
 parser_get_field (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value)
 {
 	if (parser == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (parser->backend->field == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return parser->backend->field (parser, type, flags, value);
 }
 
 
-parser_status_t
+dc_status_t
 parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata)
 {
 	if (parser == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	if (parser->backend->samples_foreach == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return parser->backend->samples_foreach (parser, callback, userdata);
 }
 
 
-parser_status_t
+dc_status_t
 parser_destroy (parser_t *parser)
 {
 	if (parser == NULL)
-		return PARSER_STATUS_SUCCESS;
+		return DC_STATUS_SUCCESS;
 
 	if (parser->backend->destroy == NULL)
-		return PARSER_STATUS_UNSUPPORTED;
+		return DC_STATUS_UNSUPPORTED;
 
 	return parser->backend->destroy (parser);
 }

@@ -43,37 +43,37 @@ typedef enum reefnet_sensusultra_parameter_t {
 	REEFNET_SENSUSULTRA_PARAMETER_AVERAGING
 } reefnet_sensusultra_parameter_t;
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_set_maxretries (device_t *device, unsigned int maxretries);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_set_timestamp (device_t *device, unsigned int timestamp);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_read_user (device_t *device, unsigned char *data, unsigned int size);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_write_user (device_t *device, const unsigned char *data, unsigned int size);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_write_parameter (device_t *device, reefnet_sensusultra_parameter_t parameter, unsigned int value);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_device_sense (device_t *device, unsigned char *data, unsigned int size);
 
-device_status_t
+dc_status_t
 reefnet_sensusultra_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-parser_status_t
+dc_status_t
 reefnet_sensusultra_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
-parser_status_t
+dc_status_t
 reefnet_sensusultra_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus

@@ -22,6 +22,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "common.h"
 #include "datetime.h"
 
 #ifdef __cplusplus
@@ -49,14 +50,6 @@ typedef enum parser_type_t {
 	PARSER_TYPE_CRESSI_EDY,
 	PARSER_TYPE_ATOMICS_COBALT
 } parser_type_t;
-
-typedef enum parser_status_t {
-	PARSER_STATUS_SUCCESS = 0,
-	PARSER_STATUS_UNSUPPORTED = -1,
-	PARSER_STATUS_TYPE_MISMATCH = -2,
-	PARSER_STATUS_ERROR = -3,
-	PARSER_STATUS_MEMORY = -7
-} parser_status_t;
 
 typedef enum parser_sample_type_t {
 	SAMPLE_TYPE_TIME,
@@ -158,19 +151,19 @@ typedef void (*sample_callback_t) (parser_sample_type_t type, parser_sample_valu
 parser_type_t
 parser_get_type (parser_t *device);
 
-parser_status_t
+dc_status_t
 parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size);
 
-parser_status_t
+dc_status_t
 parser_get_datetime (parser_t *parser, dc_datetime_t *datetime);
 
-parser_status_t
+dc_status_t
 parser_get_field (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value);
 
-parser_status_t
+dc_status_t
 parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata);
 
-parser_status_t
+dc_status_t
 parser_destroy (parser_t *parser);
 
 #ifdef __cplusplus

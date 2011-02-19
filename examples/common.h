@@ -29,7 +29,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 const char *
-errmsg (device_status_t rc);
+errmsg (dc_status_t rc);
 
 #ifdef __cplusplus
 }

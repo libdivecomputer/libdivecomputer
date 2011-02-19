@@ -31,19 +31,19 @@ extern "C" {
 
 #define SUUNTO_EON_MEMORY_SIZE 0x900
 
-device_status_t
+dc_status_t
 suunto_eon_device_open (device_t **device, const char* name);
 
-device_status_t
+dc_status_t
 suunto_eon_device_write_name (device_t *device, unsigned char data[], unsigned int size);
 
-device_status_t
+dc_status_t
 suunto_eon_device_write_interval (device_t *device, unsigned char interval);
 
-device_status_t
+dc_status_t
 suunto_eon_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-parser_status_t
+dc_status_t
 suunto_eon_parser_create (parser_t **parser, int spyder);
 
 #ifdef __cplusplus

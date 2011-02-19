@@ -36,7 +36,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #define ACK 0x5A
@@ -48,10 +48,10 @@ typedef struct oceanic_atom2_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_atom2_device_t;
 
-static device_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static device_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static device_status_t oceanic_atom2_device_close (device_t *abstract);
+static dc_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
+static dc_status_t oceanic_atom2_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_atom2_device_backend = {
 	DEVICE_TYPE_OCEANIC_ATOM2,
@@ -215,13 +215,13 @@ device_is_oceanic_atom2 (device_t *abstract)
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
 {
 	device_t *abstract = (device_t *) device;
 
 	if (device_is_cancelled (abstract))
-		return DEVICE_STATUS_CANCELLED;
+		return DC_STATUS_CANCELLED;
 
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
@@ -241,14 +241,14 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 	// Verify the response of the dive computer.
 	if (response != ack) {
 		WARNING ("Unexpected answer start byte(s).");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
 	// Send the command to the device. If the device responds with an
@@ -258,9 +258,9 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 	// returning an error.
 
 	unsigned int nretries = 0;
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = oceanic_atom2_send (device, command, csize, ACK)) != DEVICE_STATUS_SUCCESS) {
-		if (rc != DEVICE_STATUS_TIMEOUT && rc != DEVICE_STATUS_PROTOCOL)
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = oceanic_atom2_send (device, command, csize, ACK)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
 			return rc;
 
 		// Abort if the maximum number of retries is reached.
@@ -285,38 +285,38 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 		unsigned char ccrc = checksum_add_uint8 (answer, asize - 1, 0x00);
 		if (crc != ccrc) {
 			WARNING ("Unexpected answer CRC.");
-			return DEVICE_STATUS_PROTOCOL;
+			return DC_STATUS_PROTOCOL;
 		}
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_quit (oceanic_atom2_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
-	device_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 oceanic_atom2_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t *) malloc (sizeof (oceanic_atom2_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -331,7 +331,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (38400 8N1).
@@ -340,7 +340,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
@@ -348,7 +348,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -360,8 +360,8 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
 	// by connecting the device), or already in download mode.
-	device_status_t status = oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
+	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
@@ -404,17 +404,17 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_device_close (device_t *abstract)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Send the quit command.
 	oceanic_atom2_quit (device);
@@ -422,68 +422,68 @@ oceanic_atom2_device_close (device_t *abstract)
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 oceanic_atom2_device_keepalive (device_t *abstract)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Send the command to the dive computer.
 	unsigned char command[4] = {0x91, 0x05, 0xA5, 0x00};
-	device_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < PAGESIZE)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_INVALIDARGS;
 
 	unsigned char answer[PAGESIZE + 1] = {0};
 	unsigned char command[2] = {0x84, 0x00};
-	device_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
-	if (rc != DEVICE_STATUS_SUCCESS)
+	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	memcpy (data, answer, PAGESIZE);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 	
 	// The data transmission is split in packages
 	// of maximum $PAGESIZE bytes.
@@ -497,8 +497,8 @@ oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned ch
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
 				0};
-		device_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
-		if (rc != DEVICE_STATUS_SUCCESS)
+		dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		memcpy (data, answer, PAGESIZE);
@@ -508,21 +508,21 @@ oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned ch
 		data += PAGESIZE;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
 	if (! device_is_oceanic_atom2 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// The data transmission is split in packages
 	// of maximum $PAGESIZE bytes.
@@ -535,8 +535,8 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
 				0x00};
-		device_status_t rc = oceanic_atom2_transfer (device, prepare, sizeof (prepare), NULL, 0);
-		if (rc != DEVICE_STATUS_SUCCESS)
+		dc_status_t rc = oceanic_atom2_transfer (device, prepare, sizeof (prepare), NULL, 0);
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		// Write the package.
@@ -544,7 +544,7 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 		memcpy (command, data, PAGESIZE);
 		command[PAGESIZE] = checksum_add_uint8 (command, PAGESIZE, 0x00);
 		rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
-		if (rc != DEVICE_STATUS_SUCCESS)
+		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		nbytes += PAGESIZE;
@@ -552,5 +552,5 @@ oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsi
 		data += PAGESIZE;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

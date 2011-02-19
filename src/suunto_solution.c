@@ -32,7 +32,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #define RB_PROFILE_BEGIN			0x020
@@ -43,9 +43,9 @@ typedef struct suunto_solution_device_t {
 	serial_t *port;
 } suunto_solution_device_t;
 
-static device_status_t suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t suunto_solution_device_close (device_t *abstract);
+static dc_status_t suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t suunto_solution_device_close (device_t *abstract);
 
 static const device_backend_t suunto_solution_device_backend = {
 	DEVICE_TYPE_SUUNTO_SOLUTION,
@@ -68,17 +68,17 @@ device_is_suunto_solution (device_t *abstract)
 }
 
 
-device_status_t
+dc_status_t
 suunto_solution_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	suunto_solution_device_t *device = (suunto_solution_device_t *) malloc (sizeof (suunto_solution_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -92,7 +92,7 @@ suunto_solution_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (1200 8N2).
@@ -101,7 +101,7 @@ suunto_solution_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (1000ms).
@@ -109,7 +109,7 @@ suunto_solution_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Clear the RTS line.
@@ -117,49 +117,49 @@ suunto_solution_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 suunto_solution_device_close (device_t *abstract)
 {
 	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
 
 	if (! device_is_suunto_solution (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
 
 	if (! device_is_suunto_solution (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SUUNTO_SOLUTION_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	unsigned char *data = dc_buffer_get_data (buffer);
@@ -247,22 +247,22 @@ suunto_solution_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	progress.current += 1;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	if (! device_is_suunto_solution (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	dc_buffer_t *buffer = dc_buffer_new (SUUNTO_SOLUTION_MEMORY_SIZE);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
-	device_status_t rc = suunto_solution_device_dump (abstract, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = suunto_solution_device_dump (abstract, buffer);
+	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
 	}
@@ -284,14 +284,14 @@ suunto_solution_device_foreach (device_t *abstract, dive_callback_t callback, vo
 }
 
 
-device_status_t
+dc_status_t
 suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	if (abstract && !device_is_suunto_solution (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < SUUNTO_SOLUTION_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 
@@ -301,7 +301,7 @@ suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], u
 		eop >= RB_PROFILE_END ||
 		data[eop] != 0x82)
 	{
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	// The profile data is stored backwards in the ringbuffer. To locate
@@ -333,14 +333,14 @@ suunto_solution_extract_dives (device_t *abstract, const unsigned char data[], u
 			unsigned int len = ringbuffer_distance (previous, current, 0, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
 			if (callback && !callback (buffer + idx, len, NULL, 0, userdata))
-				return DEVICE_STATUS_SUCCESS;
+				return DC_STATUS_SUCCESS;
 
 			previous = current;
 		}
 	}
 
 	if (data[current] != 0x82)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

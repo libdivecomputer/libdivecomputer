@@ -33,7 +33,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
@@ -48,8 +48,8 @@ typedef struct suunto_d9_device_t {
 	unsigned char version[4];
 } suunto_d9_device_t;
 
-static device_status_t suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
-static device_status_t suunto_d9_device_close (device_t *abstract);
+static dc_status_t suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
+static dc_status_t suunto_d9_device_close (device_t *abstract);
 
 static const suunto_common2_device_backend_t suunto_d9_device_backend = {
 	{
@@ -89,10 +89,10 @@ device_is_suunto_d9 (device_t *abstract)
 }
 
 
-static device_status_t
+static dc_status_t
 suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 {
-	device_status_t status = DEVICE_STATUS_SUCCESS;
+	dc_status_t status = DC_STATUS_SUCCESS;
 
 	// The list with possible baudrates.
 	const int baudrates[] = {9600, 115200};
@@ -110,12 +110,12 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 		int rc = serial_configure (device->port, baudrates[idx], 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 		if (rc == -1) {
 			WARNING ("Failed to set the terminal attributes.");
-			return DEVICE_STATUS_IO;
+			return DC_STATUS_IO;
 		}
 
 		// Try reading the version info.
 		status = suunto_common2_device_version ((device_t *) device, device->version, sizeof (device->version));
-		if (status == DEVICE_STATUS_SUCCESS)
+		if (status == DC_STATUS_SUCCESS)
 			break;
 	}
 
@@ -123,17 +123,17 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 }
 
 
-device_status_t
+dc_status_t
 suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	suunto_d9_device_t *device = (suunto_d9_device_t *) malloc (sizeof (suunto_d9_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -148,7 +148,7 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
@@ -157,7 +157,7 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
@@ -165,7 +165,7 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the DTR line (power supply for the interface).
@@ -173,7 +173,7 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 		WARNING ("Failed to set the DTR line.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -183,8 +183,8 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Try to autodetect the protocol variant.
-	device_status_t status = suunto_d9_device_autodetect (device, model);
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = suunto_d9_device_autodetect (device, model);
+	if (status != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to identify the protocol variant.");
 		serial_close (device->port);
 		free (device);
@@ -200,38 +200,38 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 
 	*out = (device_t*) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 suunto_d9_device_close (device_t *abstract)
 {
 	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
 
 	if (! device_is_suunto_d9 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.	
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	suunto_d9_device_t *device = (suunto_d9_device_t *) abstract;
 
 	if (device_is_cancelled (abstract))
-		return DEVICE_STATUS_CANCELLED;
+		return DC_STATUS_CANCELLED;
 
 	// Clear RTS to send the command.
 	serial_set_rts (device->port, 0);
@@ -255,7 +255,7 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 	// Verify the echo.
 	if (memcmp (command, echo, csize) != 0) {
 		WARNING ("Unexpected echo.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Set RTS to receive the reply.
@@ -271,19 +271,19 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 	// Verify the header of the package.
 	if (answer[0] != command[0]) {
 		WARNING ("Unexpected answer header.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the size of the package.
 	if (array_uint16_be (answer + 1) + 4 != asize) {
 		WARNING ("Unexpected answer size.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the parameters of the package.
 	if (memcmp (command + 3, answer + 3, asize - size - 4) != 0) {
 		WARNING ("Unexpected answer parameters.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the checksum of the package.
@@ -291,18 +291,18 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 	unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
 	if (crc != ccrc) {
 		WARNING ("Unexpected answer CRC.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-device_status_t
+dc_status_t
 suunto_d9_device_reset_maxdepth (device_t *abstract)
 {
 	if (! device_is_suunto_d9 (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	return suunto_common2_device_reset_maxdepth (abstract);
 }

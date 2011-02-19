@@ -35,11 +35,11 @@ struct uwatec_memomouse_parser_t {
 	dc_ticks_t systime;
 };
 
-static parser_status_t uwatec_memomouse_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t uwatec_memomouse_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t uwatec_memomouse_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t uwatec_memomouse_parser_destroy (parser_t *abstract);
+static dc_status_t uwatec_memomouse_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t uwatec_memomouse_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t uwatec_memomouse_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static dc_status_t uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static dc_status_t uwatec_memomouse_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t uwatec_memomouse_parser_backend = {
 	PARSER_TYPE_UWATEC_MEMOMOUSE,
@@ -61,17 +61,17 @@ parser_is_uwatec_memomouse (parser_t *abstract)
 }
 
 
-parser_status_t
+dc_status_t
 uwatec_memomouse_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	uwatec_memomouse_parser_t *parser = (uwatec_memomouse_parser_t *) malloc (sizeof (uwatec_memomouse_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return PARSER_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -83,60 +83,60 @@ uwatec_memomouse_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t
 
 	*out = (parser_t*) parser;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 uwatec_memomouse_parser_destroy (parser_t *abstract)
 {
 	if (! parser_is_uwatec_memomouse (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Free memory.	
 	free (abstract);
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 uwatec_memomouse_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	if (! parser_is_uwatec_memomouse (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 uwatec_memomouse_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	uwatec_memomouse_parser_t *parser = (uwatec_memomouse_parser_t *) abstract;
 
 	if (abstract->size < 11 + 4)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 11);
 
 	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp) / 2;
 
 	if (!dc_datetime_localtime (datetime, ticks))
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 uwatec_memomouse_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
 	if (size < 18)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int model = data[3];
 
@@ -182,25 +182,25 @@ uwatec_memomouse_parser_get_field (parser_t *abstract, parser_field_type_t type,
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
-			return PARSER_STATUS_UNSUPPORTED;
+			return DC_STATUS_UNSUPPORTED;
 		}
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static parser_status_t
+static dc_status_t
 uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
 	if (! parser_is_uwatec_memomouse (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
 	if (size < 18)
-		return PARSER_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	unsigned int model = data[3];
 
@@ -274,14 +274,14 @@ uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t c
 			
 			// Decompression information.
 			if (offset + 1 > size)
-				return PARSER_STATUS_ERROR;
+				return DC_STATUS_DATAFORMAT;
 			sample.vendor.size++;
 			offset++;
 
 			// Oxygen percentage (O2 series only).
 			if (is_oxygen) {
 				if (offset + 1 > size)
-					return PARSER_STATUS_ERROR;
+					return DC_STATUS_DATAFORMAT;
 				sample.vendor.size++;
 				offset++;
 			}
@@ -292,5 +292,5 @@ uwatec_memomouse_parser_samples_foreach (parser_t *abstract, sample_callback_t c
 		time += 20;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

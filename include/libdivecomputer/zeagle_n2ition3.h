@@ -31,7 +31,7 @@ extern "C" {
 #define ZEAGLE_N2ITION3_MEMORY_SIZE 0x8000
 #define ZEAGLE_N2ITION3_PACKET_SIZE 64
 
-device_status_t
+dc_status_t
 zeagle_n2ition3_device_open (device_t **device, const char* name);
 
 #ifdef __cplusplus

@@ -283,13 +283,13 @@ sample_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdat
 	}
 }
 
-static parser_status_t
+static dc_status_t
 doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned int size)
 {
 	// Create the parser.
 	message ("Creating the parser.\n");
 	parser_t *parser = NULL;
-	parser_status_t rc = PARSER_STATUS_SUCCESS;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	switch (devdata->backend) {
 	case DEVICE_TYPE_SUUNTO_SOLUTION:
 		rc = suunto_solution_parser_create (&parser);
@@ -356,10 +356,10 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		rc = atomics_cobalt_parser_create (&parser);
 		break;
 	default:
-		rc = PARSER_STATUS_ERROR;
+		rc = DC_STATUS_INVALIDARGS;
 		break;
 	}
-	if (rc != PARSER_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error creating the parser.");
 		return rc;
 	}
@@ -367,7 +367,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	// Register the data.
 	message ("Registering the data.\n");
 	rc = parser_set_data (parser, data, size);
-	if (rc != PARSER_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the data.");
 		parser_destroy (parser);
 		return rc;
@@ -377,7 +377,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	message ("Parsing the datetime.\n");
 	dc_datetime_t dt = {0};
 	rc = parser_get_datetime (parser, &dt);
-	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the datetime.");
 		parser_destroy (parser);
 		return rc;
@@ -391,7 +391,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	message ("Parsing the divetime.\n");
 	unsigned int divetime = 0;
 	rc = parser_get_field (parser, FIELD_TYPE_DIVETIME, 0, &divetime);
-	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the divetime.");
 		parser_destroy (parser);
 		return rc;
@@ -404,7 +404,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	message ("Parsing the maxdepth.\n");
 	double maxdepth = 0.0;
 	rc = parser_get_field (parser, FIELD_TYPE_MAXDEPTH, 0, &maxdepth);
-	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the maxdepth.");
 		parser_destroy (parser);
 		return rc;
@@ -417,7 +417,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	message ("Parsing the gas mixes.\n");
 	unsigned int ngases = 0;
 	rc = parser_get_field (parser, FIELD_TYPE_GASMIX_COUNT, 0, &ngases);
-	if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the gas mix count.");
 		parser_destroy (parser);
 		return rc;
@@ -426,7 +426,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	for (unsigned int i = 0; i < ngases; ++i) {
 		gasmix_t gasmix = {0};
 		rc = parser_get_field (parser, FIELD_TYPE_GASMIX, i, &gasmix);
-		if (rc != PARSER_STATUS_SUCCESS && rc != PARSER_STATUS_UNSUPPORTED) {
+		if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 			WARNING ("Error parsing the gas mix.");
 			parser_destroy (parser);
 			return rc;
@@ -451,7 +451,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	// Parse the sample data.
 	message ("Parsing the sample data.\n");
 	rc = parser_samples_foreach (parser, sample_cb, &sampledata);
-	if (rc != PARSER_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error parsing the sample data.");
 		parser_destroy (parser);
 		return rc;
@@ -463,12 +463,12 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	// Destroy the parser.
 	message ("Destroying the parser.\n");
 	rc = parser_destroy (parser);
-	if (rc != PARSER_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error destroying the parser.");
 		return rc;
 	}
 
-	return PARSER_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 static void
@@ -577,10 +577,10 @@ usage (const char *filename)
 }
 
 
-static device_status_t
+static dc_status_t
 dowork (device_type_t backend, unsigned int model, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
 {
-	device_status_t rc = DEVICE_STATUS_SUCCESS;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Initialize the device data.
 	device_data_t devdata = {0};
@@ -661,10 +661,10 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 		rc = atomics_cobalt_device_open (&device);
 		break;
 	default:
-		rc = DEVICE_STATUS_ERROR;
+		rc = DC_STATUS_INVALIDARGS;
 		break;
 	}
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error opening device.");
 		return rc;
 	}
@@ -673,7 +673,7 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 	message ("Registering the event handler.\n");
 	int events = DEVICE_EVENT_WAITING | DEVICE_EVENT_PROGRESS | DEVICE_EVENT_DEVINFO | DEVICE_EVENT_CLOCK;
 	rc = device_set_events (device, events, event_cb, &devdata);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the event handler.");
 		device_close (device);
 		return rc;
@@ -682,7 +682,7 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 	// Register the cancellation handler.
 	message ("Registering the cancellation handler.\n");
 	rc = device_set_cancel (device, cancel_cb, NULL);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the cancellation handler.");
 		device_close (device);
 		return rc;
@@ -692,7 +692,7 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 	if (fingerprint) {
 		message ("Registering the fingerprint data.\n");
 		rc = device_set_fingerprint (device, dc_buffer_get_data (fingerprint), dc_buffer_get_size (fingerprint));
-		if (rc != DEVICE_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Error registering the fingerprint data.");
 			device_close (device);
 			return rc;
@@ -706,7 +706,7 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 		// Download the memory dump.
 		message ("Downloading the memory dump.\n");
 		rc = device_dump (device, buffer);
-		if (rc != DEVICE_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Error downloading the memory dump.");
 			dc_buffer_free (buffer);
 			device_close (device);
@@ -737,7 +737,7 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 		// Download the dives.
 		message ("Downloading the dives.\n");
 		rc = device_foreach (device, dive_cb, &divedata);
-		if (rc != DEVICE_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Error downloading the dives.");
 			dc_buffer_free (divedata.fingerprint);
 			if (divedata.fp) fclose (divedata.fp);
@@ -760,12 +760,12 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 	// Close the device.
 	message ("Closing the device.\n");
 	rc = device_close (device);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error closing the device.");
 		return rc;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -846,11 +846,11 @@ main (int argc, char *argv[])
 	message_set_logfile (logfile);
 
 	dc_buffer_t *fp = fpconvert (fingerprint);
-	device_status_t rc = dowork (backend, model, devname, rawfile, xmlfile, memory, dives, fp);
+	dc_status_t rc = dowork (backend, model, devname, rawfile, xmlfile, memory, dives, fp);
 	dc_buffer_free (fp);
 	message ("Result: %s\n", errmsg (rc));
 
 	message_set_logfile (NULL);
 
-	return rc != DEVICE_STATUS_SUCCESS ? EXIT_FAILURE : EXIT_SUCCESS;
+	return rc != DC_STATUS_SUCCESS ? EXIT_FAILURE : EXIT_SUCCESS;
 }

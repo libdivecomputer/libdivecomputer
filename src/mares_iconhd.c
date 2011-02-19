@@ -31,7 +31,7 @@
 
 #define EXITCODE(rc) \
 ( \
-	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
+	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -56,11 +56,11 @@ typedef struct mares_iconhd_device_t {
 	unsigned char version[140];
 } mares_iconhd_device_t;
 
-static device_status_t mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static device_status_t mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t mares_iconhd_device_close (device_t *abstract);
+static dc_status_t mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t mares_iconhd_device_close (device_t *abstract);
 
 static const device_backend_t mares_iconhd_device_backend = {
 	DEVICE_TYPE_MARES_ICONHD,
@@ -83,7 +83,7 @@ device_is_mares_iconhd (device_t *abstract)
 }
 
 
-static device_status_t
+static unsigned int
 mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
 {
 	// Try to correct an invalid model code using the version packet.
@@ -97,7 +97,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
 	return model;
 }
 
-static device_status_t
+static dc_status_t
 mares_iconhd_transfer (mares_iconhd_device_t *device,
 	const unsigned char command[], unsigned int csize,
 	unsigned char answer[], unsigned int asize,
@@ -130,7 +130,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	// Verify the header byte.
 	if (header[0] != ACK) {
 		WARNING ("Unexpected answer byte.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	unsigned int nbytes = 0;
@@ -174,14 +174,14 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	// Verify the trailer byte.
 	if (trailer[0] != EOF) {
 		WARNING ("Unexpected answer byte.");
-		return DEVICE_STATUS_PROTOCOL;
+		return DC_STATUS_PROTOCOL;
 	}
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_version (mares_iconhd_device_t *device, unsigned char data[], unsigned int size)
 {
 	unsigned char command[] = {0xC2, 0x67};
@@ -189,7 +189,7 @@ mares_iconhd_version (mares_iconhd_device_t *device, unsigned char data[], unsig
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_read (mares_iconhd_device_t *device, unsigned int address, unsigned char data[], unsigned int size, int events)
 {
 	unsigned char command[] = {0xE7, 0x42,
@@ -205,17 +205,17 @@ mares_iconhd_read (mares_iconhd_device_t *device, unsigned int address, unsigned
 }
 
 
-device_status_t
+dc_status_t
 mares_iconhd_device_open (device_t **out, const char* name)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) malloc (sizeof (mares_iconhd_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -231,7 +231,7 @@ mares_iconhd_device_open (device_t **out, const char* name)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (256000 8N1).
@@ -240,7 +240,7 @@ mares_iconhd_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
@@ -248,7 +248,7 @@ mares_iconhd_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the DTR/RTS lines.
@@ -258,15 +258,15 @@ mares_iconhd_device_open (device_t **out, const char* name)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Send the version command.
-	device_status_t status = mares_iconhd_version (device, device->version, sizeof (device->version));
-	if (status != DEVICE_STATUS_SUCCESS) {
+	dc_status_t status = mares_iconhd_version (device, device->version, sizeof (device->version));
+	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
@@ -274,49 +274,49 @@ mares_iconhd_device_open (device_t **out, const char* name)
 
 	*out = (device_t *) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_device_close (device_t *abstract)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t*) abstract;
 
 	if (! device_is_mares_iconhd (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
 	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
 	else
 		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
@@ -325,7 +325,7 @@ mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned cha
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
@@ -334,7 +334,7 @@ mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, MARES_ICONHD_MEMORY_SIZE)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	return mares_iconhd_read (device, 0, dc_buffer_get_data (buffer),
@@ -342,17 +342,17 @@ mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 }
 
 
-static device_status_t
+static dc_status_t
 mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
 	dc_buffer_t *buffer = dc_buffer_new (MARES_ICONHD_MEMORY_SIZE);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
-	device_status_t rc = mares_iconhd_device_dump (abstract, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = mares_iconhd_device_dump (abstract, buffer);
+	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
 	}
@@ -374,16 +374,16 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 }
 
 
-device_status_t
+dc_status_t
 mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
 	if (abstract && !device_is_mares_iconhd (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < MARES_ICONHD_MEMORY_SIZE)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 
 	// Get the model code.
 	unsigned int model = mares_iconhd_get_model (device, data[0]);
@@ -403,14 +403,14 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	}
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
 		WARNING ("Ringbuffer pointer out of range.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Make the ringbuffer linear, to avoid having to deal with the wrap point.
 	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN);
 	if (buffer == NULL) {
 		WARNING ("Out of memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	memcpy (buffer + 0, data + eop, RB_PROFILE_END - eop);
@@ -447,22 +447,22 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		if (length != nbytes) {
 			WARNING ("Calculated and stored size are not equal.");
 			free (buffer);
-			return DEVICE_STATUS_ERROR;
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		unsigned char *fp = buffer + offset + length - header + 6;
 		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 
 		if (callback && !callback (buffer + offset, length, fp, sizeof (device->fingerprint), userdata)) {
 			free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 	}
 
 	free (buffer);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

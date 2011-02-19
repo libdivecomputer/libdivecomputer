@@ -55,10 +55,10 @@ typedef struct mares_darwin_device_t {
 	unsigned char fingerprint[6];
 } mares_darwin_device_t;
 
-static device_status_t mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t mares_darwin_device_close (device_t *abstract);
+static dc_status_t mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static dc_status_t mares_darwin_device_close (device_t *abstract);
 
 static const device_backend_t mares_darwin_device_backend = {
 	DEVICE_TYPE_MARES_DARWIN,
@@ -100,17 +100,17 @@ device_is_mares_darwin (device_t *abstract)
     return abstract->backend == &mares_darwin_device_backend;
 }
 
-device_status_t
+dc_status_t
 mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 {
 	if (out == NULL)
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
 	mares_darwin_device_t *device = (mares_darwin_device_t *) malloc (sizeof (mares_darwin_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
@@ -129,7 +129,7 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 	if (rc == -1) {
 		WARNING ("Failed to open the serial port.");
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
@@ -138,7 +138,7 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 		WARNING ("Failed to set the terminal attributes.");
 		serial_close (device->base.port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
@@ -146,7 +146,7 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->base.port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Set the DTR/RTS lines.
@@ -155,7 +155,7 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 		WARNING ("Failed to set the DTR/RTS line.");
 		serial_close (device->base.port);
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Make sure everything is in a sane state.
@@ -168,10 +168,10 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 
 	*out = (device_t *) device;
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
-static device_status_t
+static dc_status_t
 mares_darwin_device_close (device_t *abstract)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
@@ -179,34 +179,34 @@ mares_darwin_device_close (device_t *abstract)
 	// Close the device.
 	if (serial_close (device->base.port) == -1) {
 		free (device);
-		return DEVICE_STATUS_IO;
+		return DC_STATUS_IO;
 	}
 
 	// Free memory.
 	free (device);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_INVALIDARGS;
 
 	if (size)
 		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
 	else
 		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }
 
 
-static device_status_t
+static dc_status_t
 mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
@@ -217,7 +217,7 @@ mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
@@ -225,7 +225,7 @@ mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 }
 
 
-static device_status_t
+static dc_status_t
 mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
@@ -234,10 +234,10 @@ mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
 	if (buffer == NULL)
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 
-	device_status_t rc = mares_darwin_device_dump (abstract, buffer);
-	if (rc != DEVICE_STATUS_SUCCESS) {
+	dc_status_t rc = mares_darwin_device_dump (abstract, buffer);
+	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
 	}
@@ -259,13 +259,13 @@ mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void 
 }
 
 
-device_status_t
+dc_status_t
 mares_darwin_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	if (!device_is_mares_darwin (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
+		return DC_STATUS_INVALIDARGS;
 
 	assert (device->layout != NULL);
 
@@ -275,21 +275,21 @@ mares_darwin_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	unsigned int eop = array_uint16_be (data + 0x8A);
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
 		WARNING ("Invalid ringbuffer pointer detected.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Get the logbook index.
 	unsigned int last = data[0x8C];
 	if (last >= layout->rb_logbook_count) {
 		WARNING ("Invalid ringbuffer pointer detected.");
-		return DEVICE_STATUS_ERROR;
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Allocate memory for the largest possible dive.
 	unsigned char *buffer = malloc (layout->rb_logbook_size + layout->rb_profile_end - layout->rb_profile_begin);
 	if (buffer == NULL) {
 		WARNING ("Failed to allocate memory.");
-		return DEVICE_STATUS_MEMORY;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// The logbook ringbuffer can store a fixed amount of entries, but there
@@ -327,12 +327,12 @@ mares_darwin_extract_dives (device_t *abstract, const unsigned char data[], unsi
 
 		if (device && memcmp (buffer, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 
 		if (callback && !callback (buffer, layout->rb_logbook_size + length, buffer, 6, userdata)) {
 			free (buffer);
-			return DEVICE_STATUS_SUCCESS;
+			return DC_STATUS_SUCCESS;
 		}
 
 		remaining -= length;
@@ -340,5 +340,5 @@ mares_darwin_extract_dives (device_t *abstract, const unsigned char data[], unsi
 
 	free (buffer);
 
-	return DEVICE_STATUS_SUCCESS;
+	return DC_STATUS_SUCCESS;
 }

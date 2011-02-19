@@ -22,6 +22,7 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
+#include "common.h"
 #include "buffer.h"
 #include "datetime.h"
 
@@ -56,18 +57,6 @@ typedef enum device_type_t {
 	DEVICE_TYPE_ATOMICS_COBALT
 } device_type_t;
 
-typedef enum device_status_t {
-	DEVICE_STATUS_SUCCESS = 0,
-	DEVICE_STATUS_UNSUPPORTED = -1,
-	DEVICE_STATUS_TYPE_MISMATCH = -2,
-	DEVICE_STATUS_ERROR = -3,
-	DEVICE_STATUS_IO = -4,
-	DEVICE_STATUS_TIMEOUT = -5,
-	DEVICE_STATUS_PROTOCOL = -6,
-	DEVICE_STATUS_MEMORY = -7,
-	DEVICE_STATUS_CANCELLED = -8
-} device_status_t;
-
 typedef enum device_event_t {
 	DEVICE_EVENT_WAITING = (1 << 0),
 	DEVICE_EVENT_PROGRESS = (1 << 1),
@@ -101,23 +90,23 @@ typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, co
 
 device_type_t device_get_type (device_t *device);
 
-device_status_t device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata);
+dc_status_t device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata);
 
-device_status_t device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata);
+dc_status_t device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata);
 
-device_status_t device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
+dc_status_t device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
 
-device_status_t device_version (device_t *device, unsigned char data[], unsigned int size);
+dc_status_t device_version (device_t *device, unsigned char data[], unsigned int size);
 
-device_status_t device_read (device_t *device, unsigned int address, unsigned char data[], unsigned int size);
+dc_status_t device_read (device_t *device, unsigned int address, unsigned char data[], unsigned int size);
 
-device_status_t device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
+dc_status_t device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
 
-device_status_t device_dump (device_t *device, dc_buffer_t *buffer);
+dc_status_t device_dump (device_t *device, dc_buffer_t *buffer);
 
-device_status_t device_foreach (device_t *device, dive_callback_t callback, void *userdata);
+dc_status_t device_foreach (device_t *device, dive_callback_t callback, void *userdata);
 
-device_status_t device_close (device_t *device);
+dc_status_t device_close (device_t *device);
 
 #ifdef __cplusplus
 }
