@@ -71,6 +71,7 @@ static const unsigned char oceanic_epic_version[]  = "2M EPIC r\0\0 512K";
 static const unsigned char oceanic_geo2_version[]  = "OCEGEO20 \0\0 512K";
 static const unsigned char oceanic_oc1_version[]   = "OCWATCH R\0\0 1024";
 static const unsigned char tusa_zenair_version[]   = "TUZENAIR \0\0 512K";
+static const unsigned char sherwood_insight_version[] = "INSIGHT2 \0\0 512K";
 
 static const oceanic_common_layout_t oceanic_default_layout = {
 	0x10000, /* memsize */
@@ -328,7 +329,8 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		oceanic_common_match (oceanic_epic_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_geo2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_proplus2_version, device->version, sizeof (device->version)) ||
-		oceanic_common_match (oceanic_wisdom2_version, device->version, sizeof (device->version)))
+		oceanic_common_match (oceanic_wisdom2_version, device->version, sizeof (device->version)) ||
+		oceanic_common_match (sherwood_insight_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom2_layout;
 	else if (oceanic_common_match (oceanic_atom1_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom1_layout;
