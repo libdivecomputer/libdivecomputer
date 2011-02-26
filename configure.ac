@@ -42,6 +42,12 @@ esac
 AC_MSG_RESULT([$os_win32])
 AM_CONDITIONAL([OS_WIN32], [test "$os_win32" = "yes"])
 
+# Checks for USB support.
+PKG_CHECK_MODULES([LIBUSB], [libusb-1.0], [have_libusb=yes], [have_libusb=no])
+if test "$have_libusb" = "yes"; then
+	AC_DEFINE([HAVE_LIBUSB], [1], [libusb support])
+fi
+
 # Checks for IrDA support.
 AC_CHECK_HEADERS([winsock2.h af_irda.h], [irda_win32=yes], [irda_win32=no], [
 #if HAVE_WINSOCK2_H
