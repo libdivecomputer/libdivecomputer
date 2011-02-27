@@ -32,6 +32,9 @@ extern "C" {
 device_status_t
 atomics_cobalt_device_open (device_t **device);
 
+device_status_t
+atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulation);
+
 parser_status_t
 atomics_cobalt_parser_create (parser_t **parser);
 

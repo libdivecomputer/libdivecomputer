@@ -48,6 +48,7 @@ typedef struct atomics_cobalt_device_t {
 	libusb_context *context;
 	libusb_device_handle *handle;
 #endif
+	unsigned int simulation;
 	unsigned char fingerprint[6];
 } atomics_cobalt_device_t;
 
@@ -96,6 +97,7 @@ atomics_cobalt_device_open (device_t **out)
 	// Set the default values.
 	device->context = NULL;
 	device->handle = NULL;
+	device->simulation = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	int rc = libusb_init (&device->context);
@@ -169,6 +171,20 @@ atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char d
 }
 
 
+device_status_t
+atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulation)
+{
+	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
+
+	if (! device_is_atomics_cobalt (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	device->simulation = simulation;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
 static device_status_t
 atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init)
 {
@@ -185,7 +201,11 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init)
 	}
 
 	// Send the command to the dive computer.
-	uint8_t bRequest = init ? 0x09 : 0x0A;
+	uint8_t bRequest = 0;
+	if (device->simulation)
+		bRequest = init ? 0x02 : 0x03;
+	else
+		bRequest = init ? 0x09 : 0x0A;
 	int rc = libusb_control_transfer (device->handle,
 		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
 		bRequest, 0, 0, NULL, 0, TIMEOUT);

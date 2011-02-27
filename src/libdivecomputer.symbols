@@ -116,3 +116,4 @@ hw_ostc_device_open
 hw_ostc_extract_dives
 zeagle_n2ition3_device_open
 atomics_cobalt_device_open
+atomics_cobalt_device_set_simulation
