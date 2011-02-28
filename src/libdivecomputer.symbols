@@ -43,6 +43,7 @@ oceanic_atom2_parser_create
 hw_ostc_parser_create
 cressi_edy_parser_create
 atomics_cobalt_parser_create
+atomics_cobalt_parser_set_calibration
 
 device_close
 device_dump

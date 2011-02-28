@@ -38,6 +38,9 @@ atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulatio
 parser_status_t
 atomics_cobalt_parser_create (parser_t **parser);
 
+parser_status_t
+atomics_cobalt_parser_set_calibration (parser_t *abstract, double atmospheric, double hydrostatic);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -36,6 +36,9 @@ typedef struct atomics_cobalt_parser_t atomics_cobalt_parser_t;
 
 struct atomics_cobalt_parser_t {
 	parser_t base;
+	// Depth calibration.
+	double atmospheric;
+	double hydrostatic;
 };
 
 static parser_status_t atomics_cobalt_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -80,6 +83,10 @@ atomics_cobalt_parser_create (parser_t **out)
 	// Initialize the base class.
 	parser_init (&parser->base, &atomics_cobalt_parser_backend);
 
+	// Set the default values.
+	parser->atmospheric = 0.0;
+	parser->hydrostatic = 1025.0 * GRAVITY;
+
 	*out = (parser_t*) parser;
 
 	return PARSER_STATUS_SUCCESS;
@@ -109,6 +116,21 @@ atomics_cobalt_parser_set_data (parser_t *abstract, const unsigned char *data, u
 }
 
 
+parser_status_t
+atomics_cobalt_parser_set_calibration (parser_t *abstract, double atmospheric, double hydrostatic)
+{
+	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t*) abstract;
+
+	if (! parser_is_atomics_cobalt (abstract))
+		return PARSER_STATUS_TYPE_MISMATCH;
+
+	parser->atmospheric = atmospheric;
+	parser->hydrostatic = hydrostatic;
+
+	return PARSER_STATUS_SUCCESS;
+}
+
+
 static parser_status_t
 atomics_cobalt_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
@@ -133,6 +155,8 @@ atomics_cobalt_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 static parser_status_t
 atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
+	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t *) abstract;
+
 	if (abstract->size < SZ_HEADER)
 		return PARSER_STATUS_ERROR;
 
@@ -140,13 +164,19 @@ atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, u
 
 	gasmix_t *gasmix = (gasmix_t *) value;
 
+	double atmospheric = 0.0;
+	if (parser->atmospheric)
+		atmospheric = parser->atmospheric;
+	else
+		atmospheric = array_uint16_le (p + 0x26) * BAR / 1000.0;
+
 	if (value) {
 		switch (type) {
 		case FIELD_TYPE_DIVETIME:
 			*((unsigned int *) value) = array_uint16_le (p + 0x58) * 60;
 			break;
 		case FIELD_TYPE_MAXDEPTH:
-			*((double *) value) = (array_uint16_le (p + 0x56) - 1000.0) / 100.0;
+			*((double *) value) = (array_uint16_le (p + 0x56) * BAR / 1000.0 - atmospheric) / parser->hydrostatic;
 			break;
 		case FIELD_TYPE_GASMIX_COUNT:
 			*((unsigned int *) value) = p[0x2a];
@@ -168,6 +198,8 @@ atomics_cobalt_parser_get_field (parser_t *abstract, parser_field_type_t type, u
 static parser_status_t
 atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
+	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t *) abstract;
+
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
@@ -185,6 +217,12 @@ atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 	if (size < header + SZ_SEGMENT * nsegments)
 		return PARSER_STATUS_ERROR;
 
+	double atmospheric = 0.0;
+	if (parser->atmospheric)
+		atmospheric = parser->atmospheric;
+	else
+		atmospheric = array_uint16_le (data + 0x26) * BAR / 1000.0;
+
 	unsigned int time = 0;
 	unsigned int offset = header;
 	while (offset + SZ_SEGMENT <= size) {
@@ -197,7 +235,7 @@ atomics_cobalt_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 
 		// Depth (1/1000 bar).
 		unsigned int depth = array_uint16_le (data + offset + 0);
-		sample.depth = (depth - 1000.0) / 100.0;
+		sample.depth = (depth * BAR / 1000.0 - atmospheric) / parser->hydrostatic;
 		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
 		// Pressure (1 psi).
