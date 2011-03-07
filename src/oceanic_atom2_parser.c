@@ -347,7 +347,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		parser_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, samplesize, 0x00)) {
+		if (array_isequal (data + offset, samplesize, 0x00) ||
+			array_isequal (data + offset, samplesize, 0xFF)) {
 			offset += samplesize;
 			continue;
 		}
