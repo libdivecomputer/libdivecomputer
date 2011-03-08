@@ -385,7 +385,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
 				tank = (data[offset + 1] & 0x03) - 1;
-				if (parser->model == ATOM2)
+				if (parser->model == ATOM2 || parser->model == EPIC)
 					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
