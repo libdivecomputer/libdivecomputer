@@ -13,6 +13,7 @@ AC_PREREQ([2.60])
 AC_INIT([libdivecomputer],[dc_version_major.dc_version_minor.dc_version_micro])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 
 # Initialize automake.
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
