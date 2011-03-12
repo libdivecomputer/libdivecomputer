@@ -42,6 +42,9 @@
 
 #define FP_OFFSET 20
 
+#define SZ_MEMORY (29 * 64 * 1024)
+#define SZ_HEADER 228
+
 typedef struct atomics_cobalt_device_t {
 	device_t base;
 #ifdef HAVE_LIBUSB
@@ -186,7 +189,7 @@ atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulatio
 
 
 static device_status_t
-atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init)
+atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, device_progress_t *progress)
 {
 #ifdef HAVE_LIBUSB
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
@@ -221,6 +224,12 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init)
 			packet, sizeof (packet), &length, TIMEOUT);
 		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT)
 			return DEVICE_STATUS_IO;
+
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += length;
+			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
+		}
 
 		// Append the packet to the output buffer.
 		dc_buffer_append (buffer, packet, length);
@@ -272,6 +281,11 @@ atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	if (! device_is_atomics_cobalt (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = SZ_MEMORY + 2;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
 	// Allocate a memory buffer.
 	dc_buffer_t *buffer = dc_buffer_new (0);
 	if (buffer == NULL)
@@ -279,13 +293,27 @@ atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	unsigned int ndives = 0;
 	device_status_t rc = DEVICE_STATUS_SUCCESS;
-	while ((rc = atomics_cobalt_read_dive (abstract, buffer, (ndives == 0))) == DEVICE_STATUS_SUCCESS) {
+	while ((rc = atomics_cobalt_read_dive (abstract, buffer, (ndives == 0), &progress)) == DEVICE_STATUS_SUCCESS) {
 		unsigned char *data = dc_buffer_get_data (buffer);
 		unsigned int size = dc_buffer_get_size (buffer);
 
 		if (size == 0) {
 			dc_buffer_free (buffer);
 			return DEVICE_STATUS_SUCCESS;
+		}
+
+		if (ndives == 0 && size >= SZ_HEADER) {
+			// Emit a device info event.
+			device_devinfo_t devinfo;
+			devinfo.model = 0;
+			devinfo.firmware = (array_uint16_le (data + 0x1E) << 16)
+				+ array_uint16_le (data + 0x20);
+			devinfo.serial = 0;
+			for (unsigned int i = 0; i < 8; ++i) {
+				devinfo.serial *= 10;
+				devinfo.serial += data[4 + i] - '0';
+			}
+			device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 		}
 
 		if (memcmp (data + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0) {
@@ -297,6 +325,12 @@ atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			dc_buffer_free (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}
+
+		// Adjust the maximum value to take into account the two checksum bytes
+		// for the next dive. Since we don't know the total number of dives in
+		// advance, we can't calculate the total number of checksum bytes and
+		// adjust the maximum on the fly.
+		progress.maximum += 2;
 
 		ndives++;
 	}
