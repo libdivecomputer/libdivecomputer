@@ -34,6 +34,7 @@
 #define ATOM2       0x4342
 #define GEO         0x4344
 #define DATAMASK    0x4347
+#define COMPUMASK   0x4348
 #define OC1A        0x434E
 #define VEO20       0x4359
 #define VEO30       0x435A
@@ -305,9 +306,9 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int size = abstract->size;
 
 	unsigned int header = 4 * PAGESIZE;
-	if (parser->model == GEO || parser->model == DATAMASK ||
-		parser->model == GEO20 || parser->model == VEO20 ||
-		parser->model == VEO30)
+	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
+		parser->model == GEO || parser->model == GEO20 ||
+		parser->model == VEO20 || parser->model == VEO30)
 		header -= PAGESIZE;
 	else if (parser->model == ATOM1)
 		header -= 2 * PAGESIZE;
@@ -379,7 +380,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 		// Check for a tank switch sample.
 		if (data[offset + 0] == 0xAA) {
-			if (parser->model == DATAMASK) {
+			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				// Tank pressure (1 psi) and number
 				tank = 0;
 				pressure = (((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF);
