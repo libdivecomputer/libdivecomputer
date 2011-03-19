@@ -29,6 +29,15 @@
 
 #define SKIP 4
 
+#define D9       0x0E
+#define D6       0x0F
+#define VYPER2   0x10
+#define COBRA2   0x11
+#define D4       0x12
+#define VYPERAIR 0x13
+#define COBRA3   0x14
+#define HELO2    0x15
+
 typedef struct suunto_d9_parser_t suunto_d9_parser_t;
 
 struct suunto_d9_parser_t {
@@ -115,9 +124,9 @@ suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
 
-	unsigned int offset = 0x15 - 4;
-	if (parser->model == 0x15)
-		offset += 6; // HelO2
+	unsigned int offset = 0x15 - SKIP;
+	if (parser->model == HELO2)
+		offset += 6;
 
 	if (abstract->size < offset + 7)
 		return PARSER_STATUS_ERROR;
@@ -147,10 +156,10 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 
 	// Offset to the configuration data.
 	unsigned int config = 0x3E - SKIP;
-	if (parser->model == 0x12)
-		config += 1; // D4
-	if (parser->model == 0x15)
-		config += 74; // HelO2
+	if (parser->model == D4)
+		config += 1;
+	if (parser->model == HELO2)
+		config += 74;
 	if (size < config)
 		return PARSER_STATUS_ERROR;
 
@@ -159,9 +168,9 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 	if (value) {
 		switch (type) {
 		case FIELD_TYPE_DIVETIME:
-			if (parser->model == 0x12)
+			if (parser->model == D4)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP);
-			else if (parser->model == 0x15)
+			else if (parser->model == HELO2)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP + 2) * 60;
 			else
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP) * 60;
@@ -170,14 +179,14 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 			*((double *) value) = array_uint16_le (data + 0x0D - SKIP) / 100.0;
 			break;
 		case FIELD_TYPE_GASMIX_COUNT:
-			if (parser->model == 0x15) {
+			if (parser->model == HELO2) {
 				*((unsigned int *) value) = 8;
 			} else {
 				*((unsigned int *) value) = 3;
 			}
 			break;
 		case FIELD_TYPE_GASMIX:
-			if (parser->model == 0x15) {
+			if (parser->model == HELO2) {
 				gasmix->helium = data[0x58 - SKIP + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x58 - SKIP + 6 * flags + 1] / 100.0;
 			} else {
@@ -208,10 +217,10 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 	// Offset to the configuration data.
 	unsigned int config = 0x3E - SKIP;
-	if (parser->model == 0x12)
-		config += 1; // D4
-	if (parser->model == 0x15)
-		config += 74; // HelO2
+	if (parser->model == D4)
+		config += 1;
+	if (parser->model == HELO2)
+		config += 74;
 	if (config + 1 > size)
 		return PARSER_STATUS_ERROR;
 
@@ -225,15 +234,15 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 	// HelO2 dives can have an additional data block.
 	const unsigned char sequence[] = {0x01, 0x00, 0x00};
-	if (parser->model == 0x15 && memcmp (data + profile, sequence, sizeof (sequence)) != 0)
+	if (parser->model == HELO2 && memcmp (data + profile, sequence, sizeof (sequence)) != 0)
 		profile += 12;
 	if (profile + 5 > size)
 		return PARSER_STATUS_ERROR;
 
 	// Sample recording interval.
 	unsigned int interval_sample_offset = 0x1C - SKIP;
-	if (parser->model == 0x15)
-		interval_sample_offset += 6; // HelO2
+	if (parser->model == HELO2)
+		interval_sample_offset += 6;
 	unsigned int interval_sample = data[interval_sample_offset];
 	if (interval_sample == 0)
 		return PARSER_STATUS_ERROR;
