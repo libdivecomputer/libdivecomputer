@@ -220,8 +220,13 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 	// Offset to the profile data.
 	unsigned int profile = config + 2 + nparams * 3;
-	if (parser->model == 0x15)
-		profile += 12; // HelO2
+	if (profile + 5 > size)
+		return PARSER_STATUS_ERROR;
+
+	// HelO2 dives can have an additional data block.
+	const unsigned char sequence[] = {0x01, 0x00, 0x00};
+	if (parser->model == 0x15 && memcmp (data + profile, sequence, sizeof (sequence)) != 0)
+		profile += 12;
 	if (profile + 5 > size)
 		return PARSER_STATUS_ERROR;
 
