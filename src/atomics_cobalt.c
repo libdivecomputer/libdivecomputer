@@ -107,12 +107,14 @@ atomics_cobalt_device_open (device_t **out)
 
 	int rc = libusb_init (&device->context);
 	if (rc < 0) {
+		WARNING ("Failed to initialize usb support.");
 		free (device);
 		return DEVICE_STATUS_IO;
 	}
 
 	device->handle = libusb_open_device_with_vid_pid (device->context, VID, PID);
 	if (device->handle == NULL) {
+		WARNING ("Failed to open the usb device.");
 		libusb_exit (device->context);
 		free (device);
 		return DEVICE_STATUS_IO;
@@ -120,6 +122,7 @@ atomics_cobalt_device_open (device_t **out)
 
 	rc = libusb_claim_interface (device->handle, 0);
 	if (rc < 0) {
+		WARNING ("Failed to claim the usb interface.");
 		libusb_close (device->handle);
 		libusb_exit (device->context);
 		free (device);
@@ -128,6 +131,7 @@ atomics_cobalt_device_open (device_t **out)
 
 	device_status_t status = atomics_cobalt_device_version ((device_t *) device, device->version, sizeof (device->version));
 	if (status != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to identify the dive computer.");
 		libusb_close (device->handle);
 		libusb_exit (device->context);
 		free (device);
@@ -212,16 +216,20 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 	int rc = libusb_control_transfer (device->handle,
 		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
-	if (rc != LIBUSB_SUCCESS)
+	if (rc != LIBUSB_SUCCESS) {
+		WARNING ("Failed to send the command.");
 		return DEVICE_STATUS_IO;
+	}
 
 	// Receive the answer from the dive computer.
 	int length = 0;
 	unsigned char packet[SZ_VERSION + 2] = {0};
 	rc = libusb_bulk_transfer (device->handle, 0x82,
 		packet, sizeof (packet), &length, TIMEOUT);
-	if (rc != LIBUSB_SUCCESS || length != sizeof (packet))
+	if (rc != LIBUSB_SUCCESS || length != sizeof (packet)) {
+		WARNING ("Failed to receive the answer.");
 		return DEVICE_STATUS_IO;
+	}
 
 	// Verify the checksum of the packet.
 	unsigned short crc = array_uint16_le (packet + SZ_VERSION);
@@ -264,8 +272,10 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 	int rc = libusb_control_transfer (device->handle,
 		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
-	if (rc != LIBUSB_SUCCESS)
+	if (rc != LIBUSB_SUCCESS) {
+		WARNING ("Failed to send the command.");
 		return DEVICE_STATUS_IO;
+	}
 
 	unsigned int nbytes = 0;
 	while (1) {
@@ -274,8 +284,10 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 		unsigned char packet[10 * 1024] = {0};
 		rc = libusb_bulk_transfer (device->handle, 0x82,
 			packet, sizeof (packet), &length, TIMEOUT);
-		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT)
+		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT) {
+			WARNING ("Failed to receive the answer.");
 			return DEVICE_STATUS_IO;
+		}
 
 		// Update and emit a progress event.
 		if (progress) {
