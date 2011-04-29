@@ -31,6 +31,7 @@
 #define ATOM1       0x4250
 #define EPIC        0x4257
 #define VT3         0x4258
+#define T3          0x4259
 #define ATOM2       0x4342
 #define GEO         0x4344
 #define DATAMASK    0x4347
@@ -176,7 +177,10 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
-			datetime->day    = bcd2dec (p[3] & 0x3F);
+			if (parser->model == T3)
+				datetime->day = p[3] & 0x3F;
+			else
+				datetime->day = bcd2dec (p[3] & 0x3F);
 			datetime->hour   = bcd2dec (p[1] & 0x1F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
