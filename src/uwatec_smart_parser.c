@@ -296,7 +296,7 @@ uwatec_galileo_identify (unsigned char value)
 
 	// Bits: 1XXX dddd
 	if ((value & 0xF0) != 0xF0)
-		return (value & 0x70) >> 8;
+		return (value & 0x70) >> 4;
 
 	// Bits: 1111 XXXX
 	return (value & 0x0F) + 7;
