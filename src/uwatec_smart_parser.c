@@ -31,6 +31,14 @@
 #define NBITS 8
 #define NELEMENTS(x) ( sizeof(x) / sizeof((x)[0]) )
 
+#define SMARTPRO      0x10
+#define GALILEO       0x11
+#define ALADINTEC     0x12
+#define ALADINTEC2G   0x13
+#define SMARTCOM      0x14
+#define SMARTTEC      0x18
+#define SMARTZ        0x1C
+
 typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
 
 struct uwatec_smart_parser_t {
@@ -203,31 +211,31 @@ uwatec_smart_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 
 	// Load the correct table.
 	switch (parser->model) {
-	case 0x10: // Smart Pro
+	case SMARTPRO:
 		header = 92;
 		table = &uwatec_smart_pro_header;
 		break;
-	case 0x11: // Galileo Sol
+	case GALILEO:
 		header = 152;
 		table = &uwatec_galileo_sol_header;
 		break;
-	case 0x12: // Aladin Tec, Prime
+	case ALADINTEC:
 		header = 108;
 		table = &uwatec_smart_aladin_header;
 		break;
-	case 0x13: // Aladin Tec 2G
+	case ALADINTEC2G:
 		header = 116;
 		table = &uwatec_smart_aladin_tec2g_header;
 		break;
-	case 0x14: // Smart Com
+	case SMARTCOM:
 		header = 100;
 		table = &uwatec_smart_com_header;
 		break;
-	case 0x18: // Smart Tec
+	case SMARTTEC:
 		header = 132;
 		table = &uwatec_smart_tec_header;
 		break;
-	case 0x1C: // Smart Z
+	case SMARTZ:
 		header = 132;
 		table = &uwatec_smart_z_header;
 		break;
@@ -440,33 +448,33 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 	// Load the correct table.
 	switch (parser->model) {
-	case 0x10: // Smart Pro
+	case SMARTPRO:
 		header = 92;
 		table = uwatec_smart_pro_table;
 		entries = NELEMENTS (uwatec_smart_pro_table);
 		break;
-	case 0x11: // Galileo Sol
+	case GALILEO:
 		header = 152;
 		table = uwatec_galileo_sol_table;
 		entries = NELEMENTS (uwatec_galileo_sol_table);
 		break;
-	case 0x12: // Aladin Tec, Prime
+	case ALADINTEC:
 		header = 108;
 		table = uwatec_smart_aladin_table;
 		entries = NELEMENTS (uwatec_smart_aladin_table);
 		break;
-	case 0x13: // Aladin Tec 2G
+	case ALADINTEC2G:
 		header = 116;
 		table = uwatec_smart_aladin_table;
 		entries = NELEMENTS (uwatec_smart_aladin_table);
 		break;
-	case 0x14: // Smart Com
+	case SMARTCOM:
 		header = 100;
 		table = uwatec_smart_com_table;
 		entries = NELEMENTS (uwatec_smart_com_table);
 		break;
-	case 0x18: // Smart Tec
-	case 0x1C: // Smart Z
+	case SMARTTEC:
+	case SMARTZ:
 		header = 132;
 		table = uwatec_smart_tec_table;
 		entries = NELEMENTS (uwatec_smart_tec_table);
@@ -507,7 +515,7 @@ uwatec_smart_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 		// Process the type bits in the bitstream.
 		unsigned int id = 0;
-		if (parser->model == 0x11) {
+		if (parser->model == GALILEO) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {
