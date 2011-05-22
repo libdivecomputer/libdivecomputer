@@ -45,6 +45,8 @@
 #include <atomics.h>
 #include <utils.h>
 
+#include "common.h"
+
 static const char *g_cachedir = NULL;
 static int g_cachedir_read = 1;
 
@@ -534,33 +536,6 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 	return 1;
 }
 
-
-static const char*
-errmsg (device_status_t rc)
-{
-	switch (rc) {
-	case DEVICE_STATUS_SUCCESS:
-		return "Success";
-	case DEVICE_STATUS_UNSUPPORTED:
-		return "Unsupported operation";
-	case DEVICE_STATUS_TYPE_MISMATCH:
-		return "Device type mismatch";
-	case DEVICE_STATUS_ERROR:
-		return "Generic error";
-	case DEVICE_STATUS_IO:
-		return "Input/output error";
-	case DEVICE_STATUS_MEMORY:
-		return "Memory error";
-	case DEVICE_STATUS_PROTOCOL:
-		return "Protocol error";
-	case DEVICE_STATUS_TIMEOUT:
-		return "Timeout";
-	case DEVICE_STATUS_CANCELLED:
-		return "Cancelled";
-	default:
-		return "Unknown error";
-	}
-}
 
 static void
 usage (const char *filename)

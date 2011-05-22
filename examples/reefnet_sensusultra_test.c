@@ -25,6 +25,8 @@
 #include "reefnet_sensusultra.h"
 #include "utils.h"
 
+#include "common.h"
+
 device_status_t
 test_dump_memory_dives (const char* name, const char* filename)
 {
@@ -150,32 +152,6 @@ test_dump_memory_user (const char* name, const char* filename)
 	}
 
 	return DEVICE_STATUS_SUCCESS;
-}
-
-
-const char*
-errmsg (device_status_t rc)
-{
-	switch (rc) {
-	case DEVICE_STATUS_SUCCESS:
-		return "Success";
-	case DEVICE_STATUS_UNSUPPORTED:
-		return "Unsupported operation";
-	case DEVICE_STATUS_TYPE_MISMATCH:
-		return "Device type mismatch";
-	case DEVICE_STATUS_ERROR:
-		return "Generic error";
-	case DEVICE_STATUS_IO:
-		return "Input/output error";
-	case DEVICE_STATUS_MEMORY:
-		return "Memory error";
-	case DEVICE_STATUS_PROTOCOL:
-		return "Protocol error";
-	case DEVICE_STATUS_TIMEOUT:
-		return "Timeout";
-	default:
-		return "Unknown error";
-	}
 }
 
 
