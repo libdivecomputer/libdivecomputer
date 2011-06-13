@@ -23,11 +23,12 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
+#include <libdivecomputer/reefnet_sensusultra.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "reefnet_sensusultra.h"
 #include "serial.h"
 #include "checksum.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

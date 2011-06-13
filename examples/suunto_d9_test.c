@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "suunto_d9.h"
-#include "utils.h"
+#include <libdivecomputer/suunto_d9.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

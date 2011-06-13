@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "zeagle_n2ition3.h"
-#include "utils.h"
+#include <libdivecomputer/zeagle_n2ition3.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

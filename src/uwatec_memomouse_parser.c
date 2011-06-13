@@ -21,9 +21,10 @@
 
 #include <stdlib.h>
 
-#include "uwatec_memomouse.h"
+#include <libdivecomputer/uwatec_memomouse.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "utils.h"
 #include "array.h"
 
 typedef struct uwatec_memomouse_parser_t uwatec_memomouse_parser_t;

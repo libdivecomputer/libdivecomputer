@@ -1,7 +1,7 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "uwatec_aladin.h"
-#include "utils.h"
+#include <libdivecomputer/uwatec_aladin.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "mares_puck.h"
-#include "utils.h"
+#include <libdivecomputer/mares_puck.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

@@ -22,7 +22,7 @@
 #ifndef PARSER_PRIVATE_H
 #define PARSER_PRIVATE_H
 
-#include "parser.h"
+#include <libdivecomputer/parser.h>
 
 #ifdef __cplusplus
 extern "C" {

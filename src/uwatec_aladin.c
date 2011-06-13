@@ -22,10 +22,11 @@
 #include <stdlib.h> // malloc, free
 #include <memory.h> // memcpy
 
+#include <libdivecomputer/uwatec_aladin.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "uwatec_aladin.h"
 #include "serial.h"
-#include "utils.h"
 #include "ringbuffer.h"
 #include "checksum.h"
 #include "array.h"

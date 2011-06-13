@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "mares_darwin.h"
-#include "utils.h"
+#include <libdivecomputer/mares_darwin.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

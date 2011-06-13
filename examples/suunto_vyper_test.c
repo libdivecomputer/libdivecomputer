@@ -22,8 +22,8 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 #include <stdlib.h>	// atoi
 
-#include "suunto_vyper.h"
-#include "utils.h"
+#include <libdivecomputer/suunto_vyper.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "hw_frog.h"
-#include "utils.h"
+#include <libdivecomputer/hw_frog.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

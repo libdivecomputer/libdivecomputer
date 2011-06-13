@@ -21,11 +21,13 @@
 
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/suunto_solution.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "suunto_solution.h"
 #include "ringbuffer.h"
 #include "serial.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

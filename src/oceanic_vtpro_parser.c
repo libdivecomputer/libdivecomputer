@@ -21,12 +21,13 @@
 
 #include <stdlib.h>
 
-#include "oceanic_vtpro.h"
+#include <libdivecomputer/oceanic_vtpro.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "oceanic_common.h"
 #include "parser-private.h"
 #include "array.h"
-#include "units.h"
-#include "utils.h"
 
 typedef struct oceanic_vtpro_parser_t oceanic_vtpro_parser_t;
 

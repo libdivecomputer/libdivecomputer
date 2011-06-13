@@ -22,11 +22,12 @@
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strncmp, strstr
 
+#include <libdivecomputer/uwatec_smart.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "uwatec_smart.h"
 #include "irda.h"
 #include "array.h"
-#include "utils.h"
 
 #define EXITCODE(rc) \
 ( \

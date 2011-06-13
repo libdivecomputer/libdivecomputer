@@ -37,8 +37,9 @@
 	#include <sys/ioctl.h>		// ioctl
 #endif
 
+#include <libdivecomputer/utils.h>
+
 #include "irda.h"
-#include "utils.h"
 #include "array.h"
 
 #ifdef _WIN32

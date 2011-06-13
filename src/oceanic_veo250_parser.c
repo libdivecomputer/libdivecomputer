@@ -21,12 +21,13 @@
 
 #include <stdlib.h>
 
-#include "oceanic_veo250.h"
+#include <libdivecomputer/oceanic_veo250.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "oceanic_common.h"
 #include "parser-private.h"
 #include "array.h"
-#include "units.h"
-#include "utils.h"
 
 typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
 

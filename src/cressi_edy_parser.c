@@ -21,9 +21,10 @@
 
 #include <stdlib.h>
 
-#include "cressi_edy.h"
+#include <libdivecomputer/cressi_edy.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "utils.h"
 #include "array.h"
 
 typedef struct cressi_edy_parser_t cressi_edy_parser_t;

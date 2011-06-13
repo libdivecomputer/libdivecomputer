@@ -22,11 +22,12 @@
 #include <string.h> // memcpy
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/oceanic_atom2.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
 #include "oceanic_common.h"
-#include "oceanic_atom2.h"
 #include "serial.h"
-#include "utils.h"
 #include "array.h"
 #include "ringbuffer.h"
 #include "checksum.h"

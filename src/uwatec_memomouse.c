@@ -23,12 +23,13 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
+#include <libdivecomputer/uwatec_memomouse.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "uwatec_memomouse.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"
-#include "utils.h"
 
 #define EXITCODE(rc) \
 ( \

@@ -23,10 +23,11 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
+#include <libdivecomputer/cressi_edy.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "cressi_edy.h"
 #include "serial.h"
-#include "utils.h"
 #include "checksum.h"
 #include "array.h"
 #include "ringbuffer.h"

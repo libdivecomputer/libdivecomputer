@@ -22,8 +22,9 @@
 #include <stdlib.h>
 #include <windows.h>
 
+#include <libdivecomputer/utils.h>
+
 #include "serial.h"
-#include "utils.h"
 
 #define TRACE(expr) \
 { \

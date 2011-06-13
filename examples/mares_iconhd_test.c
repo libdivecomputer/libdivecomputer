@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "mares_iconhd.h"
-#include "utils.h"
+#include <libdivecomputer/mares_iconhd.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

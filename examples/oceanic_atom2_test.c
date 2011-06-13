@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "oceanic_atom2.h"
-#include "utils.h"
+#include <libdivecomputer/oceanic_atom2.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

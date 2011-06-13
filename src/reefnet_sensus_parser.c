@@ -21,10 +21,11 @@
 
 #include <stdlib.h>	// malloc, free
 
-#include "reefnet_sensus.h"
+#include <libdivecomputer/reefnet_sensus.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "units.h"
-#include "utils.h"
 #include "array.h"
 
 #define SAMPLE_DEPTH_ADJUST	13

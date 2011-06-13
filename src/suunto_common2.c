@@ -23,8 +23,9 @@
 #include <string.h> // memcmp, memcpy
 #include <assert.h> // assert
 
+#include <libdivecomputer/utils.h>
+
 #include "suunto_common2.h"
-#include "utils.h"
 #include "ringbuffer.h"
 #include "checksum.h"
 #include "array.h"

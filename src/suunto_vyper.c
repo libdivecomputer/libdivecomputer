@@ -23,13 +23,14 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h>	// assert
 
+#include <libdivecomputer/suunto_vyper.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "suunto_vyper.h"
 #include "suunto_common.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"
-#include "utils.h"
 
 #define EXITCODE(rc) \
 ( \

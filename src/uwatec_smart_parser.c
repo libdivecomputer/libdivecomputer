@@ -22,10 +22,11 @@
 #include <stdlib.h>
 #include <string.h>	// memcmp
 
-#include "uwatec_smart.h"
+#include <libdivecomputer/uwatec_smart.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "units.h"
-#include "utils.h"
 #include "array.h"
 
 #define NBITS 8

@@ -22,11 +22,12 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/hw_ostc.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "hw_ostc.h"
 #include "serial.h"
 #include "checksum.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

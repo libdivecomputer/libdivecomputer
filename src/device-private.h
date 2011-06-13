@@ -24,7 +24,7 @@
 
 #include <limits.h>
 
-#include "device.h"
+#include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
 extern "C" {

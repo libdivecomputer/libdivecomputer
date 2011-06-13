@@ -23,11 +23,12 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
+#include <libdivecomputer/utils.h>
+
 #include "oceanic_common.h"
 #include "device-private.h"
 #include "ringbuffer.h"
 #include "array.h"
-#include "utils.h"
 
 #define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)

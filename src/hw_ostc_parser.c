@@ -21,10 +21,11 @@
 
 #include <stdlib.h>
 
-#include "hw_ostc.h"
+#include <libdivecomputer/hw_ostc.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
 #include "array.h"
-#include "utils.h"
 
 #define NINFO 6
 

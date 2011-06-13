@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "oceanic_vtpro.h"
-#include "utils.h"
+#include <libdivecomputer/oceanic_vtpro.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "cressi_edy.h"
-#include "utils.h"
+#include <libdivecomputer/cressi_edy.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

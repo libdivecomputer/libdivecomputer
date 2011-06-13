@@ -22,11 +22,12 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/reefnet_sensus.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "reefnet_sensus.h"
 #include "serial.h"
 #include "checksum.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

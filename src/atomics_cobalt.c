@@ -30,10 +30,11 @@
 #include <libusb-1.0/libusb.h>
 #endif
 
+#include <libdivecomputer/atomics_cobalt.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "atomics_cobalt.h"
 #include "checksum.h"
-#include "utils.h"
 #include "array.h"
 
 #define VID 0x0471

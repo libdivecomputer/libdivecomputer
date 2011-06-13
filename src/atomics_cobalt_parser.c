@@ -21,11 +21,12 @@
 
 #include <stdlib.h>
 
-#include "atomics_cobalt.h"
+#include <libdivecomputer/atomics_cobalt.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "utils.h"
 #include "array.h"
-#include "units.h"
 
 #define SZ_HEADER       228
 #define SZ_GASMIX       18

@@ -21,10 +21,11 @@
 
 #include <stdlib.h>
 
-#include "suunto_eon.h"
+#include <libdivecomputer/suunto_eon.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "units.h"
-#include "utils.h"
 #include "array.h"
 
 typedef struct suunto_eon_parser_t suunto_eon_parser_t;

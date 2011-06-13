@@ -1,7 +1,7 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "suunto.h"
-#include "utils.h"
+#include <libdivecomputer/suunto.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

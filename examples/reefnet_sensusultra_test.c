@@ -22,8 +22,8 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 #include <time.h>	// time
 
-#include "reefnet_sensusultra.h"
-#include "utils.h"
+#include <libdivecomputer/reefnet_sensusultra.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

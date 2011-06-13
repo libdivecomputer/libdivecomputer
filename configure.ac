@@ -87,8 +87,10 @@ AC_SUBST([DC_VERSION_LIBTOOL],[dc_version_lt_current:dc_version_lt_revision:dc_v
 AC_CONFIG_FILES([
    libdivecomputer.pc
    Makefile
+   include/Makefile
+   include/libdivecomputer/Makefile
+   include/libdivecomputer/version.h
    src/Makefile
-   src/version.h
    src/libdivecomputer.rc
    examples/Makefile
 ])

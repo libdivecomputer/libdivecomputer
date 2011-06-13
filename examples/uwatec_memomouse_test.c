@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "uwatec_memomouse.h"
-#include "utils.h"
+#include <libdivecomputer/uwatec_memomouse.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

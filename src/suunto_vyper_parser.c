@@ -21,10 +21,11 @@
 
 #include <stdlib.h>
 
-#include "suunto_vyper.h"
+#include <libdivecomputer/suunto_vyper.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "units.h"
-#include "utils.h"
 
 typedef struct suunto_vyper_parser_t suunto_vyper_parser_t;
 

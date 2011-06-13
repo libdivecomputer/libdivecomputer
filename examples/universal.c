@@ -34,16 +34,16 @@
 #define DC_TICKS_FORMAT "%lld"
 #endif
 
-#include <suunto.h>
-#include <reefnet.h>
-#include <uwatec.h>
-#include <oceanic.h>
-#include <mares.h>
-#include <hw.h>
-#include <cressi.h>
-#include <zeagle.h>
-#include <atomics.h>
-#include <utils.h>
+#include <libdivecomputer/suunto.h>
+#include <libdivecomputer/reefnet.h>
+#include <libdivecomputer/uwatec.h>
+#include <libdivecomputer/oceanic.h>
+#include <libdivecomputer/mares.h>
+#include <libdivecomputer/hw.h>
+#include <libdivecomputer/cressi.h>
+#include <libdivecomputer/zeagle.h>
+#include <libdivecomputer/atomics.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

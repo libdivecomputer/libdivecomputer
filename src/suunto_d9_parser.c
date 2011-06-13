@@ -22,9 +22,10 @@
 #include <stdlib.h>
 #include <string.h>	// memcmp
 
-#include "suunto_d9.h"
+#include <libdivecomputer/suunto_d9.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "utils.h"
 #include "array.h"
 
 #define SKIP 4

@@ -22,12 +22,13 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/hw_frog.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "hw_frog.h"
 #include "serial.h"
 #include "checksum.h"
 #include "ringbuffer.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

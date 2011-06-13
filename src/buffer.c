@@ -22,7 +22,7 @@
 #include <stdlib.h> // malloc, realloc, free
 #include <string.h> // memcpy, memmove
 
-#include "buffer.h"
+#include <libdivecomputer/buffer.h>
 
 struct dc_buffer_t {
 	unsigned char *data;

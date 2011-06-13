@@ -23,8 +23,8 @@
 #include <stdlib.h>	// malloc, free
 #include <string.h>	// memset
 
-#include "uwatec_smart.h"
-#include "utils.h"
+#include <libdivecomputer/uwatec_smart.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

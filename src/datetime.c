@@ -25,7 +25,7 @@
 
 #include <time.h>
 
-#include "datetime.h"
+#include <libdivecomputer/datetime.h>
 
 static struct tm *
 dc_localtime_r (const time_t *t, struct tm *tm)

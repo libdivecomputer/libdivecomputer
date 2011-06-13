@@ -23,9 +23,10 @@
 #include <string.h> // memcpy, memcmp
 #include <assert.h> // assert
 
+#include <libdivecomputer/utils.h>
+
 #include "mares_common.h"
 #include "checksum.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

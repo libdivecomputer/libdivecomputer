@@ -19,7 +19,7 @@
  * MA 02110-1301 USA
  */
 
-#include "version.h"
+#include <libdivecomputer/version.h>
 
 const char *
 dc_version (dc_version_t *version)

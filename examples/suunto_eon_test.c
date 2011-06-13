@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "suunto_eon.h"
-#include "utils.h"
+#include <libdivecomputer/suunto_eon.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

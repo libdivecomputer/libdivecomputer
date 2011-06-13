@@ -21,8 +21,8 @@
 
 #include <stdio.h>	// fopen, fwrite, fclose
 
-#include "hw_ostc.h"
-#include "utils.h"
+#include <libdivecomputer/hw_ostc.h>
+#include <libdivecomputer/utils.h>
 
 #include "common.h"
 

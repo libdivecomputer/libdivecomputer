@@ -21,9 +21,10 @@
 
 #include <stdlib.h>
 
-#include "mares_iconhd.h"
+#include <libdivecomputer/mares_iconhd.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "utils.h"
 #include "array.h"
 
 #define ICONHD    0x14

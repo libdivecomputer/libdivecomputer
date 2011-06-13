@@ -23,11 +23,12 @@
 #include <string.h>
 #include <assert.h>
 
+#include <libdivecomputer/mares_darwin.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
 #include "mares_common.h"
-#include "mares_darwin.h"
-#include "units.h"
-#include "utils.h"
 #include "array.h"
 
 #define DARWIN    0

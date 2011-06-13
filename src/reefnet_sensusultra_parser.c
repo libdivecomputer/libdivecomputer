@@ -22,10 +22,11 @@
 #include <stdlib.h>
 #include <string.h>	// memcmp
 
-#include "reefnet_sensusultra.h"
+#include <libdivecomputer/reefnet_sensusultra.h>
+#include <libdivecomputer/units.h>
+#include <libdivecomputer/utils.h>
+
 #include "parser-private.h"
-#include "units.h"
-#include "utils.h"
 #include "array.h"
 
 typedef struct reefnet_sensusultra_parser_t reefnet_sensusultra_parser_t;

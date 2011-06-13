@@ -22,12 +22,13 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/suunto_eon.h>
+#include <libdivecomputer/utils.h>
+
 #include "device-private.h"
-#include "suunto_eon.h"
 #include "suunto_common.h"
 #include "serial.h"
 #include "checksum.h"
-#include "utils.h"
 #include "array.h"
 
 #define EXITCODE(rc) \

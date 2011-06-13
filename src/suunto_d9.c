@@ -23,10 +23,11 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
+#include <libdivecomputer/suunto_d9.h>
+#include <libdivecomputer/utils.h>
+
 #include "suunto_common2.h"
-#include "suunto_d9.h"
 #include "serial.h"
-#include "utils.h"
 #include "checksum.h"
 #include "array.h"
 

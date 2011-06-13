@@ -22,7 +22,7 @@
 #ifndef EXAMPLES_COMMON_H
 #define EXAMPLES_COMMON_H
 
-#include <device.h>
+#include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
 extern "C" {
