@@ -34,6 +34,12 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define FW_190 0x015A
+
+#define SZ_HEADER 266
+#define SZ_FW_190 0x8000
+#define SZ_FW_NEW 0x10000
+
 typedef struct hw_ostc_device_t {
 	device_t base;
 	serial_t *port;
@@ -167,16 +173,15 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	if (! device_is_hw_ostc (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	// Erase the current contents of the buffer and
-	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, HW_OSTC_MEMORY_SIZE)) {
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = HW_OSTC_MEMORY_SIZE;
+	progress.maximum = SZ_HEADER + SZ_FW_NEW;
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Send the command.
@@ -187,10 +192,49 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		return EXITCODE (rc);
 	}
 
+	// Read the header.
+	unsigned char header[SZ_HEADER] = {0};
+	int n = serial_read (device->port, header, sizeof (header));
+	if (n != sizeof (header)) {
+		WARNING ("Failed to receive the header.");
+		return EXITCODE (n);
+	}
+
+	// Verify the header.
+	unsigned char preamble[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x55};
+	if (memcmp (header, preamble, sizeof (preamble)) != 0) {
+		WARNING ("Unexpected answer header.");
+		return DEVICE_STATUS_ERROR;
+	}
+
+	// Get the firmware version.
+	unsigned int firmware = array_uint16_be (header + 264);
+
+	// Get the amount of profile data.
+	unsigned int size = sizeof (header);
+	if (firmware > FW_190)
+		size += SZ_FW_NEW;
+	else
+		size += SZ_FW_190;
+
+	// Update and emit a progress event.
+	progress.current = sizeof (header);
+	progress.maximum = size;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Allocate the required amount of memory.
+	if (!dc_buffer_resize (buffer, size)) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
 	unsigned char *data = dc_buffer_get_data (buffer);
 
-	unsigned int nbytes = 0;
-	while (nbytes < HW_OSTC_MEMORY_SIZE) {
+	// Copy the header to the output buffer.
+	memcpy (data, header, sizeof (header));
+
+	unsigned int nbytes = sizeof (header);
+	while (nbytes < size) {
 		// Set the minimum packet size.
 		unsigned int len = 1024;
 
@@ -200,8 +244,8 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 			len = available;
 
 		// Limit the packet size to the total size.
-		if (nbytes + len > HW_OSTC_MEMORY_SIZE)
-			len = HW_OSTC_MEMORY_SIZE - nbytes;
+		if (nbytes + len > size)
+			len = size - nbytes;
 
 		// Read the packet.
 		int n = serial_read (device->port, data + nbytes, len);
@@ -217,13 +261,6 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 		nbytes += len;
 	}
 
-	// Verify the header.
-	unsigned char header[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x55};
-	if (memcmp (data, header, sizeof (header)) != 0) {
-		WARNING ("Unexpected answer header.");
-		return DEVICE_STATUS_ERROR;
-	}
-
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -231,7 +268,7 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 static device_status_t
 hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	dc_buffer_t *buffer = dc_buffer_new (HW_OSTC_MEMORY_SIZE);
+	dc_buffer_t *buffer = dc_buffer_new (0);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
 

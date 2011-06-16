@@ -29,8 +29,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define HW_OSTC_MEMORY_SIZE 33034
-
 device_status_t
 hw_ostc_device_open (device_t **device, const char* name);
 
