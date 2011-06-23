@@ -136,8 +136,24 @@ hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
+	if (size < 3)
+		return PARSER_STATUS_ERROR;
+
 	// Check the profile version
-	if (size < 47 || data[2] != 0x20)
+	unsigned int version = data[2];
+	unsigned int header = 0;
+	switch (version) {
+	case 0x20:
+		header = 47;
+		break;
+	case 0x21:
+		header = 57;
+		break;
+	default:
+		return PARSER_STATUS_ERROR;
+	}
+
+	if (size < header)
 		return PARSER_STATUS_ERROR;
 
 	gasmix_t *gasmix = (gasmix_t *) value;
@@ -176,8 +192,24 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
+	if (size < 3)
+		return PARSER_STATUS_ERROR;
+
 	// Check the profile version
-	if (size < 47 || data[2] != 0x20)
+	unsigned int version = data[2];
+	unsigned int header = 0;
+	switch (version) {
+	case 0x20:
+		header = 47;
+		break;
+	case 0x21:
+		header = 57;
+		break;
+	default:
+		return PARSER_STATUS_ERROR;
+	}
+
+	if (size < header)
 		return PARSER_STATUS_ERROR;
 
 	// Get the sample rate.
@@ -190,7 +222,6 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 		info[i].size    = (data[37 + i] & 0xF0) >> 4;
 		switch (i) {
 		case 0: // Temperature
-		case 2: // Tank pressure
 			if (info[i].size != 2)
 				return PARSER_STATUS_ERROR;
 			break;
@@ -202,7 +233,7 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
 
-	unsigned int offset = 47;
+	unsigned int offset = header;
 	while (offset + 3 <= size) {
 		parser_sample_value_t sample = {0};
 
@@ -266,16 +297,6 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 					value = array_uint16_le (data + offset);
 					sample.temperature = value / 10.0;
 					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
-					break;
-				case 1: // Deco/NDL Status
-					break;
-				case 2: // Tank pressure
-					value = array_uint16_le (data + offset);
-					sample.pressure.tank = 0;
-					sample.pressure.value = value;
-					if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
-					break;
-				case 3: // ppO2 Sensor Values
 					break;
 				default: // Not yet used.
 					break;
