@@ -259,33 +259,32 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 		if (offset + length > size)
 			return PARSER_STATUS_ERROR;
 
-		// Events.
+		// Get the event byte.
 		if (events) {
-			// Get the event byte.
-			unsigned int value = data[offset++];
+			events = data[offset++];
+		}
 
-			// Alarms
-			switch (value & 0x0F) {
-			case 0: // No Alarm
-			case 1: // Slow
-			case 2: // Deco Stop missed
-			case 3: // Deep Stop missed
-			case 4: // ppO2 Low Warning
-			case 5: // ppO2 High Warning
-			case 6: // Manual Marker
-			case 7: // Low Battery
-				break;
-			}
+		// Alarms
+		switch (events & 0x0F) {
+		case 0: // No Alarm
+		case 1: // Slow
+		case 2: // Deco Stop missed
+		case 3: // Deep Stop missed
+		case 4: // ppO2 Low Warning
+		case 5: // ppO2 High Warning
+		case 6: // Manual Marker
+		case 7: // Low Battery
+			break;
+		}
 
-			// Manual Gas Set
-			if (value & 0x10) {
-				offset += 2;
-			}
+		// Manual Gas Set
+		if (events & 0x10) {
+			offset += 2;
+		}
 
-			// Gas Change
-			if (value & 0x20) {
-				offset++;
-			}
+		// Gas Change
+		if (events & 0x20) {
+			offset++;
 		}
 
 		// Extended sample info.
@@ -304,6 +303,11 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 
 				offset += info[i].size;
 			}
+		}
+
+		// SetPoint Change
+		if (events & 0x40) {
+			offset++;
 		}
 	}
 
