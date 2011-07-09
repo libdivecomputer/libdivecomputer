@@ -170,6 +170,7 @@ mares_puck_device_open (device_t **out, const char* name)
 		device->base.layout = &mares_nemowide_layout;
 		break;
 	case NEMOAIR:
+	case PUCKAIR:
 		device->base.layout = &mares_nemoair_layout;
 		break;
 	case PUCK:
@@ -453,6 +454,7 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 		layout = &mares_nemowide_layout;
 		break;
 	case NEMOAIR:
+	case PUCKAIR:
 		layout = &mares_nemoair_layout;
 		break;
 	case PUCK:
