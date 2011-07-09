@@ -28,6 +28,14 @@
 #include "utils.h"
 #include "array.h"
 
+#define NEMO        0
+#define NEMOWIDE    1
+#define NEMOAIR     4
+#define PUCK        7
+#define NEMOEXCEL   17
+#define NEMOAPNEIST 18
+#define PUCKAIR     19
+
 typedef struct mares_nemo_parser_t mares_nemo_parser_t;
 
 struct mares_nemo_parser_t {
@@ -87,7 +95,7 @@ mares_nemo_parser_create (parser_t **out, unsigned int model)
 
 	// Get the freedive mode for this model.
 	unsigned int freedive = 2;
-	if (model == 1 || model == 7)
+	if (model == NEMOWIDE || model == PUCK)
 		freedive = 3;
 
 	// Set the default values.
@@ -147,7 +155,7 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 	unsigned int extra = 0;
 	const unsigned char marker[3] = {0xAA, 0xBB, 0xCC};
 	if (memcmp (data + length - 3, marker, sizeof (marker)) == 0) {
-		if (parser->model == 19)
+		if (parser->model == PUCKAIR)
 			extra = 7;
 		else
 			extra = 12;
@@ -161,7 +169,7 @@ mares_nemo_parser_set_data (parser_t *abstract, const unsigned char *data, unsig
 	unsigned int header_size = 53;
 	unsigned int sample_size = 2;
 	if (extra) {
-		if (parser->model == 19)
+		if (parser->model == PUCKAIR)
 			sample_size = 3;
 		else
 			sample_size = 5;
@@ -368,7 +376,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 			if (profiles) {
 				// Get the freedive sample interval for this model.
 				unsigned int interval = 4;
-				if (parser->model == 18)
+				if (parser->model == NEMOAPNEIST)
 					interval = 1;
 
 				// Calculate the number of samples that should be present

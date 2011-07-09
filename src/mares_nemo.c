@@ -39,6 +39,10 @@
 #define MEMORYSIZE 0x4000
 #define PACKETSIZE 0x20
 
+#define NEMO        0
+#define NEMOEXCEL   17
+#define NEMOAPNEIST 18
+
 typedef struct mares_nemo_device_t {
 	mares_common_device_t base;
 	serial_t *port;
@@ -309,11 +313,11 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 
 	const mares_common_layout_t *layout = NULL;
 	switch (data[1]) {
-	case 0: // Nemo
-	case 17: // Nemo Excel
+	case NEMO:
+	case NEMOEXCEL:
 		layout = &mares_nemo_layout;
 		break;
-	case 18: // Nemo Apneist
+	case NEMOAPNEIST:
 		layout = &mares_nemo_apneist_layout;
 		break;
 	default: // Unknown, try nemo

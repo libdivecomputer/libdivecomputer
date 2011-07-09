@@ -39,6 +39,11 @@
 #define PACKETSIZE 0x20
 #define MAXRETRIES 4
 
+#define NEMOWIDE    1
+#define NEMOAIR     4
+#define PUCK        7
+#define PUCKAIR     19
+
 typedef struct mares_puck_device_t {
 	mares_common_device_t base;
 	serial_t *port;
@@ -161,13 +166,13 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	// Override the base class values.
 	switch (header[1]) {
-	case 1: // Nemo Wide
+	case NEMOWIDE:
 		device->base.layout = &mares_nemowide_layout;
 		break;
-	case 4: // Nemo Air
+	case NEMOAIR:
 		device->base.layout = &mares_nemoair_layout;
 		break;
-	case 7: // Puck
+	case PUCK:
 		device->base.layout = &mares_puck_layout;
 		break;
 	default: // Unknown, try puck
@@ -444,13 +449,13 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 
 	const mares_common_layout_t *layout = NULL;
 	switch (data[1]) {
-	case 1: // Nemo Wide
+	case NEMOWIDE:
 		layout = &mares_nemowide_layout;
 		break;
-	case 4: // Nemo Air
+	case NEMOAIR:
 		layout = &mares_nemoair_layout;
 		break;
-	case 7: // Puck
+	case PUCK:
 		layout = &mares_puck_layout;
 		break;
 	default: // Unknown, try puck
