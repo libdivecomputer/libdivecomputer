@@ -24,6 +24,7 @@
 
 #include "device.h"
 #include "parser.h"
+#include "buffer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +32,21 @@ extern "C" {
 
 device_status_t
 hw_ostc_device_open (device_t **device, const char* name);
+
+device_status_t
+hw_ostc_device_md2hash (device_t *abstract, unsigned char data[], unsigned int size);
+
+device_status_t
+hw_ostc_device_clock (device_t *abstract, const dc_datetime_t *datetime);
+
+device_status_t
+hw_ostc_device_eeprom_read (device_t *abstract, unsigned int bank, unsigned char data[], unsigned int size);
+
+device_status_t
+hw_ostc_device_eeprom_write (device_t *abstract, unsigned int bank, const unsigned char data[], unsigned int size);
+
+device_status_t
+hw_ostc_device_reset (device_t *abstract);
 
 device_status_t
 hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
