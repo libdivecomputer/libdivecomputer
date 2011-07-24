@@ -42,6 +42,11 @@
 #define SZ_FW_190 0x8000
 #define SZ_FW_NEW 0x10000
 
+#define WIDTH  320
+#define HEIGHT 240
+#define BLACK  0x00
+#define WHITE  0xFF
+
 typedef struct hw_ostc_device_t {
 	device_t base;
 	serial_t *port;
@@ -471,6 +476,141 @@ hw_ostc_device_reset (device_t *abstract)
 	device_status_t rc = hw_ostc_send (device, 'h', 1);
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+device_status_t
+hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_format_t format)
+{
+	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
+
+	if (! device_is_hw_ostc (abstract))
+		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
+		WARNING ("Insufficient buffer space available.");
+		return DEVICE_STATUS_MEMORY;
+	}
+
+	// Bytes per pixel (RGB formats only).
+	unsigned int bpp = 0;
+
+	if (format == HW_OSTC_FORMAT_RAW) {
+		// The RAW format has a variable size, depending on the actual image
+		// content. Usually the total size is around 4K, which is used as an
+		// initial guess and expanded when necessary.
+		if (!dc_buffer_reserve (buffer, 4096)) {
+			WARNING ("Insufficient buffer space available.");
+			return DEVICE_STATUS_MEMORY;
+		}
+	} else {
+		// The RGB formats have a fixed size, depending only on the dimensions
+		// and the number of bytes per pixel. The required amount of memory is
+		// allocated immediately.
+		bpp = (format == HW_OSTC_FORMAT_RGB16) ? 2 : 3;
+		if (!dc_buffer_resize (buffer, WIDTH * HEIGHT * bpp)) {
+			WARNING ("Insufficient buffer space available.");
+			return DEVICE_STATUS_MEMORY;
+		}
+	}
+
+	// Enable progress notifications.
+	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	progress.maximum = WIDTH * HEIGHT;
+	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+	// Send the command.
+	device_status_t rc = hw_ostc_send (device, 'l', 1);
+	if (rc != DEVICE_STATUS_SUCCESS)
+		return rc;
+
+	// Cache the pointer to the image data (RGB formats only).
+	unsigned char *image = dc_buffer_get_data (buffer);
+
+	// The OSTC sends the image data in a column by column layout, which is
+	// converted on the fly to a more convenient row by row layout as used
+	// in the majority of image formats. This conversions requires knowledge
+	// of the pixel coordinates.
+	unsigned int x = 0, y = 0;
+
+	unsigned int npixels = 0;
+	while (npixels < WIDTH * HEIGHT) {
+		unsigned char raw[3] = {0};
+		int n = serial_read (device->port, raw, 1);
+		if (n != 1) {
+			WARNING ("Failed to receive the packet.");
+			return EXITCODE (n);
+		}
+
+		unsigned int nbytes = n;
+		unsigned int count = raw[0];
+		if ((count & 0x80) == 0x00) {
+			// Black pixel.
+			raw[1] = raw[2] = BLACK;
+			count &= 0x7F;
+		} else if ((count & 0xC0) == 0xC0) {
+			// White pixel.
+			raw[1] = raw[2] = WHITE;
+			count &= 0x3F;
+		} else {
+			// Color pixel.
+			n = serial_read (device->port, raw + 1, 2);
+			if (n != 2) {
+				WARNING ("Failed to receive the packet.");
+				return EXITCODE (n);
+			}
+
+			nbytes += n;
+			count &= 0x3F;
+		}
+		count++;
+
+		// Check for buffer overflows.
+		if (npixels + count > WIDTH * HEIGHT) {
+			WARNING ("Unexpected number of pixels received.");
+			return DEVICE_STATUS_ERROR;
+		}
+
+		if (format == HW_OSTC_FORMAT_RAW) {
+			// Append the raw data to the output buffer.
+			dc_buffer_append (buffer, raw, nbytes);
+		} else {
+			// Store the decompressed data in the output buffer.
+			for (unsigned int i = 0; i < count; ++i) {
+				// Calculate the offset to the current pixel (row layout)
+				unsigned int offset = (y * WIDTH + x) * bpp;
+
+				if (format == HW_OSTC_FORMAT_RGB16) {
+					image[offset + 0] = raw[1];
+					image[offset + 1] = raw[2];
+				} else {
+					unsigned int value = (raw[1] << 8) + raw[2];
+					unsigned char r = (value & 0xF800) >> 11;
+					unsigned char g = (value & 0x07E0) >> 5;
+					unsigned char b = (value & 0x001F);
+					image[offset + 0] = 255 * r / 31;
+					image[offset + 1] = 255 * g / 63;
+					image[offset + 2] = 255 * b / 31;
+				}
+
+				// Move to the next pixel coordinate (column layout).
+				y++;
+				if (y == HEIGHT) {
+					y = 0;
+					x++;
+				}
+			}
+		}
+
+		// Update and emit a progress event.
+		progress.current += count;
+		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+
+		npixels += count;
+	}
 
 	return DEVICE_STATUS_SUCCESS;
 }

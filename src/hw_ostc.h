@@ -30,6 +30,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
+typedef enum hw_ostc_format_t {
+	HW_OSTC_FORMAT_RAW,
+	HW_OSTC_FORMAT_RGB16,
+	HW_OSTC_FORMAT_RGB24
+} hw_ostc_format_t;
+
 device_status_t
 hw_ostc_device_open (device_t **device, const char* name);
 
@@ -47,6 +53,9 @@ hw_ostc_device_eeprom_write (device_t *abstract, unsigned int bank, const unsign
 
 device_status_t
 hw_ostc_device_reset (device_t *abstract);
+
+device_status_t
+hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_format_t format);
 
 device_status_t
 hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
