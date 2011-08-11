@@ -28,6 +28,10 @@
 #include "checksum.h"
 #include "array.h"
 
+#define D4i      0x19
+#define D6i      0x1A
+#define D9tx     0x1B
+
 #define MAXRETRIES 2
 
 #define SZ_VERSION    0x04
@@ -245,8 +249,11 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Read the serial number.
+	unsigned int addr = 0x0023;
+	if (version[0] == D4i || version[0] == D6i || version[0] == D9tx)
+		addr++;
 	unsigned char serial[SZ_MINIMUM > 4 ? SZ_MINIMUM : 4] = {0};
-	rc = suunto_common2_device_read (abstract, 0x0023, serial, sizeof (serial));
+	rc = suunto_common2_device_read (abstract, addr, serial, sizeof (serial));
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;

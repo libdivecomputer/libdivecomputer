@@ -38,6 +38,9 @@
 #define VYPERAIR 0x13
 #define COBRA3   0x14
 #define HELO2    0x15
+#define D4i      0x19
+#define D6i      0x1A
+#define D9tx     0x1B
 
 typedef struct suunto_d9_parser_t suunto_d9_parser_t;
 
@@ -135,6 +138,8 @@ suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 	unsigned int offset = 0x15 - SKIP;
 	if (parser->model == HELO2)
 		offset += 6;
+	if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+		offset = 0x13;
 
 	if (abstract->size < offset + 7)
 		return PARSER_STATUS_ERROR;
@@ -142,12 +147,21 @@ suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 	const unsigned char *p = abstract->data + offset;
 
 	if (datetime) {
-		datetime->hour   = p[0];
-		datetime->minute = p[1];
-		datetime->second = p[2];
-		datetime->year   = p[3] + (p[4] << 8);
-		datetime->month  = p[5];
-		datetime->day    = p[6];
+		if (parser->model == D4i || parser->model == D6i || parser->model == D9tx) {
+			datetime->year   = p[0] + (p[1] << 8);
+			datetime->month  = p[2];
+			datetime->day    = p[3];
+			datetime->hour   = p[4];
+			datetime->minute = p[5];
+			datetime->second = p[6];
+		} else {
+			datetime->hour   = p[0];
+			datetime->minute = p[1];
+			datetime->second = p[2];
+			datetime->year   = p[3] + (p[4] << 8);
+			datetime->month  = p[5];
+			datetime->day    = p[6];
+		}
 	}
 
 	return PARSER_STATUS_SUCCESS;
@@ -178,6 +192,8 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 		case FIELD_TYPE_DIVETIME:
 			if (parser->model == D4)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP);
+			else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+				*((unsigned int *) value) = array_uint16_le (data + 0x0D);
 			else if (parser->model == HELO2)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP + 2) * 60;
 			else
@@ -189,6 +205,12 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 		case FIELD_TYPE_GASMIX_COUNT:
 			if (parser->model == HELO2) {
 				*((unsigned int *) value) = 8;
+			} else if (parser->model == D9tx) {
+				*((unsigned int *) value) = 8;
+			} else if (parser->model == D6i) {
+				*((unsigned int *) value) = 2;
+			} else if (parser->model == D4i) {
+				*((unsigned int *) value) = 1;
 			} else {
 				*((unsigned int *) value) = 3;
 			}
@@ -197,6 +219,9 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 			if (parser->model == HELO2) {
 				gasmix->helium = data[0x58 - SKIP + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x58 - SKIP + 6 * flags + 1] / 100.0;
+			} else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx) {
+				gasmix->helium = data[0x5F + 6 * flags + 2] / 100.0;
+				gasmix->oxygen = data[0x5F + 6 * flags + 1] / 100.0;
 			} else {
 				gasmix->helium = 0.0;
 				gasmix->oxygen = data[0x25 - SKIP + flags] / 100.0;
@@ -229,6 +254,12 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 		config += 1;
 	if (parser->model == HELO2)
 		config += 74;
+	if (parser->model == D4i)
+		config = 0x65;
+	if (parser->model == D6i)
+		config = 0x6B;
+	if (parser->model == D9tx)
+		config = 0xB7;
 	if (config + 1 > size)
 		return PARSER_STATUS_ERROR;
 
@@ -276,6 +307,8 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	unsigned int interval_sample_offset = 0x1C - SKIP;
 	if (parser->model == HELO2)
 		interval_sample_offset += 6;
+	if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+		interval_sample_offset = 0x1E;
 	unsigned int interval_sample = data[interval_sample_offset];
 	if (interval_sample == 0)
 		return PARSER_STATUS_ERROR;
