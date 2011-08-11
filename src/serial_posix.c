@@ -19,6 +19,10 @@
  * MA 02110-1301 USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strerror
 #include <errno.h>	// errno
@@ -28,6 +32,12 @@
 #include <sys/ioctl.h>	// ioctl
 #include <sys/time.h>	// gettimeofday
 #include <time.h>	// nanosleep
+#ifdef HAVE_LINUX_SERIAL_H
+#include <linux/serial.h>
+#endif
+#ifdef HAVE_IOKIT_SERIAL_IOSS_H
+#include <IOKit/serial/ioss.h>
+#endif
 
 #ifndef TIOCINQ
 #define TIOCINQ FIONREAD
@@ -187,6 +197,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	tty.c_cc[VTIME] = 0;
 
 	// Set the baud rate.
+	int custom = 0;
 	speed_t baud = 0;
 	switch (baudrate) {
 	case 0: baud = B0; break;
@@ -214,8 +225,46 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 #ifdef B230400
 	case 230400: baud = B230400; break;
 #endif
+#ifdef B460800
+	case 460800: baud = B460800; break;
+#endif
+#ifdef B500000
+	case 500000: baud = B500000; break;
+#endif
+#ifdef B576000
+	case 576000: baud = B576000; break;
+#endif
+#ifdef B921600
+	case 921600: baud = B921600; break;
+#endif
+#ifdef B1000000
+	case 1000000: baud = B1000000; break;
+#endif
+#ifdef B1152000
+	case 1152000: baud = B1152000; break;
+#endif
+#ifdef B1500000
+	case 1500000: baud = B1500000; break;
+#endif
+#ifdef B2000000
+	case 2000000: baud = B2000000; break;
+#endif
+#ifdef B2500000
+	case 2500000: baud = B2500000; break;
+#endif
+#ifdef B3000000
+	case 3000000: baud = B3000000; break;
+#endif
+#ifdef B3500000
+	case 3500000: baud = B3500000; break;
+#endif
+#ifdef B4000000
+	case 4000000: baud = B4000000; break;
+#endif
 	default:
-		return -1;
+		baud = B38400; /* Required for custom baudrates on linux. */
+		custom = 1;
+		break;
 	}
 	if (cfsetispeed (&tty, baud) != 0 ||
 		cfsetospeed (&tty, baud) != 0) {
@@ -318,6 +367,38 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	if (memcmp (&tty, &active, sizeof (struct termios) != 0)) {
 		TRACE ("memcmp");
 		return -1;
+	}
+
+	// Configure a custom baudrate if necessary.
+	if (custom) {
+#if defined(TIOCGSERIAL) && defined(TIOCSSERIAL)
+		// Get the current settings.
+		struct serial_struct ss;
+		if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0) {
+			TRACE ("ioctl");
+			return -1;
+		}
+
+		// Set the custom divisor.
+		ss.custom_divisor = ss.baud_base / baudrate;
+		ss.flags &= ~ASYNC_SPD_MASK;
+		ss.flags |= ASYNC_SPD_CUST;
+
+		// Apply the new settings.
+		if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0) {
+			TRACE ("ioctl");
+			return -1;
+		}
+#elif defined(IOSSIOSPEED)
+		speed_t speed = baudrate;
+		if (ioctl (device->fd, IOSSIOSPEED, &speed) != 0) {
+			TRACE ("ioctl");
+			return -1;
+		}
+#else
+		// Custom baudrates are not supported.
+		return -1;
+#endif
 	}
 
 	return 0;

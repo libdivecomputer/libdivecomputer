@@ -67,6 +67,10 @@ AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], [irda_linux=yes], [i
 
 AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"])
 
+# Checks for header files.
+AC_CHECK_HEADERS([linux/serial.h])
+AC_CHECK_HEADERS([IOKit/serial/ioss.h])
+
 # Checks for library functions.
 AC_CHECK_FUNCS([localtime_r gmtime_r])
 
