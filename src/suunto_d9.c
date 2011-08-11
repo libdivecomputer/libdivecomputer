@@ -35,6 +35,12 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
+#define D4i      0x19
+#define D6i      0x1A
+#define D9tx     0x1B
+
 typedef struct suunto_d9_device_t {
 	suunto_common2_device_t base;
 	serial_t *port;
@@ -64,6 +70,41 @@ device_is_suunto_d9 (device_t *abstract)
 		return 0;
 
     return abstract->backend == (const device_backend_t *) &suunto_d9_device_backend;
+}
+
+
+static device_status_t
+suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
+{
+	device_status_t status = DEVICE_STATUS_SUCCESS;
+
+	// The list with possible baudrates.
+	const int baudrates[] = {9600, 115200};
+
+	// Use the model number as a hint to speedup the detection.
+	unsigned int hint = 0;
+	if (model == D4i || model == D6i || model == D9tx)
+		hint = 1;
+
+	for (unsigned int i = 0; i < C_ARRAY_SIZE(baudrates); ++i) {
+		// Use the baudrate array as circular array, starting from the hint.
+		unsigned int idx = (hint + i) % C_ARRAY_SIZE(baudrates);
+
+		// Adjust the baudrate.
+		int rc = serial_configure (device->port, baudrates[idx], 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
+		if (rc == -1) {
+			WARNING ("Failed to set the terminal attributes.");
+			return DEVICE_STATUS_IO;
+		}
+
+		// Try reading the version info.
+		unsigned char version[4] = {0};
+		status = suunto_common2_device_version ((device_t *) device, version, sizeof (version));
+		if (status == DEVICE_STATUS_SUCCESS)
+			break;
+	}
+
+	return status;
 }
 
 
@@ -124,6 +165,15 @@ suunto_d9_device_open (device_t **out, const char* name)
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+
+	// Try to autodetect the protocol variant.
+	device_status_t status = suunto_d9_device_autodetect (device, 0);
+	if (status != DEVICE_STATUS_SUCCESS) {
+		WARNING ("Failed to identify the protocol variant.");
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
 
 	*out = (device_t*) device;
 
