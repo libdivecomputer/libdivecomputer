@@ -28,6 +28,7 @@
 #include "array.h"
 
 #define SKIP 4
+#define MAXPARAMS 3
 
 #define D9       0x0E
 #define D6       0x0F
@@ -44,6 +45,13 @@ struct suunto_d9_parser_t {
 	parser_t base;
 	unsigned int model;
 };
+
+typedef struct sample_info_t {
+	unsigned int type;
+	unsigned int size;
+	unsigned int interval;
+	unsigned int divisor;
+} sample_info_t;
 
 static parser_status_t suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
 static parser_status_t suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
@@ -226,6 +234,31 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 
 	// Number of parameters in the configuration data.
 	unsigned int nparams = data[config];
+	if (nparams > MAXPARAMS)
+		return PARSER_STATUS_ERROR;
+
+	// Available divisor values.
+	const unsigned int divisors[] = {1, 2, 4, 5, 10, 50, 100, 1000};
+
+	// Get the sample configuration.
+	sample_info_t info[MAXPARAMS] = {{0}};
+	for (unsigned int i = 0; i < nparams; ++i) {
+		unsigned int idx = config + 2 + i * 3;
+		info[i].type     = data[idx + 0];
+		info[i].interval = data[idx + 1];
+		info[i].divisor  = divisors[(data[idx + 2] & 0x1C) >> 2];
+		switch (info[i].type) {
+		case 0x64: // Depth
+		case 0x68: // Pressure
+			info[i].size = 2;
+			break;
+		case 0x74: // Temperature
+			info[i].size = 1;
+			break;
+		default: // Unknown sample type
+			return PARSER_STATUS_ERROR;
+		}
+	}
 
 	// Offset to the profile data.
 	unsigned int profile = config + 2 + nparams * 3;
@@ -247,50 +280,50 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	if (interval_sample == 0)
 		return PARSER_STATUS_ERROR;
 
-	// Temperature recording interval.
-	unsigned int interval_temperature = data[config + 2 + (nparams - 1) * 3 + 1];
-	if (interval_temperature == 0)
-		return PARSER_STATUS_ERROR;
-
 	// Offset to the first marker position.
 	unsigned int marker = array_uint16_le (data + profile + 3);
 
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
 	unsigned int offset = profile + 5;
-	while (offset + 2 <= size) {
+	while (offset < size) {
 		parser_sample_value_t sample = {0};
 
 		// Time (seconds).
 		sample.time = time;
 		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
-		// Depth (cm).
-		unsigned int depth = array_uint16_le (data + offset);
-		sample.depth = depth / 100.0;
-		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
-		offset += 2;
+		// Sample data.
+		for (unsigned int i = 0; i < nparams; ++i) {
+			if (info[i].interval && (nsamples % info[i].interval) == 0) {
+				if (offset + info[i].size > size)
+					return PARSER_STATUS_ERROR;
 
-		// Tank pressure (1/100 bar).
-		if (nparams == 3) {
-			if (offset + 2 > size)
-				return PARSER_STATUS_ERROR;
-			unsigned int pressure = array_uint16_le (data + offset);
-			if (pressure != 0xFFFF) {
-				sample.pressure.tank = 0;
-				sample.pressure.value = pressure / 100.0;
-				if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+				unsigned int value = 0;
+				switch (info[i].type) {
+				case 0x64: // Depth
+					value = array_uint16_le (data + offset);
+					sample.depth = value / (double) info[i].divisor;
+					if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+					break;
+				case 0x68: // Pressure
+					value = array_uint16_le (data + offset);
+					if (value != 0xFFFF) {
+						sample.pressure.tank = 0;
+						sample.pressure.value = value / (double) info[i].divisor;
+						if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+					}
+					break;
+				case 0x74: // Temperature
+					sample.temperature = (signed char) data[offset] / (double) info[i].divisor;
+					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+					break;
+				default: // Unknown sample type
+					return PARSER_STATUS_ERROR;
+				}
+
+				offset += info[i].size;
 			}
-			offset += 2;
-		}
-
-		// Temperature (degrees celcius).
-		if (nsamples % interval_temperature == 0) {
-			if (offset + 1 > size)
-				return PARSER_STATUS_ERROR;
-			sample.temperature = (signed char) data[offset];
-			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
-			offset += 1;
 		}
 
 		// Events
