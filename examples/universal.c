@@ -90,6 +90,7 @@ static const backend_table_t g_backends[] = {
 	{"atom2",		DEVICE_TYPE_OCEANIC_ATOM2},
 	{"nemo",		DEVICE_TYPE_MARES_NEMO},
 	{"puck",		DEVICE_TYPE_MARES_PUCK},
+	{"darwinair",	DEVICE_TYPE_MARES_DARWINAIR},
 	{"iconhd",		DEVICE_TYPE_MARES_ICONHD},
 	{"ostc",		DEVICE_TYPE_HW_OSTC},
 	{"edy",			DEVICE_TYPE_CRESSI_EDY},
@@ -333,6 +334,9 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	case DEVICE_TYPE_MARES_NEMO:
 	case DEVICE_TYPE_MARES_PUCK:
 		rc = mares_nemo_parser_create (&parser, devdata->devinfo.model);
+		break;
+	case DEVICE_TYPE_MARES_DARWINAIR:
+		rc = mares_darwinair_parser_create (&parser);
 		break;
 	case DEVICE_TYPE_MARES_ICONHD:
 		rc = mares_iconhd_parser_create (&parser, devdata->devinfo.model);
@@ -629,6 +633,9 @@ dowork (device_type_t backend, const char *devname, const char *rawfile, const c
 		break;
 	case DEVICE_TYPE_MARES_PUCK:
 		rc = mares_puck_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_MARES_DARWINAIR:
+		rc = mares_darwinair_device_open (&device, devname);
 		break;
 	case DEVICE_TYPE_MARES_ICONHD:
 		rc = mares_iconhd_device_open (&device, devname);

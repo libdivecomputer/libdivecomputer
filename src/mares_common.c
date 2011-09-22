@@ -48,6 +48,7 @@ mares_common_device_init (mares_common_device_t *device, const device_backend_t 
 
 	// Set the default values.
 	device->port = NULL;
+	device->echo = 0;
 }
 
 
@@ -132,6 +133,22 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	if (n != csize) {
 		WARNING ("Failed to send the command.");
 		return EXITCODE (n);
+	}
+
+	if (device->echo) {
+		// Receive the echo of the command.
+		unsigned char echo[PACKETSIZE] = {0};
+		n = serial_read (device->port, echo, csize);
+		if (n != csize) {
+			WARNING ("Failed to receive the echo.");
+			return EXITCODE (n);
+		}
+
+		// Verify the echo.
+		if (memcmp (echo, command, csize) != 0) {
+			WARNING ("Unexpected echo.");
+			return DEVICE_STATUS_PROTOCOL;
+		}
 	}
 
 	// Receive the answer of the device.

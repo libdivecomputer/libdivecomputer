@@ -36,6 +36,7 @@ suunto_solution_parser_create
 suunto_eon_parser_create
 suunto_d9_parser_create
 mares_nemo_parser_create
+mares_darwinair_parser_create
 mares_iconhd_parser_create
 oceanic_vtpro_parser_create
 oceanic_veo250_parser_create
@@ -64,6 +65,8 @@ mares_nemo_device_open
 mares_nemo_extract_dives
 mares_puck_device_open
 mares_puck_extract_dives
+mares_darwinair_device_open
+mares_darwinair_extract_dives
 mares_iconhd_device_open
 mares_iconhd_extract_dives
 oceanic_atom2_device_open

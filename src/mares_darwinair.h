@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2009 Jef Driesen
+ * Copyright (C) 2011 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,42 +19,26 @@
  * MA 02110-1301 USA
  */
 
-#ifndef MARES_COMMON_H
-#define MARES_COMMON_H
+#ifndef MARES_DARWINAIR_H
+#define MARES_DARWINAIR_H
 
-#include "device-private.h"
-#include "serial.h"
+#include "device.h"
+#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define PACKETSIZE 0x20
-
-typedef struct mares_common_layout_t {
-	unsigned int memsize;
-	unsigned int rb_profile_begin;
-	unsigned int rb_profile_end;
-	unsigned int rb_freedives_begin;
-	unsigned int rb_freedives_end;
-} mares_common_layout_t;
-
-typedef struct mares_common_device_t {
-	device_t base;
-	serial_t *port;
-	unsigned int echo;
-} mares_common_device_t;
-
-void
-mares_common_device_init (mares_common_device_t *device, const device_backend_t *backend);
+device_status_t
+mares_darwinair_device_open (device_t **device, const char *name);
 
 device_status_t
-mares_common_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+mares_darwinair_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
-device_status_t
-mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dive_callback_t callback, void *userdata);
+parser_status_t
+mares_darwinair_parser_create (parser_t **parser);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* MARES_COMMON_H */
+#endif /* MARES_DARWINAIR_H */
