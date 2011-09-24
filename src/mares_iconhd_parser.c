@@ -26,6 +26,8 @@
 #include "utils.h"
 #include "array.h"
 
+#define HEADER 0x5C
+
 typedef struct mares_iconhd_parser_t mares_iconhd_parser_t;
 
 struct mares_iconhd_parser_t {
@@ -108,10 +110,10 @@ mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 	unsigned int length = array_uint32_le (abstract->data);
 
-	if (abstract->size < length || length < 0x60)
+	if (abstract->size < length || length < HEADER + 4)
 		return PARSER_STATUS_ERROR;
 
-	const unsigned char *p = abstract->data + length - 0x56;
+	const unsigned char *p = abstract->data + length - HEADER + 6;
 
 	if (datetime) {
 		datetime->hour   = array_uint16_le (p + 0);
@@ -134,27 +136,27 @@ mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 
 	unsigned int length = array_uint32_le (abstract->data);
 
-	if (abstract->size < length || length < 0x60)
+	if (abstract->size < length || length < HEADER + 4)
 		return PARSER_STATUS_ERROR;
 
-	const unsigned char *p = abstract->data + length - 0x60;
+	const unsigned char *p = abstract->data + length - HEADER;
 
 	gasmix_t *gasmix = (gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
 		case FIELD_TYPE_DIVETIME:
-			*((unsigned int *) value) = array_uint16_le (p + 0x06) * 5;
+			*((unsigned int *) value) = array_uint16_le (p + 0x02) * 5;
 			break;
 		case FIELD_TYPE_MAXDEPTH:
-			*((double *) value) = array_uint16_le (p + 0x08) / 10.0;
+			*((double *) value) = array_uint16_le (p + 0x04) / 10.0;
 			break;
 		case FIELD_TYPE_GASMIX_COUNT:
 			*((unsigned int *) value) = 3;
 			break;
 		case FIELD_TYPE_GASMIX:
 			gasmix->helium = 0.0;
-			gasmix->oxygen = p[0x18 + flags * 4] / 100.0;
+			gasmix->oxygen = p[0x14 + flags * 4] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
@@ -174,16 +176,16 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 	unsigned int length = array_uint32_le (abstract->data);
 
-	if (abstract->size < length || length < 0x60)
+	if (abstract->size < length || length < HEADER + 4)
 		return PARSER_STATUS_ERROR;
 
 	const unsigned char *data = abstract->data;
-	unsigned int size = length - 0x60;
+	unsigned int size = length - HEADER;
 
 	unsigned int time = 0;
 	unsigned int interval = 5;
 
-	unsigned int offset = 0;
+	unsigned int offset = 4;
 	while (offset + 8 <= size) {
 		parser_sample_value_t sample = {0};
 
@@ -193,12 +195,12 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 		// Depth (1/10 m).
-		unsigned int depth = array_uint16_le (data + offset + 4);
+		unsigned int depth = array_uint16_le (data + offset + 0);
 		sample.depth = depth / 10.0;
 		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
 		// Temperature (1/10 °C).
-		unsigned int temperature = array_uint16_le (data + offset + 6);
+		unsigned int temperature = array_uint16_le (data + offset + 2);
 		sample.temperature = temperature / 10.0;
 		if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 

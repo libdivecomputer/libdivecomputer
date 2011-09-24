@@ -36,6 +36,8 @@
 #define ACK 0xAA
 #define EOF 0xEA
 
+#define HEADER 0x5C
+
 #define RB_PROFILE_BEGIN 0xA000
 #define RB_PROFILE_END   MARES_ICONHD_MEMORY_SIZE
 
@@ -382,9 +384,9 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	memcpy (buffer + RB_PROFILE_END - eop, data + RB_PROFILE_BEGIN, eop - RB_PROFILE_BEGIN);
 
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-	while (offset >= 0x60) {
+	while (offset >= HEADER + 4) {
 		// Get the number of samples in the profile data.
-		unsigned int nsamples = array_uint16_le (buffer + offset - 0x5A);
+		unsigned int nsamples = array_uint16_le (buffer + offset - HEADER + 2);
 		if (nsamples == 0xFFFF)
 			break;
 
@@ -392,7 +394,7 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		// If the buffer does not contain that much bytes, we reached the
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
-		unsigned int nbytes = nsamples * 8 + 0x60;
+		unsigned int nbytes = 4 + nsamples * 8 + HEADER;
 		if (offset < nbytes)
 			break;
 
@@ -411,7 +413,7 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 			return DEVICE_STATUS_ERROR;
 		}
 
-		unsigned char *fp = buffer + offset + length - 0x56;
+		unsigned char *fp = buffer + offset + length - HEADER + 6;
 		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
