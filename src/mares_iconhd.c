@@ -33,10 +33,11 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#define ICONHD    0x14
+#define ICONHDNET 0x15
+
 #define ACK 0xAA
 #define EOF 0xEA
-
-#define HEADER 0x5C
 
 #define RB_PROFILE_BEGIN 0xA000
 #define RB_PROFILE_END   MARES_ICONHD_MEMORY_SIZE
@@ -339,7 +340,7 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = data[0];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_le (data + 12);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
@@ -363,6 +364,14 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 
 	if (size < MARES_ICONHD_MEMORY_SIZE)
 		return DEVICE_STATUS_ERROR;
+
+	// Get the model code.
+	unsigned int model = data[0];
+
+	// Get the corresponding dive header size.
+	unsigned int header = 0x5C;
+	if (model == ICONHDNET)
+		header = 0x80;
 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = 0;
@@ -388,9 +397,9 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 	memcpy (buffer + RB_PROFILE_END - eop, data + RB_PROFILE_BEGIN, eop - RB_PROFILE_BEGIN);
 
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-	while (offset >= HEADER + 4) {
+	while (offset >= header + 4) {
 		// Get the number of samples in the profile data.
-		unsigned int nsamples = array_uint16_le (buffer + offset - HEADER + 2);
+		unsigned int nsamples = array_uint16_le (buffer + offset - header + 2);
 		if (nsamples == 0xFFFF)
 			break;
 
@@ -398,7 +407,11 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		// If the buffer does not contain that much bytes, we reached the
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
-		unsigned int nbytes = 4 + nsamples * 8 + HEADER;
+		unsigned int nbytes = 4 + header;
+		if (model == ICONHDNET)
+			nbytes += nsamples * 12 + (nsamples / 4) * 8;
+		else
+			nbytes += nsamples * 8;
 		if (offset < nbytes)
 			break;
 
@@ -417,7 +430,7 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 			return DEVICE_STATUS_ERROR;
 		}
 
-		unsigned char *fp = buffer + offset + length - HEADER + 6;
+		unsigned char *fp = buffer + offset + length - header + 6;
 		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;

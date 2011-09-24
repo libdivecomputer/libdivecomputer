@@ -38,7 +38,7 @@ device_status_t
 mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-mares_iconhd_parser_create (parser_t **parser);
+mares_iconhd_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }

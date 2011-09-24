@@ -335,7 +335,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		rc = mares_nemo_parser_create (&parser, devdata->devinfo.model);
 		break;
 	case DEVICE_TYPE_MARES_ICONHD:
-		rc = mares_iconhd_parser_create (&parser);
+		rc = mares_iconhd_parser_create (&parser, devdata->devinfo.model);
 		break;
 	case DEVICE_TYPE_HW_OSTC:
 		rc = hw_ostc_parser_create (&parser);
