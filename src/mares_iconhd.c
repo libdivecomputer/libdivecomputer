@@ -118,6 +118,7 @@ mares_iconhd_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
