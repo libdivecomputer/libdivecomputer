@@ -45,6 +45,7 @@ typedef struct mares_iconhd_device_t {
 	device_t base;
 	serial_t *port;
 	unsigned char fingerprint[10];
+	unsigned char version[140];
 } mares_iconhd_device_t;
 
 static device_status_t mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
@@ -98,6 +99,8 @@ mares_iconhd_version (mares_iconhd_device_t *device)
 		return DEVICE_STATUS_PROTOCOL;
 	}
 
+	memcpy (device->version, answer + 1, sizeof (device->version));
+
 	return DEVICE_STATUS_SUCCESS;
 }
 
@@ -121,6 +124,7 @@ mares_iconhd_device_open (device_t **out, const char* name)
 	// Set the default values.
 	device->port = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	memset (device->version, 0, sizeof (device->version));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
