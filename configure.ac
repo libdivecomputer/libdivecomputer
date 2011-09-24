@@ -47,6 +47,7 @@ AM_CONDITIONAL([OS_WIN32], [test "$os_win32" = "yes"])
 PKG_CHECK_MODULES([LIBUSB], [libusb-1.0], [have_libusb=yes], [have_libusb=no])
 if test "$have_libusb" = "yes"; then
 	AC_DEFINE([HAVE_LIBUSB], [1], [libusb support])
+	AC_SUBST([DEPENDENCIES], [libusb-1.0])
 fi
 
 # Checks for IrDA support.
