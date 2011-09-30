@@ -298,7 +298,7 @@ mares_nemo_parser_samples_foreach (parser_t *abstract, sample_callback_t callbac
 
 			unsigned int idx = 2 + parser->sample_size * i;
 			unsigned int value = array_uint16_le (data + idx);
-			unsigned int depth = value & 0x0FFF;
+			unsigned int depth = value & 0x07FF;
 			unsigned int ascent = (value & 0xC000) >> 14;
 			unsigned int violation = (value & 0x2000) >> 13;
 			unsigned int deco = (value & 0x1000) >> 12;
