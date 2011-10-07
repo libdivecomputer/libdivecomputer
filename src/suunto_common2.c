@@ -19,6 +19,7 @@
  * MA 02110-1301 USA
  */
 
+#include <stdlib.h> // malloc
 #include <string.h> // memcmp, memcpy
 #include <assert.h> // assert
 
@@ -28,22 +29,15 @@
 #include "checksum.h"
 #include "array.h"
 
-#define D4i      0x19
-#define D6i      0x1A
-#define D9tx     0x1B
-
 #define MAXRETRIES 2
 
 #define SZ_VERSION    0x04
-#define SZ_MEMORY     0x8000
 #define SZ_PACKET     0x78
 #define SZ_MINIMUM    8
 
 #define FP_OFFSET     0x15
 
-#define RB_PROFILE_BEGIN            0x019A
-#define RB_PROFILE_END              SZ_MEMORY - 2
-#define RB_PROFILE_DISTANCE(a,b,m)  ringbuffer_distance (a, b, m, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(l,a,b,m)  ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
 #define BACKEND(abstract)	((suunto_common2_device_backend_t *) abstract->backend)
 
@@ -56,6 +50,7 @@ suunto_common2_device_init (suunto_common2_device_t *device, const suunto_common
 	device_init (&device->base, &backend->base);
 
 	// Set the default values.
+	device->layout = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 }
 
@@ -214,9 +209,14 @@ suunto_common2_device_write (device_t *abstract, unsigned int address, const uns
 device_status_t
 suunto_common2_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
+	suunto_common2_device_t *device = (suunto_common2_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -231,9 +231,15 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 {
 	suunto_common2_device_t *device = (suunto_common2_device_t*) abstract;
 
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	const suunto_common2_layout_t *layout = device->layout;
+
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	progress.maximum = RB_PROFILE_END - RB_PROFILE_BEGIN + 8 + SZ_VERSION + (SZ_MINIMUM > 4 ? SZ_MINIMUM : 4);
+	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin +
+		8 + SZ_VERSION + (SZ_MINIMUM > 4 ? SZ_MINIMUM : 4);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Read the version info.
@@ -249,11 +255,8 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
 	// Read the serial number.
-	unsigned int addr = 0x0023;
-	if (version[0] == D4i || version[0] == D6i || version[0] == D9tx)
-		addr++;
 	unsigned char serial[SZ_MINIMUM > 4 ? SZ_MINIMUM : 4] = {0};
-	rc = suunto_common2_device_read (abstract, addr, serial, sizeof (serial));
+	rc = suunto_common2_device_read (abstract, layout->serial, serial, sizeof (serial));
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory header.");
 		return rc;
@@ -286,15 +289,19 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Memory buffer to store all the dives.
 
-	unsigned char data[SZ_MINIMUM + RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
+	unsigned char *data = (unsigned char *) malloc (layout->rb_profile_end - layout->rb_profile_begin + SZ_MINIMUM);
+	if (data == NULL) {
+		WARNING ("Failed to allocate memory.");
+		return DEVICE_STATUS_MEMORY;
+	}
 
 	// Calculate the total amount of bytes.
 
-	unsigned int remaining = RB_PROFILE_DISTANCE (begin, end, count != 0);
+	unsigned int remaining = RB_PROFILE_DISTANCE (layout, begin, end, count != 0);
 
 	// Update and emit a progress event.
 
-	progress.maximum -= (RB_PROFILE_END - RB_PROFILE_BEGIN) - remaining;
+	progress.maximum -= (layout->rb_profile_end - layout->rb_profile_begin) - remaining;
 	progress.current += sizeof (header);
 	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
 
@@ -315,24 +322,26 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	unsigned int offset = remaining + SZ_MINIMUM;
 	while (remaining) {
 		// Calculate the size of the current dive.
-		unsigned int size = RB_PROFILE_DISTANCE (current, previous, 1);
+		unsigned int size = RB_PROFILE_DISTANCE (layout, current, previous, 1);
+
 		if (size < 4 || size > remaining) {
 			WARNING ("Unexpected profile size.");
+			free (data);
 			return DEVICE_STATUS_ERROR;
 		}
 
 		unsigned int nbytes = available;
 		while (nbytes < size) {
 			// Handle the ringbuffer wrap point.
-			if (address == RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;
+			if (address == layout->rb_profile_begin)
+				address = layout->rb_profile_end;
 
 			// Calculate the package size. Try with the largest possible
 			// size first, and adjust when the end of the ringbuffer or
 			// the end of the profile data is reached.
 			unsigned int len = SZ_PACKET;
-			if (RB_PROFILE_BEGIN + len > address)
-				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.
+			if (layout->rb_profile_begin + len > address)
+				len = address - layout->rb_profile_begin; // End of ringbuffer.
 			if (nbytes + len > remaining)
 				len = remaining - nbytes; // End of profile.
 			/*if (nbytes + len > size)
@@ -354,6 +363,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			rc = suunto_common2_device_read (abstract, address - extra, data + offset - extra, len + extra);
 			if (rc != DEVICE_STATUS_SUCCESS) {
 				WARNING ("Cannot read memory.");
+				free (data);
 				return rc;
 			}
 
@@ -377,6 +387,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		unsigned int next = array_uint16_le (p + 2);
 		if (next != previous) {
 			WARNING ("Profiles are not continuous.");
+			free (data);
 			return DEVICE_STATUS_ERROR;
 		}
 
@@ -388,12 +399,18 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		if (devinfo.model == 0x15)
 			fp_offset += 6; // HelO2
 
-		if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0)
+		if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+			free (data);
 			return DEVICE_STATUS_SUCCESS;
+		}
 
-		if (callback && !callback (p + 4, size - 4, p + fp_offset, sizeof (device->fingerprint), userdata))
+		if (callback && !callback (p + 4, size - 4, p + fp_offset, sizeof (device->fingerprint), userdata)) {
+			free (data);
 			return DEVICE_STATUS_SUCCESS;
+		}
 	}
+
+	free (data);
 
 	return DEVICE_STATUS_SUCCESS;
 }

@@ -28,8 +28,19 @@
 extern "C" {
 #endif /* __cplusplus */
 
+typedef struct suunto_common2_layout_t {
+	// Memory size.
+	unsigned int memsize;
+	// Serial number.
+	unsigned int serial;
+	// Profile ringbuffer
+	unsigned int rb_profile_begin;
+	unsigned int rb_profile_end;
+} suunto_common2_layout_t;
+
 typedef struct suunto_common2_device_t {
 	device_t base;
+	const suunto_common2_layout_t *layout;
 	unsigned char fingerprint[7];
 } suunto_common2_device_t;
 

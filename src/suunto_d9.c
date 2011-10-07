@@ -64,6 +64,20 @@ static const suunto_common2_device_backend_t suunto_d9_device_backend = {
 	suunto_d9_device_packet
 };
 
+static const suunto_common2_layout_t suunto_d9_layout = {
+	0x8000, /* memsize */
+	0x0023, /* serial */
+	0x019A, /* rb_profile_begin */
+	0x7FFE /* rb_profile_end */
+};
+
+static const suunto_common2_layout_t suunto_d9tx_layout = {
+	0x10000, /* memsize */
+	0x0024, /* serial */
+	0x019A, /* rb_profile_begin */
+	0xFFFE /* rb_profile_end */
+};
+
 static int
 device_is_suunto_d9 (device_t *abstract)
 {
@@ -175,6 +189,13 @@ suunto_d9_device_open (device_t **out, const char* name)
 		free (device);
 		return status;
 	}
+
+	// Override the base class values.
+	unsigned int model = device->version[0];
+	if (model == D4i || model == D6i || model == D9tx)
+		device->base.layout = &suunto_d9tx_layout;
+	else
+		device->base.layout = &suunto_d9_layout;
 
 	*out = (device_t*) device;
 
