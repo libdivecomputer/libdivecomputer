@@ -44,6 +44,7 @@
 typedef struct suunto_d9_device_t {
 	suunto_common2_device_t base;
 	serial_t *port;
+	unsigned char version[4];
 } suunto_d9_device_t;
 
 static device_status_t suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
@@ -98,8 +99,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 		}
 
 		// Try reading the version info.
-		unsigned char version[4] = {0};
-		status = suunto_common2_device_version ((device_t *) device, version, sizeof (version));
+		status = suunto_common2_device_version ((device_t *) device, device->version, sizeof (device->version));
 		if (status == DEVICE_STATUS_SUCCESS)
 			break;
 	}
@@ -126,6 +126,7 @@ suunto_d9_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->version, 0, sizeof (device->version));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
