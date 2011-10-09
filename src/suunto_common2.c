@@ -236,6 +236,9 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	const suunto_common2_layout_t *layout = device->layout;
 
+	// Error status for delayed errors.
+	device_status_t status = DEVICE_STATUS_SUCCESS;
+
 	// Enable progress notifications.
 	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
 	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin +
@@ -404,32 +407,37 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			free (data);
 			return DEVICE_STATUS_ERROR;
 		}
-		if (next != previous) {
+		if (next != previous && next != current) {
 			WARNING ("Profiles are not continuous.");
 			free (data);
 			return DEVICE_STATUS_ERROR;
 		}
 
+		if (next != current) {
+			unsigned int fp_offset = FP_OFFSET;
+			if (devinfo.model == 0x15)
+				fp_offset += 6; // HelO2
+
+			if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+				free (data);
+				return DEVICE_STATUS_SUCCESS;
+			}
+
+			if (callback && !callback (p + 4, size - 4, p + fp_offset, sizeof (device->fingerprint), userdata)) {
+				free (data);
+				return DEVICE_STATUS_SUCCESS;
+			}
+		} else {
+			WARNING ("Skipping incomplete dive.");
+			status = DEVICE_STATUS_ERROR;
+		}
+
 		// Next dive.
 		previous = current;
 		current = prev;
-
-		unsigned int fp_offset = FP_OFFSET;
-		if (devinfo.model == 0x15)
-			fp_offset += 6; // HelO2
-
-		if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
-			free (data);
-			return DEVICE_STATUS_SUCCESS;
-		}
-
-		if (callback && !callback (p + 4, size - 4, p + fp_offset, sizeof (device->fingerprint), userdata)) {
-			free (data);
-			return DEVICE_STATUS_SUCCESS;
-		}
 	}
 
 	free (data);
 
-	return DEVICE_STATUS_SUCCESS;
+	return status;
 }
