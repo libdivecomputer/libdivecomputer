@@ -286,6 +286,16 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	unsigned int count = array_uint16_le (header + 2);
 	unsigned int end   = array_uint16_le (header + 4);
 	unsigned int begin = array_uint16_le (header + 6);
+	if (last < layout->rb_profile_begin ||
+		last >= layout->rb_profile_end ||
+		end < layout->rb_profile_begin ||
+		end >= layout->rb_profile_end ||
+		begin < layout->rb_profile_begin ||
+		begin >= layout->rb_profile_end)
+	{
+		WARNING("Invalid ringbuffer pointer detected!");
+		return DEVICE_STATUS_ERROR;
+	}
 
 	// Memory buffer to store all the dives.
 
@@ -385,6 +395,15 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		unsigned char *p = data + offset + available;
 		unsigned int prev = array_uint16_le (p + 0);
 		unsigned int next = array_uint16_le (p + 2);
+		if (prev < layout->rb_profile_begin ||
+			prev >= layout->rb_profile_end ||
+			next < layout->rb_profile_begin ||
+			next >= layout->rb_profile_end)
+		{
+			WARNING("Invalid ringbuffer pointer detected!");
+			free (data);
+			return DEVICE_STATUS_ERROR;
+		}
 		if (next != previous) {
 			WARNING ("Profiles are not continuous.");
 			free (data);
