@@ -275,8 +275,9 @@ cressi_edy_device_read (device_t *abstract, unsigned int address, unsigned char 
 	if (! device_is_cressi_edy (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
-	assert (address % (CRESSI_EDY_PACKET_SIZE / 4)== 0);
-	assert (size    % CRESSI_EDY_PACKET_SIZE == 0);
+	if ((address % (CRESSI_EDY_PACKET_SIZE / 4) != 0) ||
+		(size    % CRESSI_EDY_PACKET_SIZE != 0))
+		return DEVICE_STATUS_ERROR;
 
 	// The data transmission is split in packages
 	// of maximum $CRESSI_EDY_PACKET_SIZE bytes.
