@@ -39,32 +39,11 @@ mares_common_device_init (mares_common_device_t *device, const device_backend_t 
 	device_init (&device->base, backend);
 
 	// Set the default values.
-	memset (device->fingerprint, 0, sizeof (device->fingerprint));
-	device->layout = NULL;
 }
 
 
 device_status_t
-mares_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	mares_common_device_t *device = (mares_common_device_t *) abstract;
-
-	assert (device != NULL);
-
-	if (size && size != sizeof (device->fingerprint))
-		return DEVICE_STATUS_ERROR;
-
-	if (size)
-		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
-	else
-		memset (device->fingerprint, 0, sizeof (device->fingerprint));
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-device_status_t
-mares_common_extract_dives (mares_common_device_t *device, const mares_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata)
+mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dive_callback_t callback, void *userdata)
 {
 	assert (layout != NULL);
 
@@ -205,12 +184,12 @@ mares_common_extract_dives (mares_common_device_t *device, const mares_common_la
 		}
 
 		unsigned int fp_offset = offset + length - extra - FP_OFFSET;
-		if (device && memcmp (buffer + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+		if (fingerprint && memcmp (buffer + fp_offset, fingerprint, FP_SIZE) == 0) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}
 
-		if (callback && !callback (buffer + offset, nbytes, buffer + fp_offset, sizeof (device->fingerprint), userdata)) {
+		if (callback && !callback (buffer + offset, nbytes, buffer + fp_offset, FP_SIZE, userdata)) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}

@@ -47,8 +47,11 @@
 typedef struct mares_puck_device_t {
 	mares_common_device_t base;
 	serial_t *port;
+	const mares_common_layout_t *layout;
+	unsigned char fingerprint[5];
 } mares_puck_device_t;
 
+static device_status_t mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static device_status_t mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
@@ -56,7 +59,7 @@ static device_status_t mares_puck_device_close (device_t *abstract);
 
 static const device_backend_t mares_puck_device_backend = {
 	DEVICE_TYPE_MARES_PUCK,
-	mares_common_device_set_fingerprint, /* set_fingerprint */
+	mares_puck_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	mares_puck_device_read, /* read */
 	NULL, /* write */
@@ -117,6 +120,8 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	device->port = NULL;
+	device->layout = NULL;
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -167,17 +172,17 @@ mares_puck_device_open (device_t **out, const char* name)
 	// Override the base class values.
 	switch (header[1]) {
 	case NEMOWIDE:
-		device->base.layout = &mares_nemowide_layout;
+		device->layout = &mares_nemowide_layout;
 		break;
 	case NEMOAIR:
 	case PUCKAIR:
-		device->base.layout = &mares_nemoair_layout;
+		device->layout = &mares_nemoair_layout;
 		break;
 	case PUCK:
-		device->base.layout = &mares_puck_layout;
+		device->layout = &mares_puck_layout;
 		break;
 	default: // Unknown, try puck
-		device->base.layout = &mares_puck_layout;
+		device->layout = &mares_puck_layout;
 		break;
 	}
 
@@ -203,6 +208,23 @@ mares_puck_device_close (device_t *abstract)
 
 	// Free memory.
 	free (device);
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
+
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -386,7 +408,7 @@ mares_puck_device_read (device_t *abstract, unsigned int address, unsigned char 
 static device_status_t
 mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
-	mares_common_device_t *device = (mares_common_device_t *) abstract;
+	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
 	assert (device != NULL);
 	assert (device->layout != NULL);
@@ -406,7 +428,7 @@ mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 static device_status_t
 mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	mares_common_device_t *device = (mares_common_device_t *) abstract;
+	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
 	assert (device != NULL);
 	assert (device->layout != NULL);
@@ -429,7 +451,7 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_common_extract_dives (device, device->layout, data, callback, userdata);
+	rc = mares_common_extract_dives (device->layout, device->fingerprint, data, callback, userdata);
 
 	dc_buffer_free (buffer);
 
@@ -440,13 +462,15 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 device_status_t
 mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	mares_common_device_t *device = (mares_common_device_t*) abstract;
+	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
 
 	if (abstract && !device_is_mares_puck (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	if (size < PACKETSIZE)
 		return DEVICE_STATUS_ERROR;
+
+	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
 
 	const mares_common_layout_t *layout = NULL;
 	switch (data[1]) {
@@ -468,5 +492,5 @@ mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
 
-	return mares_common_extract_dives (device, layout, data, callback, userdata);
+	return mares_common_extract_dives (layout, fingerprint, data, callback, userdata);
 }

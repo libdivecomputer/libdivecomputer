@@ -21,7 +21,6 @@
 
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "device-private.h"
 #include "mares_common.h"
@@ -44,17 +43,19 @@
 #define NEMOAPNEIST 18
 
 typedef struct mares_nemo_device_t {
-	mares_common_device_t base;
+	device_t base;
 	serial_t *port;
+	unsigned char fingerprint[5];
 } mares_nemo_device_t;
 
+static device_status_t mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
 static device_status_t mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer);
 static device_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
 static device_status_t mares_nemo_device_close (device_t *abstract);
 
 static const device_backend_t mares_nemo_device_backend = {
 	DEVICE_TYPE_MARES_NEMO,
-	mares_common_device_set_fingerprint, /* set_fingerprint */
+	mares_nemo_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
@@ -103,10 +104,11 @@ mares_nemo_device_open (device_t **out, const char* name)
 	}
 
 	// Initialize the base class.
-	mares_common_device_init (&device->base, &mares_nemo_device_backend);
+	device_init (&device->base, &mares_nemo_device_backend);
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
 	int rc = serial_open (&device->port, name);
@@ -173,12 +175,26 @@ mares_nemo_device_close (device_t *abstract)
 
 
 static device_status_t
-mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
+mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
-	assert (device != NULL);
-	assert (device->base.layout == NULL);
+	if (size && size != sizeof (device->fingerprint))
+		return DEVICE_STATUS_ERROR;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	return DEVICE_STATUS_SUCCESS;
+}
+
+
+static device_status_t
+mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
+{
+	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
@@ -269,11 +285,6 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 static device_status_t
 mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	mares_common_device_t *device = (mares_common_device_t *) abstract;
-
-	assert (device != NULL);
-	assert (device->layout == NULL);
-
 	dc_buffer_t *buffer = dc_buffer_new (MEMORYSIZE);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
@@ -303,13 +314,15 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 device_status_t
 mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	mares_common_device_t *device = (mares_common_device_t*) abstract;
+	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
 
 	if (abstract && !device_is_mares_nemo (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	if (size < PACKETSIZE)
 		return DEVICE_STATUS_ERROR;
+
+	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
 
 	const mares_common_layout_t *layout = NULL;
 	switch (data[1]) {
@@ -328,5 +341,5 @@ mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsign
 	if (size < layout->memsize)
 		return DEVICE_STATUS_ERROR;
 
-	return mares_common_extract_dives (device, layout, data, callback, userdata);
+	return mares_common_extract_dives (layout, fingerprint, data, callback, userdata);
 }
