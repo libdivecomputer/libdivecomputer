@@ -186,9 +186,6 @@ mares_puck_device_close (device_t *abstract)
 {
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
 
-	if (! device_is_mares_puck (abstract))
-		return DEVICE_STATUS_TYPE_MISMATCH;
-
 	// Close the device.
 	if (serial_close (device->base.port) == -1) {
 		free (device);
@@ -224,7 +221,6 @@ mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
-	assert (device != NULL);
 	assert (device->layout != NULL);
 
 	// Erase the current contents of the buffer and
@@ -244,7 +240,6 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
-	assert (device != NULL);
 	assert (device->layout != NULL);
 
 	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
