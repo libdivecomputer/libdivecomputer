@@ -240,6 +240,13 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 		if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
 			if (offset + 8 > size)
 				return PARSER_STATUS_ERROR;
+
+			// Pressure (1/100 bar).
+			unsigned int pressure = array_uint16_le(data + offset);
+			sample.pressure.tank = 0;
+			sample.pressure.value = pressure / 100.0;
+			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+
 			offset += 8;
 		}
 	}
