@@ -77,6 +77,20 @@ device_is_mares_iconhd (device_t *abstract)
 
 
 static device_status_t
+mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
+{
+	// Try to correct an invalid model code using the version packet.
+	if (model == 0xFF) {
+		WARNING("Invalid model code detected!");
+		const unsigned char iconhdnet[] = "Icon AIR";
+		if (device && memcmp (device->version + 0x46, iconhdnet, sizeof (iconhdnet) - 1) == 0)
+			model = ICONHDNET;
+	}
+
+	return model;
+}
+
+static device_status_t
 mares_iconhd_transfer (mares_iconhd_device_t *device,
 	const unsigned char command[], unsigned int csize,
 	unsigned char answer[], unsigned int asize,
@@ -324,6 +338,8 @@ mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 static device_status_t
 mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
+	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
+
 	dc_buffer_t *buffer = dc_buffer_new (MARES_ICONHD_MEMORY_SIZE);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
@@ -337,7 +353,7 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
-	devinfo.model = data[0];
+	devinfo.model = mares_iconhd_get_model (device, data[0]);
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_le (data + 12);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
@@ -363,7 +379,7 @@ mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsi
 		return DEVICE_STATUS_ERROR;
 
 	// Get the model code.
-	unsigned int model = data[0];
+	unsigned int model = mares_iconhd_get_model (device, data[0]);
 
 	// Get the corresponding dive header size.
 	unsigned int header = 0x5C;
