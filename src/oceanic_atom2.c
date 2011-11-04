@@ -262,6 +262,9 @@ oceanic_atom2_init (oceanic_atom2_device_t *device)
 	if (rc != DEVICE_STATUS_SUCCESS)
 		return rc;
 
+	// Wait before sending the next command.
+	serial_sleep (1000);
+
 	// Discard all additional bytes (if there are any)
 	serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
