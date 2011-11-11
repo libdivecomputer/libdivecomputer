@@ -35,6 +35,10 @@
 	rc == -1 ? DEVICE_STATUS_IO : DEVICE_STATUS_TIMEOUT \
 )
 
+#ifdef PACKETSIZE
+#undef PACKETSIZE /* Override the common value. */
+#endif
+
 #define MEMORYSIZE 0x4000
 #define PACKETSIZE 0x20
 
