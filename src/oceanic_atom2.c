@@ -254,25 +254,6 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 
 
 static device_status_t
-oceanic_atom2_init (oceanic_atom2_device_t *device)
-{
-	// Send the command to the dive computer.
-	unsigned char command[3] = {0xA8, 0x99, 0x00};
-	device_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
-	if (rc != DEVICE_STATUS_SUCCESS)
-		return rc;
-
-	// Wait before sending the next command.
-	serial_sleep (1000);
-
-	// Discard all additional bytes (if there are any)
-	serial_flush (device->port, SERIAL_QUEUE_INPUT);
-
-	return DEVICE_STATUS_SUCCESS;
-}
-
-
-static device_status_t
 oceanic_atom2_quit (oceanic_atom2_device_t *device)
 {
 	// Send the command to the dive computer.
@@ -336,18 +317,10 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the init command.
-	device_status_t status = oceanic_atom2_init (device);
-	if (status != DEVICE_STATUS_SUCCESS) {
-		serial_close (device->port);
-		free (device);
-		return status;
-	}
-
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
 	// by connecting the device), or already in download mode.
-	status = oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
+	device_status_t status = oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
 	if (status != DEVICE_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
