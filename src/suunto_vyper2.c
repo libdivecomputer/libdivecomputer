@@ -131,6 +131,9 @@ suunto_vyper2_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
+	// Enable half-duplex emulation.
+	serial_set_halfduplex (device->port, 1);
+
 	// Override the base class values.
 	device->base.layout = &suunto_vyper2_layout;
 
@@ -180,8 +183,6 @@ suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], 
 		WARNING ("Failed to send the command.");
 		return EXITCODE (n);
 	}
-
-	serial_sleep (0x9);
 
 	// Clear RTS to receive the reply.
 	serial_set_rts (device->port, 0);
