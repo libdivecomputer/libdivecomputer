@@ -242,9 +242,6 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 		return EXITCODE (n);
 	}
 
-	// Wait until all data has been transmitted.
-	serial_drain (device->port);
-
 	// Receive the echo.
 	unsigned char echo[128] = {0};
 	assert (sizeof (echo) >= csize);

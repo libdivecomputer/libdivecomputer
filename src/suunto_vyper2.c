@@ -181,9 +181,6 @@ suunto_vyper2_device_packet (device_t *abstract, const unsigned char command[], 
 		return EXITCODE (n);
 	}
 
-	// Wait until all data has been transmitted.
-	serial_drain (device->port);
-
 	serial_sleep (0x9);
 
 	// Clear RTS to receive the reply.

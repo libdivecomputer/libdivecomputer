@@ -400,21 +400,6 @@ serial_flush (serial_t *device, int queue)
 
 
 int
-serial_drain (serial_t *device)
-{
-	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
-
-	if (!FlushFileBuffers (device->hFile)) {
-		TRACE ("FlushFileBuffers");
-		return -1;
-	}
-
-	return 0;
-}
-
-
-int
 serial_send_break (serial_t *device)
 {
 	if (device == NULL)

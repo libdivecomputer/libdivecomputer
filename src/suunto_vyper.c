@@ -209,9 +209,6 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 		return EXITCODE (n);
 	}
 
-	// Wait until all data has been transmitted.
-	serial_drain (device->port);
-
 	// If the interface sends an echo back (which is the case for many clone 
 	// interfaces), this echo should be removed from the input queue before 
 	// attempting to read the real reply from the dive computer. Otherwise, 

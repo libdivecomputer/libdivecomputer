@@ -92,7 +92,6 @@ int serial_read (serial_t *device, void* data, unsigned int size);
 int serial_write (serial_t *device, const void* data, unsigned int size);
 
 int serial_flush (serial_t *device, int queue);
-int serial_drain (serial_t *device);
 
 int serial_send_break (serial_t *device);
 
