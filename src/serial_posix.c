@@ -66,6 +66,10 @@ struct serial_t {
 	 * serial port is closed.
 	 */
 	struct termios tty;
+	/* Half-duplex settings */
+	int halfduplex;
+	unsigned int baudrate;
+	unsigned int nbits;
 };
 
 //
@@ -102,6 +106,11 @@ serial_open (serial_t **out, const char* name)
 
 	// Default to blocking reads.
 	device->timeout = -1;
+
+	// Default to full-duplex.
+	device->halfduplex = 0;
+	device->baudrate = 0;
+	device->nbits = 0;
 
 	// Open the device in non-blocking mode, to return immediately
 	// without waiting for the modem connection to complete.
@@ -401,6 +410,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 #endif
 	}
 
+	device->baudrate = baudrate;
+	device->nbits = 1 + databits + stopbits + (parity ? 1 : 0);
+
 	return 0;
 }
 
@@ -429,6 +441,18 @@ serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output
 {
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	return 0;
+}
+
+
+int
+serial_set_halfduplex (serial_t *device, int value)
+{
+	if (device == NULL)
+		return -1; // EINVAL (Invalid argument)
+
+	device->halfduplex = value;
 
 	return 0;
 }
@@ -512,6 +536,15 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	struct timeval tve, tvb;
+	if (device->halfduplex) {
+		// Get the current time.
+		if (gettimeofday (&tvb, NULL) != 0) {
+			TRACE ("gettimeofday");
+			return -1;
+		}
+	}
+
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		fd_set fds;
@@ -546,6 +579,33 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 		if (errno != EINTR ) {
 			TRACE ("tcdrain");
 			return -1;
+		}
+	}
+
+	if (device->halfduplex) {
+		// Get the current time.
+		if (gettimeofday (&tve, NULL) != 0) {
+			TRACE ("gettimeofday");
+			return -1;
+		}
+
+		// Calculate the elapsed time (microseconds).
+		struct timeval tvt;
+		timersub (&tve, &tvb, &tvt);
+		unsigned long elapsed = tvt.tv_sec * 1000000 + tvt.tv_usec;
+
+		// Calculate the expected duration (microseconds). A 2 millisecond fudge
+		// factor is added because it improves the success rate significantly.
+		unsigned long expected = 1000000.0 * device->nbits / device->baudrate * size + 0.5 + 2000;
+
+		// Wait for the remaining time.
+		if (elapsed < expected) {
+			unsigned long remaining = expected - elapsed;
+
+			// The remaining time is rounded up to the nearest millisecond to
+			// match the Windows implementation. The higher resolution is
+			// pointless anyway, since we already added a fudge factor above.
+			serial_sleep ((remaining + 999) / 1000);
 		}
 	}
 
