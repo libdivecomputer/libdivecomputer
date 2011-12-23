@@ -121,14 +121,18 @@ oceanic_common_device_set_fingerprint (device_t *abstract, const unsigned char d
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
 	assert (device != NULL);
+	assert (device->layout != NULL);
+	assert (device->layout->rb_logbook_entry_size <= sizeof (device->fingerprint));
 
-	if (size && size != sizeof (device->fingerprint))
+	unsigned int fpsize = device->layout->rb_logbook_entry_size;
+
+	if (size && size != fpsize)
 		return DEVICE_STATUS_ERROR;
 
 	if (size)
-		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+		memcpy (device->fingerprint, data, fpsize);
 	else
-		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+		memset (device->fingerprint, 0, fpsize);
 
 	return DEVICE_STATUS_SUCCESS;
 }
@@ -161,6 +165,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	assert (device != NULL);
 	assert (device->layout != NULL);
+	assert (device->layout->rb_logbook_entry_size <= sizeof (device->fingerprint));
 
 	const oceanic_common_layout_t *layout = device->layout;
 
@@ -223,8 +228,8 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	} else {
 		if (layout->pt_mode_global == 0) {
 			rb_logbook_entry_begin = rb_logbook_first;
-			rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, PAGESIZE / 2, layout);
-			rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout) + PAGESIZE / 2;
+			rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, layout->rb_logbook_entry_size, layout);
+			rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout) + layout->rb_logbook_entry_size;
 		} else {
 			rb_logbook_entry_begin = rb_logbook_first;
 			rb_logbook_entry_end   = rb_logbook_last;
@@ -355,18 +360,20 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 		// Process the logbook entries.
 		int abort = 0;
-		while (current != offset && current != begin) {
+		while (current >= offset + layout->rb_logbook_entry_size &&
+			current != offset && current != begin)
+		{
 			// Move to the start of the current entry.
-			current -= PAGESIZE / 2;
+			current -= layout->rb_logbook_entry_size;
 
 			// Check for uninitialized entries. Normally, such entries are
 			// never present, except when the ringbuffer is actually empty,
 			// but the ringbuffer pointers are not set to their empty values.
 			// This appears to happen on some devices, and we attempt to
 			// fix this here.
-			if (array_isequal (logbooks + current, PAGESIZE / 2, 0xFF)) {
+			if (array_isequal (logbooks + current, layout->rb_logbook_entry_size, 0xFF)) {
 				WARNING("Uninitialized logbook entries detected!");
-				begin = current + PAGESIZE / 2;
+				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
 			}
@@ -385,7 +392,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			{
 				WARNING("Invalid ringbuffer pointer detected!");
 				status = DEVICE_STATUS_ERROR;
-				begin = current + PAGESIZE / 2;
+				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
 			}
@@ -404,7 +411,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			// Make sure the profile size is valid.
 			if (rb_entry_size + gap > remaining) {
 				WARNING ("Unexpected profile size.");
-				begin = current + PAGESIZE / 2;
+				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
 			}
@@ -413,8 +420,8 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			previous = rb_entry_first;
 
 			// Compare the fingerprint to identify previously downloaded entries.
-			if (memcmp (logbooks + current, device->fingerprint, PAGESIZE / 2) == 0) {
-				begin = current + PAGESIZE / 2;
+			if (memcmp (logbooks + current, device->fingerprint, layout->rb_logbook_entry_size) == 0) {
+				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
 			}
@@ -434,7 +441,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	// Calculate the total amount of bytes in the profile ringbuffer,
 	// based on the pointers in the first and last logbook entry.
 	unsigned int rb_profile_first = get_profile_first (logbooks + begin, layout);
-	unsigned int rb_profile_last  = get_profile_last (logbooks + end - PAGESIZE / 2, layout);
+	unsigned int rb_profile_last  = get_profile_last (logbooks + end - layout->rb_logbook_entry_size, layout);
 	unsigned int rb_profile_end   = RB_PROFILE_INCR (rb_profile_last, PAGESIZE, layout);
 	unsigned int rb_profile_size  = RB_PROFILE_DISTANCE (rb_profile_first, rb_profile_last, layout) + PAGESIZE;
 
@@ -467,7 +474,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	address = previous;
 	while (current != begin) {
 		// Move to the start of the current entry.
-		current -= PAGESIZE / 2;
+		current -= layout->rb_logbook_entry_size;
 
 		// Get the profile pointers.
 		unsigned int rb_entry_first = get_profile_first (logbooks + current, layout);
@@ -523,12 +530,12 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		// large enough to store this entry, but any data that belongs to the
 		// next dive needs to be moved down first.
 		if (available)
-			memmove (profiles + offset - PAGESIZE / 2, profiles + offset, available);
-		offset -= PAGESIZE / 2;
-		memcpy (profiles + offset + available, logbooks + current, PAGESIZE / 2);
+			memmove (profiles + offset - layout->rb_logbook_entry_size, profiles + offset, available);
+		offset -= layout->rb_logbook_entry_size;
+		memcpy (profiles + offset + available, logbooks + current, layout->rb_logbook_entry_size);
 
 		unsigned char *p = profiles + offset + available;
-		if (callback && !callback (p, rb_entry_size + PAGESIZE / 2, p, PAGESIZE / 2, userdata)) {
+		if (callback && !callback (p, rb_entry_size + layout->rb_logbook_entry_size, p, layout->rb_logbook_entry_size, userdata)) {
 			free (logbooks);
 			free (profiles);
 			return DEVICE_STATUS_SUCCESS;

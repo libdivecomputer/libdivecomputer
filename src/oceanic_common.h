@@ -29,6 +29,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #define PAGESIZE 0x10
+#define FPMAXSIZE (PAGESIZE / 2)
 
 typedef struct oceanic_common_layout_t {
 	// Memory size.
@@ -40,6 +41,7 @@ typedef struct oceanic_common_layout_t {
 	// Logbook ringbuffer.
 	unsigned int rb_logbook_begin;
 	unsigned int rb_logbook_end;
+	unsigned int rb_logbook_entry_size;
 	// Profile ringbuffer
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;
@@ -53,7 +55,7 @@ typedef struct oceanic_common_layout_t {
 
 typedef struct oceanic_common_device_t {
 	device_t base;
-	unsigned char fingerprint[PAGESIZE / 2];
+	unsigned char fingerprint[FPMAXSIZE];
 	const oceanic_common_layout_t *layout;
 	unsigned int multipage;
 } oceanic_common_device_t;

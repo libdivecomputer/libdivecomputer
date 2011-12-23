@@ -89,6 +89,7 @@ static const oceanic_common_layout_t oceanic_default_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -101,6 +102,7 @@ static const oceanic_common_layout_t oceanic_atom1_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -113,6 +115,7 @@ static const oceanic_common_layout_t oceanic_atom2a_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -125,6 +128,7 @@ static const oceanic_common_layout_t oceanic_atom2b_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -137,6 +141,7 @@ static const oceanic_common_layout_t oceanic_atom2c_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0xFFF0, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -149,6 +154,7 @@ static const oceanic_common_layout_t tusa_zenair_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -161,6 +167,7 @@ static const oceanic_common_layout_t oceanic_oc1_layout = {
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0x1FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
