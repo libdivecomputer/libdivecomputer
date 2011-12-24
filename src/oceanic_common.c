@@ -59,8 +59,10 @@ get_profile_first (const unsigned char data[], const oceanic_common_layout_t *la
 
 	if (layout->pt_mode_logbook == 0) {
 		value = array_uint16_le (data + 5);
-	} else {
+	} else if (layout->pt_mode_logbook == 1) {
 		value = array_uint16_le (data + 4);
+	} else {
+		return array_uint16_le (data + 16);
 	}
 
 	if (layout->memsize > 0x10000)
@@ -77,8 +79,10 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 
 	if (layout->pt_mode_logbook == 0) {
 		value = array_uint16_le (data + 6) >> 4;
-	} else {
+	} else if (layout->pt_mode_logbook == 1) {
 		value = array_uint16_le (data + 6);
+	} else {
+		return array_uint16_le(data + 18);
 	}
 
 	if (layout->memsize > 0x10000)

@@ -29,7 +29,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #define PAGESIZE 0x10
-#define FPMAXSIZE (PAGESIZE / 2)
+#define FPMAXSIZE 0x20
 
 typedef struct oceanic_common_layout_t {
 	// Memory size.

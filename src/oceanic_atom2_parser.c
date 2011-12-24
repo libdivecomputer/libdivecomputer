@@ -37,6 +37,7 @@
 #define DATAMASK    0x4347
 #define COMPUMASK   0x4348
 #define OC1A        0x434E
+#define F10         0x434D
 #define VEO20       0x4359
 #define VEO30       0x435A
 #define ZENAIR      0x4442
@@ -148,12 +149,19 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
-	if (abstract->size < 8)
+	unsigned int header = 8;
+	if (parser->model == F10)
+		header = 32;
+
+	if (abstract->size < header)
 		return PARSER_STATUS_ERROR;
 
 	const unsigned char *p = abstract->data;
 
 	if (datetime) {
+		// AM/PM bit of the 12-hour clock.
+		unsigned int pm = p[1] & 0x80;
+
 		switch (parser->model) {
 		case OC1A:
 		case OC1B:
@@ -183,6 +191,14 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 			datetime->hour   = bcd2dec (p[1] & 0x1F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
+		case F10:
+			datetime->year   = bcd2dec (p[6]) + 2000;
+			datetime->month  = bcd2dec (p[7]);
+			datetime->day    = bcd2dec (p[8]);
+			datetime->hour   = bcd2dec (p[13] & 0x7F);
+			datetime->minute = bcd2dec (p[12]);
+			pm = p[13] & 0x80;
+			break;
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
@@ -198,7 +214,7 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 		// Convert to a 24-hour clock.
 		datetime->hour %= 12;
-		if (p[1] & 0x80)
+		if (pm)
 			datetime->hour += 12;
 
 		/*
@@ -256,6 +272,9 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 		headersize += PAGESIZE;
 	} else if (parser->model == ATOM1) {
 		headersize -= 2 * PAGESIZE;
+	} else if (parser->model == F10) {
+		headersize = 3 * PAGESIZE;
+		footersize = PAGESIZE / 2;
 	}
 
 	if (size < headersize + footersize)
@@ -287,10 +306,16 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 	if (value) {
 		switch (type) {
 		case FIELD_TYPE_DIVETIME:
-			*((unsigned int *) value) = parser->divetime;
+			if (parser->model == F10)
+				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60 + bcd2dec (data[1]) * 3600;
+			else
+				*((unsigned int *) value) = parser->divetime;
 			break;
 		case FIELD_TYPE_MAXDEPTH:
-			*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
+			if (parser->model == F10)
+				*((double *) value) = array_uint16_le (data + 4) / 16.0 * FEET;
+			else
+				*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
 			break;
 		case FIELD_TYPE_GASMIX_COUNT:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK)
@@ -340,6 +365,9 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		headersize += PAGESIZE;
 	} else if (parser->model == ATOM1) {
 		headersize -= 2 * PAGESIZE;
+	} else if (parser->model == F10) {
+		headersize = 3 * PAGESIZE;
+		footersize = PAGESIZE / 2;
 	}
 
 	if (size < headersize + footersize)
@@ -349,28 +377,35 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int header = headersize - PAGESIZE / 2;
 
 	unsigned int time = 0;
-	unsigned interval = 0;
-	switch (data[0x17] & 0x03) {
-	case 0:
-		interval = 2;
-		break;
-	case 1:
-		interval = 15;
-		break;
-	case 2:
-		interval = 30;
-		break;
-	case 3:
-		interval = 60;
-		break;
+	unsigned int interval = 1;
+	if (parser->model != F10) {
+		switch (data[0x17] & 0x03) {
+		case 0:
+			interval = 2;
+			break;
+		case 1:
+			interval = 15;
+			break;
+		case 2:
+			interval = 30;
+			break;
+		case 3:
+			interval = 60;
+			break;
+		}
 	}
 
 	unsigned int samplesize = PAGESIZE / 2;
 	if (parser->model == OC1A || parser->model == OC1B)
 		samplesize = PAGESIZE;
+	else if (parser->model == F10)
+		samplesize = 2;
 
 	unsigned int have_temperature = 1, have_pressure = 1;
 	if (parser->model == VEO30) {
+		have_pressure = 0;
+	} else if (parser->model == F10) {
+		have_temperature = 0;
 		have_pressure = 0;
 	}
 
@@ -412,6 +447,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 		// Get the sample type.
 		unsigned int sampletype = data[offset + 0];
+		if (parser->model == F10)
+			sampletype = 0;
 
 		// The sample size is usually fixed, but some sample types have a
 		// larger size. Check whether we have that many bytes available.
@@ -507,6 +544,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else if (parser->model == ATOM1)
 				depth = data[offset + 3] * 16;
+			else if (parser->model == F10)
+				depth = array_uint16_le (data + offset);
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;

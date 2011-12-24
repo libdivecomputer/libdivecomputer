@@ -65,6 +65,7 @@ static const device_backend_t oceanic_atom2_device_backend = {
 
 static const unsigned char aeris_atmosai_version[] = "ATMOSAI R\0\0 512K";
 static const unsigned char aeris_epic_version[]  = "2M EPIC r\0\0 512K";
+static const unsigned char aeris_f10_version[] = "FREEWAER \0\0 512K";
 static const unsigned char oceanic_proplus2_version[] = "PROPLUS2 \0\0 512K";
 static const unsigned char oceanic_atom1_version[] = "ATOM rev\0\0  256K";
 static const unsigned char oceanic_atom2_version[] = "2M ATOM r\0\0 512K";
@@ -82,6 +83,20 @@ static const unsigned char sherwood_wisdom2_version[] = "WISDOM R\0\0  512K";
 static const unsigned char tusa_element2_version[] = "ELEMENT2 \0\0 512K";
 static const unsigned char tusa_zen_version[]      = "TUSAZEN \0\0  512K";
 static const unsigned char tusa_zenair_version[]   = "TUZENAIR \0\0 512K";
+
+
+static const oceanic_common_layout_t aeris_f10_layout = {
+	0x10000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0100, /* rb_logbook_begin */
+	0x0D80, /* rb_logbook_end */
+	32, /* rb_logbook_entry_size */
+	0x0D90, /* rb_profile_begin */
+	0x10000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	2 /* pt_mode_logbook */
+};
 
 static const oceanic_common_layout_t oceanic_default_layout = {
 	0x10000, /* memsize */
@@ -345,6 +360,8 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		oceanic_common_match (oceanic_vt4_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_vt41_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_oc1_layout;
+	else if (oceanic_common_match (aeris_f10_version, device->version, sizeof (device->version)))
+		device->base.layout = &aeris_f10_layout;
 	else if (oceanic_common_match (tusa_zenair_version, device->version, sizeof (device->version)))
 		device->base.layout = &tusa_zenair_layout;
 	else if (oceanic_common_match (oceanic_atom1_version, device->version, sizeof (device->version)))
