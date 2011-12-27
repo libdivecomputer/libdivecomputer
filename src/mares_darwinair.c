@@ -30,17 +30,23 @@
 #include "utils.h"
 #include "array.h"
 
-#define MEMORYSIZE        0x4000
-
-#define RB_LOGBOOK_OFFSET 0x0100
-#define RB_LOGBOOK_SIZE   60
-#define RB_LOGBOOK_COUNT  50
-
-#define RB_PROFILE_BEGIN  0x0CC0
-#define RB_PROFILE_END    0x3FFF
+typedef struct mares_darwinair_layout_t {
+	// Memory size.
+	unsigned int memsize;
+	// Logbook ringbuffer.
+	unsigned int rb_logbook_offset;
+	unsigned int rb_logbook_size;
+	unsigned int rb_logbook_count;
+	// Profile ringbuffer
+	unsigned int rb_profile_begin;
+	unsigned int rb_profile_end;
+	// Sample size
+	unsigned int samplesize;
+} mares_darwinair_layout_t;
 
 typedef struct mares_darwinair_device_t {
 	mares_common_device_t base;
+	const mares_darwinair_layout_t *layout;
 	unsigned char fingerprint[6];
 } mares_darwinair_device_t;
 
@@ -58,6 +64,16 @@ static const device_backend_t mares_darwinair_device_backend = {
 	mares_darwinair_device_dump, /* dump */
 	mares_darwinair_device_foreach, /* foreach */
 	mares_darwinair_device_close /* close */
+};
+
+static const mares_darwinair_layout_t mares_darwinair_layout = {
+	0x4000, /* memsize */
+	0x0100, /* rb_logbook_offset */
+	60,     /* rb_logbook_size */
+	50,     /* rb_logbook_count */
+	0x0CC0, /* rb_profile_begin */
+	0x3FFF, /* rb_profile_end */
+	3       /* samplesize */
 };
 
 static int
@@ -87,6 +103,7 @@ mares_darwinair_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	device->layout = &mares_darwinair_layout;
 
 	// Open the device.
 	int rc = serial_open (&device->base.port, name);
@@ -171,9 +188,13 @@ mares_darwinair_device_set_fingerprint (device_t *abstract, const unsigned char 
 static device_status_t
 mares_darwinair_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
+	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+
+	assert (device->layout != NULL);
+
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, MEMORYSIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		WARNING ("Insufficient buffer space available.");
 		return DEVICE_STATUS_MEMORY;
 	}
@@ -186,7 +207,11 @@ mares_darwinair_device_dump (device_t *abstract, dc_buffer_t *buffer)
 static device_status_t
 mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	dc_buffer_t *buffer = dc_buffer_new (MEMORYSIZE);
+	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+
+	assert (device->layout != NULL);
+
+	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
 
@@ -218,25 +243,29 @@ mares_darwinair_extract_dives (device_t *abstract, const unsigned char data[], u
 {
 	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
 
-	if (abstract && !device_is_mares_darwinair (abstract))
+	if (!device_is_mares_darwinair (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
+
+	assert (device->layout != NULL);
+
+	const mares_darwinair_layout_t *layout = device->layout;
 
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_be (data + 0x8A);
-	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
+	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
 		WARNING ("Invalid ringbuffer pointer detected.");
 		return DEVICE_STATUS_ERROR;
 	}
 
 	// Get the logbook index.
 	unsigned int last = data[0x8C];
-	if (last >= RB_LOGBOOK_COUNT) {
+	if (last >= layout->rb_logbook_count) {
 		WARNING ("Invalid ringbuffer pointer detected.");
 		return DEVICE_STATUS_ERROR;
 	}
 
 	// Allocate memory for the largest possible dive.
-	unsigned char *buffer = malloc (RB_LOGBOOK_SIZE + RB_PROFILE_END - RB_PROFILE_BEGIN);
+	unsigned char *buffer = malloc (layout->rb_logbook_size + layout->rb_profile_end - layout->rb_profile_begin);
 	if (buffer == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return DEVICE_STATUS_MEMORY;
@@ -246,32 +275,32 @@ mares_darwinair_extract_dives (device_t *abstract, const unsigned char data[], u
 	// is no guarantee that the profile ringbuffer will contain a profile for
 	// each entry. The number of remaining bytes (which is initialized to the
 	// largest possible value) is used to detect the last valid profile.
-	unsigned int remaining = RB_PROFILE_END - RB_PROFILE_BEGIN;
+	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
 
 	unsigned int current = eop;
-	for (unsigned int i = 0; i < RB_LOGBOOK_COUNT; ++i) {
+	for (unsigned int i = 0; i < layout->rb_logbook_count; ++i) {
 		// Get the offset to the current logbook entry in the ringbuffer.
-		unsigned int idx = (RB_LOGBOOK_COUNT + last - i) % RB_LOGBOOK_COUNT;
-		unsigned int offset = RB_LOGBOOK_OFFSET + idx * RB_LOGBOOK_SIZE;
+		unsigned int idx = (layout->rb_logbook_count + last - i) % layout->rb_logbook_count;
+		unsigned int offset = layout->rb_logbook_offset + idx * layout->rb_logbook_size;
 
 		// Get the length of the current dive.
 		unsigned int nsamples = array_uint16_be (data + offset + 6);
-		unsigned int length = nsamples * 3;
+		unsigned int length = nsamples * layout->samplesize;
 		if (nsamples == 0xFFFF || length > remaining)
 			break;
 
 		// Copy the logbook entry.
-		memcpy (buffer, data + offset, RB_LOGBOOK_SIZE);
+		memcpy (buffer, data + offset, layout->rb_logbook_size);
 
 		// Copy the profile data.
-		if (current < RB_PROFILE_BEGIN + length) {
-			unsigned int a = current - RB_PROFILE_BEGIN;
+		if (current < layout->rb_profile_begin + length) {
+			unsigned int a = current - layout->rb_profile_begin;
 			unsigned int b = length - a;
-			memcpy (buffer + RB_LOGBOOK_SIZE, data + RB_PROFILE_END - b, b);
-			memcpy (buffer + RB_LOGBOOK_SIZE + b, data + RB_PROFILE_BEGIN, a);
-			current = RB_PROFILE_END - b;
+			memcpy (buffer + layout->rb_logbook_size, data + layout->rb_profile_end - b, b);
+			memcpy (buffer + layout->rb_logbook_size + b, data + layout->rb_profile_begin, a);
+			current = layout->rb_profile_end - b;
 		} else {
-			memcpy (buffer + RB_LOGBOOK_SIZE, data + current - length, length);
+			memcpy (buffer + layout->rb_logbook_size, data + current - length, length);
 			current -= length;
 		}
 
@@ -280,7 +309,7 @@ mares_darwinair_extract_dives (device_t *abstract, const unsigned char data[], u
 			return DEVICE_STATUS_SUCCESS;
 		}
 
-		if (callback && !callback (buffer, RB_LOGBOOK_SIZE + length, buffer, 6, userdata)) {
+		if (callback && !callback (buffer, layout->rb_logbook_size + length, buffer, 6, userdata)) {
 			free (buffer);
 			return DEVICE_STATUS_SUCCESS;
 		}
