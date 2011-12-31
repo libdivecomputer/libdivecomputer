@@ -18,7 +18,7 @@ bin_PROGRAMS = \
 	vtpro \
 	nemo \
 	puck \
-	darwinair \
+	darwin \
 	iconhd \
 	ostc \
 	edy \
@@ -62,7 +62,7 @@ nemo_SOURCES = mares_nemo_test.c $(COMMON)
 
 puck_SOURCES = mares_puck_test.c $(COMMON)
 
-darwinair_SOURCES = mares_darwinair_test.c $(COMMON)
+darwin_SOURCES = mares_darwin_test.c $(COMMON)
 
 iconhd_SOURCES = mares_iconhd_test.c $(COMMON)
 

@@ -71,7 +71,7 @@ test_dump_memory (const char* name, const char* filename)
 
 int main(int argc, char *argv[])
 {
-	message_set_logfile ("DARWINAIR.LOG");
+	message_set_logfile ("DARWIN.LOG");
 
 #ifdef _WIN32
 	const char* name = "COM1";
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
 	message ("DEVICE=%s\n", name);
 
-	device_status_t a = test_dump_memory (name, "DARWINAIR.DMP");
+	device_status_t a = test_dump_memory (name, "DARWIN.DMP");
 
 	message ("SUMMARY\n");
 	message ("-------\n");
