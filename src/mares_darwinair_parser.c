@@ -28,12 +28,15 @@
 #include "utils.h"
 #include "array.h"
 
-#define HEADERSIZE 60
+#define DARWIN    0
+#define DARWINAIR 1
 
 typedef struct mares_darwinair_parser_t mares_darwinair_parser_t;
 
 struct mares_darwinair_parser_t {
 	parser_t base;
+	unsigned int headersize;
+	unsigned int samplesize;
 };
 
 static parser_status_t mares_darwinair_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -63,7 +66,7 @@ parser_is_mares_darwinair (parser_t *abstract)
 
 
 parser_status_t
-mares_darwinair_parser_create (parser_t **out)
+mares_darwinair_parser_create (parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -77,6 +80,14 @@ mares_darwinair_parser_create (parser_t **out)
 
 	// Initialize the base class.
 	parser_init (&parser->base, &mares_darwinair_parser_backend);
+
+	if (model == DARWINAIR) {
+		parser->headersize = 60;
+		parser->samplesize = 3;
+	} else {
+		parser->headersize = 52;
+		parser->samplesize = 2;
+	}
 
 	*out = (parser_t *) parser;
 
@@ -107,7 +118,9 @@ mares_darwinair_parser_set_data (parser_t *abstract, const unsigned char *data, 
 static parser_status_t
 mares_darwinair_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
-	if (abstract->size < HEADERSIZE)
+	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) abstract;
+
+	if (abstract->size < parser->headersize)
 		return PARSER_STATUS_ERROR;
 
 	const unsigned char *p = abstract->data;
@@ -128,7 +141,9 @@ mares_darwinair_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime
 static parser_status_t
 mares_darwinair_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
-	if (abstract->size < HEADERSIZE)
+	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) abstract;
+
+	if (abstract->size < parser->headersize)
 		return PARSER_STATUS_ERROR;
 
 	const unsigned char *p = abstract->data;
@@ -163,13 +178,15 @@ mares_darwinair_parser_get_field (parser_t *abstract, parser_field_type_t type, 
 static parser_status_t
 mares_darwinair_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
-	if (abstract->size < HEADERSIZE)
+	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) abstract;
+
+	if (abstract->size < parser->headersize)
 		return PARSER_STATUS_ERROR;
 
 	unsigned int time = 0;
 
-	unsigned int offset = HEADERSIZE;
-	while (offset + 3 <= abstract->size) {
+	unsigned int offset = parser->headersize;
+	while (offset + parser->samplesize <= abstract->size) {
 			parser_sample_value_t sample = {0};
 
 			// Surface Time (seconds).
@@ -182,7 +199,7 @@ mares_darwinair_parser_samples_foreach (parser_t *abstract, sample_callback_t ca
 			sample.depth = depth / 10.0;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
 
-			offset += 3;
+			offset += parser->samplesize;
 	}
 
 	return PARSER_STATUS_SUCCESS;

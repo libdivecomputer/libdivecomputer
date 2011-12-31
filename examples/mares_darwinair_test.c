@@ -32,7 +32,7 @@ test_dump_memory (const char* name, const char* filename)
 	device_t *device = NULL;
 
 	message ("mares_darwinair_device_open\n");
-	device_status_t rc = mares_darwinair_device_open (&device, name);
+	device_status_t rc = mares_darwinair_device_open (&device, name, 0);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		return rc;

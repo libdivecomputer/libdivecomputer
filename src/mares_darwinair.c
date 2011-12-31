@@ -30,6 +30,9 @@
 #include "utils.h"
 #include "array.h"
 
+#define DARWIN    0
+#define DARWINAIR 1
+
 typedef struct mares_darwinair_layout_t {
 	// Memory size.
 	unsigned int memsize;
@@ -47,6 +50,7 @@ typedef struct mares_darwinair_layout_t {
 typedef struct mares_darwinair_device_t {
 	mares_common_device_t base;
 	const mares_darwinair_layout_t *layout;
+	unsigned int model;
 	unsigned char fingerprint[6];
 } mares_darwinair_device_t;
 
@@ -64,6 +68,16 @@ static const device_backend_t mares_darwinair_device_backend = {
 	mares_darwinair_device_dump, /* dump */
 	mares_darwinair_device_foreach, /* foreach */
 	mares_darwinair_device_close /* close */
+};
+
+static const mares_darwinair_layout_t mares_darwin_layout = {
+	0x4000, /* memsize */
+	0x0100, /* rb_logbook_offset */
+	52,     /* rb_logbook_size */
+	50,     /* rb_logbook_count */
+	0x0B30, /* rb_profile_begin */
+	0x4000, /* rb_profile_end */
+	2       /* samplesize */
 };
 
 static const mares_darwinair_layout_t mares_darwinair_layout = {
@@ -86,7 +100,7 @@ device_is_mares_darwinair (device_t *abstract)
 }
 
 device_status_t
-mares_darwinair_device_open (device_t **out, const char* name)
+mares_darwinair_device_open (device_t **out, const char* name, unsigned int model)
 {
 	if (out == NULL)
 		return DEVICE_STATUS_ERROR;
@@ -103,7 +117,11 @@ mares_darwinair_device_open (device_t **out, const char* name)
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
-	device->layout = &mares_darwinair_layout;
+	device->model = model;
+	if (model == DARWINAIR)
+		device->layout = &mares_darwinair_layout;
+	else
+		device->layout = &mares_darwin_layout;
 
 	// Open the device.
 	int rc = serial_open (&device->base.port, name);
@@ -224,7 +242,7 @@ mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	device_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = device->model;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
