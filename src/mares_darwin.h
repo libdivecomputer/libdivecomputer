@@ -19,8 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#ifndef MARES_DARWINAIR_H
-#define MARES_DARWINAIR_H
+#ifndef MARES_DARWIN_H
+#define MARES_DARWIN_H
 
 #include "device.h"
 #include "parser.h"
@@ -30,15 +30,15 @@ extern "C" {
 #endif /* __cplusplus */
 
 device_status_t
-mares_darwinair_device_open (device_t **device, const char *name, unsigned int model);
+mares_darwin_device_open (device_t **device, const char *name, unsigned int model);
 
 device_status_t
-mares_darwinair_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+mares_darwin_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-mares_darwinair_parser_create (parser_t **parser, unsigned int model);
+mares_darwin_parser_create (parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* MARES_DARWINAIR_H */
+#endif /* MARES_DARWIN_H */

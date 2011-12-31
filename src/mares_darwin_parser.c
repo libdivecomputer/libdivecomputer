@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mares_darwinair.h"
+#include "mares_darwin.h"
 #include "parser-private.h"
 #include "units.h"
 #include "utils.h"
@@ -31,55 +31,55 @@
 #define DARWIN    0
 #define DARWINAIR 1
 
-typedef struct mares_darwinair_parser_t mares_darwinair_parser_t;
+typedef struct mares_darwin_parser_t mares_darwin_parser_t;
 
-struct mares_darwinair_parser_t {
+struct mares_darwin_parser_t {
 	parser_t base;
 	unsigned int headersize;
 	unsigned int samplesize;
 };
 
-static parser_status_t mares_darwinair_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static parser_status_t mares_darwinair_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static parser_status_t mares_darwinair_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static parser_status_t mares_darwinair_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static parser_status_t mares_darwinair_parser_destroy (parser_t *abstract);
+static parser_status_t mares_darwin_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
+static parser_status_t mares_darwin_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
+static parser_status_t mares_darwin_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
+static parser_status_t mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
+static parser_status_t mares_darwin_parser_destroy (parser_t *abstract);
 
-static const parser_backend_t mares_darwinair_parser_backend = {
-	PARSER_TYPE_MARES_DARWINAIR,
-	mares_darwinair_parser_set_data, /* set_data */
-	mares_darwinair_parser_get_datetime, /* datetime */
-	mares_darwinair_parser_get_field, /* fields */
-	mares_darwinair_parser_samples_foreach, /* samples_foreach */
-	mares_darwinair_parser_destroy /* destroy */
+static const parser_backend_t mares_darwin_parser_backend = {
+	PARSER_TYPE_MARES_DARWIN,
+	mares_darwin_parser_set_data, /* set_data */
+	mares_darwin_parser_get_datetime, /* datetime */
+	mares_darwin_parser_get_field, /* fields */
+	mares_darwin_parser_samples_foreach, /* samples_foreach */
+	mares_darwin_parser_destroy /* destroy */
 };
 
 
 static int
-parser_is_mares_darwinair (parser_t *abstract)
+parser_is_mares_darwin (parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &mares_darwinair_parser_backend;
+    return abstract->backend == &mares_darwin_parser_backend;
 }
 
 
 parser_status_t
-mares_darwinair_parser_create (parser_t **out, unsigned int model)
+mares_darwin_parser_create (parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
 
 	// Allocate memory.
-	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) malloc (sizeof (mares_darwinair_parser_t));
+	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) malloc (sizeof (mares_darwin_parser_t));
 	if (parser == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return PARSER_STATUS_MEMORY;
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &mares_darwinair_parser_backend);
+	parser_init (&parser->base, &mares_darwin_parser_backend);
 
 	if (model == DARWINAIR) {
 		parser->headersize = 60;
@@ -96,9 +96,9 @@ mares_darwinair_parser_create (parser_t **out, unsigned int model)
 
 
 static parser_status_t
-mares_darwinair_parser_destroy (parser_t *abstract)
+mares_darwin_parser_destroy (parser_t *abstract)
 {
-	if (! parser_is_mares_darwinair (abstract))
+	if (! parser_is_mares_darwin (abstract))
 		return PARSER_STATUS_TYPE_MISMATCH;
 
 	// Free memory.
@@ -109,16 +109,16 @@ mares_darwinair_parser_destroy (parser_t *abstract)
 
 
 static parser_status_t
-mares_darwinair_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+mares_darwin_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	return PARSER_STATUS_SUCCESS;
 }
 
 
 static parser_status_t
-mares_darwinair_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+mares_darwin_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
-	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) abstract;
+	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) abstract;
 
 	if (abstract->size < parser->headersize)
 		return PARSER_STATUS_ERROR;
@@ -139,9 +139,9 @@ mares_darwinair_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime
 
 
 static parser_status_t
-mares_darwinair_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+mares_darwin_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
-	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) abstract;
+	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) abstract;
 
 	if (abstract->size < parser->headersize)
 		return PARSER_STATUS_ERROR;
@@ -176,9 +176,9 @@ mares_darwinair_parser_get_field (parser_t *abstract, parser_field_type_t type, 
 
 
 static parser_status_t
-mares_darwinair_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
-	mares_darwinair_parser_t *parser = (mares_darwinair_parser_t *) abstract;
+	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) abstract;
 
 	if (abstract->size < parser->headersize)
 		return PARSER_STATUS_ERROR;

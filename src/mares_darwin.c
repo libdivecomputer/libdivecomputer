@@ -25,7 +25,7 @@
 
 #include "device-private.h"
 #include "mares_common.h"
-#include "mares_darwinair.h"
+#include "mares_darwin.h"
 #include "units.h"
 #include "utils.h"
 #include "array.h"
@@ -33,7 +33,7 @@
 #define DARWIN    0
 #define DARWINAIR 1
 
-typedef struct mares_darwinair_layout_t {
+typedef struct mares_darwin_layout_t {
 	// Memory size.
 	unsigned int memsize;
 	// Logbook ringbuffer.
@@ -45,32 +45,32 @@ typedef struct mares_darwinair_layout_t {
 	unsigned int rb_profile_end;
 	// Sample size
 	unsigned int samplesize;
-} mares_darwinair_layout_t;
+} mares_darwin_layout_t;
 
-typedef struct mares_darwinair_device_t {
+typedef struct mares_darwin_device_t {
 	mares_common_device_t base;
-	const mares_darwinair_layout_t *layout;
+	const mares_darwin_layout_t *layout;
 	unsigned int model;
 	unsigned char fingerprint[6];
-} mares_darwinair_device_t;
+} mares_darwin_device_t;
 
-static device_status_t mares_darwinair_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static device_status_t mares_darwinair_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static device_status_t mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static device_status_t mares_darwinair_device_close (device_t *abstract);
+static device_status_t mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
+static device_status_t mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer);
+static device_status_t mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
+static device_status_t mares_darwin_device_close (device_t *abstract);
 
-static const device_backend_t mares_darwinair_device_backend = {
-	DEVICE_TYPE_MARES_DARWINAIR,
-	mares_darwinair_device_set_fingerprint, /* set_fingerprint */
+static const device_backend_t mares_darwin_device_backend = {
+	DEVICE_TYPE_MARES_DARWIN,
+	mares_darwin_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	mares_common_device_read, /* read */
 	NULL, /* write */
-	mares_darwinair_device_dump, /* dump */
-	mares_darwinair_device_foreach, /* foreach */
-	mares_darwinair_device_close /* close */
+	mares_darwin_device_dump, /* dump */
+	mares_darwin_device_foreach, /* foreach */
+	mares_darwin_device_close /* close */
 };
 
-static const mares_darwinair_layout_t mares_darwin_layout = {
+static const mares_darwin_layout_t mares_darwin_layout = {
 	0x4000, /* memsize */
 	0x0100, /* rb_logbook_offset */
 	52,     /* rb_logbook_size */
@@ -80,7 +80,7 @@ static const mares_darwinair_layout_t mares_darwin_layout = {
 	2       /* samplesize */
 };
 
-static const mares_darwinair_layout_t mares_darwinair_layout = {
+static const mares_darwin_layout_t mares_darwinair_layout = {
 	0x4000, /* memsize */
 	0x0100, /* rb_logbook_offset */
 	60,     /* rb_logbook_size */
@@ -91,29 +91,29 @@ static const mares_darwinair_layout_t mares_darwinair_layout = {
 };
 
 static int
-device_is_mares_darwinair (device_t *abstract)
+device_is_mares_darwin (device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &mares_darwinair_device_backend;
+    return abstract->backend == &mares_darwin_device_backend;
 }
 
 device_status_t
-mares_darwinair_device_open (device_t **out, const char* name, unsigned int model)
+mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 {
 	if (out == NULL)
 		return DEVICE_STATUS_ERROR;
 
 	// Allocate memory.
-	mares_darwinair_device_t *device = (mares_darwinair_device_t *) malloc (sizeof (mares_darwinair_device_t));
+	mares_darwin_device_t *device = (mares_darwin_device_t *) malloc (sizeof (mares_darwin_device_t));
 	if (device == NULL) {
 		WARNING ("Failed to allocate memory.");
 		return DEVICE_STATUS_MEMORY;
 	}
 
 	// Initialize the base class.
-	mares_common_device_init (&device->base, &mares_darwinair_device_backend);
+	mares_common_device_init (&device->base, &mares_darwin_device_backend);
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
@@ -169,9 +169,9 @@ mares_darwinair_device_open (device_t **out, const char* name, unsigned int mode
 }
 
 static device_status_t
-mares_darwinair_device_close (device_t *abstract)
+mares_darwin_device_close (device_t *abstract)
 {
-	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	// Close the device.
 	if (serial_close (device->base.port) == -1) {
@@ -187,9 +187,9 @@ mares_darwinair_device_close (device_t *abstract)
 
 
 static device_status_t
-mares_darwinair_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
 {
-	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	if (size && size != sizeof (device->fingerprint))
 		return DEVICE_STATUS_ERROR;
@@ -204,9 +204,9 @@ mares_darwinair_device_set_fingerprint (device_t *abstract, const unsigned char 
 
 
 static device_status_t
-mares_darwinair_device_dump (device_t *abstract, dc_buffer_t *buffer)
+mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 {
-	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	assert (device->layout != NULL);
 
@@ -223,9 +223,9 @@ mares_darwinair_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static device_status_t
-mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
 {
-	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	assert (device->layout != NULL);
 
@@ -233,7 +233,7 @@ mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	if (buffer == NULL)
 		return DEVICE_STATUS_MEMORY;
 
-	device_status_t rc = mares_darwinair_device_dump (abstract, buffer);
+	device_status_t rc = mares_darwin_device_dump (abstract, buffer);
 	if (rc != DEVICE_STATUS_SUCCESS) {
 		dc_buffer_free (buffer);
 		return rc;
@@ -247,7 +247,7 @@ mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, vo
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_darwinair_extract_dives (abstract, dc_buffer_get_data (buffer),
+	rc = mares_darwin_extract_dives (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), callback, userdata);
 
 	dc_buffer_free (buffer);
@@ -257,16 +257,16 @@ mares_darwinair_device_foreach (device_t *abstract, dive_callback_t callback, vo
 
 
 device_status_t
-mares_darwinair_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+mares_darwin_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
 {
-	mares_darwinair_device_t *device = (mares_darwinair_device_t *) abstract;
+	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
-	if (!device_is_mares_darwinair (abstract))
+	if (!device_is_mares_darwin (abstract))
 		return DEVICE_STATUS_TYPE_MISMATCH;
 
 	assert (device->layout != NULL);
 
-	const mares_darwinair_layout_t *layout = device->layout;
+	const mares_darwin_layout_t *layout = device->layout;
 
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_be (data + 0x8A);
