@@ -43,6 +43,7 @@ typedef struct mares_common_device_t {
 	device_t base;
 	serial_t *port;
 	unsigned int echo;
+	unsigned int delay;
 } mares_common_device_t;
 
 void

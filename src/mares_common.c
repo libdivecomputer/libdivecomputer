@@ -49,6 +49,7 @@ mares_common_device_init (mares_common_device_t *device, const device_backend_t 
 	// Set the default values.
 	device->port = NULL;
 	device->echo = 0;
+	device->delay = 0;
 }
 
 
@@ -127,6 +128,10 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 
 	if (device_is_cancelled (abstract))
 		return DEVICE_STATUS_CANCELLED;
+
+	if (device->delay) {
+		serial_sleep (device->delay);
+	}
 
 	// Send the command to the device.
 	int n = serial_write (device->port, command, csize);

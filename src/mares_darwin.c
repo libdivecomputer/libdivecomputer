@@ -162,6 +162,7 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 
 	// Override the base class values.
 	device->base.echo = 1;
+	device->base.delay = 50;
 
 	*out = (device_t *) device;
 
