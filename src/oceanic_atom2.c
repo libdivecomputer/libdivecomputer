@@ -70,6 +70,7 @@ static const unsigned char oceanic_atom1_version[] = "ATOM rev\0\0  256K";
 static const unsigned char oceanic_atom2_version[] = "2M ATOM r\0\0 512K";
 static const unsigned char oceanic_atom3_version[] = "OCEATOM3 \0\0 1024";
 static const unsigned char oceanic_vt4_version[]   = "OCEANVT4 \0\0 1024";
+static const unsigned char oceanic_vt41_version[]  = "OCEAVT41 \0\0 1024";
 static const unsigned char oceanic_geo2_version[]  = "OCEGEO20 \0\0 512K";
 static const unsigned char oceanic_oc1_version[]   = "OCWATCH R\0\0 1024";
 static const unsigned char oceanic_veo2_version[]  = "OCEVEO20 \0\0 512K";
@@ -330,7 +331,8 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Override the base class values.
 	if (oceanic_common_match (oceanic_oc1_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_atom3_version, device->version, sizeof (device->version)) ||
-		oceanic_common_match (oceanic_vt4_version, device->version, sizeof (device->version)))
+		oceanic_common_match (oceanic_vt4_version, device->version, sizeof (device->version)) ||
+		oceanic_common_match (oceanic_vt41_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_oc1_layout;
 	else if (oceanic_common_match (tusa_zenair_version, device->version, sizeof (device->version)))
 		device->base.layout = &tusa_zenair_layout;
