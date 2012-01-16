@@ -55,7 +55,7 @@ static dc_status_t uwatec_memomouse_device_foreach (device_t *abstract, dive_cal
 static dc_status_t uwatec_memomouse_device_close (device_t *abstract);
 
 static const device_backend_t uwatec_memomouse_device_backend = {
-	DEVICE_TYPE_UWATEC_MEMOMOUSE,
+	DC_FAMILY_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */

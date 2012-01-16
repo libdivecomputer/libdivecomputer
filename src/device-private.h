@@ -49,7 +49,7 @@ struct device_t {
 };
 
 struct device_backend_t {
-    device_type_t type;
+	dc_family_t type;
 
 	dc_status_t (*set_fingerprint) (device_t *device, const unsigned char data[], unsigned int size);
 

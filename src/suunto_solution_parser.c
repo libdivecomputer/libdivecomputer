@@ -43,7 +43,7 @@ static dc_status_t suunto_solution_parser_samples_foreach (parser_t *abstract, s
 static dc_status_t suunto_solution_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_solution_parser_backend = {
-	PARSER_TYPE_SUUNTO_SOLUTION,
+	DC_FAMILY_SUUNTO_SOLUTION,
 	suunto_solution_parser_set_data, /* set_data */
 	NULL, /* datetime */
 	suunto_solution_parser_get_field, /* fields */

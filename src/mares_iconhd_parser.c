@@ -44,7 +44,7 @@ static dc_status_t mares_iconhd_parser_samples_foreach (parser_t *abstract, samp
 static dc_status_t mares_iconhd_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t mares_iconhd_parser_backend = {
-	PARSER_TYPE_MARES_ICONHD,
+	DC_FAMILY_MARES_ICONHD,
 	mares_iconhd_parser_set_data, /* set_data */
 	mares_iconhd_parser_get_datetime, /* datetime */
 	mares_iconhd_parser_get_field, /* fields */

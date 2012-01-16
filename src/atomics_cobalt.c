@@ -63,7 +63,7 @@ static dc_status_t atomics_cobalt_device_foreach (device_t *abstract, dive_callb
 static dc_status_t atomics_cobalt_device_close (device_t *abstract);
 
 static const device_backend_t atomics_cobalt_device_backend = {
-	DEVICE_TYPE_ATOMICS_COBALT,
+	DC_FAMILY_ATOMICS_COBALT,
 	atomics_cobalt_device_set_fingerprint, /* set_fingerprint */
 	atomics_cobalt_device_version, /* version */
 	NULL, /* read */

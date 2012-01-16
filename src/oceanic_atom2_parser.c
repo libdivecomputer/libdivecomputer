@@ -68,7 +68,7 @@ static dc_status_t oceanic_atom2_parser_samples_foreach (parser_t *abstract, sam
 static dc_status_t oceanic_atom2_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t oceanic_atom2_parser_backend = {
-	PARSER_TYPE_OCEANIC_ATOM2,
+	DC_FAMILY_OCEANIC_ATOM2,
 	oceanic_atom2_parser_set_data, /* set_data */
 	oceanic_atom2_parser_get_datetime, /* datetime */
 	oceanic_atom2_parser_get_field, /* fields */

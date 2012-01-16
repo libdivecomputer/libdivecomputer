@@ -50,7 +50,7 @@ static dc_status_t reefnet_sensuspro_device_foreach (device_t *abstract, dive_ca
 static dc_status_t reefnet_sensuspro_device_close (device_t *abstract);
 
 static const device_backend_t reefnet_sensuspro_device_backend = {
-	DEVICE_TYPE_REEFNET_SENSUSPRO,
+	DC_FAMILY_REEFNET_SENSUSPRO,
 	reefnet_sensuspro_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */

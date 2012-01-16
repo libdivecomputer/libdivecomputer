@@ -52,7 +52,7 @@ static dc_status_t reefnet_sensuspro_parser_samples_foreach (parser_t *abstract,
 static dc_status_t reefnet_sensuspro_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t reefnet_sensuspro_parser_backend = {
-	PARSER_TYPE_REEFNET_SENSUSPRO,
+	DC_FAMILY_REEFNET_SENSUSPRO,
 	reefnet_sensuspro_parser_set_data, /* set_data */
 	reefnet_sensuspro_parser_get_datetime, /* datetime */
 	reefnet_sensuspro_parser_get_field, /* fields */

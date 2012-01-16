@@ -59,7 +59,7 @@ static dc_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_
 static dc_status_t mares_nemo_device_close (device_t *abstract);
 
 static const device_backend_t mares_nemo_device_backend = {
-	DEVICE_TYPE_MARES_NEMO,
+	DC_FAMILY_MARES_NEMO,
 	mares_nemo_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */

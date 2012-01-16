@@ -47,7 +47,7 @@ static dc_status_t mares_darwin_parser_samples_foreach (parser_t *abstract, samp
 static dc_status_t mares_darwin_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t mares_darwin_parser_backend = {
-	PARSER_TYPE_MARES_DARWIN,
+	DC_FAMILY_MARES_DARWIN,
 	mares_darwin_parser_set_data, /* set_data */
 	mares_darwin_parser_get_datetime, /* datetime */
 	mares_darwin_parser_get_field, /* fields */

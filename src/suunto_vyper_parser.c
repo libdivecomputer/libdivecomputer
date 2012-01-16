@@ -44,7 +44,7 @@ static dc_status_t suunto_vyper_parser_samples_foreach (parser_t *abstract, samp
 static dc_status_t suunto_vyper_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_vyper_parser_backend = {
-	PARSER_TYPE_SUUNTO_VYPER,
+	DC_FAMILY_SUUNTO_VYPER,
 	suunto_vyper_parser_set_data, /* set_data */
 	suunto_vyper_parser_get_datetime, /* datetime */
 	suunto_vyper_parser_get_field, /* fields */

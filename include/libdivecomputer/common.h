@@ -40,6 +40,42 @@ typedef enum dc_status_t {
 	DC_STATUS_CANCELLED = -10
 } dc_status_t;
 
+typedef enum dc_family_t {
+	DC_FAMILY_NULL = 0,
+	/* Suunto */
+	DC_FAMILY_SUUNTO_SOLUTION = (1 << 16),
+	DC_FAMILY_SUUNTO_EON,
+	DC_FAMILY_SUUNTO_VYPER,
+	DC_FAMILY_SUUNTO_VYPER2,
+	DC_FAMILY_SUUNTO_D9,
+	/* Reefnet */
+	DC_FAMILY_REEFNET_SENSUS = (2 << 16),
+	DC_FAMILY_REEFNET_SENSUSPRO,
+	DC_FAMILY_REEFNET_SENSUSULTRA,
+	/* Uwatec */
+	DC_FAMILY_UWATEC_ALADIN = (3 << 16),
+	DC_FAMILY_UWATEC_MEMOMOUSE,
+	DC_FAMILY_UWATEC_SMART,
+	/* Oceanic */
+	DC_FAMILY_OCEANIC_VTPRO = (4 << 16),
+	DC_FAMILY_OCEANIC_VEO250,
+	DC_FAMILY_OCEANIC_ATOM2,
+	/* Mares */
+	DC_FAMILY_MARES_NEMO = (5 << 16),
+	DC_FAMILY_MARES_PUCK,
+	DC_FAMILY_MARES_DARWIN,
+	DC_FAMILY_MARES_ICONHD,
+	/* Heinrichs Weikamp */
+	DC_FAMILY_HW_OSTC = (6 << 16),
+	DC_FAMILY_HW_FROG,
+	/* Cressi */
+	DC_FAMILY_CRESSI_EDY = (7 << 16),
+	/* Zeagle */
+	DC_FAMILY_ZEAGLE_N2ITION3 = (8 << 16),
+	/* Atomic Aquatics */
+	DC_FAMILY_ATOMICS_COBALT = (9 << 16)
+} dc_family_t;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

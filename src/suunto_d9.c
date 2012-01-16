@@ -53,7 +53,7 @@ static dc_status_t suunto_d9_device_close (device_t *abstract);
 
 static const suunto_common2_device_backend_t suunto_d9_device_backend = {
 	{
-		DEVICE_TYPE_SUUNTO_D9,
+		DC_FAMILY_SUUNTO_D9,
 		suunto_common2_device_set_fingerprint, /* set_fingerprint */
 		suunto_common2_device_version, /* version */
 		suunto_common2_device_read, /* read */

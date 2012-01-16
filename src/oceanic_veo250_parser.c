@@ -47,7 +47,7 @@ static dc_status_t oceanic_veo250_parser_samples_foreach (parser_t *abstract, sa
 static dc_status_t oceanic_veo250_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t oceanic_veo250_parser_backend = {
-	PARSER_TYPE_OCEANIC_VEO250,
+	DC_FAMILY_OCEANIC_VEO250,
 	oceanic_veo250_parser_set_data, /* set_data */
 	oceanic_veo250_parser_get_datetime, /* datetime */
 	oceanic_veo250_parser_get_field, /* fields */

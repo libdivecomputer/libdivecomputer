@@ -29,28 +29,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum parser_type_t {
-	PARSER_TYPE_NULL = 0,
-	PARSER_TYPE_SUUNTO_SOLUTION,
-	PARSER_TYPE_SUUNTO_EON,
-	PARSER_TYPE_SUUNTO_VYPER,
-	PARSER_TYPE_SUUNTO_D9,
-	PARSER_TYPE_REEFNET_SENSUS,
-	PARSER_TYPE_REEFNET_SENSUSPRO,
-	PARSER_TYPE_REEFNET_SENSUSULTRA,
-	PARSER_TYPE_UWATEC_MEMOMOUSE,
-	PARSER_TYPE_UWATEC_SMART,
-	PARSER_TYPE_MARES_NEMO,
-	PARSER_TYPE_MARES_DARWIN,
-	PARSER_TYPE_MARES_ICONHD,
-	PARSER_TYPE_OCEANIC_VTPRO,
-	PARSER_TYPE_OCEANIC_VEO250,
-	PARSER_TYPE_OCEANIC_ATOM2,
-	PARSER_TYPE_HW_OSTC,
-	PARSER_TYPE_CRESSI_EDY,
-	PARSER_TYPE_ATOMICS_COBALT
-} parser_type_t;
-
 typedef enum parser_sample_type_t {
 	SAMPLE_TYPE_TIME,
 	SAMPLE_TYPE_DEPTH,
@@ -148,7 +126,7 @@ typedef struct parser_t parser_t;
 
 typedef void (*sample_callback_t) (parser_sample_type_t type, parser_sample_value_t value, void *userdata);
 
-parser_type_t
+dc_family_t
 parser_get_type (parser_t *device);
 
 dc_status_t

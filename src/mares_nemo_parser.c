@@ -59,7 +59,7 @@ static dc_status_t mares_nemo_parser_samples_foreach (parser_t *abstract, sample
 static dc_status_t mares_nemo_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t mares_nemo_parser_backend = {
-	PARSER_TYPE_MARES_NEMO,
+	DC_FAMILY_MARES_NEMO,
 	mares_nemo_parser_set_data, /* set_data */
 	mares_nemo_parser_get_datetime, /* datetime */
 	mares_nemo_parser_get_field, /* fields */

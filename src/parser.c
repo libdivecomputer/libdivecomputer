@@ -33,11 +33,11 @@ parser_init (parser_t *parser, const parser_backend_t *backend)
 }
 
 
-parser_type_t
+dc_family_t
 parser_get_type (parser_t *parser)
 {
 	if (parser == NULL)
-		return PARSER_TYPE_NULL;
+		return DC_FAMILY_NULL;
 
 	return parser->backend->type;
 }

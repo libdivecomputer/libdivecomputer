@@ -30,33 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum device_type_t {
-	DEVICE_TYPE_NULL = 0,
-	DEVICE_TYPE_SUUNTO_SOLUTION,
-	DEVICE_TYPE_SUUNTO_EON,
-	DEVICE_TYPE_SUUNTO_VYPER,
-	DEVICE_TYPE_SUUNTO_VYPER2,
-	DEVICE_TYPE_SUUNTO_D9,
-	DEVICE_TYPE_REEFNET_SENSUS,
-	DEVICE_TYPE_REEFNET_SENSUSPRO,
-	DEVICE_TYPE_REEFNET_SENSUSULTRA,
-	DEVICE_TYPE_UWATEC_ALADIN,
-	DEVICE_TYPE_UWATEC_MEMOMOUSE,
-	DEVICE_TYPE_UWATEC_SMART,
-	DEVICE_TYPE_OCEANIC_ATOM2,
-	DEVICE_TYPE_OCEANIC_VEO250,
-	DEVICE_TYPE_OCEANIC_VTPRO,
-	DEVICE_TYPE_MARES_NEMO,
-	DEVICE_TYPE_MARES_PUCK,
-	DEVICE_TYPE_MARES_DARWIN,
-	DEVICE_TYPE_MARES_ICONHD,
-	DEVICE_TYPE_HW_OSTC,
-	DEVICE_TYPE_HW_FROG,
-	DEVICE_TYPE_CRESSI_EDY,
-	DEVICE_TYPE_ZEAGLE_N2ITION3,
-	DEVICE_TYPE_ATOMICS_COBALT
-} device_type_t;
-
 typedef enum device_event_t {
 	DEVICE_EVENT_WAITING = (1 << 0),
 	DEVICE_EVENT_PROGRESS = (1 << 1),
@@ -88,7 +61,7 @@ typedef void (*device_event_callback_t) (device_t *device, device_event_t event,
 
 typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata);
 
-device_type_t device_get_type (device_t *device);
+dc_family_t device_get_type (device_t *device);
 
 dc_status_t device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata);
 

@@ -56,7 +56,7 @@ static dc_status_t uwatec_smart_parser_samples_foreach (parser_t *abstract, samp
 static dc_status_t uwatec_smart_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t uwatec_smart_parser_backend = {
-	PARSER_TYPE_UWATEC_SMART,
+	DC_FAMILY_UWATEC_SMART,
 	uwatec_smart_parser_set_data, /* set_data */
 	uwatec_smart_parser_get_datetime, /* datetime */
 	uwatec_smart_parser_get_field, /* fields */

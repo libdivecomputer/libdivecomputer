@@ -41,7 +41,7 @@ static dc_status_t cressi_edy_parser_samples_foreach (parser_t *abstract, sample
 static dc_status_t cressi_edy_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t cressi_edy_parser_backend = {
-	PARSER_TYPE_CRESSI_EDY,
+	DC_FAMILY_CRESSI_EDY,
 	cressi_edy_parser_set_data, /* set_data */
 	cressi_edy_parser_get_datetime, /* datetime */
 	cressi_edy_parser_get_field, /* fields */

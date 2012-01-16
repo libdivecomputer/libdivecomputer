@@ -69,7 +69,7 @@ static dc_status_t hw_frog_device_foreach (device_t *abstract, dive_callback_t c
 static dc_status_t hw_frog_device_close (device_t *abstract);
 
 static const device_backend_t hw_frog_device_backend = {
-	DEVICE_TYPE_HW_FROG,
+	DC_FAMILY_HW_FROG,
 	hw_frog_device_set_fingerprint, /* set_fingerprint */
 	hw_frog_device_version, /* version */
 	NULL, /* read */

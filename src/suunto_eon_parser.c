@@ -46,7 +46,7 @@ static dc_status_t suunto_eon_parser_samples_foreach (parser_t *abstract, sample
 static dc_status_t suunto_eon_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_eon_parser_backend = {
-	PARSER_TYPE_SUUNTO_EON,
+	DC_FAMILY_SUUNTO_EON,
 	suunto_eon_parser_set_data, /* set_data */
 	suunto_eon_parser_get_datetime, /* datetime */
 	suunto_eon_parser_get_field, /* fields */

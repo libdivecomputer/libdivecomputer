@@ -51,7 +51,7 @@ static const char *g_cachedir = NULL;
 static int g_cachedir_read = 1;
 
 typedef struct device_data_t {
-	device_type_t backend;
+	dc_family_t backend;
 	device_devinfo_t devinfo;
 	device_clock_t clock;
 } device_data_t;
@@ -70,36 +70,36 @@ typedef struct sample_data_t {
 
 typedef struct backend_table_t {
 	const char *name;
-	device_type_t type;
+	dc_family_t type;
 } backend_table_t;
 
 static const backend_table_t g_backends[] = {
-	{"solution",	DEVICE_TYPE_SUUNTO_SOLUTION},
-	{"eon",			DEVICE_TYPE_SUUNTO_EON},
-	{"vyper",		DEVICE_TYPE_SUUNTO_VYPER},
-	{"vyper2",		DEVICE_TYPE_SUUNTO_VYPER2},
-	{"d9",			DEVICE_TYPE_SUUNTO_D9},
-	{"aladin",		DEVICE_TYPE_UWATEC_ALADIN},
-	{"memomouse",	DEVICE_TYPE_UWATEC_MEMOMOUSE},
-	{"smart",		DEVICE_TYPE_UWATEC_SMART},
-	{"sensus",		DEVICE_TYPE_REEFNET_SENSUS},
-	{"sensuspro",	DEVICE_TYPE_REEFNET_SENSUSPRO},
-	{"sensusultra",	DEVICE_TYPE_REEFNET_SENSUSULTRA},
-	{"vtpro",		DEVICE_TYPE_OCEANIC_VTPRO},
-	{"veo250",		DEVICE_TYPE_OCEANIC_VEO250},
-	{"atom2",		DEVICE_TYPE_OCEANIC_ATOM2},
-	{"nemo",		DEVICE_TYPE_MARES_NEMO},
-	{"puck",		DEVICE_TYPE_MARES_PUCK},
-	{"darwin",      DEVICE_TYPE_MARES_DARWIN},
-	{"iconhd",		DEVICE_TYPE_MARES_ICONHD},
-	{"ostc",		DEVICE_TYPE_HW_OSTC},
-	{"frog",		DEVICE_TYPE_HW_FROG},
-	{"edy",			DEVICE_TYPE_CRESSI_EDY},
-	{"n2ition3",	DEVICE_TYPE_ZEAGLE_N2ITION3},
-	{"cobalt",		DEVICE_TYPE_ATOMICS_COBALT}
+	{"solution",    DC_FAMILY_SUUNTO_SOLUTION},
+	{"eon",	        DC_FAMILY_SUUNTO_EON},
+	{"vyper",       DC_FAMILY_SUUNTO_VYPER},
+	{"vyper2",      DC_FAMILY_SUUNTO_VYPER2},
+	{"d9",          DC_FAMILY_SUUNTO_D9},
+	{"aladin",      DC_FAMILY_UWATEC_ALADIN},
+	{"memomouse",   DC_FAMILY_UWATEC_MEMOMOUSE},
+	{"smart",       DC_FAMILY_UWATEC_SMART},
+	{"sensus",      DC_FAMILY_REEFNET_SENSUS},
+	{"sensuspro",   DC_FAMILY_REEFNET_SENSUSPRO},
+	{"sensusultra", DC_FAMILY_REEFNET_SENSUSULTRA},
+	{"vtpro",       DC_FAMILY_OCEANIC_VTPRO},
+	{"veo250",      DC_FAMILY_OCEANIC_VEO250},
+	{"atom2",       DC_FAMILY_OCEANIC_ATOM2},
+	{"nemo",        DC_FAMILY_MARES_NEMO},
+	{"puck",        DC_FAMILY_MARES_PUCK},
+	{"darwin",      DC_FAMILY_MARES_DARWIN},
+	{"iconhd",      DC_FAMILY_MARES_ICONHD},
+	{"ostc",        DC_FAMILY_HW_OSTC},
+	{"frog",        DC_FAMILY_HW_FROG},
+	{"edy",         DC_FAMILY_CRESSI_EDY},
+	{"n2ition3",    DC_FAMILY_ZEAGLE_N2ITION3},
+	{"cobalt",      DC_FAMILY_ATOMICS_COBALT}
 };
 
-static device_type_t
+static dc_family_t
 lookup_type (const char *name)
 {
 	unsigned int nbackends = sizeof (g_backends) / sizeof (g_backends[0]);
@@ -108,11 +108,11 @@ lookup_type (const char *name)
 			return g_backends[i].type;
 	}
 
-	return DEVICE_TYPE_NULL;
+	return DC_FAMILY_NULL;
 }
 
 static const char *
-lookup_name (device_type_t type)
+lookup_name (dc_family_t type)
 {
 	unsigned int nbackends = sizeof (g_backends) / sizeof (g_backends[0]);
 	for (unsigned int i = 0; i < nbackends; ++i) {
@@ -160,7 +160,7 @@ fpconvert (const char *fingerprint)
 }
 
 static dc_buffer_t *
-fpread (const char *dirname, device_type_t backend, unsigned int serial)
+fpread (const char *dirname, dc_family_t backend, unsigned int serial)
 {
 	// Build the filename.
 	char filename[1024] = {0};
@@ -189,7 +189,7 @@ fpread (const char *dirname, device_type_t backend, unsigned int serial)
 }
 
 static void
-fpwrite (dc_buffer_t *buffer, const char *dirname, device_type_t backend, unsigned int serial)
+fpwrite (dc_buffer_t *buffer, const char *dirname, dc_family_t backend, unsigned int serial)
 {
 	// Check the buffer size.
 	if (dc_buffer_get_size (buffer) == 0)
@@ -291,68 +291,68 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	parser_t *parser = NULL;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	switch (devdata->backend) {
-	case DEVICE_TYPE_SUUNTO_SOLUTION:
+	case DC_FAMILY_SUUNTO_SOLUTION:
 		rc = suunto_solution_parser_create (&parser);
 		break;
-	case DEVICE_TYPE_SUUNTO_EON:
+	case DC_FAMILY_SUUNTO_EON:
 		rc = suunto_eon_parser_create (&parser, 0);
 		break;
-	case DEVICE_TYPE_SUUNTO_VYPER:
+	case DC_FAMILY_SUUNTO_VYPER:
 		if (devdata->devinfo.model == 0x01)
 			rc = suunto_eon_parser_create (&parser, 1);
 		else
 			rc = suunto_vyper_parser_create (&parser);
 		break;
-	case DEVICE_TYPE_SUUNTO_VYPER2:
-	case DEVICE_TYPE_SUUNTO_D9:
+	case DC_FAMILY_SUUNTO_VYPER2:
+	case DC_FAMILY_SUUNTO_D9:
 		rc = suunto_d9_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_UWATEC_ALADIN:
-	case DEVICE_TYPE_UWATEC_MEMOMOUSE:
+	case DC_FAMILY_UWATEC_ALADIN:
+	case DC_FAMILY_UWATEC_MEMOMOUSE:
 		rc = uwatec_memomouse_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
 		break;
-	case DEVICE_TYPE_UWATEC_SMART:
+	case DC_FAMILY_UWATEC_SMART:
 		rc = uwatec_smart_parser_create (&parser, devdata->devinfo.model, devdata->clock.devtime, devdata->clock.systime);
 		break;
-	case DEVICE_TYPE_REEFNET_SENSUS:
+	case DC_FAMILY_REEFNET_SENSUS:
 		rc = reefnet_sensus_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
 		break;
-	case DEVICE_TYPE_REEFNET_SENSUSPRO:
+	case DC_FAMILY_REEFNET_SENSUSPRO:
 		rc = reefnet_sensuspro_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
 		break;
-	case DEVICE_TYPE_REEFNET_SENSUSULTRA:
+	case DC_FAMILY_REEFNET_SENSUSULTRA:
 		rc = reefnet_sensusultra_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
 		break;
-	case DEVICE_TYPE_OCEANIC_VTPRO:
+	case DC_FAMILY_OCEANIC_VTPRO:
 		rc = oceanic_vtpro_parser_create (&parser);
 		break;
-	case DEVICE_TYPE_OCEANIC_VEO250:
+	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_OCEANIC_ATOM2:
+	case DC_FAMILY_OCEANIC_ATOM2:
 		rc = oceanic_atom2_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_MARES_NEMO:
-	case DEVICE_TYPE_MARES_PUCK:
+	case DC_FAMILY_MARES_NEMO:
+	case DC_FAMILY_MARES_PUCK:
 		rc = mares_nemo_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_MARES_DARWIN:
+	case DC_FAMILY_MARES_DARWIN:
 		rc = mares_darwin_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_MARES_ICONHD:
+	case DC_FAMILY_MARES_ICONHD:
 		rc = mares_iconhd_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_HW_OSTC:
+	case DC_FAMILY_HW_OSTC:
 		rc = hw_ostc_parser_create (&parser, 0);
 		break;
-	case DEVICE_TYPE_HW_FROG:
+	case DC_FAMILY_HW_FROG:
 		rc = hw_ostc_parser_create (&parser, 1);
 		break;
-	case DEVICE_TYPE_CRESSI_EDY:
-	case DEVICE_TYPE_ZEAGLE_N2ITION3:
+	case DC_FAMILY_CRESSI_EDY:
+	case DC_FAMILY_ZEAGLE_N2ITION3:
 		rc = cressi_edy_parser_create (&parser, devdata->devinfo.model);
 		break;
-	case DEVICE_TYPE_ATOMICS_COBALT:
+	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser);
 		break;
 	default:
@@ -578,7 +578,7 @@ usage (const char *filename)
 
 
 static dc_status_t
-dowork (device_type_t backend, unsigned int model, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
+dowork (dc_family_t backend, unsigned int model, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
@@ -591,73 +591,73 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 		lookup_name (backend), devname ? devname : "null");
 	device_t *device = NULL;
 	switch (backend) {
-	case DEVICE_TYPE_SUUNTO_SOLUTION:
+	case DC_FAMILY_SUUNTO_SOLUTION:
 		rc = suunto_solution_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_SUUNTO_EON:
+	case DC_FAMILY_SUUNTO_EON:
 		rc = suunto_eon_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_SUUNTO_VYPER:
+	case DC_FAMILY_SUUNTO_VYPER:
 		rc = suunto_vyper_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_SUUNTO_VYPER2:
+	case DC_FAMILY_SUUNTO_VYPER2:
 		rc = suunto_vyper2_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_SUUNTO_D9:
+	case DC_FAMILY_SUUNTO_D9:
 		rc = suunto_d9_device_open (&device, devname, model);
 		break;
-	case DEVICE_TYPE_UWATEC_ALADIN:
+	case DC_FAMILY_UWATEC_ALADIN:
 		rc = uwatec_aladin_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_UWATEC_MEMOMOUSE:
+	case DC_FAMILY_UWATEC_MEMOMOUSE:
 		rc = uwatec_memomouse_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_UWATEC_SMART:
+	case DC_FAMILY_UWATEC_SMART:
 		rc = uwatec_smart_device_open (&device);
 		break;
-	case DEVICE_TYPE_REEFNET_SENSUS:
+	case DC_FAMILY_REEFNET_SENSUS:
 		rc = reefnet_sensus_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_REEFNET_SENSUSPRO:
+	case DC_FAMILY_REEFNET_SENSUSPRO:
 		rc = reefnet_sensuspro_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_REEFNET_SENSUSULTRA:
+	case DC_FAMILY_REEFNET_SENSUSULTRA:
 		rc = reefnet_sensusultra_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_OCEANIC_VTPRO:
+	case DC_FAMILY_OCEANIC_VTPRO:
 		rc = oceanic_vtpro_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_OCEANIC_VEO250:
+	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_OCEANIC_ATOM2:
+	case DC_FAMILY_OCEANIC_ATOM2:
 		rc = oceanic_atom2_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_MARES_NEMO:
+	case DC_FAMILY_MARES_NEMO:
 		rc = mares_nemo_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_MARES_PUCK:
+	case DC_FAMILY_MARES_PUCK:
 		rc = mares_puck_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_MARES_DARWIN:
+	case DC_FAMILY_MARES_DARWIN:
 		rc = mares_darwin_device_open (&device, devname, model);
 		break;
-	case DEVICE_TYPE_MARES_ICONHD:
+	case DC_FAMILY_MARES_ICONHD:
 		rc = mares_iconhd_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_HW_OSTC:
+	case DC_FAMILY_HW_OSTC:
 		rc = hw_ostc_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_HW_FROG:
+	case DC_FAMILY_HW_FROG:
 		rc = hw_frog_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_CRESSI_EDY:
+	case DC_FAMILY_CRESSI_EDY:
 		rc = cressi_edy_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_ZEAGLE_N2ITION3:
+	case DC_FAMILY_ZEAGLE_N2ITION3:
 		rc = zeagle_n2ition3_device_open (&device, devname);
 		break;
-	case DEVICE_TYPE_ATOMICS_COBALT:
+	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_device_open (&device);
 		break;
 	default:
@@ -773,7 +773,7 @@ int
 main (int argc, char *argv[])
 {
 	// Default values.
-	device_type_t backend = DEVICE_TYPE_NULL;
+	dc_family_t backend = DC_FAMILY_NULL;
 	const char *logfile = "output.log";
 	const char *rawfile = "output.bin";
 	const char *xmlfile = "output.xml";
@@ -836,7 +836,7 @@ main (int argc, char *argv[])
 	}
 
 	// The backend is a mandatory argument.
-	if (backend == DEVICE_TYPE_NULL) {
+	if (backend == DC_FAMILY_NULL) {
 		usage (argv[0]);
 		return EXIT_FAILURE;
 	}

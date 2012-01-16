@@ -60,7 +60,7 @@ static dc_status_t hw_ostc_device_foreach (device_t *abstract, dive_callback_t c
 static dc_status_t hw_ostc_device_close (device_t *abstract);
 
 static const device_backend_t hw_ostc_device_backend = {
-	DEVICE_TYPE_HW_OSTC,
+	DC_FAMILY_HW_OSTC,
 	hw_ostc_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */

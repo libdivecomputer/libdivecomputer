@@ -62,7 +62,7 @@ static dc_status_t cressi_edy_device_foreach (device_t *abstract, dive_callback_
 static dc_status_t cressi_edy_device_close (device_t *abstract);
 
 static const device_backend_t cressi_edy_device_backend = {
-	DEVICE_TYPE_CRESSI_EDY,
+	DC_FAMILY_CRESSI_EDY,
 	cressi_edy_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	cressi_edy_device_read, /* read */

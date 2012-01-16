@@ -48,7 +48,7 @@ static dc_status_t suunto_solution_device_foreach (device_t *abstract, dive_call
 static dc_status_t suunto_solution_device_close (device_t *abstract);
 
 static const device_backend_t suunto_solution_device_backend = {
-	DEVICE_TYPE_SUUNTO_SOLUTION,
+	DC_FAMILY_SUUNTO_SOLUTION,
 	NULL, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */

@@ -57,7 +57,7 @@ static dc_status_t zeagle_n2ition3_device_foreach (device_t *abstract, dive_call
 static dc_status_t zeagle_n2ition3_device_close (device_t *abstract);
 
 static const device_backend_t zeagle_n2ition3_device_backend = {
-	DEVICE_TYPE_ZEAGLE_N2ITION3,
+	DC_FAMILY_ZEAGLE_N2ITION3,
 	zeagle_n2ition3_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	zeagle_n2ition3_device_read, /* read */

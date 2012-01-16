@@ -64,7 +64,7 @@ static dc_status_t suunto_d9_parser_samples_foreach (parser_t *abstract, sample_
 static dc_status_t suunto_d9_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t suunto_d9_parser_backend = {
-	PARSER_TYPE_SUUNTO_D9,
+	DC_FAMILY_SUUNTO_D9,
 	suunto_d9_parser_set_data, /* set_data */
 	suunto_d9_parser_get_datetime, /* datetime */
 	suunto_d9_parser_get_field, /* fields */

@@ -48,7 +48,7 @@ static dc_status_t hw_ostc_parser_samples_foreach (parser_t *abstract, sample_ca
 static dc_status_t hw_ostc_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t hw_ostc_parser_backend = {
-	PARSER_TYPE_HW_OSTC,
+	DC_FAMILY_HW_OSTC,
 	hw_ostc_parser_set_data, /* set_data */
 	hw_ostc_parser_get_datetime, /* datetime */
 	hw_ostc_parser_get_field, /* fields */

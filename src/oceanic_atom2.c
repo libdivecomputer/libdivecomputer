@@ -54,7 +54,7 @@ static dc_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int 
 static dc_status_t oceanic_atom2_device_close (device_t *abstract);
 
 static const device_backend_t oceanic_atom2_device_backend = {
-	DEVICE_TYPE_OCEANIC_ATOM2,
+	DC_FAMILY_OCEANIC_ATOM2,
 	oceanic_common_device_set_fingerprint, /* set_fingerprint */
 	oceanic_atom2_device_version, /* version */
 	oceanic_atom2_device_read, /* read */

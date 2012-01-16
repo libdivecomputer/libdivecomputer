@@ -50,7 +50,7 @@ static dc_status_t uwatec_smart_device_foreach (device_t *abstract, dive_callbac
 static dc_status_t uwatec_smart_device_close (device_t *abstract);
 
 static const device_backend_t uwatec_smart_device_backend = {
-	DEVICE_TYPE_UWATEC_SMART,
+	DC_FAMILY_UWATEC_SMART,
 	uwatec_smart_device_set_fingerprint, /* set_fingerprint */
 	uwatec_smart_device_version, /* version */
 	NULL, /* read */

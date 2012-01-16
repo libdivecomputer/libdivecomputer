@@ -39,11 +39,11 @@ device_init (device_t *device, const device_backend_t *backend)
 }
 
 
-device_type_t
+dc_family_t
 device_get_type (device_t *device)
 {
 	if (device == NULL)
-		return DEVICE_TYPE_NULL;
+		return DC_FAMILY_NULL;
 
 	return device->backend->type;
 }

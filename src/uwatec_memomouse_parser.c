@@ -42,7 +42,7 @@ static dc_status_t uwatec_memomouse_parser_samples_foreach (parser_t *abstract, 
 static dc_status_t uwatec_memomouse_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t uwatec_memomouse_parser_backend = {
-	PARSER_TYPE_UWATEC_MEMOMOUSE,
+	DC_FAMILY_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_parser_set_data, /* set_data */
 	uwatec_memomouse_parser_get_datetime, /* datetime */
 	uwatec_memomouse_parser_get_field, /* fields */

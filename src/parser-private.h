@@ -40,7 +40,7 @@ struct parser_t {
 };
 
 struct parser_backend_t {
-	parser_type_t type;
+	dc_family_t type;
 
 	dc_status_t (*set_data) (parser_t *parser, const unsigned char *data, unsigned int size);
 

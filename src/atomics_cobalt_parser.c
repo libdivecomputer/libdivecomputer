@@ -49,7 +49,7 @@ static dc_status_t atomics_cobalt_parser_samples_foreach (parser_t *abstract, sa
 static dc_status_t atomics_cobalt_parser_destroy (parser_t *abstract);
 
 static const parser_backend_t atomics_cobalt_parser_backend = {
-	PARSER_TYPE_ATOMICS_COBALT,
+	DC_FAMILY_ATOMICS_COBALT,
 	atomics_cobalt_parser_set_data, /* set_data */
 	atomics_cobalt_parser_get_datetime, /* datetime */
 	atomics_cobalt_parser_get_field, /* fields */

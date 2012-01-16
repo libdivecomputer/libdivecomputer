@@ -57,7 +57,7 @@ static dc_status_t uwatec_aladin_device_foreach (device_t *abstract, dive_callba
 static dc_status_t uwatec_aladin_device_close (device_t *abstract);
 
 static const device_backend_t uwatec_aladin_device_backend = {
-	DEVICE_TYPE_UWATEC_ALADIN,
+	DC_FAMILY_UWATEC_ALADIN,
 	uwatec_aladin_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* version */
 	NULL, /* read */
