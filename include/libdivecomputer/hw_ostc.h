@@ -37,31 +37,31 @@ typedef enum hw_ostc_format_t {
 } hw_ostc_format_t;
 
 dc_status_t
-hw_ostc_device_open (device_t **device, const char* name);
+hw_ostc_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-hw_ostc_device_md2hash (device_t *abstract, unsigned char data[], unsigned int size);
+hw_ostc_device_md2hash (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
-hw_ostc_device_clock (device_t *abstract, const dc_datetime_t *datetime);
+hw_ostc_device_clock (dc_device_t *device, const dc_datetime_t *datetime);
 
 dc_status_t
-hw_ostc_device_eeprom_read (device_t *abstract, unsigned int bank, unsigned char data[], unsigned int size);
+hw_ostc_device_eeprom_read (dc_device_t *device, unsigned int bank, unsigned char data[], unsigned int size);
 
 dc_status_t
-hw_ostc_device_eeprom_write (device_t *abstract, unsigned int bank, const unsigned char data[], unsigned int size);
+hw_ostc_device_eeprom_write (dc_device_t *device, unsigned int bank, const unsigned char data[], unsigned int size);
 
 dc_status_t
-hw_ostc_device_reset (device_t *abstract);
+hw_ostc_device_reset (dc_device_t *device);
 
 dc_status_t
-hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_format_t format);
+hw_ostc_device_screenshot (dc_device_t *device, dc_buffer_t *buffer, hw_ostc_format_t format);
 
 dc_status_t
-hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+hw_ostc_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-hw_ostc_parser_create (parser_t **parser, unsigned int frog);
+hw_ostc_parser_create (dc_parser_t **parser, unsigned int frog);
 
 #ifdef __cplusplus
 }

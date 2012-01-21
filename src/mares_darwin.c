@@ -55,10 +55,10 @@ typedef struct mares_darwin_device_t {
 	unsigned char fingerprint[6];
 } mares_darwin_device_t;
 
-static dc_status_t mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t mares_darwin_device_close (device_t *abstract);
+static dc_status_t mares_darwin_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_darwin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_darwin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t mares_darwin_device_close (dc_device_t *abstract);
 
 static const device_backend_t mares_darwin_device_backend = {
 	DC_FAMILY_MARES_DARWIN,
@@ -92,7 +92,7 @@ static const mares_darwin_layout_t mares_darwinair_layout = {
 };
 
 static int
-device_is_mares_darwin (device_t *abstract)
+device_is_mares_darwin (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -101,7 +101,7 @@ device_is_mares_darwin (device_t *abstract)
 }
 
 dc_status_t
-mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
+mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -166,13 +166,13 @@ mares_darwin_device_open (device_t **out, const char* name, unsigned int model)
 	device->base.echo = 1;
 	device->base.delay = 50;
 
-	*out = (device_t *) device;
+	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 static dc_status_t
-mares_darwin_device_close (device_t *abstract)
+mares_darwin_device_close (dc_device_t *abstract)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
@@ -190,7 +190,7 @@ mares_darwin_device_close (device_t *abstract)
 
 
 static dc_status_t
-mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+mares_darwin_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
@@ -207,7 +207,7 @@ mares_darwin_device_set_fingerprint (device_t *abstract, const unsigned char dat
 
 
 static dc_status_t
-mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer)
+mares_darwin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
@@ -226,7 +226,7 @@ mares_darwin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+mares_darwin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
@@ -244,11 +244,11 @@ mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = device->model;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_be (data + 8);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = mares_darwin_extract_dives (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), callback, userdata);
@@ -260,7 +260,7 @@ mares_darwin_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 
 dc_status_t
-mares_darwin_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 

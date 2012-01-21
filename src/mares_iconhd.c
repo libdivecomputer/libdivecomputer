@@ -50,17 +50,17 @@
 #define RB_PROFILE_END   MARES_ICONHD_MEMORY_SIZE
 
 typedef struct mares_iconhd_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned char fingerprint[10];
 	unsigned char version[140];
 } mares_iconhd_device_t;
 
-static dc_status_t mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static dc_status_t mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t mares_iconhd_device_close (device_t *abstract);
+static dc_status_t mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t mares_iconhd_device_close (dc_device_t *abstract);
 
 static const device_backend_t mares_iconhd_device_backend = {
 	DC_FAMILY_MARES_ICONHD,
@@ -74,7 +74,7 @@ static const device_backend_t mares_iconhd_device_backend = {
 };
 
 static int
-device_is_mares_iconhd (device_t *abstract)
+device_is_mares_iconhd (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -103,13 +103,13 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	unsigned char answer[], unsigned int asize,
 	unsigned int events)
 {
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	if (events) {
 		progress.maximum = asize;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 	}
 
 	// Send the command to the dive computer.
@@ -157,7 +157,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 		// Update and emit a progress event.
 		if (events) {
 			progress.current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 		}
 
 		nbytes += len;
@@ -206,7 +206,7 @@ mares_iconhd_read (mares_iconhd_device_t *device, unsigned int address, unsigned
 
 
 dc_status_t
-mares_iconhd_device_open (device_t **out, const char* name)
+mares_iconhd_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -272,14 +272,14 @@ mares_iconhd_device_open (device_t **out, const char* name)
 		return status;
 	}
 
-	*out = (device_t *) device;
+	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_iconhd_device_close (device_t *abstract)
+mares_iconhd_device_close (dc_device_t *abstract)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t*) abstract;
 
@@ -300,7 +300,7 @@ mares_iconhd_device_close (device_t *abstract)
 
 
 static dc_status_t
-mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
@@ -317,7 +317,7 @@ mares_iconhd_device_set_fingerprint (device_t *abstract, const unsigned char dat
 
 
 static dc_status_t
-mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
@@ -326,7 +326,7 @@ mares_iconhd_device_read (device_t *abstract, unsigned int address, unsigned cha
 
 
 static dc_status_t
-mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
+mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
@@ -343,7 +343,7 @@ mares_iconhd_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
@@ -359,11 +359,11 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = mares_iconhd_get_model (device, data[0]);
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_le (data + 12);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = mares_iconhd_extract_dives (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), callback, userdata);
@@ -375,7 +375,7 @@ mares_iconhd_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 
 dc_status_t
-mares_iconhd_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 

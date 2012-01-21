@@ -19,8 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DEVICE_H
-#define DEVICE_H
+#ifndef DC_DEVICE_H
+#define DC_DEVICE_H
 
 #include "common.h"
 #include "buffer.h"
@@ -30,58 +30,68 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum device_event_t {
-	DEVICE_EVENT_WAITING = (1 << 0),
-	DEVICE_EVENT_PROGRESS = (1 << 1),
-	DEVICE_EVENT_DEVINFO = (1 << 2),
-	DEVICE_EVENT_CLOCK = (1 << 3)
-} device_event_t;
+typedef enum dc_event_type_t {
+	DC_EVENT_WAITING = (1 << 0),
+	DC_EVENT_PROGRESS = (1 << 1),
+	DC_EVENT_DEVINFO = (1 << 2),
+	DC_EVENT_CLOCK = (1 << 3)
+} dc_event_type_t;
 
-typedef struct device_t device_t;
+typedef struct dc_device_t dc_device_t;
 
-typedef struct device_progress_t {
+typedef struct dc_event_progress_t {
 	unsigned int current;
 	unsigned int maximum;
-} device_progress_t;
+} dc_event_progress_t;
 
-typedef struct device_devinfo_t {
+typedef struct dc_event_devinfo_t {
 	unsigned int model;
 	unsigned int firmware;
 	unsigned int serial;
-} device_devinfo_t;
+} dc_event_devinfo_t;
 
-typedef struct device_clock_t {
+typedef struct dc_event_clock_t {
 	unsigned int devtime;
 	dc_ticks_t systime;
-} device_clock_t;
+} dc_event_clock_t;
 
-typedef int (*device_cancel_callback_t) (void *userdata);
+typedef int (*dc_cancel_callback_t) (void *userdata);
 
-typedef void (*device_event_callback_t) (device_t *device, device_event_t event, const void *data, void *userdata);
+typedef void (*dc_event_callback_t) (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata);
 
-typedef int (*dive_callback_t) (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata);
+typedef int (*dc_dive_callback_t) (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata);
 
-dc_family_t device_get_type (device_t *device);
+dc_family_t
+dc_device_get_type (dc_device_t *device);
 
-dc_status_t device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata);
+dc_status_t
+dc_device_set_cancel (dc_device_t *device, dc_cancel_callback_t callback, void *userdata);
 
-dc_status_t device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata);
+dc_status_t
+dc_device_set_events (dc_device_t *device, unsigned int events, dc_event_callback_t callback, void *userdata);
 
-dc_status_t device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
+dc_status_t
+dc_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
 
-dc_status_t device_version (device_t *device, unsigned char data[], unsigned int size);
+dc_status_t
+dc_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 
-dc_status_t device_read (device_t *device, unsigned int address, unsigned char data[], unsigned int size);
+dc_status_t
+dc_device_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size);
 
-dc_status_t device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
+dc_status_t
+dc_device_write (dc_device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
 
-dc_status_t device_dump (device_t *device, dc_buffer_t *buffer);
+dc_status_t
+dc_device_dump (dc_device_t *device, dc_buffer_t *buffer);
 
-dc_status_t device_foreach (device_t *device, dive_callback_t callback, void *userdata);
+dc_status_t
+dc_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userdata);
 
-dc_status_t device_close (device_t *device);
+dc_status_t
+dc_device_close (dc_device_t *device);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* DEVICE_H */
+#endif /* DC_DEVICE_H */

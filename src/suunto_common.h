@@ -29,7 +29,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef struct suunto_common_device_t {
-	device_t base;
+	dc_device_t base;
 	unsigned char fingerprint[5];
 } suunto_common_device_t;
 
@@ -49,10 +49,10 @@ void
 suunto_common_device_init (suunto_common_device_t *device, const device_backend_t *backend);
 
 dc_status_t
-suunto_common_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
+suunto_common_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
 
 dc_status_t
-suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata);
+suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dc_dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

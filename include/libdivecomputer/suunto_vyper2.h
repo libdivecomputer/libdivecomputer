@@ -33,10 +33,10 @@ extern "C" {
 #define SUUNTO_VYPER2_VERSION_SIZE 0x04
 
 dc_status_t
-suunto_vyper2_device_open (device_t **device, const char* name);
+suunto_vyper2_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-suunto_vyper2_device_reset_maxdepth (device_t *device);
+suunto_vyper2_device_reset_maxdepth (dc_device_t *device);
 
 #ifdef __cplusplus
 }

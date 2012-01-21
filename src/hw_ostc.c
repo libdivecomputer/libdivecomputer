@@ -49,15 +49,15 @@
 #define WHITE  0xFF
 
 typedef struct hw_ostc_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned char fingerprint[5];
 } hw_ostc_device_t;
 
-static dc_status_t hw_ostc_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t hw_ostc_device_close (device_t *abstract);
+static dc_status_t hw_ostc_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t hw_ostc_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t hw_ostc_device_close (dc_device_t *abstract);
 
 static const device_backend_t hw_ostc_device_backend = {
 	DC_FAMILY_HW_OSTC,
@@ -72,7 +72,7 @@ static const device_backend_t hw_ostc_device_backend = {
 
 
 static int
-device_is_hw_ostc (device_t *abstract)
+device_is_hw_ostc (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -113,7 +113,7 @@ hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
 
 
 dc_status_t
-hw_ostc_device_open (device_t **out, const char* name)
+hw_ostc_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -161,14 +161,14 @@ hw_ostc_device_open (device_t **out, const char* name)
 	serial_sleep (100);
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-hw_ostc_device_close (device_t *abstract)
+hw_ostc_device_close (dc_device_t *abstract)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
 
@@ -189,7 +189,7 @@ hw_ostc_device_close (device_t *abstract)
 
 
 static dc_status_t
-hw_ostc_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+hw_ostc_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -206,7 +206,7 @@ hw_ostc_device_set_fingerprint (device_t *abstract, const unsigned char data[], 
 
 
 static dc_status_t
-hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
+hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
 
@@ -220,9 +220,9 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = SZ_HEADER + SZ_FW_NEW;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Send the command.
 	unsigned char command[1] = {'a'};
@@ -260,7 +260,7 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	// Update and emit a progress event.
 	progress.current = sizeof (header);
 	progress.maximum = size;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, size)) {
@@ -296,7 +296,7 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 		// Update and emit a progress event.
 		progress.current += len;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		nbytes += len;
 	}
@@ -306,7 +306,7 @@ hw_ostc_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+hw_ostc_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	dc_buffer_t *buffer = dc_buffer_new (0);
 	if (buffer == NULL)
@@ -320,11 +320,11 @@ hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = array_uint16_be (data + 264);
 	devinfo.serial = array_uint16_le (data + 6);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = hw_ostc_extract_dives (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), callback, userdata);
@@ -336,7 +336,7 @@ hw_ostc_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 
 
 dc_status_t
-hw_ostc_device_md2hash (device_t *abstract, unsigned char data[], unsigned int size)
+hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -365,7 +365,7 @@ hw_ostc_device_md2hash (device_t *abstract, unsigned char data[], unsigned int s
 
 
 dc_status_t
-hw_ostc_device_clock (device_t *abstract, const dc_datetime_t *datetime)
+hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -397,7 +397,7 @@ hw_ostc_device_clock (device_t *abstract, const dc_datetime_t *datetime)
 
 
 dc_status_t
-hw_ostc_device_eeprom_read (device_t *abstract, unsigned int bank, unsigned char data[], unsigned int size)
+hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned char data[], unsigned int size)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -432,7 +432,7 @@ hw_ostc_device_eeprom_read (device_t *abstract, unsigned int bank, unsigned char
 
 
 dc_status_t
-hw_ostc_device_eeprom_write (device_t *abstract, unsigned int bank, const unsigned char data[], unsigned int size)
+hw_ostc_device_eeprom_write (dc_device_t *abstract, unsigned int bank, const unsigned char data[], unsigned int size)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -467,7 +467,7 @@ hw_ostc_device_eeprom_write (device_t *abstract, unsigned int bank, const unsign
 
 
 dc_status_t
-hw_ostc_device_reset (device_t *abstract)
+hw_ostc_device_reset (dc_device_t *abstract)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -484,7 +484,7 @@ hw_ostc_device_reset (device_t *abstract)
 
 
 dc_status_t
-hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_format_t format)
+hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_format_t format)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -520,9 +520,9 @@ hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_form
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = WIDTH * HEIGHT;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Send the command.
 	dc_status_t rc = hw_ostc_send (device, 'l', 1);
@@ -609,7 +609,7 @@ hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_form
 
 		// Update and emit a progress event.
 		progress.current += count;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		npixels += count;
 	}
@@ -619,7 +619,7 @@ hw_ostc_device_screenshot (device_t *abstract, dc_buffer_t *buffer, hw_ostc_form
 
 
 dc_status_t
-hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 

@@ -33,7 +33,7 @@
 typedef struct reefnet_sensus_parser_t reefnet_sensus_parser_t;
 
 struct reefnet_sensus_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	// Depth calibration.
 	double atmospheric;
 	double hydrostatic;
@@ -46,11 +46,11 @@ struct reefnet_sensus_parser_t {
 	unsigned int maxdepth;
 };
 
-static dc_status_t reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static dc_status_t reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t reefnet_sensus_parser_destroy (parser_t *abstract);
+static dc_status_t reefnet_sensus_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t reefnet_sensus_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t reefnet_sensus_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t reefnet_sensus_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t reefnet_sensus_parser_backend = {
 	DC_FAMILY_REEFNET_SENSUS,
@@ -63,7 +63,7 @@ static const parser_backend_t reefnet_sensus_parser_backend = {
 
 
 static int
-parser_is_reefnet_sensus (parser_t *abstract)
+parser_is_reefnet_sensus (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -73,7 +73,7 @@ parser_is_reefnet_sensus (parser_t *abstract)
 
 
 dc_status_t
-reefnet_sensus_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t systime)
+reefnet_sensus_parser_create (dc_parser_t **out, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -97,14 +97,14 @@ reefnet_sensus_parser_create (parser_t **out, unsigned int devtime, dc_ticks_t s
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 
-	*out = (parser_t*) parser;
+	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-reefnet_sensus_parser_destroy (parser_t *abstract)
+reefnet_sensus_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_reefnet_sensus (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -117,7 +117,7 @@ reefnet_sensus_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+reefnet_sensus_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
@@ -134,7 +134,7 @@ reefnet_sensus_parser_set_data (parser_t *abstract, const unsigned char *data, u
 
 
 dc_status_t
-reefnet_sensus_parser_set_calibration (parser_t *abstract, double atmospheric, double hydrostatic)
+reefnet_sensus_parser_set_calibration (dc_parser_t *abstract, double atmospheric, double hydrostatic)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
@@ -149,7 +149,7 @@ reefnet_sensus_parser_set_calibration (parser_t *abstract, double atmospheric, d
 
 
 static dc_status_t
-reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+reefnet_sensus_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
 
@@ -168,7 +168,7 @@ reefnet_sensus_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 
 static dc_status_t
-reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+reefnet_sensus_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
 
@@ -216,13 +216,13 @@ reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, u
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			*((unsigned int *) value) = parser->divetime;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = ((parser->maxdepth + 33.0 - (double) SAMPLE_DEPTH_ADJUST) * FSW - parser->atmospheric) / parser->hydrostatic;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 0;
 			break;
 		default:
@@ -235,7 +235,7 @@ reefnet_sensus_parser_get_field (parser_t *abstract, parser_field_type_t type, u
 
 
 static dc_status_t
-reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
@@ -255,17 +255,17 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 
 			offset += 7;
 			while (offset + 1 <= size) {
-				parser_sample_value_t sample = {0};
+				dc_sample_value_t sample = {0};
 
 				// Time (seconds)
 				time += interval;
 				sample.time = time;
-				if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Depth (adjusted feet of seawater).
 				unsigned int depth = data[offset++];
 				sample.depth = ((depth + 33.0 - (double) SAMPLE_DEPTH_ADJUST) * FSW - parser->atmospheric) / parser->hydrostatic;
-				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 				// Temperature (degrees Fahrenheit)
 				if ((nsamples % 6) == 0) {
@@ -273,7 +273,7 @@ reefnet_sensus_parser_samples_foreach (parser_t *abstract, sample_callback_t cal
 						return DC_STATUS_DATAFORMAT;
 					unsigned int temperature = data[offset++];
 					sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 				}
 
 				// Current sample is complete.

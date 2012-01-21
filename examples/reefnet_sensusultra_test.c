@@ -30,7 +30,7 @@
 dc_status_t
 test_dump_memory_dives (const char* name, const char* filename)
 {
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 
 	message ("reefnet_sensusultra_device_open\n");
 	dc_status_t rc = reefnet_sensusultra_device_open (&device, name);
@@ -44,16 +44,16 @@ test_dump_memory_dives (const char* name, const char* filename)
 	strftime (datetime, sizeof (datetime), "%Y-%m-%dT%H:%M:%SZ", gmtime (&now));
 	message ("time=%lu (%s)\n", (unsigned long)now, datetime);
 
-	message ("device_foreach\n");
-	rc = device_foreach (device, NULL, NULL);
+	message ("dc_device_foreach\n");
+	rc = dc_device_foreach (device, NULL, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read dives.");
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
-	message ("device_close\n");
-	rc = device_close (device);
+	message ("dc_device_close\n");
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
@@ -66,7 +66,7 @@ test_dump_memory_dives (const char* name, const char* filename)
 dc_status_t
 test_dump_memory_data (const char* name, const char* filename)
 {
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 
 	message ("reefnet_sensusultra_device_open\n");
 	dc_status_t rc = reefnet_sensusultra_device_open (&device, name);
@@ -82,12 +82,12 @@ test_dump_memory_data (const char* name, const char* filename)
 
 	dc_buffer_t *buffer = dc_buffer_new (0);
 
-	message ("device_dump\n");
-	rc = device_dump (device, buffer);
+	message ("dc_device_dump\n");
+	rc = dc_device_dump (device, buffer);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
 		dc_buffer_free (buffer);
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
@@ -100,8 +100,8 @@ test_dump_memory_data (const char* name, const char* filename)
 
 	dc_buffer_free (buffer);
 
-	message ("device_close\n");
-	rc = device_close (device);
+	message ("dc_device_close\n");
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
@@ -114,7 +114,7 @@ test_dump_memory_data (const char* name, const char* filename)
 dc_status_t
 test_dump_memory_user (const char* name, const char* filename)
 {
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 	unsigned char data[REEFNET_SENSUSULTRA_MEMORY_USER_SIZE] = {0};
 
 	message ("reefnet_sensusultra_device_open\n");
@@ -133,7 +133,7 @@ test_dump_memory_user (const char* name, const char* filename)
 	rc = reefnet_sensusultra_device_read_user (device, data, sizeof (data));
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
@@ -144,8 +144,8 @@ test_dump_memory_user (const char* name, const char* filename)
 		fclose (fp);
 	}
 
-	message ("device_close\n");
-	rc = device_close (device);
+	message ("dc_device_close\n");
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;

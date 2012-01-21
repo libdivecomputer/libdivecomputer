@@ -35,16 +35,16 @@
 typedef struct mares_darwin_parser_t mares_darwin_parser_t;
 
 struct mares_darwin_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	unsigned int headersize;
 	unsigned int samplesize;
 };
 
-static dc_status_t mares_darwin_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t mares_darwin_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static dc_status_t mares_darwin_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t mares_darwin_parser_destroy (parser_t *abstract);
+static dc_status_t mares_darwin_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t mares_darwin_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t mares_darwin_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t mares_darwin_parser_backend = {
 	DC_FAMILY_MARES_DARWIN,
@@ -57,7 +57,7 @@ static const parser_backend_t mares_darwin_parser_backend = {
 
 
 static int
-parser_is_mares_darwin (parser_t *abstract)
+parser_is_mares_darwin (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -67,7 +67,7 @@ parser_is_mares_darwin (parser_t *abstract)
 
 
 dc_status_t
-mares_darwin_parser_create (parser_t **out, unsigned int model)
+mares_darwin_parser_create (dc_parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -90,14 +90,14 @@ mares_darwin_parser_create (parser_t **out, unsigned int model)
 		parser->samplesize = 2;
 	}
 
-	*out = (parser_t *) parser;
+	*out = (dc_parser_t *) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_darwin_parser_destroy (parser_t *abstract)
+mares_darwin_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_mares_darwin (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -110,14 +110,14 @@ mares_darwin_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-mares_darwin_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+mares_darwin_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_darwin_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+mares_darwin_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) abstract;
 
@@ -140,7 +140,7 @@ mares_darwin_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 
 static dc_status_t
-mares_darwin_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) abstract;
 
@@ -149,20 +149,20 @@ mares_darwin_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 
 	const unsigned char *p = abstract->data;
 
-	gasmix_t *gasmix = (gasmix_t *) value;
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			*((unsigned int *) value) = array_uint16_be (p + 0x06) * 20;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = array_uint16_be (p + 0x08) / 10.0;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 1;
 			break;
-		case FIELD_TYPE_GASMIX:
+		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
 			gasmix->oxygen = 0.21;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -177,7 +177,7 @@ mares_darwin_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 
 
 static dc_status_t
-mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	mares_darwin_parser_t *parser = (mares_darwin_parser_t *) abstract;
 
@@ -190,7 +190,7 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 	unsigned int offset = parser->headersize;
 	while (offset + parser->samplesize <= abstract->size) {
-			parser_sample_value_t sample = {0};
+			dc_sample_value_t sample = {0};
 
 			unsigned int value = array_uint16_le (abstract->data + offset);
 			unsigned int depth = value & 0x07FF;
@@ -201,11 +201,11 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			// Surface Time (seconds).
 			time += 20;
 			sample.time = time;
-			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
-			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 			// Ascent rate
 			if (ascent) {
@@ -213,7 +213,7 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = ascent;
-				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			}
 
 			// Deco violation
@@ -222,7 +222,7 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			}
 
 			// Deco stop
@@ -231,7 +231,7 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			}
 
 			if (parser->samplesize == 3) {
@@ -241,7 +241,7 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 					pressure -= abstract->data[offset + 2];
 					sample.pressure.tank = 0;
 					sample.pressure.value = pressure;
-					if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 				}
 			}
 

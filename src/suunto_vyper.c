@@ -51,11 +51,11 @@ typedef struct suunto_vyper_device_t {
 	unsigned int delay;
 } suunto_vyper_device_t;
 
-static dc_status_t suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static dc_status_t suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static dc_status_t suunto_vyper_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t suunto_vyper_device_close (device_t *abstract);
+static dc_status_t suunto_vyper_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
+static dc_status_t suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t suunto_vyper_device_close (dc_device_t *abstract);
 
 static const device_backend_t suunto_vyper_device_backend = {
 	DC_FAMILY_SUUNTO_VYPER,
@@ -86,7 +86,7 @@ static const suunto_common_layout_t suunto_spyder_layout = {
 
 
 static int
-device_is_suunto_vyper (device_t *abstract)
+device_is_suunto_vyper (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -96,7 +96,7 @@ device_is_suunto_vyper (device_t *abstract)
 
 
 dc_status_t
-suunto_vyper_device_open (device_t **out, const char* name)
+suunto_vyper_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -154,14 +154,14 @@ suunto_vyper_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-suunto_vyper_device_close (device_t *abstract)
+suunto_vyper_device_close (dc_device_t *abstract)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -182,7 +182,7 @@ suunto_vyper_device_close (device_t *abstract)
 
 
 dc_status_t
-suunto_vyper_device_set_delay (device_t *abstract, unsigned int delay)
+suunto_vyper_device_set_delay (dc_device_t *abstract, unsigned int delay)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -236,7 +236,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 {
 	assert (asize >= size + 2);
 
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -274,7 +274,7 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 
 
 static dc_status_t
-suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+suunto_vyper_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -313,7 +313,7 @@ suunto_vyper_device_read (device_t *abstract, unsigned int address, unsigned cha
 
 
 static dc_status_t
-suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
+suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -358,7 +358,7 @@ suunto_vyper_device_write (device_t *abstract, unsigned int address, const unsig
 
 
 static dc_status_t
-suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, device_progress_t *progress)
+suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc_event_progress_t *progress)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
@@ -438,7 +438,7 @@ suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, devic
 		// Update and emit a progress event.
 		if (progress) {
 			progress->current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
 
 		// Append the package to the output buffer.
@@ -477,7 +477,7 @@ suunto_vyper_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, devic
 
 
 dc_status_t
-suunto_vyper_device_read_dive (device_t *abstract, dc_buffer_t *buffer, int init)
+suunto_vyper_device_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init)
 {
 	if (! device_is_suunto_vyper (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -487,7 +487,7 @@ suunto_vyper_device_read_dive (device_t *abstract, dc_buffer_t *buffer, int init
 
 
 static dc_status_t
-suunto_vyper_device_dump (device_t *abstract, dc_buffer_t *buffer)
+suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	if (! device_is_suunto_vyper (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -505,7 +505,7 @@ suunto_vyper_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
 
@@ -513,9 +513,9 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 		return DC_STATUS_INVALIDARGS;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the device info. The Vyper and the Spyder store this data
 	// in a different location. To minimize the number of (slow) reads,
@@ -540,14 +540,14 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 	progress.maximum = sizeof (header) +
 		(layout->rb_profile_end - layout->rb_profile_begin);
 	progress.current += sizeof (header);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = header[hoffset + 0];
 	devinfo.firmware = header[hoffset + 1];
 	devinfo.serial = array_uint32_be (header + hoffset + 2);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate a memory buffer.
 	dc_buffer_t *buffer = dc_buffer_new (layout->rb_profile_end - layout->rb_profile_begin);
@@ -584,7 +584,7 @@ suunto_vyper_device_foreach (device_t *abstract, dive_callback_t callback, void 
 
 
 dc_status_t
-suunto_vyper_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+suunto_vyper_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
 

@@ -41,9 +41,9 @@ typedef struct suunto_eon_device_t {
 	serial_t *port;
 } suunto_eon_device_t;
 
-static dc_status_t suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t suunto_eon_device_close (device_t *abstract);
+static dc_status_t suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t suunto_eon_device_close (dc_device_t *abstract);
 
 static const device_backend_t suunto_eon_device_backend = {
 	DC_FAMILY_SUUNTO_EON,
@@ -66,7 +66,7 @@ static const suunto_common_layout_t suunto_eon_layout = {
 
 
 static int
-device_is_suunto_eon (device_t *abstract)
+device_is_suunto_eon (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -76,7 +76,7 @@ device_is_suunto_eon (device_t *abstract)
 
 
 dc_status_t
-suunto_eon_device_open (device_t **out, const char* name)
+suunto_eon_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -127,14 +127,14 @@ suunto_eon_device_open (device_t **out, const char* name)
 		return DC_STATUS_IO;
 	}
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-suunto_eon_device_close (device_t *abstract)
+suunto_eon_device_close (dc_device_t *abstract)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
@@ -155,7 +155,7 @@ suunto_eon_device_close (device_t *abstract)
 
 
 static dc_status_t
-suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer)
+suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
@@ -170,9 +170,9 @@ suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = SUUNTO_EON_MEMORY_SIZE + 1;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Send the command.
 	unsigned char command[1] = {'P'};
@@ -192,7 +192,7 @@ suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	// Update and emit a progress event.
 	progress.current += sizeof (answer);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[sizeof (answer) - 1];
@@ -209,7 +209,7 @@ suunto_eon_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	dc_buffer_t *buffer = dc_buffer_new (SUUNTO_EON_MEMORY_SIZE);
 	if (buffer == NULL)
@@ -223,11 +223,11 @@ suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint24_be (data + 244);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = suunto_eon_extract_dives (abstract,
 		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
@@ -239,7 +239,7 @@ suunto_eon_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 
 dc_status_t
-suunto_eon_device_write_name (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
@@ -263,7 +263,7 @@ suunto_eon_device_write_name (device_t *abstract, unsigned char data[], unsigned
 
 
 dc_status_t
-suunto_eon_device_write_interval (device_t *abstract, unsigned char interval)
+suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
@@ -283,7 +283,7 @@ suunto_eon_device_write_interval (device_t *abstract, unsigned char interval)
 
 
 dc_status_t
-suunto_eon_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+suunto_eon_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
 

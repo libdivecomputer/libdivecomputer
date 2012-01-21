@@ -121,7 +121,7 @@ oceanic_common_device_init (oceanic_common_device_t *device, const device_backen
 
 
 dc_status_t
-oceanic_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+oceanic_common_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
@@ -144,7 +144,7 @@ oceanic_common_device_set_fingerprint (device_t *abstract, const unsigned char d
 
 
 dc_status_t
-oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
+oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
@@ -164,7 +164,7 @@ oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 dc_status_t
-oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
@@ -175,15 +175,15 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	const oceanic_common_layout_t *layout = device->layout;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = 2 * PAGESIZE +
 		(layout->rb_profile_end - layout->rb_profile_begin) +
 		(layout->rb_logbook_end - layout->rb_logbook_begin);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the device id.
 	unsigned char id[PAGESIZE] = {0};
-	dc_status_t rc = device_read (abstract, layout->cf_devinfo, id, sizeof (id));
+	dc_status_t rc = dc_device_read (abstract, layout->cf_devinfo, id, sizeof (id));
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read device id.");
 		return rc;
@@ -191,21 +191,21 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Update and emit a progress event.
 	progress.current += PAGESIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = 0;
 	if (layout->pt_mode_global == 0)
 		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
 	else
 		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the pointer data.
 	unsigned char pointers[PAGESIZE] = {0};
-	rc = device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
+	rc = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read pointers.");
 		return rc;
@@ -277,7 +277,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	progress.maximum = 2 * PAGESIZE +
 		(layout->rb_profile_end - layout->rb_profile_begin) +
 		rb_logbook_page_size;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Memory buffer for the logbook entries.
 	unsigned char *logbooks = (unsigned char *) malloc (rb_logbook_page_size);
@@ -328,7 +328,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		offset -= len;
 
 		// Read the logbook page.
-		rc = device_read (abstract, address, logbooks + offset, len);
+		rc = dc_device_read (abstract, address, logbooks + offset, len);
 		if (rc != DC_STATUS_SUCCESS) {
 			free (logbooks);
 			return rc;
@@ -336,7 +336,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 		// Update and emit a progress event.
 		progress.current += len;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		// A full ringbuffer needs some special treatment to avoid
 		// having to download the first/last page twice. When a full
@@ -513,7 +513,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			offset -= len;
 
 			// Read the profile page.
-			rc = device_read (abstract, address, profiles + offset, len);
+			rc = dc_device_read (abstract, address, profiles + offset, len);
 			if (rc != DC_STATUS_SUCCESS) {
 				free (logbooks);
 				free (profiles);
@@ -522,7 +522,7 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 			// Update and emit a progress event.
 			progress.current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 			nbytes += len;
 		}

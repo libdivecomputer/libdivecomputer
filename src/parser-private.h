@@ -28,12 +28,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
-struct parser_t;
+struct dc_parser_t;
 struct parser_backend_t;
 
 typedef struct parser_backend_t parser_backend_t;
 
-struct parser_t {
+struct dc_parser_t {
 	const parser_backend_t *backend;
 	const unsigned char *data;
 	unsigned int size;
@@ -42,19 +42,19 @@ struct parser_t {
 struct parser_backend_t {
 	dc_family_t type;
 
-	dc_status_t (*set_data) (parser_t *parser, const unsigned char *data, unsigned int size);
+	dc_status_t (*set_data) (dc_parser_t *parser, const unsigned char *data, unsigned int size);
 
-	dc_status_t (*datetime) (parser_t *parser, dc_datetime_t *datetime);
+	dc_status_t (*datetime) (dc_parser_t *parser, dc_datetime_t *datetime);
 
-	dc_status_t (*field) (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value);
+	dc_status_t (*field) (dc_parser_t *parser, dc_field_type_t type, unsigned int flags, void *value);
 
-	dc_status_t (*samples_foreach) (parser_t *parser, sample_callback_t callback, void *userdata);
+	dc_status_t (*samples_foreach) (dc_parser_t *parser, dc_sample_callback_t callback, void *userdata);
 
-	dc_status_t (*destroy) (parser_t *parser);
+	dc_status_t (*destroy) (dc_parser_t *parser);
 };
 
 void
-parser_init (parser_t *parser, const parser_backend_t *backend);
+parser_init (dc_parser_t *parser, const parser_backend_t *backend);
 
 typedef struct sample_statistics_t {
 	unsigned int divetime;
@@ -64,7 +64,7 @@ typedef struct sample_statistics_t {
 #define SAMPLE_STATISTICS_INITIALIZER {0, 0.0}
 
 void
-sample_statistics_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdata);
+sample_statistics_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata);
 
 #ifdef __cplusplus
 }

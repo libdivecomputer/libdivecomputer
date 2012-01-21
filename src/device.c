@@ -26,7 +26,7 @@
 
 
 void
-device_init (device_t *device, const device_backend_t *backend)
+device_init (dc_device_t *device, const device_backend_t *backend)
 {
 	device->backend = backend;
 
@@ -40,7 +40,7 @@ device_init (device_t *device, const device_backend_t *backend)
 
 
 dc_family_t
-device_get_type (device_t *device)
+dc_device_get_type (dc_device_t *device)
 {
 	if (device == NULL)
 		return DC_FAMILY_NULL;
@@ -50,7 +50,7 @@ device_get_type (device_t *device)
 
 
 dc_status_t
-device_set_cancel (device_t *device, device_cancel_callback_t callback, void *userdata)
+dc_device_set_cancel (dc_device_t *device, dc_cancel_callback_t callback, void *userdata)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -63,7 +63,7 @@ device_set_cancel (device_t *device, device_cancel_callback_t callback, void *us
 
 
 dc_status_t
-device_set_events (device_t *device, unsigned int events, device_event_callback_t callback, void *userdata)
+dc_device_set_events (dc_device_t *device, unsigned int events, dc_event_callback_t callback, void *userdata)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -77,7 +77,7 @@ device_set_events (device_t *device, unsigned int events, device_event_callback_
 
 
 dc_status_t
-device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size)
+dc_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -90,7 +90,7 @@ device_set_fingerprint (device_t *device, const unsigned char data[], unsigned i
 
 
 dc_status_t
-device_version (device_t *device, unsigned char data[], unsigned int size)
+dc_device_version (dc_device_t *device, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -103,7 +103,7 @@ device_version (device_t *device, unsigned char data[], unsigned int size)
 
 
 dc_status_t
-device_read (device_t *device, unsigned int address, unsigned char data[], unsigned int size)
+dc_device_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -116,7 +116,7 @@ device_read (device_t *device, unsigned int address, unsigned char data[], unsig
 
 
 dc_status_t
-device_write (device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
+dc_device_write (dc_device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -129,7 +129,7 @@ device_write (device_t *device, unsigned int address, const unsigned char data[]
 
 
 dc_status_t
-device_dump (device_t *device, dc_buffer_t *buffer)
+dc_device_dump (dc_device_t *device, dc_buffer_t *buffer)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -142,7 +142,7 @@ device_dump (device_t *device, dc_buffer_t *buffer)
 
 
 dc_status_t
-device_dump_read (device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize)
+device_dump_read (dc_device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -151,9 +151,9 @@ device_dump_read (device_t *device, unsigned char data[], unsigned int size, uns
 		return DC_STATUS_UNSUPPORTED;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = size;
-	device_event_emit (device, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (device, DC_EVENT_PROGRESS, &progress);
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
@@ -169,7 +169,7 @@ device_dump_read (device_t *device, unsigned char data[], unsigned int size, uns
 
 		// Update and emit a progress event.
 		progress.current += len;
-		device_event_emit (device, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (device, DC_EVENT_PROGRESS, &progress);
 
 		nbytes += len;
 	}
@@ -179,7 +179,7 @@ device_dump_read (device_t *device, unsigned char data[], unsigned int size, uns
 
 
 dc_status_t
-device_foreach (device_t *device, dive_callback_t callback, void *userdata)
+dc_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userdata)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -192,7 +192,7 @@ device_foreach (device_t *device, dive_callback_t callback, void *userdata)
 
 
 dc_status_t
-device_close (device_t *device)
+dc_device_close (dc_device_t *device)
 {
 	if (device == NULL)
 		return DC_STATUS_SUCCESS;
@@ -205,24 +205,24 @@ device_close (device_t *device)
 
 
 void
-device_event_emit (device_t *device, device_event_t event, const void *data)
+device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data)
 {
-	device_progress_t *progress = (device_progress_t *) data;
+	dc_event_progress_t *progress = (dc_event_progress_t *) data;
 
 	// Check the event data for errors.
 	switch (event) {
-	case DEVICE_EVENT_WAITING:
+	case DC_EVENT_WAITING:
 		assert (data == NULL);
 		break;
-	case DEVICE_EVENT_PROGRESS:
+	case DC_EVENT_PROGRESS:
 		assert (progress != NULL);
 		assert (progress->maximum != 0);
 		assert (progress->maximum >= progress->current);
 		break;
-	case DEVICE_EVENT_DEVINFO:
+	case DC_EVENT_DEVINFO:
 		assert (data != NULL);
 		break;
-	case DEVICE_EVENT_CLOCK:
+	case DC_EVENT_CLOCK:
 		assert (data != NULL);
 		break;
 	default:
@@ -242,7 +242,7 @@ device_event_emit (device_t *device, device_event_t event, const void *data)
 
 
 int
-device_is_cancelled (device_t *device)
+device_is_cancelled (dc_device_t *device)
 {
 	if (device == NULL)
 		return 0;

@@ -48,15 +48,15 @@
 #define NEMOAPNEIST 18
 
 typedef struct mares_nemo_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned char fingerprint[5];
 } mares_nemo_device_t;
 
-static dc_status_t mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t mares_nemo_device_close (device_t *abstract);
+static dc_status_t mares_nemo_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_nemo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t mares_nemo_device_close (dc_device_t *abstract);
 
 static const device_backend_t mares_nemo_device_backend = {
 	DC_FAMILY_MARES_NEMO,
@@ -86,7 +86,7 @@ static const mares_common_layout_t mares_nemo_apneist_layout = {
 };
 
 static int
-device_is_mares_nemo (device_t *abstract)
+device_is_mares_nemo (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -96,7 +96,7 @@ device_is_mares_nemo (device_t *abstract)
 
 
 dc_status_t
-mares_nemo_device_open (device_t **out, const char* name)
+mares_nemo_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -152,14 +152,14 @@ mares_nemo_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_nemo_device_close (device_t *abstract)
+mares_nemo_device_close (dc_device_t *abstract)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
 
@@ -180,7 +180,7 @@ mares_nemo_device_close (device_t *abstract)
 
 
 static dc_status_t
-mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+mares_nemo_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
@@ -197,7 +197,7 @@ mares_nemo_device_set_fingerprint (device_t *abstract, const unsigned char data[
 
 
 static dc_status_t
-mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
+mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
 
@@ -209,16 +209,16 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = MEMORYSIZE + 20;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Wait until some data arrives.
 	while (serial_get_received (device->port) == 0) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
-		device_event_emit (abstract, DEVICE_EVENT_WAITING, NULL);
+		device_event_emit (abstract, DC_EVENT_WAITING, NULL);
 		serial_sleep (100);
 	}
 
@@ -239,7 +239,7 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	// Update and emit a progress event.
 	progress.current += 20;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	unsigned int nbytes = 0;
 	while (nbytes < MEMORYSIZE) {
@@ -278,7 +278,7 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 		// Update and emit a progress event.
 		progress.current += PACKETSIZE;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		nbytes += PACKETSIZE;
 	}
@@ -288,7 +288,7 @@ mares_nemo_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+mares_nemo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	dc_buffer_t *buffer = dc_buffer_new (MEMORYSIZE);
 	if (buffer == NULL)
@@ -302,11 +302,11 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = data[1];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_be (data + 8);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = mares_nemo_extract_dives (abstract, data, MEMORYSIZE, callback, userdata);
 
@@ -317,7 +317,7 @@ mares_nemo_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 
 dc_status_t
-mares_nemo_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+mares_nemo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
 

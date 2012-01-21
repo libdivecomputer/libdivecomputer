@@ -49,9 +49,9 @@ typedef struct oceanic_veo250_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_veo250_device_t;
 
-static dc_status_t oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static dc_status_t oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static dc_status_t oceanic_veo250_device_close (device_t *abstract);
+static dc_status_t oceanic_veo250_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_veo250_device_close (dc_device_t *abstract);
 
 static const device_backend_t oceanic_veo250_device_backend = {
 	DC_FAMILY_OCEANIC_VEO250,
@@ -79,7 +79,7 @@ static const oceanic_common_layout_t oceanic_veo250_layout = {
 
 
 static int
-device_is_oceanic_veo250 (device_t *abstract)
+device_is_oceanic_veo250 (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -91,7 +91,7 @@ device_is_oceanic_veo250 (device_t *abstract)
 static dc_status_t
 oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize)
 {
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -214,7 +214,7 @@ oceanic_veo250_quit (oceanic_veo250_device_t *device)
 
 
 dc_status_t
-oceanic_veo250_device_open (device_t **out, const char* name)
+oceanic_veo250_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -292,21 +292,21 @@ oceanic_veo250_device_open (device_t **out, const char* name)
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (manually activated by
 	// the user), or already in download mode.
-	status = oceanic_veo250_device_version ((device_t *) device, device->version, sizeof (device->version));
+	status = oceanic_veo250_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
 	}
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-oceanic_veo250_device_close (device_t *abstract)
+oceanic_veo250_device_close (dc_device_t *abstract)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 
@@ -330,7 +330,7 @@ oceanic_veo250_device_close (device_t *abstract)
 
 
 dc_status_t
-oceanic_veo250_device_keepalive (device_t *abstract)
+oceanic_veo250_device_keepalive (dc_device_t *abstract)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 
@@ -357,7 +357,7 @@ oceanic_veo250_device_keepalive (device_t *abstract)
 
 
 static dc_status_t
-oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigned int size)
+oceanic_veo250_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 
@@ -388,7 +388,7 @@ oceanic_veo250_device_version (device_t *abstract, unsigned char data[], unsigne
 
 
 static dc_status_t
-oceanic_veo250_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 

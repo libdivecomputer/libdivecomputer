@@ -31,7 +31,7 @@
 dc_status_t
 test_dump_memory (const char* filename)
 {
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 
 	message ("uwatec_smart_device_open\n");
 	dc_status_t rc = uwatec_smart_device_open (&device);
@@ -40,23 +40,23 @@ test_dump_memory (const char* filename)
 		return rc;
 	}
 
-	message ("device_version\n");
+	message ("dc_device_version\n");
 	unsigned char version[UWATEC_SMART_VERSION_SIZE] = {0};
-	rc = device_version (device, version, sizeof (version));
+	rc = dc_device_version (device, version, sizeof (version));
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
 	dc_buffer_t *buffer = dc_buffer_new (0);
 
-	message ("device_dump\n");
-	rc = device_dump (device, buffer);
+	message ("dc_device_dump\n");
+	rc = dc_device_dump (device, buffer);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
 		dc_buffer_free (buffer);
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
@@ -69,8 +69,8 @@ test_dump_memory (const char* filename)
 
 	dc_buffer_free (buffer);
 
-	message ("device_close\n");
-	rc = device_close (device);
+	message ("dc_device_close\n");
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;

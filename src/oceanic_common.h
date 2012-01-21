@@ -54,7 +54,7 @@ typedef struct oceanic_common_layout_t {
 } oceanic_common_layout_t;
 
 typedef struct oceanic_common_device_t {
-	device_t base;
+	dc_device_t base;
 	unsigned char fingerprint[FPMAXSIZE];
 	const oceanic_common_layout_t *layout;
 	unsigned int multipage;
@@ -67,13 +67,13 @@ void
 oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend);
 
 dc_status_t
-oceanic_common_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
+oceanic_common_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
 
 dc_status_t
-oceanic_common_device_dump (device_t *abstract, dc_buffer_t *buffer);
+oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 
 dc_status_t
-oceanic_common_device_foreach (device_t *device, dive_callback_t callback, void *userdata);
+oceanic_common_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

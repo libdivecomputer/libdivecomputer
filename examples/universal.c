@@ -52,8 +52,8 @@ static int g_cachedir_read = 1;
 
 typedef struct device_data_t {
 	dc_family_t backend;
-	device_devinfo_t devinfo;
-	device_clock_t clock;
+	dc_event_devinfo_t devinfo;
+	dc_event_clock_t clock;
 } device_data_t;
 
 typedef struct dive_data_t {
@@ -232,7 +232,7 @@ cancel_cb (void *userdata)
 }
 
 void
-sample_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdata)
+sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 {
 	static const char *events[] = {
 		"none", "deco", "rbt", "ascent", "ceiling", "workload", "transmitter",
@@ -244,35 +244,35 @@ sample_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdat
 	sample_data_t *sampledata = (sample_data_t *) userdata;
 
 	switch (type) {
-	case SAMPLE_TYPE_TIME:
+	case DC_SAMPLE_TIME:
 		if (sampledata->nsamples++)
 			fprintf (sampledata->fp, "</sample>\n");
 		fprintf (sampledata->fp, "<sample>\n");
 		fprintf (sampledata->fp, "   <time>%02u:%02u</time>\n", value.time / 60, value.time % 60);
 		break;
-	case SAMPLE_TYPE_DEPTH:
+	case DC_SAMPLE_DEPTH:
 		fprintf (sampledata->fp, "   <depth>%.2f</depth>\n", value.depth);
 		break;
-	case SAMPLE_TYPE_PRESSURE:
+	case DC_SAMPLE_PRESSURE:
 		fprintf (sampledata->fp, "   <pressure tank=\"%u\">%.2f</pressure>\n", value.pressure.tank, value.pressure.value);
 		break;
-	case SAMPLE_TYPE_TEMPERATURE:
+	case DC_SAMPLE_TEMPERATURE:
 		fprintf (sampledata->fp, "   <temperature>%.2f</temperature>\n", value.temperature);
 		break;
-	case SAMPLE_TYPE_EVENT:
+	case DC_SAMPLE_EVENT:
 		fprintf (sampledata->fp, "   <event type=\"%u\" time=\"%u\" flags=\"%u\" value=\"%u\">%s</event>\n",
 			value.event.type, value.event.time, value.event.flags, value.event.value, events[value.event.type]);
 		break;
-	case SAMPLE_TYPE_RBT:
+	case DC_SAMPLE_RBT:
 		fprintf (sampledata->fp, "   <rbt>%u</rbt>\n", value.rbt);
 		break;
-	case SAMPLE_TYPE_HEARTBEAT:
+	case DC_SAMPLE_HEARTBEAT:
 		fprintf (sampledata->fp, "   <heartbeat>%u</heartbeat>\n", value.heartbeat);
 		break;
-	case SAMPLE_TYPE_BEARING:
+	case DC_SAMPLE_BEARING:
 		fprintf (sampledata->fp, "   <bearing>%u</bearing>\n", value.bearing);
 		break;
-	case SAMPLE_TYPE_VENDOR:
+	case DC_SAMPLE_VENDOR:
 		fprintf (sampledata->fp, "   <vendor type=\"%u\" size=\"%u\">", value.vendor.type, value.vendor.size);
 		for (unsigned int i = 0; i < value.vendor.size; ++i)
 			fprintf (sampledata->fp, "%02X", ((unsigned char *) value.vendor.data)[i]);
@@ -288,7 +288,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 {
 	// Create the parser.
 	message ("Creating the parser.\n");
-	parser_t *parser = NULL;
+	dc_parser_t *parser = NULL;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	switch (devdata->backend) {
 	case DC_FAMILY_SUUNTO_SOLUTION:
@@ -366,20 +366,20 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 
 	// Register the data.
 	message ("Registering the data.\n");
-	rc = parser_set_data (parser, data, size);
+	rc = dc_parser_set_data (parser, data, size);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the data.");
-		parser_destroy (parser);
+		dc_parser_destroy (parser);
 		return rc;
 	}
 
 	// Parse the datetime.
 	message ("Parsing the datetime.\n");
 	dc_datetime_t dt = {0};
-	rc = parser_get_datetime (parser, &dt);
+	rc = dc_parser_get_datetime (parser, &dt);
 	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the datetime.");
-		parser_destroy (parser);
+		dc_parser_destroy (parser);
 		return rc;
 	}
 
@@ -390,10 +390,10 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	// Parse the divetime.
 	message ("Parsing the divetime.\n");
 	unsigned int divetime = 0;
-	rc = parser_get_field (parser, FIELD_TYPE_DIVETIME, 0, &divetime);
+	rc = dc_parser_get_field (parser, DC_FIELD_DIVETIME, 0, &divetime);
 	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the divetime.");
-		parser_destroy (parser);
+		dc_parser_destroy (parser);
 		return rc;
 	}
 
@@ -403,10 +403,10 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	// Parse the maxdepth.
 	message ("Parsing the maxdepth.\n");
 	double maxdepth = 0.0;
-	rc = parser_get_field (parser, FIELD_TYPE_MAXDEPTH, 0, &maxdepth);
+	rc = dc_parser_get_field (parser, DC_FIELD_MAXDEPTH, 0, &maxdepth);
 	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the maxdepth.");
-		parser_destroy (parser);
+		dc_parser_destroy (parser);
 		return rc;
 	}
 
@@ -416,19 +416,19 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 	// Parse the gas mixes.
 	message ("Parsing the gas mixes.\n");
 	unsigned int ngases = 0;
-	rc = parser_get_field (parser, FIELD_TYPE_GASMIX_COUNT, 0, &ngases);
+	rc = dc_parser_get_field (parser, DC_FIELD_GASMIX_COUNT, 0, &ngases);
 	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		WARNING ("Error parsing the gas mix count.");
-		parser_destroy (parser);
+		dc_parser_destroy (parser);
 		return rc;
 	}
 
 	for (unsigned int i = 0; i < ngases; ++i) {
-		gasmix_t gasmix = {0};
-		rc = parser_get_field (parser, FIELD_TYPE_GASMIX, i, &gasmix);
+		dc_gasmix_t gasmix = {0};
+		rc = dc_parser_get_field (parser, DC_FIELD_GASMIX, i, &gasmix);
 		if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 			WARNING ("Error parsing the gas mix.");
-			parser_destroy (parser);
+			dc_parser_destroy (parser);
 			return rc;
 		}
 
@@ -450,10 +450,10 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 
 	// Parse the sample data.
 	message ("Parsing the sample data.\n");
-	rc = parser_samples_foreach (parser, sample_cb, &sampledata);
+	rc = dc_parser_samples_foreach (parser, sample_cb, &sampledata);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error parsing the sample data.");
-		parser_destroy (parser);
+		dc_parser_destroy (parser);
 		return rc;
 	}
 
@@ -462,7 +462,7 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 
 	// Destroy the parser.
 	message ("Destroying the parser.\n");
-	rc = parser_destroy (parser);
+	rc = dc_parser_destroy (parser);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error destroying the parser.");
 		return rc;
@@ -472,24 +472,24 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 }
 
 static void
-event_cb (device_t *device, device_event_t event, const void *data, void *userdata)
+event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata)
 {
-	const device_progress_t *progress = (device_progress_t *) data;
-	const device_devinfo_t *devinfo = (device_devinfo_t *) data;
-	const device_clock_t *clock = (device_clock_t *) data;
+	const dc_event_progress_t *progress = (dc_event_progress_t *) data;
+	const dc_event_devinfo_t *devinfo = (dc_event_devinfo_t *) data;
+	const dc_event_clock_t *clock = (dc_event_clock_t *) data;
 
 	device_data_t *devdata = (device_data_t *) userdata;
 
 	switch (event) {
-	case DEVICE_EVENT_WAITING:
+	case DC_EVENT_WAITING:
 		message ("Event: waiting for user action\n");
 		break;
-	case DEVICE_EVENT_PROGRESS:
+	case DC_EVENT_PROGRESS:
 		message ("Event: progress %3.2f%% (%u/%u)\n",
 			100.0 * (double) progress->current / (double) progress->maximum,
 			progress->current, progress->maximum);
 		break;
-	case DEVICE_EVENT_DEVINFO:
+	case DC_EVENT_DEVINFO:
 		devdata->devinfo = *devinfo;
 		message ("Event: model=%u (0x%08x), firmware=%u (0x%08x), serial=%u (0x%08x)\n",
 			devinfo->model, devinfo->model,
@@ -497,13 +497,13 @@ event_cb (device_t *device, device_event_t event, const void *data, void *userda
 			devinfo->serial, devinfo->serial);
 		if (g_cachedir && g_cachedir_read) {
 			dc_buffer_t *fingerprint = fpread (g_cachedir, devdata->backend, devinfo->serial);
-			device_set_fingerprint (device,
+			dc_device_set_fingerprint (device,
 				dc_buffer_get_data (fingerprint),
 				dc_buffer_get_size (fingerprint));
 			dc_buffer_free (fingerprint);
 		}
 		break;
-	case DEVICE_EVENT_CLOCK:
+	case DC_EVENT_CLOCK:
 		devdata->clock = *clock;
 		message ("Event: systime=" DC_TICKS_FORMAT ", devtime=%u\n",
 			clock->systime, clock->devtime);
@@ -589,7 +589,7 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 	// Open the device.
 	message ("Opening the device (%s, %s).\n",
 		lookup_name (backend), devname ? devname : "null");
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 	switch (backend) {
 	case DC_FAMILY_SUUNTO_SOLUTION:
 		rc = suunto_solution_device_open (&device, devname);
@@ -671,30 +671,30 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 
 	// Register the event handler.
 	message ("Registering the event handler.\n");
-	int events = DEVICE_EVENT_WAITING | DEVICE_EVENT_PROGRESS | DEVICE_EVENT_DEVINFO | DEVICE_EVENT_CLOCK;
-	rc = device_set_events (device, events, event_cb, &devdata);
+	int events = DC_EVENT_WAITING | DC_EVENT_PROGRESS | DC_EVENT_DEVINFO | DC_EVENT_CLOCK;
+	rc = dc_device_set_events (device, events, event_cb, &devdata);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the event handler.");
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
 	// Register the cancellation handler.
 	message ("Registering the cancellation handler.\n");
-	rc = device_set_cancel (device, cancel_cb, NULL);
+	rc = dc_device_set_cancel (device, cancel_cb, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the cancellation handler.");
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
 	// Register the fingerprint data.
 	if (fingerprint) {
 		message ("Registering the fingerprint data.\n");
-		rc = device_set_fingerprint (device, dc_buffer_get_data (fingerprint), dc_buffer_get_size (fingerprint));
+		rc = dc_device_set_fingerprint (device, dc_buffer_get_data (fingerprint), dc_buffer_get_size (fingerprint));
 		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Error registering the fingerprint data.");
-			device_close (device);
+			dc_device_close (device);
 			return rc;
 		}
 	}
@@ -705,11 +705,11 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 
 		// Download the memory dump.
 		message ("Downloading the memory dump.\n");
-		rc = device_dump (device, buffer);
+		rc = dc_device_dump (device, buffer);
 		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Error downloading the memory dump.");
 			dc_buffer_free (buffer);
-			device_close (device);
+			dc_device_close (device);
 			return rc;
 		}
 
@@ -736,12 +736,12 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 
 		// Download the dives.
 		message ("Downloading the dives.\n");
-		rc = device_foreach (device, dive_cb, &divedata);
+		rc = dc_device_foreach (device, dive_cb, &divedata);
 		if (rc != DC_STATUS_SUCCESS) {
 			WARNING ("Error downloading the dives.");
 			dc_buffer_free (divedata.fingerprint);
 			if (divedata.fp) fclose (divedata.fp);
-			device_close (device);
+			dc_device_close (device);
 			return rc;
 		}
 
@@ -759,7 +759,7 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 
 	// Close the device.
 	message ("Closing the device.\n");
-	rc = device_close (device);
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error closing the device.");
 		return rc;

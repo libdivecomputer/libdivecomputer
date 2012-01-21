@@ -32,18 +32,18 @@
 typedef struct oceanic_vtpro_parser_t oceanic_vtpro_parser_t;
 
 struct oceanic_vtpro_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int divetime;
 	double maxdepth;
 };
 
-static dc_status_t oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static dc_status_t oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t oceanic_vtpro_parser_destroy (parser_t *abstract);
+static dc_status_t oceanic_vtpro_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t oceanic_vtpro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t oceanic_vtpro_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t oceanic_vtpro_parser_backend = {
 	DC_FAMILY_OCEANIC_VTPRO,
@@ -56,7 +56,7 @@ static const parser_backend_t oceanic_vtpro_parser_backend = {
 
 
 static int
-parser_is_oceanic_vtpro (parser_t *abstract)
+parser_is_oceanic_vtpro (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -66,7 +66,7 @@ parser_is_oceanic_vtpro (parser_t *abstract)
 
 
 dc_status_t
-oceanic_vtpro_parser_create (parser_t **out)
+oceanic_vtpro_parser_create (dc_parser_t **out)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -86,14 +86,14 @@ oceanic_vtpro_parser_create (parser_t **out)
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
 
-	*out = (parser_t*) parser;
+	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-oceanic_vtpro_parser_destroy (parser_t *abstract)
+oceanic_vtpro_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_oceanic_vtpro (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -106,7 +106,7 @@ oceanic_vtpro_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+oceanic_vtpro_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
 
@@ -123,7 +123,7 @@ oceanic_vtpro_parser_set_data (parser_t *abstract, const unsigned char *data, un
 
 
 static dc_status_t
-oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+oceanic_vtpro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	if (abstract->size < 8)
 		return DC_STATUS_DATAFORMAT;
@@ -154,7 +154,7 @@ oceanic_vtpro_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 
 static dc_status_t
-oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
 
@@ -178,20 +178,20 @@ oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 
 	unsigned int footer = size - PAGESIZE;
 
-	gasmix_t *gasmix = (gasmix_t *) value;
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			*((unsigned int *) value) = parser->divetime;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = (data[footer + 0] + ((data[footer + 1] & 0x0F) << 8)) * 1;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 1;
 			break;
-		case FIELD_TYPE_GASMIX:
+		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
 			if (data[footer + 3])
 				gasmix->oxygen = data[footer + 3] / 100.0;
@@ -209,7 +209,7 @@ oceanic_vtpro_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 
 
 static dc_status_t
-oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	if (! parser_is_oceanic_vtpro (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -245,7 +245,7 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 
 	unsigned int offset = 5 * PAGESIZE / 2;
 	while (offset + PAGESIZE / 2 <= size - PAGESIZE) {
-		parser_sample_value_t sample = {0};
+		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
 		if (array_isequal (data + offset, PAGESIZE / 2, 0x00)) {
@@ -312,23 +312,23 @@ oceanic_vtpro_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		else
 			time = timestamp * 60 + (i + 1) * 60.0 / count + 0.5;
 		sample.time = time;
-		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Vendor specific data
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_VTPRO;
 		sample.vendor.size = PAGESIZE / 2;
 		sample.vendor.data = data + offset;
-		if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
+		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
 
 		// Depth (ft)
 		unsigned int depth = data[offset + 3];
 		sample.depth = depth * FEET;
-		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (°F)
 		unsigned int temperature = data[offset + 6];
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-		if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
 		offset += PAGESIZE / 2;
 	}

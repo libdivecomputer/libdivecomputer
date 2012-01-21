@@ -47,7 +47,7 @@
 #define SZ_VERSION 14
 
 typedef struct atomics_cobalt_device_t {
-	device_t base;
+	dc_device_t base;
 #ifdef HAVE_LIBUSB
 	libusb_context *context;
 	libusb_device_handle *handle;
@@ -57,10 +57,10 @@ typedef struct atomics_cobalt_device_t {
 	unsigned char version[SZ_VERSION];
 } atomics_cobalt_device_t;
 
-static dc_status_t atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static dc_status_t atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t atomics_cobalt_device_close (device_t *abstract);
+static dc_status_t atomics_cobalt_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t atomics_cobalt_device_close (dc_device_t *abstract);
 
 static const device_backend_t atomics_cobalt_device_backend = {
 	DC_FAMILY_ATOMICS_COBALT,
@@ -74,7 +74,7 @@ static const device_backend_t atomics_cobalt_device_backend = {
 };
 
 static int
-device_is_atomics_cobalt (device_t *abstract)
+device_is_atomics_cobalt (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -84,7 +84,7 @@ device_is_atomics_cobalt (device_t *abstract)
 
 
 dc_status_t
-atomics_cobalt_device_open (device_t **out)
+atomics_cobalt_device_open (dc_device_t **out)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -130,7 +130,7 @@ atomics_cobalt_device_open (device_t **out)
 		return DC_STATUS_IO;
 	}
 
-	dc_status_t status = atomics_cobalt_device_version ((device_t *) device, device->version, sizeof (device->version));
+	dc_status_t status = atomics_cobalt_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		WARNING ("Failed to identify the dive computer.");
 		libusb_close (device->handle);
@@ -139,7 +139,7 @@ atomics_cobalt_device_open (device_t **out)
 		return status;
 	}
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 #else
@@ -149,7 +149,7 @@ atomics_cobalt_device_open (device_t **out)
 
 
 static dc_status_t
-atomics_cobalt_device_close (device_t *abstract)
+atomics_cobalt_device_close (dc_device_t *abstract)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
@@ -170,7 +170,7 @@ atomics_cobalt_device_close (device_t *abstract)
 
 
 static dc_status_t
-atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+atomics_cobalt_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
@@ -190,7 +190,7 @@ atomics_cobalt_device_set_fingerprint (device_t *abstract, const unsigned char d
 
 
 dc_status_t
-atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulation)
+atomics_cobalt_device_set_simulation (dc_device_t *abstract, unsigned int simulation)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
@@ -204,7 +204,7 @@ atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulatio
 
 
 static dc_status_t
-atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigned int size)
+atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
@@ -250,7 +250,7 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 
 
 static dc_status_t
-atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, device_progress_t *progress)
+atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc_event_progress_t *progress)
 {
 #ifdef HAVE_LIBUSB
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
@@ -293,7 +293,7 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 		// Update and emit a progress event.
 		if (progress) {
 			progress->current += length;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, progress);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
 
 		// Append the packet to the output buffer.
@@ -343,7 +343,7 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 
 
 static dc_status_t
-atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
@@ -351,12 +351,12 @@ atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		return DC_STATUS_INVALIDARGS;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = SZ_MEMORY + 2;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_le (device->version + 12);
 	devinfo.firmware = (array_uint16_le (device->version + 8) << 16)
 		+ array_uint16_le (device->version + 10);
@@ -365,7 +365,7 @@ atomics_cobalt_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		devinfo.serial *= 10;
 		devinfo.serial += device->version[i] - '0';
 	}
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate a memory buffer.
 	dc_buffer_t *buffer = dc_buffer_new (0);

@@ -30,13 +30,13 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-oceanic_vtpro_device_open (device_t **device, const char* name);
+oceanic_vtpro_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-oceanic_vtpro_device_keepalive (device_t *device);
+oceanic_vtpro_device_keepalive (dc_device_t *device);
 
 dc_status_t
-oceanic_vtpro_parser_create (parser_t **parser);
+oceanic_vtpro_parser_create (dc_parser_t **parser);
 
 #ifdef __cplusplus
 }

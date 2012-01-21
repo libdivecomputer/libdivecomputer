@@ -32,13 +32,13 @@ extern "C" {
 #define SUUNTO_SOLUTION_MEMORY_SIZE 256
 
 dc_status_t
-suunto_solution_device_open (device_t **device, const char* name);
+suunto_solution_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-suunto_solution_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+suunto_solution_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-suunto_solution_parser_create (parser_t **parser);
+suunto_solution_parser_create (dc_parser_t **parser);
 
 #ifdef __cplusplus
 }

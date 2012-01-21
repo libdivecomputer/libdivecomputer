@@ -34,13 +34,13 @@ extern "C" {
 #define SUUNTO_D9_VERSION_SIZE 0x04
 
 dc_status_t
-suunto_d9_device_open (device_t **device, const char* name, unsigned int model);
+suunto_d9_device_open (dc_device_t **device, const char *name, unsigned int model);
 
 dc_status_t
-suunto_d9_device_reset_maxdepth (device_t *device);
+suunto_d9_device_reset_maxdepth (dc_device_t *device);
 
 dc_status_t
-suunto_d9_parser_create (parser_t **parser, unsigned int model);
+suunto_d9_parser_create (dc_parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }

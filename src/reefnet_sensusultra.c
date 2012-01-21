@@ -41,7 +41,7 @@
 #define REJECT 0x00
 
 typedef struct reefnet_sensusultra_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned char handshake[REEFNET_SENSUSULTRA_HANDSHAKE_SIZE];
 	unsigned int maxretries;
@@ -50,10 +50,10 @@ typedef struct reefnet_sensusultra_device_t {
 	dc_ticks_t systime;
 } reefnet_sensusultra_device_t;
 
-static dc_status_t reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t reefnet_sensusultra_device_close (device_t *abstract);
+static dc_status_t reefnet_sensusultra_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t reefnet_sensusultra_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t reefnet_sensusultra_device_close (dc_device_t *abstract);
 
 static const device_backend_t reefnet_sensusultra_device_backend = {
 	DC_FAMILY_REEFNET_SENSUSULTRA,
@@ -67,7 +67,7 @@ static const device_backend_t reefnet_sensusultra_device_backend = {
 };
 
 static int
-device_is_reefnet_sensusultra (device_t *abstract)
+device_is_reefnet_sensusultra (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -77,7 +77,7 @@ device_is_reefnet_sensusultra (device_t *abstract)
 
 
 dc_status_t
-reefnet_sensusultra_device_open (device_t **out, const char* name)
+reefnet_sensusultra_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -128,14 +128,14 @@ reefnet_sensusultra_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-reefnet_sensusultra_device_close (device_t *abstract)
+reefnet_sensusultra_device_close (dc_device_t *abstract)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -156,7 +156,7 @@ reefnet_sensusultra_device_close (device_t *abstract)
 
 
 dc_status_t
-reefnet_sensusultra_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size)
+reefnet_sensusultra_device_get_handshake (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -175,7 +175,7 @@ reefnet_sensusultra_device_get_handshake (device_t *abstract, unsigned char data
 
 
 dc_status_t
-reefnet_sensusultra_device_set_maxretries (device_t *abstract, unsigned int maxretries)
+reefnet_sensusultra_device_set_maxretries (dc_device_t *abstract, unsigned int maxretries)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -189,7 +189,7 @@ reefnet_sensusultra_device_set_maxretries (device_t *abstract, unsigned int maxr
 
 
 dc_status_t
-reefnet_sensusultra_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+reefnet_sensusultra_device_set_timestamp (dc_device_t *abstract, unsigned int timestamp)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -203,7 +203,7 @@ reefnet_sensusultra_device_set_timestamp (device_t *abstract, unsigned int times
 
 
 static dc_status_t
-reefnet_sensusultra_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+reefnet_sensusultra_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -274,7 +274,7 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 {
 	assert (size >= header + 2);
 
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -315,17 +315,17 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device, unsigned sh
 	memcpy (device->handshake, handshake, REEFNET_SENSUSULTRA_HANDSHAKE_SIZE);
 
 	// Emit a clock event.
-	device_clock_t clock;
+	dc_event_clock_t clock;
 	clock.systime = device->systime;
 	clock.devtime = device->devtime;
-	device_event_emit (&device->base, DEVICE_EVENT_CLOCK, &clock);
+	device_event_emit (&device->base, DC_EVENT_CLOCK, &clock);
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = handshake[1];
 	devinfo.firmware = handshake[0];
 	devinfo.serial = array_uint16_le (handshake + 2);
-	device_event_emit (&device->base, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
 	// Send the instruction code to the device.
 	rc = reefnet_sensusultra_send_ushort (device, value);
@@ -403,7 +403,7 @@ reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short c
 
 
 static dc_status_t
-reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
+reefnet_sensusultra_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -418,9 +418,9 @@ reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Wake-up the device and send the instruction code.
 	dc_status_t rc = reefnet_sensusultra_send (device, 0xB421);
@@ -438,7 +438,7 @@ reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 		// Update and emit a progress event.
 		progress.current += REEFNET_SENSUSULTRA_PACKET_SIZE;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		// Prepend the packet to the buffer.
 		if (!dc_buffer_prepend (buffer, packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE)) {
@@ -460,7 +460,7 @@ reefnet_sensusultra_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 dc_status_t
-reefnet_sensusultra_device_read_user (device_t *abstract, unsigned char *data, unsigned int size)
+reefnet_sensusultra_device_read_user (dc_device_t *abstract, unsigned char *data, unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -503,7 +503,7 @@ reefnet_sensusultra_device_read_user (device_t *abstract, unsigned char *data, u
 
 
 dc_status_t
-reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *data, unsigned int size)
+reefnet_sensusultra_device_write_user (dc_device_t *abstract, const unsigned char *data, unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -516,9 +516,9 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = REEFNET_SENSUSULTRA_MEMORY_USER_SIZE + 2;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Wake-up the device and send the instruction code.
 	dc_status_t rc = reefnet_sensusultra_send (device, 0xB430);
@@ -533,7 +533,7 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 
 		// Update and emit a progress event.
 		progress.current += 1;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 	}
 
 	// Send the checksum to the device.
@@ -544,14 +544,14 @@ reefnet_sensusultra_device_write_user (device_t *abstract, const unsigned char *
 
 	// Update and emit a progress event.
 	progress.current += 2;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 dc_status_t
-reefnet_sensusultra_device_write_parameter (device_t *abstract, reefnet_sensusultra_parameter_t parameter, unsigned int value)
+reefnet_sensusultra_device_write_parameter (dc_device_t *abstract, reefnet_sensusultra_parameter_t parameter, unsigned int value)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -600,7 +600,7 @@ reefnet_sensusultra_device_write_parameter (device_t *abstract, reefnet_sensusul
 
 
 dc_status_t
-reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsigned int size)
+reefnet_sensusultra_device_sense (dc_device_t *abstract, unsigned char *data, unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -632,7 +632,7 @@ reefnet_sensusultra_device_sense (device_t *abstract, unsigned char *data, unsig
 static dc_status_t
 reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 	const unsigned char data[], unsigned int *premaining, unsigned int *pprevious,
-	int *aborted, dive_callback_t callback, void *userdata)
+	int *aborted, dc_dive_callback_t callback, void *userdata)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
 	const unsigned char footer[4] = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -700,7 +700,7 @@ reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 
 
 static dc_status_t
-reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
@@ -714,9 +714,9 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Wake-up the device and send the instruction code.
 	dc_status_t rc = reefnet_sensusultra_send (device, 0xB421);
@@ -742,7 +742,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 
 		// Update and emit a progress event.
 		progress.current += REEFNET_SENSUSULTRA_PACKET_SIZE;
-		device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		// Abort the transfer if the page contains no useful data.
 		if (array_isequal (packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE, 0xFF) && nbytes != 0)
@@ -787,7 +787,7 @@ reefnet_sensusultra_device_foreach (device_t *abstract, dive_callback_t callback
 
 
 dc_status_t
-reefnet_sensusultra_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+reefnet_sensusultra_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t *) abstract;
 

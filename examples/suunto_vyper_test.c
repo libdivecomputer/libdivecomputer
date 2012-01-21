@@ -30,7 +30,7 @@
 dc_status_t
 test_dump_sdm (const char* name, unsigned int delay)
 {
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 
 	message ("suunto_vyper_device_open\n");
 	dc_status_t rc = suunto_vyper_device_open (&device, name);
@@ -41,16 +41,16 @@ test_dump_sdm (const char* name, unsigned int delay)
 
 	suunto_vyper_device_set_delay (device, delay);
 
-	message ("device_foreach\n");
-	rc = device_foreach (device, NULL, NULL);
+	message ("dc_device_foreach\n");
+	rc = dc_device_foreach (device, NULL, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read dives.");
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
-	message ("device_close\n");
-	rc = device_close (device);
+	message ("dc_device_close\n");
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;
@@ -63,7 +63,7 @@ test_dump_sdm (const char* name, unsigned int delay)
 dc_status_t
 test_dump_memory (const char* name, unsigned int delay, const char* filename)
 {
-	device_t *device = NULL;
+	dc_device_t *device = NULL;
 
 	message ("suunto_vyper_device_open\n");
 	dc_status_t rc = suunto_vyper_device_open (&device, name);
@@ -76,12 +76,12 @@ test_dump_memory (const char* name, unsigned int delay, const char* filename)
 
 	dc_buffer_t *buffer = dc_buffer_new (0);
 
-	message ("device_dump\n");
-	rc = device_dump (device, buffer);
+	message ("dc_device_dump\n");
+	rc = dc_device_dump (device, buffer);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot read memory.");
 		dc_buffer_free (buffer);
-		device_close (device);
+		dc_device_close (device);
 		return rc;
 	}
 
@@ -94,8 +94,8 @@ test_dump_memory (const char* name, unsigned int delay, const char* filename)
 
 	dc_buffer_free (buffer);
 
-	message ("device_close\n");
-	rc = device_close (device);
+	message ("dc_device_close\n");
+	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
 		return rc;

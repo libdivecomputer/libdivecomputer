@@ -33,19 +33,19 @@ extern "C" {
 #define SUUNTO_VYPER_PACKET_SIZE 32
 
 dc_status_t
-suunto_vyper_device_open (device_t **device, const char* name);
+suunto_vyper_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-suunto_vyper_device_set_delay (device_t *device, unsigned int delay);
+suunto_vyper_device_set_delay (dc_device_t *device, unsigned int delay);
 
 dc_status_t
-suunto_vyper_device_read_dive (device_t *device, dc_buffer_t *buffer, int init);
+suunto_vyper_device_read_dive (dc_device_t *device, dc_buffer_t *buffer, int init);
 
 dc_status_t
-suunto_vyper_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+suunto_vyper_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-suunto_vyper_parser_create (parser_t **parser);
+suunto_vyper_parser_create (dc_parser_t **parser);
 
 #ifdef __cplusplus
 }

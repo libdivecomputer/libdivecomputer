@@ -44,17 +44,17 @@
 #define HEADER 4
 
 typedef struct uwatec_aladin_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
 } uwatec_aladin_device_t ;
 
-static dc_status_t uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t uwatec_aladin_device_close (device_t *abstract);
+static dc_status_t uwatec_aladin_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t uwatec_aladin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t uwatec_aladin_device_close (dc_device_t *abstract);
 
 static const device_backend_t uwatec_aladin_device_backend = {
 	DC_FAMILY_UWATEC_ALADIN,
@@ -68,7 +68,7 @@ static const device_backend_t uwatec_aladin_device_backend = {
 };
 
 static int
-device_is_uwatec_aladin (device_t *abstract)
+device_is_uwatec_aladin (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -78,7 +78,7 @@ device_is_uwatec_aladin (device_t *abstract)
 
 
 dc_status_t
-uwatec_aladin_device_open (device_t **out, const char* name)
+uwatec_aladin_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -133,14 +133,14 @@ uwatec_aladin_device_open (device_t **out, const char* name)
 		return DC_STATUS_IO;
 	}
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-uwatec_aladin_device_close (device_t *abstract)
+uwatec_aladin_device_close (dc_device_t *abstract)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
@@ -161,7 +161,7 @@ uwatec_aladin_device_close (device_t *abstract)
 
 
 dc_status_t
-uwatec_aladin_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+uwatec_aladin_device_set_timestamp (dc_device_t *abstract, unsigned int timestamp)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
@@ -175,7 +175,7 @@ uwatec_aladin_device_set_timestamp (device_t *abstract, unsigned int timestamp)
 
 
 static dc_status_t
-uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+uwatec_aladin_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
@@ -195,7 +195,7 @@ uwatec_aladin_device_set_fingerprint (device_t *abstract, const unsigned char da
 
 
 static dc_status_t
-uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
+uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
@@ -210,9 +210,9 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = UWATEC_ALADIN_MEMORY_SIZE + 2;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	unsigned char answer[UWATEC_ALADIN_MEMORY_SIZE + 2] = {0};
 
@@ -230,7 +230,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 			i++; // Continue.
 		} else {
 			i = 0; // Reset.
-			device_event_emit (abstract, DEVICE_EVENT_WAITING, NULL);
+			device_event_emit (abstract, DC_EVENT_WAITING, NULL);
 		}
 	}
 
@@ -239,7 +239,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	// Update and emit a progress event.
 	progress.current += 4;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Receive the remaining part of the package.
 	int rc = serial_read (device->port, answer + 4, sizeof (answer) - 4);
@@ -250,7 +250,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 	// Update and emit a progress event.
 	progress.current += sizeof (answer) - 4;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Reverse the bit order.
 	array_reverse_bits (answer, sizeof (answer));
@@ -268,10 +268,10 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 	device->devtime = array_uint32_be (answer + HEADER + 0x7f8);
 
 	// Emit a clock event.
-	device_clock_t clock;
+	dc_event_clock_t clock;
 	clock.systime = device->systime;
 	clock.devtime = device->devtime;
-	device_event_emit (abstract, DEVICE_EVENT_CLOCK, &clock);
+	device_event_emit (abstract, DC_EVENT_CLOCK, &clock);
 
 	dc_buffer_append (buffer, answer, UWATEC_ALADIN_MEMORY_SIZE);
 
@@ -280,7 +280,7 @@ uwatec_aladin_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+uwatec_aladin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	if (! device_is_uwatec_aladin (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -297,11 +297,11 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = data[HEADER + 0x7bc];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint24_be (data + HEADER + 0x7ed);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = uwatec_aladin_extract_dives (abstract,
 		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
@@ -313,7 +313,7 @@ uwatec_aladin_device_foreach (device_t *abstract, dive_callback_t callback, void
 
 
 dc_status_t
-uwatec_aladin_extract_dives (device_t *abstract, const unsigned char* data, unsigned int size, dive_callback_t callback, void *userdata)
+uwatec_aladin_extract_dives (dc_device_t *abstract, const unsigned char* data, unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 

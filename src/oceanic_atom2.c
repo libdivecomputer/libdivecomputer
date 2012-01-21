@@ -48,10 +48,10 @@ typedef struct oceanic_atom2_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_atom2_device_t;
 
-static dc_status_t oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static dc_status_t oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static dc_status_t oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
-static dc_status_t oceanic_atom2_device_close (device_t *abstract);
+static dc_status_t oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
+static dc_status_t oceanic_atom2_device_close (dc_device_t *abstract);
 
 static const device_backend_t oceanic_atom2_device_backend = {
 	DC_FAMILY_OCEANIC_ATOM2,
@@ -206,7 +206,7 @@ static const oceanic_common_layout_t oceanic_veo1_layout = {
 
 
 static int
-device_is_oceanic_atom2 (device_t *abstract)
+device_is_oceanic_atom2 (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -218,7 +218,7 @@ device_is_oceanic_atom2 (device_t *abstract)
 static dc_status_t
 oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
 {
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -307,7 +307,7 @@ oceanic_atom2_quit (oceanic_atom2_device_t *device)
 
 
 dc_status_t
-oceanic_atom2_device_open (device_t **out, const char* name)
+oceanic_atom2_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -360,7 +360,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
 	// by connecting the device), or already in download mode.
-	dc_status_t status = oceanic_atom2_device_version ((device_t *) device, device->version, sizeof (device->version));
+	dc_status_t status = oceanic_atom2_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
@@ -402,14 +402,14 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	else
 		device->base.layout = &oceanic_default_layout;
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-oceanic_atom2_device_close (device_t *abstract)
+oceanic_atom2_device_close (dc_device_t *abstract)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
@@ -433,7 +433,7 @@ oceanic_atom2_device_close (device_t *abstract)
 
 
 dc_status_t
-oceanic_atom2_device_keepalive (device_t *abstract)
+oceanic_atom2_device_keepalive (dc_device_t *abstract)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
@@ -451,7 +451,7 @@ oceanic_atom2_device_keepalive (device_t *abstract)
 
 
 static dc_status_t
-oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned int size)
+oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
@@ -474,7 +474,7 @@ oceanic_atom2_device_version (device_t *abstract, unsigned char data[], unsigned
 
 
 static dc_status_t
-oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
@@ -513,7 +513,7 @@ oceanic_atom2_device_read (device_t *abstract, unsigned int address, unsigned ch
 
 
 static dc_status_t
-oceanic_atom2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
+oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 

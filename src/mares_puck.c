@@ -43,10 +43,10 @@ typedef struct mares_puck_device_t {
 	unsigned char fingerprint[5];
 } mares_puck_device_t;
 
-static dc_status_t mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t mares_puck_device_close (device_t *abstract);
+static dc_status_t mares_puck_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t mares_puck_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t mares_puck_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t mares_puck_device_close (dc_device_t *abstract);
 
 static const device_backend_t mares_puck_device_backend = {
 	DC_FAMILY_MARES_PUCK,
@@ -84,7 +84,7 @@ static const mares_common_layout_t mares_nemowide_layout = {
 };
 
 static int
-device_is_mares_puck (device_t *abstract)
+device_is_mares_puck (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -94,7 +94,7 @@ device_is_mares_puck (device_t *abstract)
 
 
 dc_status_t
-mares_puck_device_open (device_t **out, const char* name)
+mares_puck_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -152,7 +152,7 @@ mares_puck_device_open (device_t **out, const char* name)
 
 	// Identify the model number.
 	unsigned char header[PACKETSIZE] = {0};
-	dc_status_t status = mares_common_device_read ((device_t *) device, 0, header, sizeof (header));
+	dc_status_t status = mares_common_device_read ((dc_device_t *) device, 0, header, sizeof (header));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->base.port);
 		free (device);
@@ -176,14 +176,14 @@ mares_puck_device_open (device_t **out, const char* name)
 		break;
 	}
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_puck_device_close (device_t *abstract)
+mares_puck_device_close (dc_device_t *abstract)
 {
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
 
@@ -201,7 +201,7 @@ mares_puck_device_close (device_t *abstract)
 
 
 static dc_status_t
-mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+mares_puck_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
@@ -218,7 +218,7 @@ mares_puck_device_set_fingerprint (device_t *abstract, const unsigned char data[
 
 
 static dc_status_t
-mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
+mares_puck_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
@@ -237,7 +237,7 @@ mares_puck_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+mares_puck_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
@@ -255,11 +255,11 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = data[1];
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint16_be (data + 8);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = mares_common_extract_dives (device->layout, device->fingerprint, data, callback, userdata);
 
@@ -270,7 +270,7 @@ mares_puck_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 
 dc_status_t
-mares_puck_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+mares_puck_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
 

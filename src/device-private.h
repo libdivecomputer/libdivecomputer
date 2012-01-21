@@ -30,53 +30,53 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define DEVICE_PROGRESS_INITIALIZER {0, UINT_MAX}
+#define EVENT_PROGRESS_INITIALIZER {0, UINT_MAX}
 
-struct device_t;
+struct dc_device_t;
 struct device_backend_t;
 
 typedef struct device_backend_t device_backend_t;
 
-struct device_t {
+struct dc_device_t {
 	const device_backend_t *backend;
 	// Event notifications.
 	unsigned int event_mask;
-	device_event_callback_t event_callback;
+	dc_event_callback_t event_callback;
 	void *event_userdata;
 	// Cancellation support.
-	device_cancel_callback_t cancel_callback;
+	dc_cancel_callback_t cancel_callback;
 	void *cancel_userdata;
 };
 
 struct device_backend_t {
 	dc_family_t type;
 
-	dc_status_t (*set_fingerprint) (device_t *device, const unsigned char data[], unsigned int size);
+	dc_status_t (*set_fingerprint) (dc_device_t *device, const unsigned char data[], unsigned int size);
 
-	dc_status_t (*version) (device_t *device, unsigned char data[], unsigned int size);
+	dc_status_t (*version) (dc_device_t *device, unsigned char data[], unsigned int size);
 
-	dc_status_t (*read) (device_t *device, unsigned int address, unsigned char data[], unsigned int size);
+	dc_status_t (*read) (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size);
 
-	dc_status_t (*write) (device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
+	dc_status_t (*write) (dc_device_t *device, unsigned int address, const unsigned char data[], unsigned int size);
 
-	dc_status_t (*dump) (device_t *device, dc_buffer_t *buffer);
+	dc_status_t (*dump) (dc_device_t *device, dc_buffer_t *buffer);
 
-	dc_status_t (*foreach) (device_t *device, dive_callback_t callback, void *userdata);
+	dc_status_t (*foreach) (dc_device_t *device, dc_dive_callback_t callback, void *userdata);
 
-	dc_status_t (*close) (device_t *device);
+	dc_status_t (*close) (dc_device_t *device);
 };
 
 void
-device_init (device_t *device, const device_backend_t *backend);
+device_init (dc_device_t *device, const device_backend_t *backend);
 
 void
-device_event_emit (device_t *device, device_event_t event, const void *data);
+device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data);
 
 int
-device_is_cancelled (device_t *device);
+device_is_cancelled (dc_device_t *device);
 
 dc_status_t
-device_dump_read (device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize);
+device_dump_read (dc_device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize);
 
 #ifdef __cplusplus
 }

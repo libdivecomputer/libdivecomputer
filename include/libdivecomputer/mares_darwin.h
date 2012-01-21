@@ -30,13 +30,13 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-mares_darwin_device_open (device_t **device, const char *name, unsigned int model);
+mares_darwin_device_open (dc_device_t **device, const char *name, unsigned int model);
 
 dc_status_t
-mares_darwin_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+mares_darwin_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-mares_darwin_parser_create (parser_t **parser, unsigned int model);
+mares_darwin_parser_create (dc_parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }

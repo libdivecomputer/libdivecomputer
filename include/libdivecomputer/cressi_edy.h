@@ -33,10 +33,10 @@ extern "C" {
 #define CRESSI_EDY_PACKET_SIZE 128
 
 dc_status_t
-cressi_edy_device_open (device_t **device, const char* name);
+cressi_edy_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-cressi_edy_parser_create (parser_t **parser, unsigned int model);
+cressi_edy_parser_create (dc_parser_t **parser, unsigned int model);
 
 #ifdef __cplusplus
 }

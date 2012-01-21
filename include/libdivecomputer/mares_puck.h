@@ -30,10 +30,10 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-mares_puck_device_open (device_t **device, const char* name);
+mares_puck_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-mares_puck_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+mares_puck_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

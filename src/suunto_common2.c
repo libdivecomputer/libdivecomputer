@@ -57,7 +57,7 @@ suunto_common2_device_init (suunto_common2_device_t *device, const suunto_common
 
 
 static dc_status_t
-suunto_common2_transfer (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
+suunto_common2_transfer (dc_device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	assert (asize >= size + 4);
 
@@ -87,7 +87,7 @@ suunto_common2_transfer (device_t *abstract, const unsigned char command[], unsi
 
 
 dc_status_t
-suunto_common2_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+suunto_common2_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	suunto_common2_device_t *device = (suunto_common2_device_t*) abstract;
 
@@ -104,7 +104,7 @@ suunto_common2_device_set_fingerprint (device_t *abstract, const unsigned char d
 
 
 dc_status_t
-suunto_common2_device_version (device_t *abstract, unsigned char data[], unsigned int size)
+suunto_common2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	if (size < SZ_VERSION) {
 		WARNING ("Insufficient buffer space available.");
@@ -124,7 +124,7 @@ suunto_common2_device_version (device_t *abstract, unsigned char data[], unsigne
 
 
 dc_status_t
-suunto_common2_device_reset_maxdepth (device_t *abstract)
+suunto_common2_device_reset_maxdepth (dc_device_t *abstract)
 {
 	unsigned char answer[4] = {0};
 	unsigned char command[4] = {0x20, 0x00, 0x00, 0x20};
@@ -137,7 +137,7 @@ suunto_common2_device_reset_maxdepth (device_t *abstract)
 
 
 dc_status_t
-suunto_common2_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+suunto_common2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	// The data transmission is split in packages
 	// of maximum $SZ_PACKET bytes.
@@ -173,7 +173,7 @@ suunto_common2_device_read (device_t *abstract, unsigned int address, unsigned c
 
 
 dc_status_t
-suunto_common2_device_write (device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
+suunto_common2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	// The data transmission is split in packages
 	// of maximum $SZ_PACKET bytes.
@@ -208,7 +208,7 @@ suunto_common2_device_write (device_t *abstract, unsigned int address, const uns
 
 
 dc_status_t
-suunto_common2_device_dump (device_t *abstract, dc_buffer_t *buffer)
+suunto_common2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	suunto_common2_device_t *device = (suunto_common2_device_t *) abstract;
 
@@ -228,7 +228,7 @@ suunto_common2_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 dc_status_t
-suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	suunto_common2_device_t *device = (suunto_common2_device_t*) abstract;
 
@@ -241,10 +241,10 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin +
 		8 + SZ_VERSION + (SZ_MINIMUM > 4 ? SZ_MINIMUM : 4);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the version info.
 	unsigned char version[SZ_VERSION] = {0};
@@ -256,7 +256,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Update and emit a progress event.
 	progress.current += sizeof (version);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the serial number.
 	unsigned char serial[SZ_MINIMUM > 4 ? SZ_MINIMUM : 4] = {0};
@@ -268,14 +268,14 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	// Update and emit a progress event.
 	progress.current += sizeof (serial);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = version[0];
 	devinfo.firmware = array_uint24_be (version + 1);
 	devinfo.serial = array_uint32_be (serial);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the header bytes.
 	unsigned char header[8] = {0};
@@ -317,7 +317,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 	progress.maximum -= (layout->rb_profile_end - layout->rb_profile_begin) - remaining;
 	progress.current += sizeof (header);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// To reduce the number of read operations, we always try to read
 	// packages with the largest possible size. As a consequence, the
@@ -383,7 +383,7 @@ suunto_common2_device_foreach (device_t *abstract, dive_callback_t callback, voi
 
 			// Update and emit a progress event.
 			progress.current += len;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 			// Next package.
 			nbytes += len;

@@ -33,22 +33,22 @@ extern "C" {
 #define REEFNET_SENSUS_HANDSHAKE_SIZE 10
 
 dc_status_t
-reefnet_sensus_device_open (device_t **device, const char* name);
+reefnet_sensus_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-reefnet_sensus_device_set_timestamp (device_t *device, unsigned int timestamp);
+reefnet_sensus_device_set_timestamp (dc_device_t *device, unsigned int timestamp);
 
 dc_status_t
-reefnet_sensus_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size);
+reefnet_sensus_device_get_handshake (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
-reefnet_sensus_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+reefnet_sensus_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-reefnet_sensus_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
+reefnet_sensus_parser_create (dc_parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
 dc_status_t
-reefnet_sensus_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);
+reefnet_sensus_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus
 }

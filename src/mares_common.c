@@ -125,7 +125,7 @@ mares_common_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned
 static dc_status_t
 mares_common_packet (mares_common_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -206,7 +206,7 @@ mares_common_transfer (mares_common_device_t *device, const unsigned char comman
 
 
 dc_status_t
-mares_common_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+mares_common_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	mares_common_device_t *device = (mares_common_device_t*) abstract;
 
@@ -249,7 +249,7 @@ mares_common_device_read (device_t *abstract, unsigned int address, unsigned cha
 
 
 dc_status_t
-mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dive_callback_t callback, void *userdata)
+mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dc_dive_callback_t callback, void *userdata)
 {
 	assert (layout != NULL);
 

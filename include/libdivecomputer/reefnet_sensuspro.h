@@ -33,25 +33,25 @@ extern "C" {
 #define REEFNET_SENSUSPRO_HANDSHAKE_SIZE 10
 
 dc_status_t
-reefnet_sensuspro_device_open (device_t **device, const char* name);
+reefnet_sensuspro_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-reefnet_sensuspro_device_set_timestamp (device_t *device, unsigned int timestamp);
+reefnet_sensuspro_device_set_timestamp (dc_device_t *device, unsigned int timestamp);
 
 dc_status_t
-reefnet_sensuspro_device_get_handshake (device_t *abstract, unsigned char data[], unsigned int size);
+reefnet_sensuspro_device_get_handshake (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
-reefnet_sensuspro_device_write_interval (device_t *device, unsigned char interval);
+reefnet_sensuspro_device_write_interval (dc_device_t *device, unsigned char interval);
 
 dc_status_t
-reefnet_sensuspro_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+reefnet_sensuspro_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-reefnet_sensuspro_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
+reefnet_sensuspro_parser_create (dc_parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
 dc_status_t
-reefnet_sensuspro_parser_set_calibration (parser_t *parser, double atmospheric, double hydrostatic);
+reefnet_sensuspro_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus
 }

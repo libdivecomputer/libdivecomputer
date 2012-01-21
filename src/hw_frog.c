@@ -58,15 +58,15 @@
 #define EXIT       0xFF
 
 typedef struct hw_frog_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned char fingerprint[5];
 } hw_frog_device_t;
 
-static dc_status_t hw_frog_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t hw_frog_device_version (device_t *abstract, unsigned char data[], unsigned int size);
-static dc_status_t hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t hw_frog_device_close (device_t *abstract);
+static dc_status_t hw_frog_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t hw_frog_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
+static dc_status_t hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t hw_frog_device_close (dc_device_t *abstract);
 
 static const device_backend_t hw_frog_device_backend = {
 	DC_FAMILY_HW_FROG,
@@ -81,7 +81,7 @@ static const device_backend_t hw_frog_device_backend = {
 
 
 static int
-device_is_hw_frog (device_t *abstract)
+device_is_hw_frog (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -92,7 +92,7 @@ device_is_hw_frog (device_t *abstract)
 
 static dc_status_t
 hw_frog_transfer (hw_frog_device_t *device,
-                  device_progress_t *progress,
+                  dc_event_progress_t *progress,
                   unsigned char cmd,
                   const unsigned char input[],
                   unsigned int isize,
@@ -157,7 +157,7 @@ hw_frog_transfer (hw_frog_device_t *device,
 			// Update and emit a progress event.
 			if (progress) {
 				progress->current += len;
-				device_event_emit ((device_t *) device, DEVICE_EVENT_PROGRESS, progress);
+				device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
 			}
 
 			nbytes += len;
@@ -185,7 +185,7 @@ hw_frog_transfer (hw_frog_device_t *device,
 
 
 dc_status_t
-hw_frog_device_open (device_t **out, const char* name)
+hw_frog_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -242,14 +242,14 @@ hw_frog_device_open (device_t **out, const char* name)
 		return status;
 	}
 
-	*out = (device_t *) device;
+	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-hw_frog_device_close (device_t *abstract)
+hw_frog_device_close (dc_device_t *abstract)
 {
 	hw_frog_device_t *device = (hw_frog_device_t*) abstract;
 
@@ -276,7 +276,7 @@ hw_frog_device_close (device_t *abstract)
 
 
 static dc_status_t
-hw_frog_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+hw_frog_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
@@ -293,7 +293,7 @@ hw_frog_device_set_fingerprint (device_t *abstract, const unsigned char data[], 
 
 
 static dc_status_t
-hw_frog_device_version (device_t *abstract, unsigned char data[], unsigned int size)
+hw_frog_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
@@ -313,15 +313,15 @@ hw_frog_device_version (device_t *abstract, unsigned char data[], unsigned int s
 
 
 static dc_status_t
-hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT) +
 		(RB_PROFILE_END - RB_PROFILE_BEGIN);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Download the version data.
 	unsigned char id[SZ_VERSION] = {0};
@@ -332,11 +332,11 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 	}
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = array_uint16_be (id + 2);
 	devinfo.serial = array_uint16_le (id + 0);
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate memory.
 	unsigned char *header = malloc (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT);
@@ -414,7 +414,7 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 
 	// Update and emit a progress event.
 	progress.maximum = (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT) + size;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Allocate enough memory for the largest dive.
 	unsigned char *profile = malloc (maxsize);
@@ -459,7 +459,7 @@ hw_frog_device_foreach (device_t *abstract, dive_callback_t callback, void *user
 
 
 dc_status_t
-hw_frog_device_clock (device_t *abstract, const dc_datetime_t *datetime)
+hw_frog_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
@@ -484,7 +484,7 @@ hw_frog_device_clock (device_t *abstract, const dc_datetime_t *datetime)
 
 
 dc_status_t
-hw_frog_device_display (device_t *abstract, const char *text)
+hw_frog_device_display (dc_device_t *abstract, const char *text)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
@@ -514,7 +514,7 @@ hw_frog_device_display (device_t *abstract, const char *text)
 
 
 dc_status_t
-hw_frog_device_customtext (device_t *abstract, const char *text)
+hw_frog_device_customtext (dc_device_t *abstract, const char *text)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 

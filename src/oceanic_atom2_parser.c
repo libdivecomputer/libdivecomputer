@@ -53,7 +53,7 @@
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
 struct oceanic_atom2_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
@@ -61,11 +61,11 @@ struct oceanic_atom2_parser_t {
 	double maxdepth;
 };
 
-static dc_status_t oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static dc_status_t oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t oceanic_atom2_parser_destroy (parser_t *abstract);
+static dc_status_t oceanic_atom2_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t oceanic_atom2_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t oceanic_atom2_parser_backend = {
 	DC_FAMILY_OCEANIC_ATOM2,
@@ -78,7 +78,7 @@ static const parser_backend_t oceanic_atom2_parser_backend = {
 
 
 static int
-parser_is_oceanic_atom2 (parser_t *abstract)
+parser_is_oceanic_atom2 (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -88,7 +88,7 @@ parser_is_oceanic_atom2 (parser_t *abstract)
 
 
 dc_status_t
-oceanic_atom2_parser_create (parser_t **out, unsigned int model)
+oceanic_atom2_parser_create (dc_parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -109,14 +109,14 @@ oceanic_atom2_parser_create (parser_t **out, unsigned int model)
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
 
-	*out = (parser_t*) parser;
+	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-oceanic_atom2_parser_destroy (parser_t *abstract)
+oceanic_atom2_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_oceanic_atom2 (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -129,7 +129,7 @@ oceanic_atom2_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+oceanic_atom2_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
@@ -146,7 +146,7 @@ oceanic_atom2_parser_set_data (parser_t *abstract, const unsigned char *data, un
 
 
 static dc_status_t
-oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
@@ -255,7 +255,7 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 
 static dc_status_t
-oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
@@ -300,25 +300,25 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 		parser->maxdepth = statistics.maxdepth;
 	}
 
-	gasmix_t *gasmix = (gasmix_t *) value;
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	unsigned int nitrox = 0;
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			if (parser->model == F10)
 				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60 + bcd2dec (data[1]) * 3600;
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			if (parser->model == F10)
 				*((double *) value) = array_uint16_le (data + 4) / 16.0 * FEET;
 			else
 				*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				*((unsigned int *) value) = 1;
 			else if (parser->model == VT4 || parser->model == VT41)
@@ -326,7 +326,7 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 			else
 				*((unsigned int *) value) = 3;
 			break;
-		case FIELD_TYPE_GASMIX:
+		case DC_FIELD_GASMIX:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				nitrox = data[header + 3];
 			else
@@ -345,7 +345,7 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 
 
 static dc_status_t
-oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
@@ -428,7 +428,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int complete = 1;
 	unsigned int offset = headersize;
 	while (offset + samplesize <= size - footersize) {
-		parser_sample_value_t sample = {0};
+		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
 		if (array_isequal (data + offset, samplesize, 0x00) ||
@@ -441,7 +441,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		if (complete) {
 			time += interval;
 			sample.time = time;
-			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			complete = 0;
 		}
@@ -464,7 +464,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
 		sample.vendor.size = length;
 		sample.vendor.data = data + offset;
-		if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
+		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
 
 		// Check for a tank switch sample.
 		if (sampletype == 0xAA) {
@@ -491,11 +491,11 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				if (complete) {
 					time += interval;
 					sample.time = time;
-					if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 				}
 
 				sample.depth = 0.0;
-				if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 				complete = 1;
 			}
 		} else {
@@ -521,7 +521,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 						temperature += (data[offset + 7] & 0x0C) >> 2;
 				}
 				sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-				if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 			}
 
 			// Tank Pressure (psi)
@@ -534,7 +534,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 					pressure -= data[offset + 1];
 				sample.pressure.tank = tank;
 				sample.pressure.value = pressure * PSI / BAR;
-				if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 			}
 
 			// Depth (1/16 ft)
@@ -550,7 +550,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;
-			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 			complete = 1;
 		}

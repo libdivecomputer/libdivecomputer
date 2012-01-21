@@ -33,15 +33,15 @@
 typedef struct mares_iconhd_parser_t mares_iconhd_parser_t;
 
 struct mares_iconhd_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	unsigned int model;
 };
 
-static dc_status_t mares_iconhd_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static dc_status_t mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t mares_iconhd_parser_destroy (parser_t *abstract);
+static dc_status_t mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t mares_iconhd_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t mares_iconhd_parser_backend = {
 	DC_FAMILY_MARES_ICONHD,
@@ -54,7 +54,7 @@ static const parser_backend_t mares_iconhd_parser_backend = {
 
 
 static int
-parser_is_mares_iconhd (parser_t *abstract)
+parser_is_mares_iconhd (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -64,7 +64,7 @@ parser_is_mares_iconhd (parser_t *abstract)
 
 
 dc_status_t
-mares_iconhd_parser_create (parser_t **out, unsigned int model)
+mares_iconhd_parser_create (dc_parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -82,14 +82,14 @@ mares_iconhd_parser_create (parser_t **out, unsigned int model)
 	// Set the default values.
 	parser->model = model;
 
-	*out = (parser_t*) parser;
+	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_iconhd_parser_destroy (parser_t *abstract)
+mares_iconhd_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_mares_iconhd (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -102,14 +102,14 @@ mares_iconhd_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-mares_iconhd_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
 
@@ -142,7 +142,7 @@ mares_iconhd_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 
 static dc_status_t
-mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
 
@@ -161,20 +161,20 @@ mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 
 	const unsigned char *p = abstract->data + length - header;
 
-	gasmix_t *gasmix = (gasmix_t *) value;
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			*((unsigned int *) value) = array_uint16_le (p + 0x02) * 5;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = array_uint16_le (p + 0x04) / 10.0;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 3;
 			break;
-		case FIELD_TYPE_GASMIX:
+		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
 			gasmix->oxygen = p[0x14 + flags * 4] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -189,7 +189,7 @@ mares_iconhd_parser_get_field (parser_t *abstract, parser_field_type_t type, uns
 
 
 static dc_status_t
-mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
 
@@ -217,22 +217,22 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	unsigned int offset = 4;
 	unsigned int nsamples = 0;
 	while (offset + samplesize <= size) {
-		parser_sample_value_t sample = {0};
+		dc_sample_value_t sample = {0};
 
 		// Time (seconds).
 		time += interval;
 		sample.time = time;
-		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Depth (1/10 m).
 		unsigned int depth = array_uint16_le (data + offset + 0);
 		sample.depth = depth / 10.0;
-		if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (1/10 °C).
 		unsigned int temperature = array_uint16_le (data + offset + 2);
 		sample.temperature = temperature / 10.0;
-		if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
 		offset += samplesize;
 		nsamples++;
@@ -246,7 +246,7 @@ mares_iconhd_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			unsigned int pressure = array_uint16_le(data + offset);
 			sample.pressure.tank = 0;
 			sample.pressure.value = pressure / 100.0;
-			if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 
 			offset += 8;
 		}

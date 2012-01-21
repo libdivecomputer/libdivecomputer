@@ -44,7 +44,7 @@ suunto_common_device_init (suunto_common_device_t *device, const device_backend_
 
 
 dc_status_t
-suunto_common_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+suunto_common_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	suunto_common_device_t *device = (suunto_common_device_t *) abstract;
 
@@ -63,7 +63,7 @@ suunto_common_device_set_fingerprint (device_t *abstract, const unsigned char da
 
 
 dc_status_t
-suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dive_callback_t callback, void *userdata)
+suunto_common_extract_dives (suunto_common_device_t *device, const suunto_common_layout_t *layout, const unsigned char data[], dc_dive_callback_t callback, void *userdata)
 {
 	assert (layout != NULL);
 

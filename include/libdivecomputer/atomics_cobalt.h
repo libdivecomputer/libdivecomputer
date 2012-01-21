@@ -30,16 +30,16 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-atomics_cobalt_device_open (device_t **device);
+atomics_cobalt_device_open (dc_device_t **device);
 
 dc_status_t
-atomics_cobalt_device_set_simulation (device_t *abstract, unsigned int simulation);
+atomics_cobalt_device_set_simulation (dc_device_t *device, unsigned int simulation);
 
 dc_status_t
-atomics_cobalt_parser_create (parser_t **parser);
+atomics_cobalt_parser_create (dc_parser_t **parser);
 
 dc_status_t
-atomics_cobalt_parser_set_calibration (parser_t *abstract, double atmospheric, double hydrostatic);
+atomics_cobalt_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
 
 #ifdef __cplusplus
 }

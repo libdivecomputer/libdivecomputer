@@ -17,12 +17,12 @@ dc_datetime_localtime
 dc_datetime_gmtime
 dc_datetime_mktime
 
-parser_get_type
-parser_set_data
-parser_get_datetime
-parser_get_field
-parser_samples_foreach
-parser_destroy
+dc_parser_get_type
+dc_parser_set_data
+dc_parser_get_datetime
+dc_parser_get_field
+dc_parser_samples_foreach
+dc_parser_destroy
 
 reefnet_sensus_parser_create
 reefnet_sensus_parser_set_calibration
@@ -47,16 +47,16 @@ cressi_edy_parser_create
 atomics_cobalt_parser_create
 atomics_cobalt_parser_set_calibration
 
-device_close
-device_dump
-device_foreach
-device_get_type
-device_read
-device_set_cancel
-device_set_events
-device_set_fingerprint
-device_version
-device_write
+dc_device_close
+dc_device_dump
+dc_device_foreach
+dc_device_get_type
+dc_device_read
+dc_device_set_cancel
+dc_device_set_events
+dc_device_set_fingerprint
+dc_device_version
+dc_device_write
 
 message
 message_set_logfile

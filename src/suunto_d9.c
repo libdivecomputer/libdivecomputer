@@ -48,8 +48,8 @@ typedef struct suunto_d9_device_t {
 	unsigned char version[4];
 } suunto_d9_device_t;
 
-static dc_status_t suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
-static dc_status_t suunto_d9_device_close (device_t *abstract);
+static dc_status_t suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
+static dc_status_t suunto_d9_device_close (dc_device_t *abstract);
 
 static const suunto_common2_device_backend_t suunto_d9_device_backend = {
 	{
@@ -80,7 +80,7 @@ static const suunto_common2_layout_t suunto_d9tx_layout = {
 };
 
 static int
-device_is_suunto_d9 (device_t *abstract)
+device_is_suunto_d9 (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -114,7 +114,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 		}
 
 		// Try reading the version info.
-		status = suunto_common2_device_version ((device_t *) device, device->version, sizeof (device->version));
+		status = suunto_common2_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 		if (status == DC_STATUS_SUCCESS)
 			break;
 	}
@@ -124,7 +124,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 
 
 dc_status_t
-suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
+suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -198,14 +198,14 @@ suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 	else
 		device->base.layout = &suunto_d9_layout;
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-suunto_d9_device_close (device_t *abstract)
+suunto_d9_device_close (dc_device_t *abstract)
 {
 	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
 
@@ -226,7 +226,7 @@ suunto_d9_device_close (device_t *abstract)
 
 
 static dc_status_t
-suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
+suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
 	suunto_d9_device_t *device = (suunto_d9_device_t *) abstract;
 
@@ -299,7 +299,7 @@ suunto_d9_device_packet (device_t *abstract, const unsigned char command[], unsi
 
 
 dc_status_t
-suunto_d9_device_reset_maxdepth (device_t *abstract)
+suunto_d9_device_reset_maxdepth (dc_device_t *abstract)
 {
 	if (! device_is_suunto_d9 (abstract))
 		return DC_STATUS_INVALIDARGS;

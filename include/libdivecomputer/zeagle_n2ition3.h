@@ -32,7 +32,7 @@ extern "C" {
 #define ZEAGLE_N2ITION3_PACKET_SIZE 64
 
 dc_status_t
-zeagle_n2ition3_device_open (device_t **device, const char* name);
+zeagle_n2ition3_device_open (dc_device_t **device, const char *name);
 
 #ifdef __cplusplus
 }

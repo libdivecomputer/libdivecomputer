@@ -49,17 +49,17 @@
 #define RB_LOGBOOK_END    60
 
 typedef struct cressi_edy_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned char fingerprint[PAGESIZE / 2];
 	unsigned int model;
 } cressi_edy_device_t;
 
-static dc_status_t cressi_edy_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t cressi_edy_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
-static dc_status_t cressi_edy_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t cressi_edy_device_close (device_t *abstract);
+static dc_status_t cressi_edy_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t cressi_edy_device_close (dc_device_t *abstract);
 
 static const device_backend_t cressi_edy_device_backend = {
 	DC_FAMILY_CRESSI_EDY,
@@ -73,7 +73,7 @@ static const device_backend_t cressi_edy_device_backend = {
 };
 
 static int
-device_is_cressi_edy (device_t *abstract)
+device_is_cressi_edy (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -171,7 +171,7 @@ cressi_edy_quit (cressi_edy_device_t *device)
 
 
 dc_status_t
-cressi_edy_device_open (device_t **out, const char* name)
+cressi_edy_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -238,14 +238,14 @@ cressi_edy_device_open (device_t **out, const char* name)
 		return DC_STATUS_IO;
 	}
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-cressi_edy_device_close (device_t *abstract)
+cressi_edy_device_close (dc_device_t *abstract)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
 
@@ -269,7 +269,7 @@ cressi_edy_device_close (device_t *abstract)
 
 
 static dc_status_t
-cressi_edy_device_read (device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
 
@@ -307,7 +307,7 @@ cressi_edy_device_read (device_t *abstract, unsigned int address, unsigned char 
 
 
 static dc_status_t
-cressi_edy_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+cressi_edy_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t *) abstract;
 
@@ -324,7 +324,7 @@ cressi_edy_device_set_fingerprint (device_t *abstract, const unsigned char data[
 
 
 static dc_status_t
-cressi_edy_device_dump (device_t *abstract, dc_buffer_t *buffer)
+cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	if (! device_is_cressi_edy (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -342,22 +342,22 @@ cressi_edy_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t *) abstract;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = CRESSI_EDY_PACKET_SIZE +
 		(RB_PROFILE_END - RB_PROFILE_BEGIN);
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
-	device_devinfo_t devinfo;
+	dc_event_devinfo_t devinfo;
 	devinfo.model = device->model;
 	devinfo.firmware = 0;
 	devinfo.serial = 0;
-	device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the configuration data.
 	unsigned char config[CRESSI_EDY_PACKET_SIZE] = {0};
@@ -369,7 +369,7 @@ cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 	// Update and emit a progress event.
 	progress.current += CRESSI_EDY_PACKET_SIZE;
-	device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Get the logbook pointers.
 	unsigned int last  = config[0x7C];
@@ -434,7 +434,7 @@ cressi_edy_device_foreach (device_t *abstract, dive_callback_t callback, void *u
 
 			// Update and emit a progress event.
 			progress.current += CRESSI_EDY_PACKET_SIZE;
-			device_event_emit (abstract, DEVICE_EVENT_PROGRESS, &progress);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 			nbytes += CRESSI_EDY_PACKET_SIZE;
 		}

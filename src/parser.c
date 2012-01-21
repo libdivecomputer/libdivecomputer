@@ -25,7 +25,7 @@
 
 
 void
-parser_init (parser_t *parser, const parser_backend_t *backend)
+parser_init (dc_parser_t *parser, const parser_backend_t *backend)
 {
 	parser->backend = backend;
 	parser->data = NULL;
@@ -34,7 +34,7 @@ parser_init (parser_t *parser, const parser_backend_t *backend)
 
 
 dc_family_t
-parser_get_type (parser_t *parser)
+dc_parser_get_type (dc_parser_t *parser)
 {
 	if (parser == NULL)
 		return DC_FAMILY_NULL;
@@ -44,7 +44,7 @@ parser_get_type (parser_t *parser)
 
 
 dc_status_t
-parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size)
+dc_parser_set_data (dc_parser_t *parser, const unsigned char *data, unsigned int size)
 {
 	if (parser == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -60,7 +60,7 @@ parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size)
 
 
 dc_status_t
-parser_get_datetime (parser_t *parser, dc_datetime_t *datetime)
+dc_parser_get_datetime (dc_parser_t *parser, dc_datetime_t *datetime)
 {
 	if (parser == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -72,7 +72,7 @@ parser_get_datetime (parser_t *parser, dc_datetime_t *datetime)
 }
 
 dc_status_t
-parser_get_field (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value)
+dc_parser_get_field (dc_parser_t *parser, dc_field_type_t type, unsigned int flags, void *value)
 {
 	if (parser == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -85,7 +85,7 @@ parser_get_field (parser_t *parser, parser_field_type_t type, unsigned int flags
 
 
 dc_status_t
-parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata)
+dc_parser_samples_foreach (dc_parser_t *parser, dc_sample_callback_t callback, void *userdata)
 {
 	if (parser == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -98,7 +98,7 @@ parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *user
 
 
 dc_status_t
-parser_destroy (parser_t *parser)
+dc_parser_destroy (dc_parser_t *parser)
 {
 	if (parser == NULL)
 		return DC_STATUS_SUCCESS;
@@ -111,15 +111,15 @@ parser_destroy (parser_t *parser)
 
 
 void
-sample_statistics_cb (parser_sample_type_t type, parser_sample_value_t value, void *userdata)
+sample_statistics_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 {
 	sample_statistics_t *statistics  = (sample_statistics_t *) userdata;
 
 	switch (type) {
-	case SAMPLE_TYPE_TIME:
+	case DC_SAMPLE_TIME:
 		statistics->divetime = value.time;
 		break;
-	case SAMPLE_TYPE_DEPTH:
+	case DC_SAMPLE_DEPTH:
 		if (statistics->maxdepth < value.depth)
 			statistics->maxdepth = value.depth;
 		break;

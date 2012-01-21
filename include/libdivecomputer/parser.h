@@ -19,8 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef DC_PARSER_H
+#define DC_PARSER_H
 
 #include "common.h"
 #include "datetime.h"
@@ -29,25 +29,25 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum parser_sample_type_t {
-	SAMPLE_TYPE_TIME,
-	SAMPLE_TYPE_DEPTH,
-	SAMPLE_TYPE_PRESSURE,
-	SAMPLE_TYPE_TEMPERATURE,
-	SAMPLE_TYPE_EVENT,
-	SAMPLE_TYPE_RBT,
-	SAMPLE_TYPE_HEARTBEAT,
-	SAMPLE_TYPE_BEARING,
-	SAMPLE_TYPE_VENDOR
-} parser_sample_type_t;
+typedef enum dc_sample_type_t {
+	DC_SAMPLE_TIME,
+	DC_SAMPLE_DEPTH,
+	DC_SAMPLE_PRESSURE,
+	DC_SAMPLE_TEMPERATURE,
+	DC_SAMPLE_EVENT,
+	DC_SAMPLE_RBT,
+	DC_SAMPLE_HEARTBEAT,
+	DC_SAMPLE_BEARING,
+	DC_SAMPLE_VENDOR
+} dc_sample_type_t;
 
-typedef enum parser_field_type_t {
-	FIELD_TYPE_DIVETIME,
-	FIELD_TYPE_MAXDEPTH,
-	FIELD_TYPE_AVGDEPTH,
-	FIELD_TYPE_GASMIX_COUNT,
-	FIELD_TYPE_GASMIX
-} parser_field_type_t;
+typedef enum dc_field_type_t {
+	DC_FIELD_DIVETIME,
+	DC_FIELD_MAXDEPTH,
+	DC_FIELD_AVGDEPTH,
+	DC_FIELD_GASMIX_COUNT,
+	DC_FIELD_GASMIX
+} dc_field_type_t;
 
 typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_NONE,
@@ -92,13 +92,13 @@ typedef enum parser_sample_vendor_t {
 	SAMPLE_VENDOR_OCEANIC_ATOM2
 } parser_sample_vendor_t;
 
-typedef struct gasmix_t {
+typedef struct dc_gasmix_t {
 	double helium;
 	double oxygen;
 	double nitrogen;
-} gasmix_t;
+} dc_gasmix_t;
 
-typedef union parser_sample_value_t {
+typedef union dc_sample_value_t {
 	unsigned int time;
 	double depth;
 	struct {
@@ -120,31 +120,31 @@ typedef union parser_sample_value_t {
 		unsigned int size;
 		const void *data;
 	} vendor;
-} parser_sample_value_t;
+} dc_sample_value_t;
 
-typedef struct parser_t parser_t;
+typedef struct dc_parser_t dc_parser_t;
 
-typedef void (*sample_callback_t) (parser_sample_type_t type, parser_sample_value_t value, void *userdata);
+typedef void (*dc_sample_callback_t) (dc_sample_type_t type, dc_sample_value_t value, void *userdata);
 
 dc_family_t
-parser_get_type (parser_t *device);
+dc_parser_get_type (dc_parser_t *parser);
 
 dc_status_t
-parser_set_data (parser_t *parser, const unsigned char *data, unsigned int size);
+dc_parser_set_data (dc_parser_t *parser, const unsigned char *data, unsigned int size);
 
 dc_status_t
-parser_get_datetime (parser_t *parser, dc_datetime_t *datetime);
+dc_parser_get_datetime (dc_parser_t *parser, dc_datetime_t *datetime);
 
 dc_status_t
-parser_get_field (parser_t *parser, parser_field_type_t type, unsigned int flags, void *value);
+dc_parser_get_field (dc_parser_t *parser, dc_field_type_t type, unsigned int flags, void *value);
 
 dc_status_t
-parser_samples_foreach (parser_t *parser, sample_callback_t callback, void *userdata);
+dc_parser_samples_foreach (dc_parser_t *parser, dc_sample_callback_t callback, void *userdata);
 
 dc_status_t
-parser_destroy (parser_t *parser);
+dc_parser_destroy (dc_parser_t *parser);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* PARSER_H */
+#endif /* DC_PARSER_H */

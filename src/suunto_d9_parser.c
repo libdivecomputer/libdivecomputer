@@ -46,7 +46,7 @@
 typedef struct suunto_d9_parser_t suunto_d9_parser_t;
 
 struct suunto_d9_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	unsigned int model;
 };
 
@@ -57,11 +57,11 @@ typedef struct sample_info_t {
 	unsigned int divisor;
 } sample_info_t;
 
-static dc_status_t suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime);
-static dc_status_t suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t suunto_d9_parser_destroy (parser_t *abstract);
+static dc_status_t suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
+static dc_status_t suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t suunto_d9_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t suunto_d9_parser_backend = {
 	DC_FAMILY_SUUNTO_D9,
@@ -74,7 +74,7 @@ static const parser_backend_t suunto_d9_parser_backend = {
 
 
 static int
-parser_is_suunto_d9 (parser_t *abstract)
+parser_is_suunto_d9 (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -84,7 +84,7 @@ parser_is_suunto_d9 (parser_t *abstract)
 
 
 dc_status_t
-suunto_d9_parser_create (parser_t **out, unsigned int model)
+suunto_d9_parser_create (dc_parser_t **out, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -102,14 +102,14 @@ suunto_d9_parser_create (parser_t **out, unsigned int model)
 	// Set the default values.
 	parser->model = model;
 
-	*out = (parser_t*) parser;
+	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-suunto_d9_parser_destroy (parser_t *abstract)
+suunto_d9_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_suunto_d9 (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -122,7 +122,7 @@ suunto_d9_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	if (! parser_is_suunto_d9 (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -132,7 +132,7 @@ suunto_d9_parser_set_data (parser_t *abstract, const unsigned char *data, unsign
 
 
 static dc_status_t
-suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
+suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
 
@@ -170,7 +170,7 @@ suunto_d9_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 
 
 static dc_status_t
-suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
 
@@ -186,11 +186,11 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 	if (size < config)
 		return DC_STATUS_DATAFORMAT;
 
-	gasmix_t *gasmix = (gasmix_t *) value;
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			if (parser->model == D4)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP);
 			else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
@@ -200,10 +200,10 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 			else
 				*((unsigned int *) value) = array_uint16_le (data + 0x0F - SKIP) * 60;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = array_uint16_le (data + 0x0D - SKIP) / 100.0;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			if (parser->model == HELO2) {
 				*((unsigned int *) value) = 8;
 			} else if (parser->model == D9tx) {
@@ -216,7 +216,7 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 				*((unsigned int *) value) = 3;
 			}
 			break;
-		case FIELD_TYPE_GASMIX:
+		case DC_FIELD_GASMIX:
 			if (parser->model == HELO2) {
 				gasmix->helium = data[0x58 - SKIP + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x58 - SKIP + 6 * flags + 1] / 100.0;
@@ -239,7 +239,7 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 
 
 static dc_status_t
-suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
 
@@ -321,11 +321,11 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 	unsigned int nsamples = 0;
 	unsigned int offset = profile + 5;
 	while (offset < size) {
-		parser_sample_value_t sample = {0};
+		dc_sample_value_t sample = {0};
 
 		// Time (seconds).
 		sample.time = time;
-		if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Sample data.
 		for (unsigned int i = 0; i < nparams; ++i) {
@@ -338,19 +338,19 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 				case 0x64: // Depth
 					value = array_uint16_le (data + offset);
 					sample.depth = value / (double) info[i].divisor;
-					if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+					if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 					break;
 				case 0x68: // Pressure
 					value = array_uint16_le (data + offset);
 					if (value != 0xFFFF) {
 						sample.pressure.tank = 0;
 						sample.pressure.value = value / (double) info[i].divisor;
-						if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 					}
 					break;
 				case 0x74: // Temperature
 					sample.temperature = (signed char) data[offset] / (double) info[i].divisor;
-					if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 					break;
 				default: // Unknown sample type
 					return DC_STATUS_DATAFORMAT;
@@ -388,7 +388,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_SURFACE;
 					sample.event.time = seconds;
-					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 2;
 					break;
 				case 0x03: // Event
@@ -467,7 +467,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					else
 						sample.event.flags = SAMPLE_FLAGS_BEGIN;
 					sample.event.time = seconds;
-					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 2;
 					break;
 				case 0x04: // Bookmark/Heading
@@ -484,7 +484,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 						sample.event.value = heading / 2;
 					}
 					sample.event.time = seconds;
-					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 4;
 					break;
 				case 0x05: // Gas Change
@@ -495,7 +495,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
 					sample.event.time = seconds;
 					sample.event.value = percentage;
-					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
@@ -508,7 +508,7 @@ suunto_d9_parser_samples_foreach (parser_t *abstract, sample_callback_t callback
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
 					sample.event.time = seconds;
 					sample.event.value = percentage;
-					if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 4;
 					break;
 				default:

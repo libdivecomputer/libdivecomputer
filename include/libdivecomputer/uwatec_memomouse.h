@@ -30,16 +30,16 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-uwatec_memomouse_device_open (device_t **device, const char* name);
+uwatec_memomouse_device_open (dc_device_t **device, const char *name);
 
 dc_status_t
-uwatec_memomouse_device_set_timestamp (device_t *device, unsigned int timestamp);
+uwatec_memomouse_device_set_timestamp (dc_device_t *device, unsigned int timestamp);
 
 dc_status_t
-uwatec_memomouse_extract_dives (device_t *device, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
+uwatec_memomouse_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-uwatec_memomouse_parser_create (parser_t **parser, unsigned int devtime, dc_ticks_t systime);
+uwatec_memomouse_parser_create (dc_parser_t **parser, unsigned int devtime, dc_ticks_t systime);
 
 #ifdef __cplusplus
 }

@@ -42,17 +42,17 @@
 #define NAK 0xA8
 
 typedef struct uwatec_memomouse_device_t {
-	device_t base;
+	dc_device_t base;
 	serial_t *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
 } uwatec_memomouse_device_t;
 
-static dc_status_t uwatec_memomouse_device_set_fingerprint (device_t *device, const unsigned char data[], unsigned int size);
-static dc_status_t uwatec_memomouse_device_dump (device_t *abstract, dc_buffer_t *buffer);
-static dc_status_t uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata);
-static dc_status_t uwatec_memomouse_device_close (device_t *abstract);
+static dc_status_t uwatec_memomouse_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
+static dc_status_t uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
+static dc_status_t uwatec_memomouse_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t uwatec_memomouse_device_close (dc_device_t *abstract);
 
 static const device_backend_t uwatec_memomouse_device_backend = {
 	DC_FAMILY_UWATEC_MEMOMOUSE,
@@ -66,7 +66,7 @@ static const device_backend_t uwatec_memomouse_device_backend = {
 };
 
 static int
-device_is_uwatec_memomouse (device_t *abstract)
+device_is_uwatec_memomouse (dc_device_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -76,7 +76,7 @@ device_is_uwatec_memomouse (device_t *abstract)
 
 
 dc_status_t
-uwatec_memomouse_device_open (device_t **out, const char* name)
+uwatec_memomouse_device_open (dc_device_t **out, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -134,14 +134,14 @@ uwatec_memomouse_device_open (device_t **out, const char* name)
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	*out = (device_t*) device;
+	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-uwatec_memomouse_device_close (device_t *abstract)
+uwatec_memomouse_device_close (dc_device_t *abstract)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
@@ -162,7 +162,7 @@ uwatec_memomouse_device_close (device_t *abstract)
 
 
 dc_status_t
-uwatec_memomouse_device_set_timestamp (device_t *abstract, unsigned int timestamp)
+uwatec_memomouse_device_set_timestamp (dc_device_t *abstract, unsigned int timestamp)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
@@ -176,7 +176,7 @@ uwatec_memomouse_device_set_timestamp (device_t *abstract, unsigned int timestam
 
 
 static dc_status_t
-uwatec_memomouse_device_set_fingerprint (device_t *abstract, const unsigned char data[], unsigned int size)
+uwatec_memomouse_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
@@ -268,7 +268,7 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 
 
 static dc_status_t
-uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer_t *buffer, device_progress_t *progress)
+uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer_t *buffer, dc_event_progress_t *progress)
 {
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
@@ -320,7 +320,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 		if (progress) {
 			progress->maximum = total;
 			progress->current += length;
-			device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, progress);
+			device_event_emit (&device->base, DC_EVENT_PROGRESS, progress);
 		}
 
 		// Append the packet to the buffer.
@@ -350,11 +350,11 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 static dc_status_t
 uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *buffer)
 {
-	device_t *abstract = (device_t *) device;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Enable progress notifications.
-	device_progress_t progress = DEVICE_PROGRESS_INITIALIZER;
-	device_event_emit (&device->base, DEVICE_EVENT_PROGRESS, &progress);
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	// Waiting for greeting message.
 	while (serial_get_received (device->port) == 0) {
@@ -430,7 +430,7 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
-		device_event_emit (&device->base, DEVICE_EVENT_WAITING, NULL);
+		device_event_emit (&device->base, DC_EVENT_WAITING, NULL);
 		serial_sleep (100);
 	}
 
@@ -447,17 +447,17 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 	device->devtime = array_uint32_le (dc_buffer_get_data (buffer) + 1);
 
 	// Emit a clock event.
-	device_clock_t clock;
+	dc_event_clock_t clock;
 	clock.systime = device->systime;
 	clock.devtime = device->devtime;
-	device_event_emit ((device_t *) device, DEVICE_EVENT_CLOCK, &clock);
+	device_event_emit ((dc_device_t *) device, DC_EVENT_CLOCK, &clock);
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-uwatec_memomouse_device_dump (device_t *abstract, dc_buffer_t *buffer)
+uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
@@ -494,7 +494,7 @@ uwatec_memomouse_device_dump (device_t *abstract, dc_buffer_t *buffer)
 
 
 static dc_status_t
-uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, void *userdata)
+uwatec_memomouse_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	if (! device_is_uwatec_memomouse (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -519,7 +519,7 @@ uwatec_memomouse_device_foreach (device_t *abstract, dive_callback_t callback, v
 
 
 dc_status_t
-uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata)
+uwatec_memomouse_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !device_is_uwatec_memomouse (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -552,11 +552,11 @@ uwatec_memomouse_extract_dives (device_t *abstract, const unsigned char data[], 
 		// only needs to be reported once.
 		if (abstract && ndives == 0) {
 			// Emit a device info event.
-			device_devinfo_t devinfo;
+			dc_event_devinfo_t devinfo;
 			devinfo.model = data[current + 3];
 			devinfo.firmware = 0;
 			devinfo.serial = array_uint24_be (data + current);
-			device_event_emit (abstract, DEVICE_EVENT_DEVINFO, &devinfo);
+			device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 		}
 
 		// Move to the next dive.

@@ -30,17 +30,17 @@
 typedef struct suunto_solution_parser_t suunto_solution_parser_t;
 
 struct suunto_solution_parser_t {
-	parser_t base;
+	dc_parser_t base;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int divetime;
 	unsigned int maxdepth;
 };
 
-static dc_status_t suunto_solution_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size);
-static dc_status_t suunto_solution_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value);
-static dc_status_t suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata);
-static dc_status_t suunto_solution_parser_destroy (parser_t *abstract);
+static dc_status_t suunto_solution_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t suunto_solution_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
+static dc_status_t suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
+static dc_status_t suunto_solution_parser_destroy (dc_parser_t *abstract);
 
 static const parser_backend_t suunto_solution_parser_backend = {
 	DC_FAMILY_SUUNTO_SOLUTION,
@@ -53,7 +53,7 @@ static const parser_backend_t suunto_solution_parser_backend = {
 
 
 static int
-parser_is_suunto_solution (parser_t *abstract)
+parser_is_suunto_solution (dc_parser_t *abstract)
 {
 	if (abstract == NULL)
 		return 0;
@@ -63,7 +63,7 @@ parser_is_suunto_solution (parser_t *abstract)
 
 
 dc_status_t
-suunto_solution_parser_create (parser_t **out)
+suunto_solution_parser_create (dc_parser_t **out)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -83,14 +83,14 @@ suunto_solution_parser_create (parser_t **out)
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 
-	*out = (parser_t*) parser;
+	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
 }
 
 
 static dc_status_t
-suunto_solution_parser_destroy (parser_t *abstract)
+suunto_solution_parser_destroy (dc_parser_t *abstract)
 {
 	if (! parser_is_suunto_solution (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -103,7 +103,7 @@ suunto_solution_parser_destroy (parser_t *abstract)
 
 
 static dc_status_t
-suunto_solution_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned int size)
+suunto_solution_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	suunto_solution_parser_t *parser = (suunto_solution_parser_t *) abstract;
 
@@ -120,7 +120,7 @@ suunto_solution_parser_set_data (parser_t *abstract, const unsigned char *data, 
 
 
 static dc_status_t
-suunto_solution_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
+suunto_solution_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	suunto_solution_parser_t *parser = (suunto_solution_parser_t *) abstract;
 
@@ -159,20 +159,20 @@ suunto_solution_parser_get_field (parser_t *abstract, parser_field_type_t type, 
 		parser->maxdepth = maxdepth;
 	}
 
-	gasmix_t *gasmix = (gasmix_t *) value;
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
-		case FIELD_TYPE_DIVETIME:
+		case DC_FIELD_DIVETIME:
 			*((unsigned int *) value) = parser->divetime;
 			break;
-		case FIELD_TYPE_MAXDEPTH:
+		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = parser->maxdepth * FEET;
 			break;
-		case FIELD_TYPE_GASMIX_COUNT:
+		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 1;
 			break;
-		case FIELD_TYPE_GASMIX:
+		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
 			gasmix->oxygen = 0.21;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -186,7 +186,7 @@ suunto_solution_parser_get_field (parser_t *abstract, parser_field_type_t type, 
 }
 
 static dc_status_t
-suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
+suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	if (! parser_is_suunto_solution (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -201,13 +201,13 @@ suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t ca
 
 	unsigned int offset = 3;
 	while (offset < size &&	data[offset] != 0x80) {
-		parser_sample_value_t sample = {0};
+		dc_sample_value_t sample = {0};
 		unsigned char value = data[offset++];
 		if (value < 0x7e || value > 0x82) {
 			// Time (minutes).
 			time += 3 * 60;
 			sample.time = time;
-			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (ft).
 			depth += (signed char) value;
@@ -220,7 +220,7 @@ suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t ca
 				depth += (signed char) data[offset++];
 			}
 			sample.depth = depth * FEET;
-			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 		} else {
 			// Event.
 			sample.event.time = 0;
@@ -241,7 +241,7 @@ suunto_solution_parser_samples_foreach (parser_t *abstract, sample_callback_t ca
 				break;
 			}
 
-			if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 		}
 	}
 
