@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2009 Jef Driesen
+ * Copyright (C) 2012 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,10 +19,30 @@
  * MA 02110-1301 USA
  */
 
-#ifndef HW_H
-#define HW_H
+#ifndef HW_FROG_H
+#define HW_FROG_H
 
-#include "hw_ostc.h"
-#include "hw_frog.h"
+#include "device.h"
+#include "parser.h"
+#include "buffer.h"
 
-#endif /* HW_H */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+device_status_t
+hw_frog_device_open (device_t **device, const char *name);
+
+device_status_t
+hw_frog_device_clock (device_t *device, const dc_datetime_t *datetime);
+
+device_status_t
+hw_frog_device_display (device_t *device, const char *text);
+
+device_status_t
+hw_frog_device_customtext (device_t *abstract, const char *text);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* HW_FROG_H */

@@ -21,6 +21,7 @@ bin_PROGRAMS = \
 	darwin \
 	iconhd \
 	ostc \
+	frog \
 	edy \
 	n2ition3
 
@@ -67,6 +68,8 @@ darwin_SOURCES = mares_darwin_test.c $(COMMON)
 iconhd_SOURCES = mares_iconhd_test.c $(COMMON)
 
 ostc_SOURCES = hw_ostc_test.c $(COMMON)
+
+frog_SOURCES = hw_frog_test.c $(COMMON)
 
 edy_SOURCES = cressi_edy_test.c $(COMMON)
 

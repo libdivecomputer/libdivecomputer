@@ -36,6 +36,7 @@ libdivecomputer_HEADERS = 	\
 	mares_iconhd.h \
 	hw.h \
 	hw_ostc.h \
+	hw_frog.h \
 	cressi.h \
 	cressi_edy.h \
 	zeagle.h \
@@ -91,6 +92,7 @@ libdivecomputer_la_SOURCES = \
 	mares_iconhd.h mares_iconhd.c mares_iconhd_parser.c \
 	hw.h \
 	hw_ostc.h hw_ostc.c hw_ostc_parser.c \
+	hw_frog.h hw_frog.c \
 	cressi.h \
 	cressi_edy.h cressi_edy.c cressi_edy_parser.c \
 	zeagle.h \

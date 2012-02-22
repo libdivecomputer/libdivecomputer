@@ -32,6 +32,7 @@ typedef struct hw_ostc_parser_t hw_ostc_parser_t;
 
 struct hw_ostc_parser_t {
 	parser_t base;
+	unsigned int frog;
 };
 
 typedef struct hw_ostc_sample_info_t {
@@ -66,7 +67,7 @@ parser_is_hw_ostc (parser_t *abstract)
 
 
 parser_status_t
-hw_ostc_parser_create (parser_t **out)
+hw_ostc_parser_create (parser_t **out, unsigned int frog)
 {
 	if (out == NULL)
 		return PARSER_STATUS_ERROR;
@@ -80,6 +81,8 @@ hw_ostc_parser_create (parser_t **out)
 
 	// Initialize the base class.
 	parser_init (&parser->base, &hw_ostc_parser_backend);
+
+	parser->frog = frog;
 
 	*out = (parser_t*) parser;
 
@@ -113,14 +116,15 @@ hw_ostc_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned
 static parser_status_t
 hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 3)
+	if (size < 9)
 		return PARSER_STATUS_ERROR;
 
 	// Check the profile version
-	unsigned int version = data[2];
+	unsigned int version = data[parser->frog ? 8 : 2];
 	unsigned int header = 0;
 	switch (version) {
 	case 0x20:
@@ -128,6 +132,9 @@ hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		break;
 	case 0x21:
 		header = 57;
+		break;
+	case 0x22:
+		header = 256;
 		break;
 	default:
 		return PARSER_STATUS_ERROR;
@@ -137,7 +144,7 @@ hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		return PARSER_STATUS_ERROR;
 
 	unsigned int divetime = 0;
-	if (version == 0x21) {
+	if (version == 0x21 || version == 0x22) {
 		// Use the dive time stored in the extended header, rounded down towards
 		// the nearest minute, to match the value displayed by the ostc.
 		divetime = (array_uint16_le (data + 47) / 60) * 60;
@@ -145,6 +152,9 @@ hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		// Use the normal dive time (excluding the shallow parts of the dive).
 		divetime = array_uint16_le (data + 10) * 60 + data[12];
 	}
+
+	if (parser->frog)
+		data += 6;
 
 	dc_datetime_t dt;
 	dt.year   = data[5] + 2000;
@@ -169,14 +179,15 @@ hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 static parser_status_t
 hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned int flags, void *value)
 {
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 3)
+	if (size < 9)
 		return PARSER_STATUS_ERROR;
 
 	// Check the profile version
-	unsigned int version = data[2];
+	unsigned int version = data[parser->frog ? 8 : 2];
 	unsigned int header = 0;
 	switch (version) {
 	case 0x20:
@@ -185,12 +196,18 @@ hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned
 	case 0x21:
 		header = 57;
 		break;
+	case 0x22:
+		header = 256;
+		break;
 	default:
 		return PARSER_STATUS_ERROR;
 	}
 
 	if (size < header)
 		return PARSER_STATUS_ERROR;
+
+	if (parser->frog)
+		data += 6;
 
 	gasmix_t *gasmix = (gasmix_t *) value;
 
@@ -203,11 +220,17 @@ hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned
 			*((double *) value) = array_uint16_le (data + 8) / 100.0;
 			break;
 		case FIELD_TYPE_GASMIX_COUNT:
-			*((unsigned int *) value) = 6;
+			if (parser->frog)
+				*((unsigned int *) value) = 3;
+			else
+				*((unsigned int *) value) = 6;
 			break;
 		case FIELD_TYPE_GASMIX:
 			gasmix->oxygen = data[19 + 2 * flags] / 100.0;
-			gasmix->helium = data[20 + 2 * flags] / 100.0;
+			if (parser->frog)
+				gasmix->helium = 0.0;
+			else
+				gasmix->helium = data[20 + 2 * flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
@@ -222,17 +245,15 @@ hw_ostc_parser_get_field (parser_t *abstract, parser_field_type_t type, unsigned
 static parser_status_t
 hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, void *userdata)
 {
-	if (! parser_is_hw_ostc (abstract))
-		return PARSER_STATUS_TYPE_MISMATCH;
-
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 3)
+	if (size < 9)
 		return PARSER_STATUS_ERROR;
 
 	// Check the profile version
-	unsigned int version = data[2];
+	unsigned int version = data[parser->frog ? 8 : 2];
 	unsigned int header = 0;
 	switch (version) {
 	case 0x20:
@@ -240,6 +261,9 @@ hw_ostc_parser_samples_foreach (parser_t *abstract, sample_callback_t callback, 
 		break;
 	case 0x21:
 		header = 57;
+		break;
+	case 0x22:
+		header = 256;
 		break;
 	default:
 		return PARSER_STATUS_ERROR;

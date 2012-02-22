@@ -93,6 +93,7 @@ static const backend_table_t g_backends[] = {
 	{"darwin",      DEVICE_TYPE_MARES_DARWIN},
 	{"iconhd",		DEVICE_TYPE_MARES_ICONHD},
 	{"ostc",		DEVICE_TYPE_HW_OSTC},
+	{"frog",		DEVICE_TYPE_HW_FROG},
 	{"edy",			DEVICE_TYPE_CRESSI_EDY},
 	{"n2ition3",	DEVICE_TYPE_ZEAGLE_N2ITION3},
 	{"cobalt",		DEVICE_TYPE_ATOMICS_COBALT}
@@ -342,7 +343,10 @@ doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned 
 		rc = mares_iconhd_parser_create (&parser, devdata->devinfo.model);
 		break;
 	case DEVICE_TYPE_HW_OSTC:
-		rc = hw_ostc_parser_create (&parser);
+		rc = hw_ostc_parser_create (&parser, 0);
+		break;
+	case DEVICE_TYPE_HW_FROG:
+		rc = hw_ostc_parser_create (&parser, 1);
 		break;
 	case DEVICE_TYPE_CRESSI_EDY:
 	case DEVICE_TYPE_ZEAGLE_N2ITION3:
@@ -643,6 +647,9 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 		break;
 	case DEVICE_TYPE_HW_OSTC:
 		rc = hw_ostc_device_open (&device, devname);
+		break;
+	case DEVICE_TYPE_HW_FROG:
+		rc = hw_frog_device_open (&device, devname);
 		break;
 	case DEVICE_TYPE_CRESSI_EDY:
 		rc = cressi_edy_device_open (&device, devname);

@@ -125,6 +125,10 @@ hw_ostc_device_eeprom_write
 hw_ostc_device_reset
 hw_ostc_device_screenshot
 hw_ostc_extract_dives
+hw_frog_device_open
+hw_frog_device_clock
+hw_frog_device_display
+hw_frog_device_customtext
 zeagle_n2ition3_device_open
 atomics_cobalt_device_open
 atomics_cobalt_device_set_simulation

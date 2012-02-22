@@ -61,7 +61,7 @@ device_status_t
 hw_ostc_extract_dives (device_t *abstract, const unsigned char data[], unsigned int size, dive_callback_t callback, void *userdata);
 
 parser_status_t
-hw_ostc_parser_create (parser_t **parser);
+hw_ostc_parser_create (parser_t **parser, unsigned int frog);
 
 #ifdef __cplusplus
 }
