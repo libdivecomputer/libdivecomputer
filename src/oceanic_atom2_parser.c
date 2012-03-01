@@ -40,6 +40,7 @@
 #define VEO20       0x4359
 #define VEO30       0x435A
 #define ZENAIR      0x4442
+#define PROPLUS21   0x4444
 #define GEO20       0x4446
 #define VT4         0x4447
 #define OC1B        0x4449
@@ -434,7 +435,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
 			} else {
 				unsigned int sign;
-				if (parser->model == ATOM2 || parser->model == EPIC)
+				if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
 					sign = (data[offset + 0] & 0x80) >> 7;
 				else
 					sign = (~data[offset + 0] & 0x80) >> 7;
