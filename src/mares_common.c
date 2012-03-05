@@ -152,7 +152,6 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 		// Verify the echo.
 		if (memcmp (echo, command, csize) != 0) {
 			WARNING ("Unexpected echo.");
-			return DEVICE_STATUS_PROTOCOL;
 		}
 	}
 
@@ -196,6 +195,9 @@ mares_common_transfer (mares_common_device_t *device, const unsigned char comman
 		// Abort if the maximum number of retries is reached.
 		if (nretries++ >= MAXRETRIES)
 			return rc;
+
+		// Discard any garbage bytes.
+		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 	}
 
 	return rc;
