@@ -344,12 +344,12 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		oceanic_common_match (sherwood_wisdom2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (aeris_atmosai_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_geo2_version, device->version, sizeof (device->version)) ||
+		oceanic_common_match (oceanic_veo3_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_proplus2_version, device->version, sizeof (device->version)) ||
 		(oceanic_common_match (oceanic_atom2_version, device->version, sizeof (device->version)) &&
 		 array_uint16_be (device->version + 0x09) >= 0x3349))
 		device->base.layout = &oceanic_atom2a_layout;
 	else if (oceanic_common_match (oceanic_veo2_version, device->version, sizeof (device->version)) ||
-		oceanic_common_match (oceanic_veo3_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (tusa_element2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (tusa_zen_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom2b_layout;
