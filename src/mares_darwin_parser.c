@@ -185,6 +185,8 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 
 	unsigned int time = 0;
 
+	unsigned int pressure = array_uint16_be (abstract->data + 0x17);
+
 	unsigned int offset = parser->headersize;
 	while (offset + parser->samplesize <= abstract->size) {
 			parser_sample_value_t sample = {0};
@@ -198,6 +200,17 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 			unsigned int depth = array_uint16_le (abstract->data + offset) & 0x07FF;
 			sample.depth = depth / 10.0;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+
+			if (parser->samplesize == 3) {
+				unsigned int type = (time / 20 + 2) % 3;
+				if (type == 0) {
+					// Tank Pressure (bar)
+					pressure -= abstract->data[offset + 2];
+					sample.pressure.tank = 0;
+					sample.pressure.value = pressure;
+					if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+				}
+			}
 
 			offset += parser->samplesize;
 	}
