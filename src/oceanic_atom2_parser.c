@@ -356,6 +356,12 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int pressure = data[header + 2] + (data[header + 3] << 8);
 	unsigned int temperature = data[header + 7];
 
+	unsigned int airintegrated = 1;
+	if (parser->model == VEO30)
+		airintegrated = 0;
+	if (pressure == 10000)
+		airintegrated = 0;
+
 	unsigned int offset = header + PAGESIZE / 2;
 	while (offset + samplesize <= size - PAGESIZE) {
 		parser_sample_value_t sample = {0};
@@ -456,7 +462,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				pressure -= data[offset + 1];
 			sample.pressure.tank = tank;
 			sample.pressure.value = pressure * PSI / BAR;
-			if (callback && pressure != 10000) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			if (callback && airintegrated) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
 
 			// Depth (1/16 ft)
 			unsigned int depth;
