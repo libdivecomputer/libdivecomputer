@@ -394,24 +394,22 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, PAGESIZE, layout);
 			unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
 
-			// Make sure the profiles are continuous.
+			// Skip gaps between the profiles.
+			unsigned int gap = 0;
 			if (previous && rb_entry_end != previous) {
 				WARNING ("Profiles are not continuous.");
-				status = DEVICE_STATUS_ERROR;
-				begin = current + PAGESIZE / 2;
-				abort = 1;
-				break;
+				gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
 			}
 
 			// Make sure the profile size is valid.
-			if (rb_entry_size > remaining) {
+			if (rb_entry_size + gap > remaining) {
 				WARNING ("Unexpected profile size.");
 				begin = current + PAGESIZE / 2;
 				abort = 1;
 				break;
 			}
 
-			remaining -= rb_entry_size;
+			remaining -= rb_entry_size + gap;
 			previous = rb_entry_first;
 
 			// Compare the fingerprint to identify previously downloaded entries.
@@ -475,10 +473,18 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 		unsigned int rb_entry_first = get_profile_first (logbooks + current, layout);
 		unsigned int rb_entry_last  = get_profile_last (logbooks + current, layout);
 		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
+		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, PAGESIZE, layout);
+
+		// Skip gaps between the profiles.
+		unsigned int gap = 0;
+		if (rb_entry_end != previous) {
+			WARNING ("Profiles are not continuous.");
+			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+		}
 
 		// Read the profile data.
 		unsigned int nbytes = available;
-		while (nbytes < rb_entry_size) {
+		while (nbytes < rb_entry_size + gap) {
 			// Handle the ringbuffer wrap point.
 			if (address == layout->rb_profile_begin)
 				address = layout->rb_profile_end;
@@ -509,8 +515,8 @@ oceanic_common_device_foreach (device_t *abstract, dive_callback_t callback, voi
 			nbytes += len;
 		}
 
-		available = nbytes - rb_entry_size;
-		remaining -= rb_entry_size;
+		available = nbytes - (rb_entry_size + gap);
+		remaining -= rb_entry_size + gap;
 		previous = rb_entry_first;
 
 		// Prepend the logbook entry to the profile data. The memory buffer is
