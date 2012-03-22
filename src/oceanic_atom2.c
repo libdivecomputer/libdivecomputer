@@ -149,7 +149,7 @@ static const oceanic_common_layout_t tusa_zenair_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	0x0A40, /* rb_profile_begin */
-	0xFFF0, /* rb_profile_end */
+	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
 	1 /* pt_mode_logbook */
 };
