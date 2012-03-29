@@ -244,11 +244,23 @@ mares_nemo_parser_get_field (parser_t *abstract, parser_field_type_t type, unsig
 				*((double *) value) = array_uint16_le (p + 53 - 10) / 10.0;
 				break;
 			case FIELD_TYPE_GASMIX_COUNT:
-				*((unsigned int *) value) = 1;
+				if (parser->mode == 0 || parser->mode == 1)
+					*((unsigned int *) value) = 1;
+				else
+					*((unsigned int *) value) = 0;
 				break;
 			case FIELD_TYPE_GASMIX:
+				switch (parser->mode) {
+				case 0: // Air
+					gasmix->oxygen = 0.21;
+					break;
+				case 1: // Nitrox
+					gasmix->oxygen = p[53 - 43] / 100.0;
+					break;
+				default:
+					return PARSER_STATUS_UNSUPPORTED;
+				}
 				gasmix->helium = 0.0;
-				gasmix->oxygen = p[53 - 43] / 100.0;
 				gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 				break;
 			default:
