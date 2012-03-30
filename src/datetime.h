@@ -52,6 +52,9 @@ dc_datetime_t *
 dc_datetime_gmtime (dc_datetime_t *result,
                     dc_ticks_t ticks);
 
+dc_ticks_t
+dc_datetime_mktime (dc_datetime_t *dt);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -110,3 +110,21 @@ dc_datetime_gmtime (dc_datetime_t *result,
 
 	return result;
 }
+
+dc_ticks_t
+dc_datetime_mktime (dc_datetime_t *dt)
+{
+	if (dt == NULL)
+		return -1;
+
+	struct tm tm;
+	tm.tm_year = dt->year - 1900;
+	tm.tm_mon = dt->month - 1;
+	tm.tm_mday = dt->day;
+	tm.tm_hour = dt->hour;
+	tm.tm_min = dt->minute;
+	tm.tm_sec = dt->second;
+	tm.tm_isdst = -1;
+
+	return mktime (&tm);
+}
