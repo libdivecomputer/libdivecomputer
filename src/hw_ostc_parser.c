@@ -113,19 +113,55 @@ hw_ostc_parser_set_data (parser_t *abstract, const unsigned char *data, unsigned
 static parser_status_t
 hw_ostc_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 {
-	if (abstract->size < 8)
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	if (size < 3)
 		return PARSER_STATUS_ERROR;
 
-	const unsigned char *p = abstract->data;
-
-	if (datetime) {
-		datetime->year   = p[5] + 2000;
-		datetime->month  = p[3];
-		datetime->day    = p[4];
-		datetime->hour   = p[6];
-		datetime->minute = p[7];
-		datetime->second = 0;
+	// Check the profile version
+	unsigned int version = data[2];
+	unsigned int header = 0;
+	switch (version) {
+	case 0x20:
+		header = 47;
+		break;
+	case 0x21:
+		header = 57;
+		break;
+	default:
+		return PARSER_STATUS_ERROR;
 	}
+
+	if (size < header)
+		return PARSER_STATUS_ERROR;
+
+	unsigned int divetime = 0;
+	if (version == 0x21) {
+		// Use the dive time stored in the extended header, rounded down towards
+		// the nearest minute, to match the value displayed by the ostc.
+		divetime = (array_uint16_le (data + 47) / 60) * 60;
+	} else {
+		// Use the normal dive time (excluding the shallow parts of the dive).
+		divetime = array_uint16_le (data + 10) * 60 + data[12];
+	}
+
+	dc_datetime_t dt;
+	dt.year   = data[5] + 2000;
+	dt.month  = data[3];
+	dt.day    = data[4];
+	dt.hour   = data[6];
+	dt.minute = data[7];
+	dt.second = 0;
+
+	dc_ticks_t ticks = dc_datetime_mktime (&dt);
+	if (ticks == (dc_ticks_t) -1)
+		return PARSER_STATUS_ERROR;
+
+	ticks -= divetime;
+
+	if (!dc_datetime_localtime (datetime, ticks))
+		return PARSER_STATUS_ERROR;
 
 	return PARSER_STATUS_SUCCESS;
 }
