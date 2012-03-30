@@ -191,15 +191,47 @@ mares_darwin_parser_samples_foreach (parser_t *abstract, sample_callback_t callb
 	while (offset + parser->samplesize <= abstract->size) {
 			parser_sample_value_t sample = {0};
 
+			unsigned int value = array_uint16_le (abstract->data + offset);
+			unsigned int depth = value & 0x07FF;
+			unsigned int ascent = (value & 0xE000) >> 13;
+			unsigned int violation = (value & 0x1000) >> 12;
+			unsigned int deco = (value & 0x0800) >> 11;
+
 			// Surface Time (seconds).
 			time += 20;
 			sample.time = time;
 			if (callback) callback (SAMPLE_TYPE_TIME, sample, userdata);
 
 			// Depth (1/10 m).
-			unsigned int depth = array_uint16_le (abstract->data + offset) & 0x07FF;
 			sample.depth = depth / 10.0;
 			if (callback) callback (SAMPLE_TYPE_DEPTH, sample, userdata);
+
+			// Ascent rate
+			if (ascent) {
+				sample.event.type = SAMPLE_EVENT_ASCENT;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = ascent;
+				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+			}
+
+			// Deco violation
+			if (violation) {
+				sample.event.type = SAMPLE_EVENT_CEILING;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = 0;
+				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+			}
+
+			// Deco stop
+			if (deco) {
+				sample.event.type = SAMPLE_EVENT_DECOSTOP;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = 0;
+				if (callback) callback (SAMPLE_TYPE_EVENT, sample, userdata);
+			}
 
 			if (parser->samplesize == 3) {
 				unsigned int type = (time / 20 + 2) % 3;
