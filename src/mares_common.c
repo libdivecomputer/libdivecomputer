@@ -91,7 +91,7 @@ mares_common_convert_ascii_to_binary (const unsigned char input[], unsigned int 
 			else if (ascii >= 'a' && ascii <= 'f')
 				number = 10 + ascii - 'a';
 			else
-				WARNING ("Invalid charachter.");
+				WARNING ("Invalid character.");
 
 			value <<= 4;
 			value += number;

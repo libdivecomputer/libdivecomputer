@@ -413,7 +413,7 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 		// Wait for the answer (ACK).
 		n = serial_read (device->port, &answer, 1);
 		if (n != 1) {
-			WARNING ("Failed to recieve the answer.");
+			WARNING ("Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 	}
