@@ -255,7 +255,7 @@ mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned 
 	// Get the freedive mode for this model.
 	unsigned int model = data[1];
 	unsigned int freedive = 2;
-	if (model == 1 || model == 7)
+	if (model == 1 || model == 7 || model == 19)
 		freedive = 3;
 
 	// Get the end of the profile ring buffer.

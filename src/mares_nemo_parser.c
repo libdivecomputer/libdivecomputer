@@ -95,7 +95,7 @@ mares_nemo_parser_create (parser_t **out, unsigned int model)
 
 	// Get the freedive mode for this model.
 	unsigned int freedive = 2;
-	if (model == NEMOWIDE || model == PUCK)
+	if (model == NEMOWIDE || model == PUCK || model == PUCKAIR)
 		freedive = 3;
 
 	// Set the default values.
