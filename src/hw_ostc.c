@@ -148,8 +148,8 @@ hw_ostc_device_open (device_t **out, const char* name)
 		return DEVICE_STATUS_IO;
 	}
 
-	// Set the timeout for receiving data (3000ms).
-	if (serial_set_timeout (device->port, 3000) == -1) {
+	// Set the timeout for receiving data.
+	if (serial_set_timeout (device->port, 4000) == -1) {
 		WARNING ("Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
