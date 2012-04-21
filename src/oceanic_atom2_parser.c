@@ -351,18 +351,27 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	if (parser->model == OC1A || parser->model == OC1B)
 		samplesize = PAGESIZE;
 
-	int complete = 1;
+	unsigned int have_temperature = 1, have_pressure = 1;
+	if (parser->model == VEO30) {
+		have_pressure = 0;
+	}
 
+	// Initial temperature.
+	unsigned int temperature = 0;
+	if (have_temperature) {
+		temperature = data[header + 7];
+	}
+
+	// Initial tank pressure.
 	unsigned int tank = 0;
-	unsigned int pressure = data[header + 2] + (data[header + 3] << 8);
-	unsigned int temperature = data[header + 7];
+	unsigned int pressure = 0;
+	if (have_pressure) {
+		pressure = data[header + 2] + (data[header + 3] << 8);
+		if (pressure == 10000)
+			have_pressure = 0;
+	}
 
-	unsigned int airintegrated = 1;
-	if (parser->model == VEO30)
-		airintegrated = 0;
-	if (pressure == 10000)
-		airintegrated = 0;
-
+	unsigned int complete = 1;
 	unsigned int offset = header + PAGESIZE / 2;
 	while (offset + samplesize <= size - PAGESIZE) {
 		parser_sample_value_t sample = {0};
@@ -432,38 +441,42 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			}
 		} else {
 			// Temperature (°F)
-			if (parser->model == GEO || parser->model == ATOM1) {
-				temperature = data[offset + 6];
-			} else if (parser->model == GEO20 || parser->model == VEO20 ||
-				parser->model == VEO30 || parser->model == OC1A ||
-				parser->model == OC1B) {
-				temperature = data[offset + 3];
-			} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31) {
-				temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
-			} else {
-				unsigned int sign;
-				if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
-					sign = (data[offset + 0] & 0x80) >> 7;
-				else
-					sign = (~data[offset + 0] & 0x80) >> 7;
-				if (sign)
-					temperature -= (data[offset + 7] & 0x0C) >> 2;
-				else
-					temperature += (data[offset + 7] & 0x0C) >> 2;
+			if (have_temperature) {
+				if (parser->model == GEO || parser->model == ATOM1) {
+					temperature = data[offset + 6];
+				} else if (parser->model == GEO20 || parser->model == VEO20 ||
+					parser->model == VEO30 || parser->model == OC1A ||
+					parser->model == OC1B) {
+					temperature = data[offset + 3];
+				} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31) {
+					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
+				} else {
+					unsigned int sign;
+					if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
+						sign = (data[offset + 0] & 0x80) >> 7;
+					else
+						sign = (~data[offset + 0] & 0x80) >> 7;
+					if (sign)
+						temperature -= (data[offset + 7] & 0x0C) >> 2;
+					else
+						temperature += (data[offset + 7] & 0x0C) >> 2;
+				}
+				sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
+				if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 			}
-			sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-			if (callback) callback (SAMPLE_TYPE_TEMPERATURE, sample, userdata);
 
 			// Tank Pressure (psi)
-			if (parser->model == OC1A || parser->model == OC1B)
-				pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
-			else if (parser->model == ZENAIR || parser->model == VT4 || parser->model == VT41|| parser->model == ATOM3 || parser->model == ATOM31)
-				pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
-			else
-				pressure -= data[offset + 1];
-			sample.pressure.tank = tank;
-			sample.pressure.value = pressure * PSI / BAR;
-			if (callback && airintegrated) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			if (have_pressure) {
+				if (parser->model == OC1A || parser->model == OC1B)
+					pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
+				else if (parser->model == ZENAIR || parser->model == VT4 || parser->model == VT41|| parser->model == ATOM3 || parser->model == ATOM31)
+					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
+				else
+					pressure -= data[offset + 1];
+				sample.pressure.tank = tank;
+				sample.pressure.value = pressure * PSI / BAR;
+				if (callback) callback (SAMPLE_TYPE_PRESSURE, sample, userdata);
+			}
 
 			// Depth (1/16 ft)
 			unsigned int depth;
