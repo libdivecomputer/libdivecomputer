@@ -245,18 +245,25 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	unsigned int length = 11 * PAGESIZE / 2;
-	unsigned int header = 4 * PAGESIZE;
-	unsigned int footer = size - PAGESIZE;
+	// Get the total amount of bytes before and after the profile data.
+	unsigned int headersize = 9 * PAGESIZE / 2;
+	unsigned int footersize = 2 * PAGESIZE / 2;
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == VEO20 || parser->model == VEO30) {
-		length -= PAGESIZE;
-		header -= PAGESIZE;
+		headersize -= PAGESIZE;
+	} else if (parser->model == VT4 || parser->model == VT41) {
+		headersize += PAGESIZE;
+	} else if (parser->model == ATOM1) {
+		headersize -= 2 * PAGESIZE;
 	}
 
-	if (size < length)
+	if (size < headersize + footersize)
 		return PARSER_STATUS_ERROR;
+
+	// Get the offset to the header and footer sample.
+	unsigned int header = headersize - PAGESIZE / 2;
+	unsigned int footer = size - footersize;
 
 	if (!parser->cached) {
 		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
@@ -317,18 +324,24 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	unsigned int header = 4 * PAGESIZE;
+	// Get the total amount of bytes before and after the profile data.
+	unsigned int headersize = 9 * PAGESIZE / 2;
+	unsigned int footersize = 2 * PAGESIZE / 2;
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
-		parser->model == VEO20 || parser->model == VEO30)
-		header -= PAGESIZE;
-	else if (parser->model == VT4 || parser->model == VT41)
-		header += PAGESIZE;
-	else if (parser->model == ATOM1)
-		header -= 2 * PAGESIZE;
+		parser->model == VEO20 || parser->model == VEO30) {
+		headersize -= PAGESIZE;
+	} else if (parser->model == VT4 || parser->model == VT41) {
+		headersize += PAGESIZE;
+	} else if (parser->model == ATOM1) {
+		headersize -= 2 * PAGESIZE;
+	}
 
-	if (size < header + 3 * PAGESIZE / 2)
+	if (size < headersize + footersize)
 		return PARSER_STATUS_ERROR;
+
+	// Get the offset to the header sample.
+	unsigned int header = headersize - PAGESIZE / 2;
 
 	unsigned int time = 0;
 	unsigned interval = 0;
@@ -372,8 +385,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	}
 
 	unsigned int complete = 1;
-	unsigned int offset = header + PAGESIZE / 2;
-	while (offset + samplesize <= size - PAGESIZE) {
+	unsigned int offset = headersize;
+	while (offset + samplesize <= size - footersize) {
 		parser_sample_value_t sample = {0};
 
 		// Ignore empty samples.
