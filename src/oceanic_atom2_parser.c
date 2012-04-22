@@ -248,10 +248,9 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 	unsigned int length = 11 * PAGESIZE / 2;
 	unsigned int header = 4 * PAGESIZE;
 	unsigned int footer = size - PAGESIZE;
-	if (parser->model == GEO || parser->model == DATAMASK ||
-		parser->model == GEO20 || parser->model == VEO20 ||
-		parser->model == VEO30)
-	{
+	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
+		parser->model == GEO || parser->model == GEO20 ||
+		parser->model == VEO20 || parser->model == VEO30) {
 		length -= PAGESIZE;
 		header -= PAGESIZE;
 	}
@@ -284,13 +283,13 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 			*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
 			break;
 		case FIELD_TYPE_GASMIX_COUNT:
-			if (parser->model == DATAMASK)
+			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				*((unsigned int *) value) = 1;
 			else
 				*((unsigned int *) value) = 3;
 			break;
 		case FIELD_TYPE_GASMIX:
-			if (parser->model == DATAMASK)
+			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				nitrox = data[header + 3];
 			else
 				nitrox = data[header + 4 + flags];
