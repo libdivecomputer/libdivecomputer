@@ -76,6 +76,7 @@ static const unsigned char oceanic_vt41_version[]  = "OCEAVT41 \0\0 1024";
 static const unsigned char oceanic_geo2_version[]  = "OCEGEO20 \0\0 512K";
 static const unsigned char oceanic_oc1a_version[]  = "OCWATCH R\0\0 1024";
 static const unsigned char oceanic_oc1b_version[]  = "OC1WATCH \0\0 1024";
+static const unsigned char oceanic_veo1_version[]  = "OCEVEO10 \0\0   8K";
 static const unsigned char oceanic_veo2_version[]  = "OCEVEO20 \0\0 512K";
 static const unsigned char oceanic_veo3_version[]  = "OCEVEO30 \0\0 512K";
 static const unsigned char sherwood_insight_version[] = "INSIGHT2 \0\0 512K";
@@ -187,6 +188,18 @@ static const oceanic_common_layout_t oceanic_oc1_layout = {
 	0x1FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
 	1 /* pt_mode_logbook */
+};
+
+static const oceanic_common_layout_t oceanic_veo1_layout = {
+	0x0400, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0400, /* rb_logbook_begin */
+	0x0400, /* rb_logbook_end */
+	0x0400, /* rb_profile_begin */
+	0x0400, /* rb_profile_end */
+	0, /* pt_mode_global */
+	0 /* pt_mode_logbook */
 };
 
 
@@ -382,6 +395,8 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 	else if (oceanic_common_match (aeris_epic_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_atom2_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom2c_layout;
+	else if (oceanic_common_match (oceanic_veo1_version, device->version, sizeof (device->version)))
+		device->base.layout = &oceanic_veo1_layout;
 	else
 		device->base.layout = &oceanic_default_layout;
 
