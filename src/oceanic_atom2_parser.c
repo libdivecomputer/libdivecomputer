@@ -264,6 +264,9 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 	// Get the offset to the header and footer sample.
 	unsigned int header = headersize - PAGESIZE / 2;
 	unsigned int footer = size - footersize;
+	if (parser->model == VT4 || parser->model == VT41) {
+		header = 3 * PAGESIZE;
+	}
 
 	if (!parser->cached) {
 		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
@@ -292,6 +295,8 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 		case FIELD_TYPE_GASMIX_COUNT:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				*((unsigned int *) value) = 1;
+			else if (parser->model == VT4 || parser->model == VT41)
+				*((unsigned int *) value) = 4;
 			else
 				*((unsigned int *) value) = 3;
 			break;
