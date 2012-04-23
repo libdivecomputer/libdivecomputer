@@ -392,10 +392,13 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 			complete = 0;
 		}
 
+		// Get the sample type.
+		unsigned int sampletype = data[offset + 0];
+
 		// The sample size is usually fixed, but some sample types have a
 		// larger size. Check whether we have that many bytes available.
 		unsigned int length = samplesize;
-		if (data[offset + 0] == 0xBB) {
+		if (sampletype == 0xBB) {
 			length = PAGESIZE;
 			if (offset + length > size - PAGESIZE)
 				return PARSER_STATUS_ERROR;
@@ -408,7 +411,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		if (callback) callback (SAMPLE_TYPE_VENDOR, sample, userdata);
 
 		// Check for a tank switch sample.
-		if (data[offset + 0] == 0xAA) {
+		if (sampletype == 0xAA) {
 			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				// Tank pressure (1 psi) and number
 				tank = 0;
@@ -421,7 +424,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
 			}
-		} else if (data[offset + 0] == 0xBB) {
+		} else if (sampletype == 0xBB) {
 			// The surface time is not always a nice multiple of the samplerate.
 			// The number of inserted surface samples is therefore rounded down
 			// to keep the timestamps aligned at multiples of the samplerate.
