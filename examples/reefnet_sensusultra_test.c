@@ -136,7 +136,7 @@ test_dump_memory_user (const char* name, const char* filename)
 {
 	dc_context_t *context = NULL;
 	dc_device_t *device = NULL;
-	unsigned char data[REEFNET_SENSUSULTRA_MEMORY_USER_SIZE] = {0};
+	unsigned char data[REEFNET_SENSUSULTRA_USER_SIZE] = {0};
 
 	dc_context_new (&context);
 	dc_context_set_loglevel (context, DC_LOGLEVEL_ALL);

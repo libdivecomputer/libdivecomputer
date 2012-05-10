@@ -46,8 +46,10 @@
 #define ACK 0xAA
 #define EOF 0xEA
 
+#define SZ_MEMORY 0x100000
+
 #define RB_PROFILE_BEGIN 0xA000
-#define RB_PROFILE_END   MARES_ICONHD_MEMORY_SIZE
+#define RB_PROFILE_END   SZ_MEMORY
 
 typedef struct mares_iconhd_device_t {
 	dc_device_t base;
@@ -334,7 +336,7 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, MARES_ICONHD_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
@@ -349,7 +351,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
-	dc_buffer_t *buffer = dc_buffer_new (MARES_ICONHD_MEMORY_SIZE);
+	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
 
@@ -385,7 +387,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	if (abstract && !device_is_mares_iconhd (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size < MARES_ICONHD_MEMORY_SIZE)
+	if (size < SZ_MEMORY)
 		return DC_STATUS_DATAFORMAT;
 
 	// Get the model code.

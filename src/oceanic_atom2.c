@@ -489,9 +489,6 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
 		return DC_STATUS_INVALIDARGS;
-	
-	// The data transmission is split in packages
-	// of maximum $PAGESIZE bytes.
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
@@ -528,9 +525,6 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
 		return DC_STATUS_INVALIDARGS;
-
-	// The data transmission is split in packages
-	// of maximum $PAGESIZE bytes.
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {

@@ -30,8 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define SUUNTO_SOLUTION_MEMORY_SIZE 256
-
 dc_status_t
 suunto_solution_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 

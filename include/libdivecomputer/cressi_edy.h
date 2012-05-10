@@ -30,9 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define CRESSI_EDY_MEMORY_SIZE 0x8000
-#define CRESSI_EDY_PACKET_SIZE 128
-
 dc_status_t
 cressi_edy_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 

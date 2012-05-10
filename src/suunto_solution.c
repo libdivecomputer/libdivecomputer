@@ -35,6 +35,8 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define SZ_MEMORY 256
+
 #define RB_PROFILE_BEGIN			0x020
 #define RB_PROFILE_END				0x100
 
@@ -157,7 +159,7 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SUUNTO_SOLUTION_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
@@ -166,7 +168,7 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = SUUNTO_SOLUTION_MEMORY_SIZE - 1 + 2;
+	progress.maximum = SZ_MEMORY - 1 + 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	int n = 0;
@@ -197,7 +199,7 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	data[0] = 0x00;
-	for (unsigned int i = 1; i < SUUNTO_SOLUTION_MEMORY_SIZE; ++i) {
+	for (unsigned int i = 1; i < SZ_MEMORY; ++i) {
 		// Receive: 0x01, i, data[i]
 		n = serial_read (device->port, answer, 3);
 		if (n != 3) return EXITCODE (n);
@@ -263,7 +265,7 @@ suunto_solution_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	if (! device_is_suunto_solution (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	dc_buffer_t *buffer = dc_buffer_new (SUUNTO_SOLUTION_MEMORY_SIZE);
+	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
 
@@ -296,7 +298,7 @@ suunto_solution_extract_dives (dc_device_t *abstract, const unsigned char data[]
 	if (abstract && !device_is_suunto_solution (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size < SUUNTO_SOLUTION_MEMORY_SIZE)
+	if (size < SZ_MEMORY)
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};

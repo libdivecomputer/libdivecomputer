@@ -476,9 +476,6 @@ oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned
 		(size    % PAGESIZE != 0))
 		return DC_STATUS_INVALIDARGS;
 
-	// The data transmission is split in packages
-	// of maximum $PAGESIZE bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the number of packages.

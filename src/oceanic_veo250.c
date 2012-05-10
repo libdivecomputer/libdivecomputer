@@ -405,9 +405,6 @@ oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigne
 		(size    % PAGESIZE != 0))
 		return DC_STATUS_INVALIDARGS;
 
-	// The data transmission is split in packages
-	// of maximum $PAGESIZE bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the number of packages.

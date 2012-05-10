@@ -29,8 +29,6 @@ extern "C" {
 #include "context.h"
 #include "device.h"
 
-#define SUUNTO_VYPER2_MEMORY_SIZE 0x8000
-#define SUUNTO_VYPER2_PACKET_SIZE 0x78
 #define SUUNTO_VYPER2_VERSION_SIZE 0x04
 
 dc_status_t

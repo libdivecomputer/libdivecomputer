@@ -30,8 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define MARES_ICONHD_MEMORY_SIZE 0x100000
-
 dc_status_t
 mares_iconhd_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 

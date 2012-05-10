@@ -30,8 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define SUUNTO_D9_MEMORY_SIZE 0x8000
-#define SUUNTO_D9_PACKET_SIZE 0x78
 #define SUUNTO_D9_VERSION_SIZE 0x04
 
 dc_status_t

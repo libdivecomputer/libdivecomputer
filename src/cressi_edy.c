@@ -37,7 +37,9 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
-#define PAGESIZE          (CRESSI_EDY_PACKET_SIZE / 4)
+#define SZ_MEMORY         0x8000
+#define SZ_PACKET         0x80
+#define SZ_PAGE           (SZ_PACKET / 4)
 
 #define BASE              0x4000
 
@@ -51,7 +53,7 @@
 typedef struct cressi_edy_device_t {
 	dc_device_t base;
 	serial_t *port;
-	unsigned char fingerprint[PAGESIZE / 2];
+	unsigned char fingerprint[SZ_PAGE / 2];
 	unsigned int model;
 } cressi_edy_device_t;
 
@@ -278,18 +280,15 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 	if (! device_is_cressi_edy (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if ((address % (CRESSI_EDY_PACKET_SIZE / 4) != 0) ||
-		(size    % CRESSI_EDY_PACKET_SIZE != 0))
+	if ((address % SZ_PAGE != 0) ||
+		(size    % SZ_PACKET != 0))
 		return DC_STATUS_INVALIDARGS;
-
-	// The data transmission is split in packages
-	// of maximum $CRESSI_EDY_PACKET_SIZE bytes.
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Read the package.
-		unsigned int number = address / (CRESSI_EDY_PACKET_SIZE / 4);
-		unsigned char answer[3 + CRESSI_EDY_PACKET_SIZE + 1] = {0};
+		unsigned int number = address / SZ_PAGE;
+		unsigned char answer[3 + SZ_PACKET + 1] = {0};
 		unsigned char command[3] = {0x52,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF}; // low
@@ -297,11 +296,11 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
-		memcpy (data, answer + 3, CRESSI_EDY_PACKET_SIZE);
+		memcpy (data, answer + 3, SZ_PACKET);
 
-		nbytes += CRESSI_EDY_PACKET_SIZE;
-		address += CRESSI_EDY_PACKET_SIZE;
-		data += CRESSI_EDY_PACKET_SIZE;
+		nbytes += SZ_PACKET;
+		address += SZ_PACKET;
+		data += SZ_PACKET;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -333,13 +332,13 @@ cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, CRESSI_EDY_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), CRESSI_EDY_PACKET_SIZE);
+		dc_buffer_get_size (buffer), SZ_PACKET);
 }
 
 
@@ -350,7 +349,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = CRESSI_EDY_PACKET_SIZE +
+	progress.maximum = SZ_PACKET +
 		(RB_PROFILE_END - RB_PROFILE_BEGIN);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
@@ -362,7 +361,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the configuration data.
-	unsigned char config[CRESSI_EDY_PACKET_SIZE] = {0};
+	unsigned char config[SZ_PACKET] = {0};
 	dc_status_t rc = cressi_edy_device_read (abstract, 0x7F80, config, sizeof (config));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the configuration data.");
@@ -370,7 +369,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 
 	// Update and emit a progress event.
-	progress.current += CRESSI_EDY_PACKET_SIZE;
+	progress.current += SZ_PACKET;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Get the logbook pointers.
@@ -388,7 +387,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	unsigned int count = ringbuffer_distance (first, last, 0, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END) + 1;
 
 	// Get the profile pointer.
-	unsigned int eop = array_uint16_le (config + 0x7E) * PAGESIZE + BASE;
+	unsigned int eop = array_uint16_le (config + 0x7E) * SZ_PAGE + BASE;
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
 		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
@@ -406,7 +405,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	unsigned int idx = last;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
-		unsigned int current = array_uint16_le (config + 2 * idx) * PAGESIZE + BASE;
+		unsigned int current = array_uint16_le (config + 2 * idx) * SZ_PAGE + BASE;
 		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 			return DC_STATUS_DATAFORMAT;
@@ -415,7 +414,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		// Position the pointer at the start of the header.
 		if (current == RB_PROFILE_BEGIN)
 			current = RB_PROFILE_END;
-		current -= PAGESIZE;
+		current -= SZ_PAGE;
 
 		// Get the profile length.
 		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
@@ -424,21 +423,21 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		while (nbytes < length) {
 			if (address == RB_PROFILE_BEGIN)
 				address = RB_PROFILE_END;
-			address -= CRESSI_EDY_PACKET_SIZE;
-			offset -= CRESSI_EDY_PACKET_SIZE;
+			address -= SZ_PACKET;
+			offset -= SZ_PACKET;
 
 			// Read the memory page.
-			rc = cressi_edy_device_read (abstract, address, buffer + offset, CRESSI_EDY_PACKET_SIZE);
+			rc = cressi_edy_device_read (abstract, address, buffer + offset, SZ_PACKET);
 			if (rc != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to read the memory page.");
 				return rc;
 			}
 
 			// Update and emit a progress event.
-			progress.current += CRESSI_EDY_PACKET_SIZE;
+			progress.current += SZ_PACKET;
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-			nbytes += CRESSI_EDY_PACKET_SIZE;
+			nbytes += SZ_PACKET;
 		}
 
 		available = nbytes - length;

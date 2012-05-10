@@ -29,8 +29,6 @@ extern "C" {
 #include "context.h"
 #include "device.h"
 
-#define UWATEC_ALADIN_MEMORY_SIZE 2048
-
 dc_status_t
 uwatec_aladin_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 

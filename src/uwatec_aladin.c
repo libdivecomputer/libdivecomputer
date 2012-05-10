@@ -36,6 +36,8 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define SZ_MEMORY 2048
+
 #define RB_PROFILE_BEGIN			0x000
 #define RB_PROFILE_END				0x600
 #define RB_PROFILE_NEXT(a)			ringbuffer_increment (a, 1, RB_PROFILE_BEGIN, RB_PROFILE_END)
@@ -204,17 +206,17 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, UWATEC_ALADIN_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = UWATEC_ALADIN_MEMORY_SIZE + 2;
+	progress.maximum = SZ_MEMORY + 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	unsigned char answer[UWATEC_ALADIN_MEMORY_SIZE + 2] = {0};
+	unsigned char answer[SZ_MEMORY + 2] = {0};
 
 	// Receive the header of the package.
 	for (unsigned int i = 0; i < 4;) {
@@ -256,8 +258,8 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	array_reverse_bits (answer, sizeof (answer));
 
 	// Verify the checksum of the package.
-	unsigned short crc = array_uint16_le (answer + UWATEC_ALADIN_MEMORY_SIZE);
-	unsigned short ccrc = checksum_add_uint16 (answer, UWATEC_ALADIN_MEMORY_SIZE, 0x0000);
+	unsigned short crc = array_uint16_le (answer + SZ_MEMORY);
+	unsigned short ccrc = checksum_add_uint16 (answer, SZ_MEMORY, 0x0000);
 	if (ccrc != crc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
@@ -273,7 +275,7 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	clock.devtime = device->devtime;
 	device_event_emit (abstract, DC_EVENT_CLOCK, &clock);
 
-	dc_buffer_append (buffer, answer, UWATEC_ALADIN_MEMORY_SIZE);
+	dc_buffer_append (buffer, answer, SZ_MEMORY);
 
 	return DC_STATUS_SUCCESS;
 }
@@ -285,7 +287,7 @@ uwatec_aladin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 	if (! device_is_uwatec_aladin (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	dc_buffer_t *buffer = dc_buffer_new (UWATEC_ALADIN_MEMORY_SIZE);
+	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
 
@@ -320,7 +322,7 @@ uwatec_aladin_extract_dives (dc_device_t *abstract, const unsigned char* data, u
 	if (abstract && !device_is_uwatec_aladin (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size < UWATEC_ALADIN_MEMORY_SIZE)
+	if (size < SZ_MEMORY)
 		return DC_STATUS_DATAFORMAT;
 
 	// The logbook ring buffer can store up to 37 dives. But

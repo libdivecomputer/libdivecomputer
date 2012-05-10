@@ -213,9 +213,6 @@ mares_common_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 {
 	mares_common_device_t *device = (mares_common_device_t*) abstract;
 
-	// The data transmission is split in packages
-	// of maximum $PACKETSIZE bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the packet size.

@@ -30,8 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define SUUNTO_EON_MEMORY_SIZE 0x900
-
 dc_status_t
 suunto_eon_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 

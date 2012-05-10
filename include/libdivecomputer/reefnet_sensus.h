@@ -30,7 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define REEFNET_SENSUS_MEMORY_SIZE 32768
 #define REEFNET_SENSUS_HANDSHAKE_SIZE 10
 
 dc_status_t

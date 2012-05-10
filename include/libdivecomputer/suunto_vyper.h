@@ -30,9 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define SUUNTO_VYPER_MEMORY_SIZE 0x2000
-#define SUUNTO_VYPER_PACKET_SIZE 32
-
 dc_status_t
 suunto_vyper_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 

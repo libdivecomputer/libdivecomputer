@@ -138,9 +138,6 @@ suunto_common2_device_reset_maxdepth (dc_device_t *abstract)
 dc_status_t
 suunto_common2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
-	// The data transmission is split in packages
-	// of maximum $SZ_PACKET bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the package size.
@@ -174,9 +171,6 @@ suunto_common2_device_read (dc_device_t *abstract, unsigned int address, unsigne
 dc_status_t
 suunto_common2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
-	// The data transmission is split in packages
-	// of maximum $SZ_PACKET bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the package size.

@@ -37,6 +37,9 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define SZ_MEMORY 0x8000
+#define SZ_PACKET 64
+
 #define RB_PROFILE_BEGIN  0x3FA0
 #define RB_PROFILE_END    0x7EC0
 
@@ -238,18 +241,15 @@ zeagle_n2ition3_device_read (dc_device_t *abstract, unsigned int address, unsign
 	if (! device_is_zeagle_n2ition3 (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	// The data transmission is split in packages
-	// of maximum $ZEAGLE_N2ITION3_PACKET_SIZE bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the package size.
 		unsigned int len = size - nbytes;
-		if (len > ZEAGLE_N2ITION3_PACKET_SIZE)
-			len = ZEAGLE_N2ITION3_PACKET_SIZE;
+		if (len > SZ_PACKET)
+			len = SZ_PACKET;
 
 		// Read the package.
-		unsigned char answer[13 + ZEAGLE_N2ITION3_PACKET_SIZE + 6] = {0};
+		unsigned char answer[13 + SZ_PACKET + 6] = {0};
 		unsigned char command[13] = {0x02, 0x08, 0x00, 0x4D,
 				(address     ) & 0xFF, // low
 				(address >> 8) & 0xFF, // high
@@ -279,13 +279,13 @@ zeagle_n2ition3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, ZEAGLE_N2ITION3_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), ZEAGLE_N2ITION3_PACKET_SIZE);
+		dc_buffer_get_size (buffer), SZ_PACKET);
 }
 
 
@@ -389,7 +389,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 			if (address == RB_PROFILE_BEGIN)
 				address = RB_PROFILE_END;
 			
-			unsigned int len = ZEAGLE_N2ITION3_PACKET_SIZE;
+			unsigned int len = SZ_PACKET;
 			if (RB_PROFILE_BEGIN + len > address)
 				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.
 			if (nbytes + len > remaining)

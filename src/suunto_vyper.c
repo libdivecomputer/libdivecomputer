@@ -40,6 +40,9 @@
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
+#define SZ_MEMORY 0x2000
+#define SZ_PACKET 32
+
 #define HDR_DEVINFO_VYPER   0x24
 #define HDR_DEVINFO_SPYDER  0x16
 #define HDR_DEVINFO_BEGIN   (HDR_DEVINFO_SPYDER)
@@ -71,7 +74,7 @@ static const device_backend_t suunto_vyper_device_backend = {
 static const suunto_common_layout_t suunto_vyper_layout = {
 	0x51, /* eop */
 	0x71, /* rb_profile_begin */
-	SUUNTO_VYPER_MEMORY_SIZE, /* rb_profile_end */
+	SZ_MEMORY, /* rb_profile_end */
 	9, /* fp_offset */
 	5 /* peek */
 };
@@ -79,7 +82,7 @@ static const suunto_common_layout_t suunto_vyper_layout = {
 static const suunto_common_layout_t suunto_spyder_layout = {
 	0x1C, /* eop */
 	0x4C, /* rb_profile_begin */
-	SUUNTO_VYPER_MEMORY_SIZE, /* rb_profile_end */
+	SZ_MEMORY, /* rb_profile_end */
 	6, /* fp_offset */
 	3 /* peek */
 };
@@ -283,16 +286,13 @@ suunto_vyper_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 	if (! device_is_suunto_vyper (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	// The data transmission is split in packages
-	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the package size.
-		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER_PACKET_SIZE);
+		unsigned int len = MIN (size - nbytes, SZ_PACKET);
 
 		// Read the package.
-		unsigned char answer[SUUNTO_VYPER_PACKET_SIZE + 5] = {0};
+		unsigned char answer[SZ_PACKET + 5] = {0};
 		unsigned char command[5] = {0x05,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
@@ -322,13 +322,10 @@ suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const un
 	if (! device_is_suunto_vyper (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	// The data transmission is split in packages
-	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the package size.
-		unsigned int len = MIN (size - nbytes, SUUNTO_VYPER_PACKET_SIZE);
+		unsigned int len = MIN (size - nbytes, SZ_PACKET);
 
 		// Prepare to write the package.
 		unsigned char panswer[3] = {0};
@@ -339,7 +336,7 @@ suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const un
 
 		// Write the package.
 		unsigned char wanswer[5] = {0};
-		unsigned char wcommand[SUUNTO_VYPER_PACKET_SIZE + 5] = {0x06,
+		unsigned char wcommand[SZ_PACKET + 5] = {0x06,
 				(address >> 8) & 0xFF, // high
 				(address     ) & 0xFF, // low
 				len, // count
@@ -382,13 +379,10 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 		return rc;
 	}
 
-	// The data transmission is split in packages
-	// of maximum $SUUNTO_VYPER_PACKET_SIZE bytes.
-
 	unsigned int nbytes = 0;
 	for (unsigned int npackages = 0;; ++npackages) {
 		// Receive the header of the package.
-		unsigned char answer[SUUNTO_VYPER_PACKET_SIZE + 3] = {0};
+		unsigned char answer[SZ_PACKET + 3] = {0};
 		int n = serial_read (device->port, answer, 2);
 		if (n != 2) {
 			// If no data is received because a timeout occured, we assume 
@@ -407,7 +401,7 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 
 		// Verify the header of the package.
 		if (answer[0] != command[0] || 
-			answer[1] > SUUNTO_VYPER_PACKET_SIZE) {
+			answer[1] > SZ_PACKET) {
 			ERROR (abstract->context, "Unexpected answer start byte(s).");
 			return DC_STATUS_PROTOCOL;
 		}
@@ -454,12 +448,12 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 
 		nbytes += len;
 
-		// If a package is smaller than $SUUNTO_VYPER_PACKET_SIZE bytes, 
+		// If a package is smaller than $SZ_PACKET bytes,
 		// we assume it's the last packet and the transmission can be 
 		// finished early. However, this approach does not work if the 
-		// last packet is exactly $SUUNTO_VYPER_PACKET_SIZE bytes long!
+		// last packet is exactly $SZ_PACKET bytes long!
 #if 0
-		if (len != SUUNTO_VYPER_PACKET_SIZE) 
+		if (len != SZ_PACKET)
 			break;
 #endif
 	}
@@ -498,13 +492,13 @@ suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SUUNTO_VYPER_MEMORY_SIZE)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), SUUNTO_VYPER_PACKET_SIZE);
+		dc_buffer_get_size (buffer), SZ_PACKET);
 }
 
 
@@ -518,7 +512,7 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = SUUNTO_VYPER_MEMORY_SIZE;
+	progress.maximum = SZ_MEMORY;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the device info. The Vyper and the Spyder store this data
@@ -603,7 +597,7 @@ suunto_vyper_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	if (abstract && !device_is_suunto_vyper (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size < SUUNTO_VYPER_MEMORY_SIZE)
+	if (size < SZ_MEMORY)
 		return DC_STATUS_DATAFORMAT;
 
 	const suunto_common_layout_t *layout = &suunto_vyper_layout;
