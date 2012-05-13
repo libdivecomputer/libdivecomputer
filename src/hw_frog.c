@@ -64,14 +64,12 @@ typedef struct hw_frog_device_t {
 } hw_frog_device_t;
 
 static dc_status_t hw_frog_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
-static dc_status_t hw_frog_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
 static dc_status_t hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t hw_frog_device_close (dc_device_t *abstract);
 
 static const device_backend_t hw_frog_device_backend = {
 	DC_FAMILY_HW_FROG,
 	hw_frog_device_set_fingerprint, /* set_fingerprint */
-	hw_frog_device_version, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	NULL, /* dump */
@@ -294,7 +292,7 @@ hw_frog_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[
 }
 
 
-static dc_status_t
+dc_status_t
 hw_frog_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;

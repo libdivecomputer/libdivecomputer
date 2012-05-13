@@ -62,7 +62,6 @@ static dc_status_t hw_ostc_device_close (dc_device_t *abstract);
 static const device_backend_t hw_ostc_device_backend = {
 	DC_FAMILY_HW_OSTC,
 	hw_ostc_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	hw_ostc_device_dump, /* dump */

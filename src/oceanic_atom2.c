@@ -48,7 +48,6 @@ typedef struct oceanic_atom2_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_atom2_device_t;
 
-static dc_status_t oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static dc_status_t oceanic_atom2_device_close (dc_device_t *abstract);
@@ -56,7 +55,6 @@ static dc_status_t oceanic_atom2_device_close (dc_device_t *abstract);
 static const device_backend_t oceanic_atom2_device_backend = {
 	DC_FAMILY_OCEANIC_ATOM2,
 	oceanic_common_device_set_fingerprint, /* set_fingerprint */
-	oceanic_atom2_device_version, /* version */
 	oceanic_atom2_device_read, /* read */
 	oceanic_atom2_device_write, /* write */
 	oceanic_common_device_dump, /* dump */
@@ -455,7 +453,7 @@ oceanic_atom2_device_keepalive (dc_device_t *abstract)
 }
 
 
-static dc_status_t
+dc_status_t
 oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;

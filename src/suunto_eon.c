@@ -50,7 +50,6 @@ static dc_status_t suunto_eon_device_close (dc_device_t *abstract);
 static const device_backend_t suunto_eon_device_backend = {
 	DC_FAMILY_SUUNTO_EON,
 	suunto_common_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	suunto_eon_device_dump, /* dump */

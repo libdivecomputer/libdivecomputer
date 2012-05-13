@@ -194,19 +194,6 @@ dc_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsi
 
 
 dc_status_t
-dc_device_version (dc_device_t *device, unsigned char data[], unsigned int size)
-{
-	if (device == NULL)
-		return DC_STATUS_UNSUPPORTED;
-
-	if (device->backend->version == NULL)
-		return DC_STATUS_UNSUPPORTED;
-
-	return device->backend->version (device, data, size);
-}
-
-
-dc_status_t
 dc_device_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size)
 {
 	if (device == NULL)

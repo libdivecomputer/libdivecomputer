@@ -36,6 +36,9 @@ dc_status_t
 suunto_d9_device_open (dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
 
 dc_status_t
+suunto_d9_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
+
+dc_status_t
 suunto_d9_device_reset_maxdepth (dc_device_t *device);
 
 dc_status_t

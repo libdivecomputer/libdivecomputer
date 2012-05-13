@@ -63,7 +63,6 @@ static dc_status_t suunto_vyper_device_close (dc_device_t *abstract);
 static const device_backend_t suunto_vyper_device_backend = {
 	DC_FAMILY_SUUNTO_VYPER,
 	suunto_common_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	suunto_vyper_device_read, /* read */
 	suunto_vyper_device_write, /* write */
 	suunto_vyper_device_dump, /* dump */

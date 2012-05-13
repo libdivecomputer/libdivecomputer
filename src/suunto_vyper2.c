@@ -47,7 +47,6 @@ static const suunto_common2_device_backend_t suunto_vyper2_device_backend = {
 	{
 		DC_FAMILY_SUUNTO_VYPER2,
 		suunto_common2_device_set_fingerprint, /* set_fingerprint */
-		suunto_common2_device_version, /* version */
 		suunto_common2_device_read, /* read */
 		suunto_common2_device_write, /* write */
 		suunto_common2_device_dump, /* dump */
@@ -222,6 +221,16 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	}
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+dc_status_t
+suunto_vyper2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
+{
+	if (! device_is_suunto_vyper2 (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	return suunto_common2_device_version (abstract, data, size);
 }
 
 

@@ -46,9 +46,9 @@ test_dump_memory (const char* filename)
 		return rc;
 	}
 
-	message ("dc_device_version\n");
+	message ("uwatec_smart_device_version\n");
 	unsigned char version[UWATEC_SMART_VERSION_SIZE] = {0};
-	rc = dc_device_version (device, version, sizeof (version));
+	rc = uwatec_smart_device_version (device, version, sizeof (version));
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot identify computer.");
 		dc_device_close (device);

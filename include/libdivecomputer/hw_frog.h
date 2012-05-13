@@ -38,6 +38,9 @@ dc_status_t
 hw_frog_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
+hw_frog_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
+
+dc_status_t
 hw_frog_device_clock (dc_device_t *device, const dc_datetime_t *datetime);
 
 dc_status_t

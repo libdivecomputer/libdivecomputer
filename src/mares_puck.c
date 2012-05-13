@@ -51,7 +51,6 @@ static dc_status_t mares_puck_device_close (dc_device_t *abstract);
 static const device_backend_t mares_puck_device_backend = {
 	DC_FAMILY_MARES_PUCK,
 	mares_puck_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	mares_common_device_read, /* read */
 	NULL, /* write */
 	mares_puck_device_dump, /* dump */

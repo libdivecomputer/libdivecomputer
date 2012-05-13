@@ -44,7 +44,6 @@ typedef struct uwatec_smart_device_t {
 } uwatec_smart_device_t;
 
 static dc_status_t uwatec_smart_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
-static dc_status_t uwatec_smart_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
 static dc_status_t uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t uwatec_smart_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t uwatec_smart_device_close (dc_device_t *abstract);
@@ -52,7 +51,6 @@ static dc_status_t uwatec_smart_device_close (dc_device_t *abstract);
 static const device_backend_t uwatec_smart_device_backend = {
 	DC_FAMILY_UWATEC_SMART,
 	uwatec_smart_device_set_fingerprint, /* set_fingerprint */
-	uwatec_smart_device_version, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	uwatec_smart_device_dump, /* dump */
@@ -271,7 +269,7 @@ uwatec_smart_device_set_fingerprint (dc_device_t *abstract, const unsigned char 
 }
 
 
-static dc_status_t
+dc_status_t
 uwatec_smart_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	uwatec_smart_device_t *device = (uwatec_smart_device_t *) abstract;

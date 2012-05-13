@@ -52,7 +52,6 @@ static dc_status_t suunto_solution_device_close (dc_device_t *abstract);
 static const device_backend_t suunto_solution_device_backend = {
 	DC_FAMILY_SUUNTO_SOLUTION,
 	NULL, /* set_fingerprint */
-	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	suunto_solution_device_dump, /* dump */

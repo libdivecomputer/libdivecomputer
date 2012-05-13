@@ -35,6 +35,9 @@ dc_status_t
 suunto_vyper2_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
+suunto_vyper2_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
+
+dc_status_t
 suunto_vyper2_device_reset_maxdepth (dc_device_t *device);
 
 #ifdef __cplusplus

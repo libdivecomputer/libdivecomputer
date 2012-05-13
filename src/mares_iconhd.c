@@ -67,7 +67,6 @@ static dc_status_t mares_iconhd_device_close (dc_device_t *abstract);
 static const device_backend_t mares_iconhd_device_backend = {
 	DC_FAMILY_MARES_ICONHD,
 	mares_iconhd_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	mares_iconhd_device_read, /* read */
 	NULL, /* write */
 	mares_iconhd_device_dump, /* dump */

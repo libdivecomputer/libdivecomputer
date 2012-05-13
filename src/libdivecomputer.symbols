@@ -72,7 +72,6 @@ dc_device_read
 dc_device_set_cancel
 dc_device_set_events
 dc_device_set_fingerprint
-dc_device_version
 dc_device_write
 
 cressi_edy_device_open
@@ -85,10 +84,13 @@ mares_darwin_extract_dives
 mares_iconhd_device_open
 mares_iconhd_extract_dives
 oceanic_atom2_device_open
+oceanic_atom2_device_version
 oceanic_atom2_device_keepalive
 oceanic_veo250_device_open
+oceanic_veo250_device_version
 oceanic_veo250_device_keepalive
 oceanic_vtpro_device_open
+oceanic_vtpro_device_version
 oceanic_vtpro_device_keepalive
 reefnet_sensus_device_open
 reefnet_sensus_device_set_timestamp
@@ -109,6 +111,7 @@ reefnet_sensusultra_device_write_parameter
 reefnet_sensusultra_device_write_user
 reefnet_sensusultra_extract_dives
 suunto_d9_device_open
+suunto_d9_device_version
 suunto_d9_device_reset_maxdepth
 suunto_solution_device_open
 suunto_solution_extract_dives
@@ -117,6 +120,7 @@ suunto_eon_device_write_interval
 suunto_eon_device_write_name
 suunto_eon_extract_dives
 suunto_vyper2_device_open
+suunto_vyper2_device_version
 suunto_vyper2_device_reset_maxdepth
 suunto_vyper_device_open
 suunto_vyper_device_read_dive
@@ -129,6 +133,7 @@ uwatec_memomouse_device_open
 uwatec_memomouse_device_set_timestamp
 uwatec_memomouse_extract_dives
 uwatec_smart_device_open
+uwatec_smart_device_version
 uwatec_smart_device_set_timestamp
 uwatec_smart_extract_dives
 hw_ostc_device_open
@@ -140,9 +145,11 @@ hw_ostc_device_reset
 hw_ostc_device_screenshot
 hw_ostc_extract_dives
 hw_frog_device_open
+hw_frog_device_version
 hw_frog_device_clock
 hw_frog_device_display
 hw_frog_device_customtext
 zeagle_n2ition3_device_open
 atomics_cobalt_device_open
+atomics_cobalt_device_version
 atomics_cobalt_device_set_simulation

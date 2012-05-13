@@ -49,14 +49,12 @@ typedef struct oceanic_veo250_device_t {
 	unsigned char version[PAGESIZE];
 } oceanic_veo250_device_t;
 
-static dc_status_t oceanic_veo250_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_veo250_device_close (dc_device_t *abstract);
 
 static const device_backend_t oceanic_veo250_device_backend = {
 	DC_FAMILY_OCEANIC_VEO250,
 	oceanic_common_device_set_fingerprint, /* set_fingerprint */
-	oceanic_veo250_device_version, /* version */
 	oceanic_veo250_device_read, /* read */
 	NULL, /* write */
 	oceanic_common_device_dump, /* dump */
@@ -362,7 +360,7 @@ oceanic_veo250_device_keepalive (dc_device_t *abstract)
 }
 
 
-static dc_status_t
+dc_status_t
 oceanic_veo250_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;

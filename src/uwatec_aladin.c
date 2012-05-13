@@ -61,7 +61,6 @@ static dc_status_t uwatec_aladin_device_close (dc_device_t *abstract);
 static const device_backend_t uwatec_aladin_device_backend = {
 	DC_FAMILY_UWATEC_ALADIN,
 	uwatec_aladin_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	NULL, /* read */
 	NULL, /* write */
 	uwatec_aladin_device_dump, /* dump */

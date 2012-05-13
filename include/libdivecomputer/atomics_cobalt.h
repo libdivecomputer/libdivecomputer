@@ -34,6 +34,9 @@ dc_status_t
 atomics_cobalt_device_open (dc_device_t **device, dc_context_t *context);
 
 dc_status_t
+atomics_cobalt_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
+
+dc_status_t
 atomics_cobalt_device_set_simulation (dc_device_t *device, unsigned int simulation);
 
 dc_status_t

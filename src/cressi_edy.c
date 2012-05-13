@@ -66,7 +66,6 @@ static dc_status_t cressi_edy_device_close (dc_device_t *abstract);
 static const device_backend_t cressi_edy_device_backend = {
 	DC_FAMILY_CRESSI_EDY,
 	cressi_edy_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* version */
 	cressi_edy_device_read, /* read */
 	NULL, /* write */
 	cressi_edy_device_dump, /* dump */
