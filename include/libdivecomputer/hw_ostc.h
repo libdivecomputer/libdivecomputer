@@ -31,6 +31,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define HW_OSTC_MD2HASH_SIZE 18
+#define HW_OSTC_EEPROM_SIZE  256
+
 typedef enum hw_ostc_format_t {
 	HW_OSTC_FORMAT_RAW,
 	HW_OSTC_FORMAT_RGB16,

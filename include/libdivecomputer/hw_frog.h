@@ -31,6 +31,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define HW_FROG_DISPLAY_SIZE    15
+#define HW_FROG_CUSTOMTEXT_SIZE 13
+
 dc_status_t
 hw_frog_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
