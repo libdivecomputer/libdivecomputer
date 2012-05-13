@@ -30,13 +30,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define UWATEC_SMART_VERSION_SIZE 9
-
 dc_status_t
 uwatec_smart_device_open (dc_device_t **device, dc_context_t *context);
-
-dc_status_t
-uwatec_smart_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
 uwatec_smart_device_set_timestamp (dc_device_t *device, unsigned int timestamp);
