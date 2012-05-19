@@ -28,6 +28,7 @@ extern "C" {
 
 typedef enum dc_status_t {
 	DC_STATUS_SUCCESS = 0,
+	DC_STATUS_DONE = 1,
 	DC_STATUS_UNSUPPORTED = -1,
 	DC_STATUS_INVALIDARGS = -2,
 	DC_STATUS_NOMEMORY = -3,

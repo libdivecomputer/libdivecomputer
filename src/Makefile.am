@@ -11,6 +11,7 @@ libdivecomputer_la_LDFLAGS = \
 
 libdivecomputer_la_SOURCES = \
 	version.c \
+	iterator-private.h iterator.c \
 	device-private.h device.c \
 	parser-private.h parser.c \
 	datetime.c \
