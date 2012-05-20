@@ -341,7 +341,7 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate memory.
-	unsigned char *header = malloc (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT);
+	unsigned char *header = (unsigned char *) malloc (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT);
 	if (header == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -425,7 +425,7 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 	}
 
 	// Allocate enough memory for the largest dive.
-	unsigned char *profile = malloc (maxsize);
+	unsigned char *profile = (unsigned char *) malloc (maxsize);
 	if (profile == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
 		free (header);

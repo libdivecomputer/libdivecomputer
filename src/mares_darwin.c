@@ -286,7 +286,7 @@ mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	}
 
 	// Allocate memory for the largest possible dive.
-	unsigned char *buffer = malloc (layout->rb_logbook_size + layout->rb_profile_end - layout->rb_profile_begin);
+	unsigned char *buffer = (unsigned char *) malloc (layout->rb_logbook_size + layout->rb_profile_end - layout->rb_profile_begin);
 	if (buffer == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
