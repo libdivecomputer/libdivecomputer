@@ -20,6 +20,11 @@ dc_datetime_mktime
 dc_iterator_next
 dc_iterator_free
 
+dc_descriptor_get_vendor
+dc_descriptor_get_product
+dc_descriptor_get_type
+dc_descriptor_get_model
+
 dc_parser_get_type
 dc_parser_set_data
 dc_parser_get_datetime
