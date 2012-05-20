@@ -20,6 +20,8 @@ dc_datetime_mktime
 dc_iterator_next
 dc_iterator_free
 
+dc_descriptor_iterator
+dc_descriptor_free
 dc_descriptor_get_vendor
 dc_descriptor_get_product
 dc_descriptor_get_type

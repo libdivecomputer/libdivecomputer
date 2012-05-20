@@ -24,12 +24,206 @@
 
 #include <libdivecomputer/descriptor.h>
 
+#include "iterator-private.h"
+
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
 struct dc_descriptor_t {
 	const char *vendor;
 	const char *product;
 	dc_family_t type;
 	unsigned int model;
 };
+
+/*
+ * The model numbers in the table are the actual model numbers reported by the
+ * device. For devices where there is no model number available (or known), an
+ * artifical number (starting at zero) is assigned.  If the model number isn't
+ * actually used to identify individual models, identical values are assigned.
+ */
+
+static const dc_descriptor_t g_descriptors[] = {
+	/* Suunto Solution */
+	{"Suunto", "Solution", DC_FAMILY_SUUNTO_SOLUTION, 0},
+	/* Suunto Eon */
+	{"Suunto", "Eon",             DC_FAMILY_SUUNTO_EON, 0},
+	{"Suunto", "Solution Alpha",  DC_FAMILY_SUUNTO_EON, 0},
+	{"Suunto", "Solution Nitrox", DC_FAMILY_SUUNTO_EON, 0},
+	/* Suunto Vyper */
+	{"Suunto", "Spyder",   DC_FAMILY_SUUNTO_VYPER, 0x01},
+	{"Suunto", "Stinger",  DC_FAMILY_SUUNTO_VYPER, 0x03},
+	{"Suunto", "Mosquito", DC_FAMILY_SUUNTO_VYPER, 0x04},
+	{"Suunto", "D3",       DC_FAMILY_SUUNTO_VYPER, 0x05},
+	{"Suunto", "Vyper",    DC_FAMILY_SUUNTO_VYPER, 0x0A},
+	{"Suunto", "Vytec",    DC_FAMILY_SUUNTO_VYPER, 0X0B},
+	{"Suunto", "Cobra",    DC_FAMILY_SUUNTO_VYPER, 0X0C},
+	{"Suunto", "Gekko",    DC_FAMILY_SUUNTO_VYPER, 0X0D},
+	{"Suunto", "Zoop",     DC_FAMILY_SUUNTO_VYPER, 0x16},
+	/* Suunto Vyper 2 */
+	{"Suunto", "Vyper 2",   DC_FAMILY_SUUNTO_VYPER2, 0x10},
+	{"Suunto", "Cobra 2",   DC_FAMILY_SUUNTO_VYPER2, 0x11},
+	{"Suunto", "Vyper Air", DC_FAMILY_SUUNTO_VYPER2, 0x13},
+	{"Suunto", "Cobra 3",   DC_FAMILY_SUUNTO_VYPER2, 0x14},
+	{"Suunto", "HelO2",     DC_FAMILY_SUUNTO_VYPER2, 0x15},
+	/* Suunto D9 */
+	{"Suunto", "D9",   DC_FAMILY_SUUNTO_D9, 0x0E},
+	{"Suunto", "D6",   DC_FAMILY_SUUNTO_D9, 0x0F},
+	{"Suunto", "D4",   DC_FAMILY_SUUNTO_D9, 0x12},
+	{"Suunto", "D4i",  DC_FAMILY_SUUNTO_D9, 0x19},
+	{"Suunto", "D6i",  DC_FAMILY_SUUNTO_D9, 0x1A},
+	{"Suunto", "D9tx", DC_FAMILY_SUUNTO_D9, 0x1B},
+	/* Uwatec Aladin */
+	{"Uwatec", "Aladin", DC_FAMILY_UWATEC_ALADIN, 0},
+	/* Uwatec Memomouse */
+	{"Uwatec", "Memomouse", DC_FAMILY_UWATEC_MEMOMOUSE, 0},
+	/* Uwatec Smart */
+	{"Uwatec", "Smart Pro",     DC_FAMILY_UWATEC_SMART, 0x10},
+	{"Uwatec", "Galileo",       DC_FAMILY_UWATEC_SMART, 0x11},
+	{"Uwatec", "Aladin Tec",    DC_FAMILY_UWATEC_SMART, 0x12},
+	{"Uwatec", "Aladin Tec 2G", DC_FAMILY_UWATEC_SMART, 0x13},
+	{"Uwatec", "Smart Com",     DC_FAMILY_UWATEC_SMART, 0x14},
+	{"Uwatec", "Smart Tec",     DC_FAMILY_UWATEC_SMART, 0x18},
+	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C},
+	/* Reefnet */
+	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1},
+	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2},
+	{"Reefnet", "Sensus Ultra", DC_FAMILY_REEFNET_SENSUSULTRA, 3},
+	/* Oceanic VT Pro */
+	{"Oceanic",  "Versa Pro",  DC_FAMILY_OCEANIC_VTPRO, 0x4155},
+	{"Oceanic",  "Pro Plus 2", DC_FAMILY_OCEANIC_VTPRO, 0x4159},
+	{"Aeris",    "Atmos AI",   DC_FAMILY_OCEANIC_VTPRO, 0x4244},
+	{"Oceanic",  "VT Pro",     DC_FAMILY_OCEANIC_VTPRO, 0x4245},
+	{"Sherwood", "Wisdom",     DC_FAMILY_OCEANIC_VTPRO, 0x4246},
+	/* Oceanic Veo 250 */
+	{"Genesis", "React Pro", DC_FAMILY_OCEANIC_VEO250, 0x4247},
+	{"Oceanic", "Veo 200",   DC_FAMILY_OCEANIC_VEO250, 0x424B},
+	{"Oceanic", "Veo 250",   DC_FAMILY_OCEANIC_VEO250, 0x424C},
+	{"Oceanic", "Veo 180",   DC_FAMILY_OCEANIC_VEO250, 0x4252},
+	{"Aeris",   "XR-2",      DC_FAMILY_OCEANIC_VEO250, 0x4255},
+	/* Oceanic Atom 2.0 */
+	{"Oceanic",  "Atom 1.0",            DC_FAMILY_OCEANIC_ATOM2, 0x4250},
+	{"Aeris",    "Epic",                DC_FAMILY_OCEANIC_ATOM2, 0x4257},
+	{"Oceanic",  "VT3",                 DC_FAMILY_OCEANIC_ATOM2, 0x4258},
+	{"Aeris",    "Elite T3",            DC_FAMILY_OCEANIC_ATOM2, 0x4259},
+	{"Oceanic",  "Atom 2.0",            DC_FAMILY_OCEANIC_ATOM2, 0x4342},
+	{"Oceanic",  "Geo",                 DC_FAMILY_OCEANIC_ATOM2, 0x4344},
+	{"Oceanic",  "Datamask",            DC_FAMILY_OCEANIC_ATOM2, 0x4347},
+	{"Aeris",    "Compumask",           DC_FAMILY_OCEANIC_ATOM2, 0x4348},
+	{"Oceanic",  "OC1",                 DC_FAMILY_OCEANIC_ATOM2, 0x434E},
+	{"Aeris",    "F10",                 DC_FAMILY_OCEANIC_ATOM2, 0x434D},
+	{"Sherwood", "Wisdom 2",            DC_FAMILY_OCEANIC_ATOM2, 0x4350},
+	{"Sherwood", "Insight",             DC_FAMILY_OCEANIC_ATOM2, 0x4353},
+	{"Tusa",     "Element II (IQ-750)", DC_FAMILY_OCEANIC_ATOM2, 0x4357},
+	{"Oceanic",  "Veo 1.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4358},
+	{"Oceanic",  "Veo 2.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4359},
+	{"Oceanic",  "Veo 3.0",             DC_FAMILY_OCEANIC_ATOM2, 0x435A},
+	{"Tusa",     "Zen (IQ-900)",        DC_FAMILY_OCEANIC_ATOM2, 0x4441},
+	{"Tusa",     "Zen Air (IQ-950)",    DC_FAMILY_OCEANIC_ATOM2, 0x4442},
+	{"Aeris",    "Atmos AI 2",          DC_FAMILY_OCEANIC_ATOM2, 0x4443},
+	{"Oceanic",  "Pro Plus 2.1",        DC_FAMILY_OCEANIC_ATOM2, 0x4444},
+	{"Oceanic",  "Geo 2.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4446},
+	{"Oceanic",  "VT4",                 DC_FAMILY_OCEANIC_ATOM2, 0x4447},
+	{"Oceanic",  "OC1",                 DC_FAMILY_OCEANIC_ATOM2, 0x4449},
+	{"Oceanic",  "Atom 3.0",            DC_FAMILY_OCEANIC_ATOM2, 0x444C},
+	{"Oceanic",  "VT 4.1",              DC_FAMILY_OCEANIC_ATOM2, 0x4452},
+	{"Oceanic",  "Atom 3.1",            DC_FAMILY_OCEANIC_ATOM2, 0x4456},
+	/* Mares Nemo */
+	{"Mares", "Nemo",         DC_FAMILY_MARES_NEMO, 0},
+	{"Mares", "Nemo Excel",   DC_FAMILY_MARES_NEMO, 17},
+	{"Mares", "Nemo Apneist", DC_FAMILY_MARES_NEMO, 18},
+	/* Mares Puck */
+	{"Mares", "Puck",      DC_FAMILY_MARES_PUCK, 7},
+	{"Mares", "Puck Air",  DC_FAMILY_MARES_PUCK, 19},
+	{"Mares", "Nemo Air",  DC_FAMILY_MARES_PUCK, 4},
+	{"Mares", "Nemo Wide", DC_FAMILY_MARES_PUCK, 1},
+	/* Mares Darwin */
+	{"Mares", "Darwin",     DC_FAMILY_MARES_DARWIN , 0},
+	{"Mares", "M1",         DC_FAMILY_MARES_DARWIN , 0},
+	{"Mares", "M2",         DC_FAMILY_MARES_DARWIN , 0},
+	{"Mares", "Darwin Air", DC_FAMILY_MARES_DARWIN , 1},
+	/* Mares Icon HD */
+	{"Mares", "Icon HD",           DC_FAMILY_MARES_ICONHD , 0x14},
+	{"Mares", "Icon HD Net Ready", DC_FAMILY_MARES_ICONHD , 0x15},
+	/* Heinrichs Weikamp */
+	{"Heinrichs Weikamp", "OSTC", DC_FAMILY_HW_OSTC, 0},
+	{"Heinrichs Weikamp", "Frog", DC_FAMILY_HW_FROG, 0},
+	/* Cressi Edy */
+	{"Cressi", "Edy", DC_FAMILY_CRESSI_EDY, 0},
+	/* Zeagle N2iTiON3 */
+	{"Zeagle",   "N2iTiON3",   DC_FAMILY_ZEAGLE_N2ITION3, 0},
+	{"Apeks",    "Quantum X",  DC_FAMILY_ZEAGLE_N2ITION3, 0},
+	{"DiveRite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0},
+	/* Atomic Aquatics Cobalt */
+	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},
+};
+
+typedef struct dc_descriptor_iterator_t {
+	dc_iterator_t base;
+	size_t current;
+} dc_descriptor_iterator_t;
+
+static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
+static dc_status_t dc_descriptor_iterator_free (dc_iterator_t *iterator);
+
+static const dc_iterator_vtable_t dc_descriptor_iterator_vtable = {
+	dc_descriptor_iterator_free,
+	dc_descriptor_iterator_next
+};
+
+dc_status_t
+dc_descriptor_iterator (dc_iterator_t **out)
+{
+	dc_descriptor_iterator_t *iterator = NULL;
+
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	iterator = (dc_descriptor_iterator_t *) malloc (sizeof (dc_descriptor_iterator_t));
+	if (iterator == NULL)
+		return DC_STATUS_NOMEMORY;
+
+	iterator->base.vtable = &dc_descriptor_iterator_vtable;
+	iterator->current = 0;
+
+	*out = (dc_iterator_t *) iterator;
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+dc_descriptor_iterator_free (dc_iterator_t *iterator)
+{
+	free (iterator);
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+dc_descriptor_iterator_next (dc_iterator_t *abstract, void *out)
+{
+	dc_descriptor_iterator_t *iterator = (dc_descriptor_iterator_t *) abstract;
+	dc_descriptor_t **item = (dc_descriptor_t **) out;
+
+	if (iterator->current >= C_ARRAY_SIZE (g_descriptors))
+		return DC_STATUS_DONE;
+
+	/*
+	 * The explicit cast from a const to a non-const pointer is safe here. The
+	 * public interface doesn't support write access, and therefore descriptor
+	 * objects are always read-only. However, the cast allows to return a direct
+	 * reference to the entries in the table, avoiding the overhead of
+	 * allocating (and freeing) memory for a deep copy.
+	 */
+	*item = (dc_descriptor_t *) &g_descriptors[iterator->current++];
+
+	return DC_STATUS_SUCCESS;
+}
+
+void
+dc_descriptor_free (dc_descriptor_t *descriptor)
+{
+	return;
+}
 
 const char *
 dc_descriptor_get_vendor (dc_descriptor_t *descriptor)

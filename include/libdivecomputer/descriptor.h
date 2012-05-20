@@ -23,12 +23,19 @@
 #define DC_DESCRIPTOR_H
 
 #include "common.h"
+#include "iterator.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 typedef struct dc_descriptor_t dc_descriptor_t;
+
+dc_status_t
+dc_descriptor_iterator (dc_iterator_t **iterator);
+
+void
+dc_descriptor_free (dc_descriptor_t *descriptor);
 
 const char *
 dc_descriptor_get_vendor (dc_descriptor_t *descriptor);
