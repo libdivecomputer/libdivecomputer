@@ -41,7 +41,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS"
+				AdditionalIncludeDirectories="..\include"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS;ENABLE_LOGGING"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -117,7 +118,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS"
+				AdditionalIncludeDirectories="..\include"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS;ENABLE_LOGGING"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -181,6 +183,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\atomics_cobalt.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\atomics_cobalt_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\buffer.c"
 				>
 			</File>
@@ -189,7 +199,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\context.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\cressi_edy.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cressi_edy_parser.c"
 				>
 			</File>
 			<File
@@ -197,7 +215,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\descriptor.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\device.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\hw_frog.c"
 				>
 			</File>
 			<File
@@ -205,11 +231,35 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\hw_ostc_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\irda.c"
 				>
 			</File>
 			<File
+				RelativePath="..\src\iterator.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\mares_common.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_darwin.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_darwin_parser.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_iconhd.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mares_iconhd_parser.c"
 				>
 			</File>
 			<File
@@ -333,10 +383,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\utils.c"
-				>
-			</File>
-			<File
 				RelativePath="..\src\uwatec_aladin.c"
 				>
 			</File>
@@ -356,6 +402,14 @@
 				RelativePath="..\src\uwatec_smart_parser.c"
 				>
 			</File>
+			<File
+				RelativePath="..\src\version.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\zeagle_n2ition3.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -363,167 +417,215 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\src\array.h"
+				RelativePath="..\include\libdivecomputer\array.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\buffer.h"
+				RelativePath="..\include\libdivecomputer\atomics.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\checksum.h"
+				RelativePath="..\include\libdivecomputer\atomics_cobalt.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\cressi.h"
+				RelativePath="..\include\libdivecomputer\buffer.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\cressi_edy.h"
+				RelativePath="..\include\libdivecomputer\checksum.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\datetime.h"
+				RelativePath="..\src\context-private.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\device-private.h"
+				RelativePath="..\include\libdivecomputer\context.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\device.h"
+				RelativePath="..\include\libdivecomputer\cressi.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\hw.h"
+				RelativePath="..\include\libdivecomputer\cressi_edy.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\hw_ostc.h"
+				RelativePath="..\include\libdivecomputer\datetime.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\irda.h"
+				RelativePath="..\include\libdivecomputer\descriptor.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\mares_common.h"
+				RelativePath="..\include\libdivecomputer\device-private.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\mares_nemo.h"
+				RelativePath="..\include\libdivecomputer\device.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\mares_puck.h"
+				RelativePath="..\include\libdivecomputer\hw.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\oceanic.h"
+				RelativePath="..\include\libdivecomputer\hw_frog.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\oceanic_atom2.h"
+				RelativePath="..\include\libdivecomputer\hw_ostc.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\oceanic_common.h"
+				RelativePath="..\include\libdivecomputer\irda.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\oceanic_veo250.h"
+				RelativePath="..\include\libdivecomputer\iterator.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\oceanic_vtpro.h"
+				RelativePath="..\include\libdivecomputer\mares.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\parser-private.h"
+				RelativePath="..\include\libdivecomputer\mares_common.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\parser.h"
+				RelativePath="..\include\libdivecomputer\mares_darwin.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\reefnet.h"
+				RelativePath="..\include\libdivecomputer\mares_iconhd.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\reefnet_sensus.h"
+				RelativePath="..\include\libdivecomputer\mares_nemo.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\reefnet_sensuspro.h"
+				RelativePath="..\include\libdivecomputer\mares_puck.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\reefnet_sensusultra.h"
+				RelativePath="..\include\libdivecomputer\oceanic.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\ringbuffer.h"
+				RelativePath="..\include\libdivecomputer\oceanic_atom2.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\serial.h"
+				RelativePath="..\include\libdivecomputer\oceanic_common.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto.h"
+				RelativePath="..\include\libdivecomputer\oceanic_veo250.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_common.h"
+				RelativePath="..\include\libdivecomputer\oceanic_vtpro.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_common2.h"
+				RelativePath="..\include\libdivecomputer\parser-private.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_d9.h"
+				RelativePath="..\include\libdivecomputer\parser.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_eon.h"
+				RelativePath="..\include\libdivecomputer\reefnet.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_solution.h"
+				RelativePath="..\include\libdivecomputer\reefnet_sensus.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_vyper.h"
+				RelativePath="..\include\libdivecomputer\reefnet_sensuspro.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\suunto_vyper2.h"
+				RelativePath="..\include\libdivecomputer\reefnet_sensusultra.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\units.h"
+				RelativePath="..\include\libdivecomputer\ringbuffer.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\utils.h"
+				RelativePath="..\include\libdivecomputer\serial.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\uwatec.h"
+				RelativePath="..\include\libdivecomputer\suunto.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\uwatec_aladin.h"
+				RelativePath="..\include\libdivecomputer\suunto_common.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\uwatec_memomouse.h"
+				RelativePath="..\include\libdivecomputer\suunto_common2.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\uwatec_smart.h"
+				RelativePath="..\include\libdivecomputer\suunto_d9.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\suunto_eon.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\suunto_solution.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\suunto_vyper.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\suunto_vyper2.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\units.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\uwatec.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\uwatec_aladin.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\uwatec_memomouse.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\uwatec_smart.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\version.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\zeagle.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\zeagle_n2ition3.h"
 				>
 			</File>
 		</Filter>
