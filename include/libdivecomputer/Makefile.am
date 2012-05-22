@@ -2,6 +2,7 @@ libdivecomputerdir = $(includedir)/libdivecomputer
 libdivecomputer_HEADERS = 	\
 	version.h \
 	common.h \
+	context.h \
 	utils.h \
 	buffer.h \
 	descriptor.h \

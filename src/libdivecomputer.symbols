@@ -17,6 +17,10 @@ dc_datetime_localtime
 dc_datetime_gmtime
 dc_datetime_mktime
 
+dc_context_new
+dc_context_free
+dc_context_set_loglevel
+
 dc_iterator_next
 dc_iterator_free
 
