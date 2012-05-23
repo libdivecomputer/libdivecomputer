@@ -604,7 +604,7 @@ dowork (device_type_t backend, unsigned int model, const char *devname, const ch
 		rc = suunto_vyper2_device_open (&device, devname);
 		break;
 	case DEVICE_TYPE_SUUNTO_D9:
-		rc = suunto_d9_device_open (&device, devname);
+		rc = suunto_d9_device_open (&device, devname, model);
 		break;
 	case DEVICE_TYPE_UWATEC_ALADIN:
 		rc = uwatec_aladin_device_open (&device, devname);

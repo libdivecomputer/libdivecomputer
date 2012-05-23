@@ -123,7 +123,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 
 
 device_status_t
-suunto_d9_device_open (device_t **out, const char* name)
+suunto_d9_device_open (device_t **out, const char* name, unsigned int model)
 {
 	if (out == NULL)
 		return DEVICE_STATUS_ERROR;
@@ -182,7 +182,7 @@ suunto_d9_device_open (device_t **out, const char* name)
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Try to autodetect the protocol variant.
-	device_status_t status = suunto_d9_device_autodetect (device, 0);
+	device_status_t status = suunto_d9_device_autodetect (device, model);
 	if (status != DEVICE_STATUS_SUCCESS) {
 		WARNING ("Failed to identify the protocol variant.");
 		serial_close (device->port);
@@ -191,7 +191,7 @@ suunto_d9_device_open (device_t **out, const char* name)
 	}
 
 	// Override the base class values.
-	unsigned int model = device->version[0];
+	model = device->version[0];
 	if (model == D4i || model == D6i || model == D9tx)
 		device->base.layout = &suunto_d9tx_layout;
 	else

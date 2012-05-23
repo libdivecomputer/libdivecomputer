@@ -34,7 +34,7 @@ extern "C" {
 #define SUUNTO_D9_VERSION_SIZE 0x04
 
 device_status_t
-suunto_d9_device_open (device_t **device, const char* name);
+suunto_d9_device_open (device_t **device, const char* name, unsigned int model);
 
 device_status_t
 suunto_d9_device_reset_maxdepth (device_t *device);
