@@ -39,6 +39,8 @@ typedef enum dc_loglevel_t {
 	DC_LOGLEVEL_ALL
 } dc_loglevel_t;
 
+typedef void (*dc_logfunc_t) (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *message, void *userdata);
+
 dc_status_t
 dc_context_new (dc_context_t **context);
 
@@ -47,6 +49,9 @@ dc_context_free (dc_context_t *context);
 
 dc_status_t
 dc_context_set_loglevel (dc_context_t *context, dc_loglevel_t loglevel);
+
+dc_status_t
+dc_context_set_logfunc (dc_context_t *context, dc_logfunc_t logfunc, void *userdata);
 
 #ifdef __cplusplus
 }

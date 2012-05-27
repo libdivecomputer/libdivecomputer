@@ -28,7 +28,18 @@
 
 struct dc_context_t {
 	dc_loglevel_t loglevel;
+	dc_logfunc_t logfunc;
+	void *userdata;
+	char msg[4096];
 };
+
+static void
+logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
+{
+	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
+
+	fprintf (stderr, "%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
+}
 
 dc_status_t
 dc_context_new (dc_context_t **out)
@@ -43,6 +54,10 @@ dc_context_new (dc_context_t **out)
 		return DC_STATUS_NOMEMORY;
 
 	context->loglevel = DC_LOGLEVEL_WARNING;
+	context->logfunc = logfunc;
+	context->userdata = NULL;
+
+	memset (context->msg, 0, sizeof (context->msg));
 
 	*out = context;
 
@@ -69,6 +84,18 @@ dc_context_set_loglevel (dc_context_t *context, dc_loglevel_t loglevel)
 }
 
 dc_status_t
+dc_context_set_logfunc (dc_context_t *context, dc_logfunc_t logfunc, void *userdata)
+{
+	if (context == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	context->logfunc = logfunc;
+	context->userdata = userdata;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
 dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...)
 {
 	va_list ap;
@@ -79,9 +106,14 @@ dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file,
 	if (loglevel > context->loglevel)
 		return DC_STATUS_SUCCESS;
 
+	if (context->logfunc == NULL)
+		return DC_STATUS_SUCCESS;
+
 	va_start (ap, format);
-	vfprintf (stderr, format, ap);
+	vsnprintf (context->msg, sizeof (context->msg), format, ap);
 	va_end (ap);
+
+	context->logfunc (context, loglevel, file, line, function, context->msg, context->userdata);
 
 	return DC_STATUS_SUCCESS;
 }
