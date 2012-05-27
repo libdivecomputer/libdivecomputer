@@ -46,6 +46,9 @@ struct dc_device_t {
 	// Cancellation support.
 	dc_cancel_callback_t cancel_callback;
 	void *cancel_userdata;
+	// Cached events for the parsers.
+	dc_event_devinfo_t devinfo;
+	dc_event_clock_t clock;
 };
 
 struct device_backend_t {

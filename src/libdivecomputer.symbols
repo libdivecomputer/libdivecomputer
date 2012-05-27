@@ -27,6 +27,7 @@ dc_descriptor_get_product
 dc_descriptor_get_type
 dc_descriptor_get_model
 
+dc_parser_new
 dc_parser_get_type
 dc_parser_set_data
 dc_parser_get_datetime

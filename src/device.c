@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <libdivecomputer/suunto.h>
 #include <libdivecomputer/reefnet.h>
@@ -46,6 +47,9 @@ device_init (dc_device_t *device, const device_backend_t *backend)
 
 	device->cancel_callback = NULL;
 	device->cancel_userdata = NULL;
+
+	memset (&device->devinfo, 0, sizeof (device->devinfo));
+	memset (&device->clock, 0, sizeof (device->clock));
 }
 
 dc_status_t
@@ -326,8 +330,23 @@ device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data)
 		break;
 	}
 
+	if (device == NULL)
+		return;
+
+	// Cache the event data.
+	switch (event) {
+	case DC_EVENT_DEVINFO:
+		device->devinfo = *(dc_event_devinfo_t *) data;
+		break;
+	case DC_EVENT_CLOCK:
+		device->clock = *(dc_event_clock_t *) data;
+		break;
+	default:
+		break;
+	}
+
 	// Check if there is a callback function registered.
-	if (device == NULL || device->event_callback == NULL)
+	if (device->event_callback == NULL)
 		return;
 
 	// Check the event mask.
