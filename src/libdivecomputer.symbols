@@ -57,6 +57,7 @@ cressi_edy_parser_create
 atomics_cobalt_parser_create
 atomics_cobalt_parser_set_calibration
 
+dc_device_open
 dc_device_close
 dc_device_dump
 dc_device_foreach
