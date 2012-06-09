@@ -75,7 +75,7 @@ dc_device_open (dc_device_t **out, dc_descriptor_t *descriptor, const char *name
 		rc = suunto_vyper2_device_open (&device, name);
 		break;
 	case DC_FAMILY_SUUNTO_D9:
-		rc = suunto_d9_device_open (&device, name);
+		rc = suunto_d9_device_open (&device, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 		rc = uwatec_aladin_device_open (&device, name);

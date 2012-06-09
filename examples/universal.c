@@ -51,13 +51,12 @@ static const char *g_cachedir = NULL;
 static int g_cachedir_read = 1;
 
 typedef struct device_data_t {
-	dc_family_t backend;
 	dc_event_devinfo_t devinfo;
 	dc_event_clock_t clock;
 } device_data_t;
 
 typedef struct dive_data_t {
-	device_data_t *devdata;
+	dc_device_t *device;
 	FILE* fp;
 	unsigned int number;
 	dc_buffer_t *fingerprint;
@@ -283,82 +282,14 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 	}
 }
 
+
 static dc_status_t
-doparse (FILE *fp, device_data_t *devdata, const unsigned char data[], unsigned int size)
+doparse (FILE *fp, dc_device_t *device, const unsigned char data[], unsigned int size)
 {
 	// Create the parser.
 	message ("Creating the parser.\n");
 	dc_parser_t *parser = NULL;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-	switch (devdata->backend) {
-	case DC_FAMILY_SUUNTO_SOLUTION:
-		rc = suunto_solution_parser_create (&parser);
-		break;
-	case DC_FAMILY_SUUNTO_EON:
-		rc = suunto_eon_parser_create (&parser, 0);
-		break;
-	case DC_FAMILY_SUUNTO_VYPER:
-		if (devdata->devinfo.model == 0x01)
-			rc = suunto_eon_parser_create (&parser, 1);
-		else
-			rc = suunto_vyper_parser_create (&parser);
-		break;
-	case DC_FAMILY_SUUNTO_VYPER2:
-	case DC_FAMILY_SUUNTO_D9:
-		rc = suunto_d9_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_UWATEC_ALADIN:
-	case DC_FAMILY_UWATEC_MEMOMOUSE:
-		rc = uwatec_memomouse_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
-		break;
-	case DC_FAMILY_UWATEC_SMART:
-		rc = uwatec_smart_parser_create (&parser, devdata->devinfo.model, devdata->clock.devtime, devdata->clock.systime);
-		break;
-	case DC_FAMILY_REEFNET_SENSUS:
-		rc = reefnet_sensus_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
-		break;
-	case DC_FAMILY_REEFNET_SENSUSPRO:
-		rc = reefnet_sensuspro_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
-		break;
-	case DC_FAMILY_REEFNET_SENSUSULTRA:
-		rc = reefnet_sensusultra_parser_create (&parser, devdata->clock.devtime, devdata->clock.systime);
-		break;
-	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create (&parser);
-		break;
-	case DC_FAMILY_OCEANIC_VEO250:
-		rc = oceanic_veo250_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_OCEANIC_ATOM2:
-		rc = oceanic_atom2_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_MARES_NEMO:
-	case DC_FAMILY_MARES_PUCK:
-		rc = mares_nemo_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_MARES_DARWIN:
-		rc = mares_darwin_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_HW_OSTC:
-		rc = hw_ostc_parser_create (&parser, 0);
-		break;
-	case DC_FAMILY_HW_FROG:
-		rc = hw_ostc_parser_create (&parser, 1);
-		break;
-	case DC_FAMILY_CRESSI_EDY:
-	case DC_FAMILY_ZEAGLE_N2ITION3:
-		rc = cressi_edy_parser_create (&parser, devdata->devinfo.model);
-		break;
-	case DC_FAMILY_ATOMICS_COBALT:
-		rc = atomics_cobalt_parser_create (&parser);
-		break;
-	default:
-		rc = DC_STATUS_INVALIDARGS;
-		break;
-	}
+	dc_status_t rc = dc_parser_new (&parser, device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error creating the parser.");
 		return rc;
@@ -496,7 +427,7 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 			devinfo->firmware, devinfo->firmware,
 			devinfo->serial, devinfo->serial);
 		if (g_cachedir && g_cachedir_read) {
-			dc_buffer_t *fingerprint = fpread (g_cachedir, devdata->backend, devinfo->serial);
+			dc_buffer_t *fingerprint = fpread (g_cachedir, dc_device_get_type (device), devinfo->serial);
 			dc_device_set_fingerprint (device,
 				dc_buffer_get_data (fingerprint),
 				dc_buffer_get_size (fingerprint));
@@ -536,7 +467,7 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 			fprintf (divedata->fp, "%02X", fingerprint[i]);
 		fprintf (divedata->fp, "</fingerprint>\n");
 
-		doparse (divedata->fp, divedata->devdata, data, size);
+		doparse (divedata->fp, divedata->device, data, size);
 
 		fprintf (divedata->fp, "</dive>\n");
 	}
@@ -552,6 +483,7 @@ usage (const char *filename)
 	fprintf (stderr, "Usage:\n\n");
 	fprintf (stderr, "   %s [options] devname\n\n", filename);
 	fprintf (stderr, "Options:\n\n");
+	fprintf (stderr, "   -n name        Set device name (required).\n");
 	fprintf (stderr, "   -b name        Set backend name (required).\n");
 	fprintf (stderr, "   -t model       Set model code.\n");
 	fprintf (stderr, "   -f hexdata     Set fingerprint data.\n");
@@ -574,96 +506,100 @@ usage (const char *filename)
 		else
 			fprintf (stderr, "\n\n");
 	}
+
+	fprintf (stderr, "Supported devices:\n\n");
+	dc_iterator_t *iterator = NULL;
+	dc_descriptor_t *descriptor = NULL;
+	dc_descriptor_iterator (&iterator);
+	while (dc_iterator_next (iterator, &descriptor) == DC_STATUS_SUCCESS) {
+		fprintf (stderr, "   %s %s\n",
+			dc_descriptor_get_vendor (descriptor),
+			dc_descriptor_get_product (descriptor));
+		dc_descriptor_free (descriptor);
+	}
+	dc_iterator_free (iterator);
 }
 
 
 static dc_status_t
-dowork (dc_family_t backend, unsigned int model, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
+search (dc_descriptor_t **out, const char *name, dc_family_t backend, unsigned int model)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	dc_iterator_t *iterator = NULL;
+	rc = dc_descriptor_iterator (&iterator);
+	if (rc != DC_STATUS_SUCCESS) {
+		WARNING ("Error creating the device descriptor iterator.");
+		return rc;
+	}
+
+	dc_descriptor_t *descriptor = NULL, *current = NULL;
+	while ((rc = dc_iterator_next (iterator, &descriptor)) == DC_STATUS_SUCCESS) {
+		if (name) {
+			const char *vendor = dc_descriptor_get_vendor (descriptor);
+			const char *product = dc_descriptor_get_product (descriptor);
+
+			size_t n = strlen (vendor);
+			if (strncasecmp (name, vendor, n) == 0 && name[n] == ' ' &&
+				strcasecmp (name + n + 1, product) == 0)
+			{
+				current = descriptor;
+				break;
+			} else if (strcasecmp (name, product) == 0) {
+				current = descriptor;
+				break;
+			}
+		} else {
+			if (backend == dc_descriptor_get_type (descriptor)) {
+				if (model == dc_descriptor_get_model (descriptor)) {
+					// Exact match found. Return immediately.
+					dc_descriptor_free (current);
+					current = descriptor;
+					break;
+				} else {
+					// Possible match found. Keep searching for an exact match.
+					// If no exact match is found, the first match is returned.
+					if (current == NULL) {
+						current = descriptor;
+						descriptor = NULL;
+					}
+				}
+			}
+		}
+
+		dc_descriptor_free (descriptor);
+	}
+
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_DONE) {
+		dc_descriptor_free (current);
+		dc_iterator_free (iterator);
+		WARNING ("Error iterating the device descriptors.");
+		return rc;
+	}
+
+	dc_iterator_free (iterator);
+
+	*out = current;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+dowork (dc_descriptor_t *descriptor, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Initialize the device data.
-	device_data_t devdata = {0};
-	devdata.backend = backend;
+	device_data_t devdata = {{0}};
 
 	// Open the device.
-	message ("Opening the device (%s, %s).\n",
-		lookup_name (backend), devname ? devname : "null");
+	message ("Opening the device (%s %s, %s).\n",
+		dc_descriptor_get_vendor (descriptor),
+		dc_descriptor_get_product (descriptor),
+		devname ? devname : "null");
 	dc_device_t *device = NULL;
-	switch (backend) {
-	case DC_FAMILY_SUUNTO_SOLUTION:
-		rc = suunto_solution_device_open (&device, devname);
-		break;
-	case DC_FAMILY_SUUNTO_EON:
-		rc = suunto_eon_device_open (&device, devname);
-		break;
-	case DC_FAMILY_SUUNTO_VYPER:
-		rc = suunto_vyper_device_open (&device, devname);
-		break;
-	case DC_FAMILY_SUUNTO_VYPER2:
-		rc = suunto_vyper2_device_open (&device, devname);
-		break;
-	case DC_FAMILY_SUUNTO_D9:
-		rc = suunto_d9_device_open (&device, devname, model);
-		break;
-	case DC_FAMILY_UWATEC_ALADIN:
-		rc = uwatec_aladin_device_open (&device, devname);
-		break;
-	case DC_FAMILY_UWATEC_MEMOMOUSE:
-		rc = uwatec_memomouse_device_open (&device, devname);
-		break;
-	case DC_FAMILY_UWATEC_SMART:
-		rc = uwatec_smart_device_open (&device);
-		break;
-	case DC_FAMILY_REEFNET_SENSUS:
-		rc = reefnet_sensus_device_open (&device, devname);
-		break;
-	case DC_FAMILY_REEFNET_SENSUSPRO:
-		rc = reefnet_sensuspro_device_open (&device, devname);
-		break;
-	case DC_FAMILY_REEFNET_SENSUSULTRA:
-		rc = reefnet_sensusultra_device_open (&device, devname);
-		break;
-	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_device_open (&device, devname);
-		break;
-	case DC_FAMILY_OCEANIC_VEO250:
-		rc = oceanic_veo250_device_open (&device, devname);
-		break;
-	case DC_FAMILY_OCEANIC_ATOM2:
-		rc = oceanic_atom2_device_open (&device, devname);
-		break;
-	case DC_FAMILY_MARES_NEMO:
-		rc = mares_nemo_device_open (&device, devname);
-		break;
-	case DC_FAMILY_MARES_PUCK:
-		rc = mares_puck_device_open (&device, devname);
-		break;
-	case DC_FAMILY_MARES_DARWIN:
-		rc = mares_darwin_device_open (&device, devname, model);
-		break;
-	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_device_open (&device, devname);
-		break;
-	case DC_FAMILY_HW_OSTC:
-		rc = hw_ostc_device_open (&device, devname);
-		break;
-	case DC_FAMILY_HW_FROG:
-		rc = hw_frog_device_open (&device, devname);
-		break;
-	case DC_FAMILY_CRESSI_EDY:
-		rc = cressi_edy_device_open (&device, devname);
-		break;
-	case DC_FAMILY_ZEAGLE_N2ITION3:
-		rc = zeagle_n2ition3_device_open (&device, devname);
-		break;
-	case DC_FAMILY_ATOMICS_COBALT:
-		rc = atomics_cobalt_device_open (&device);
-		break;
-	default:
-		rc = DC_STATUS_INVALIDARGS;
-		break;
-	}
+	rc = dc_device_open (&device, descriptor, devname);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error opening device.");
 		return rc;
@@ -727,7 +663,7 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 	if (dives) {
 		// Initialize the dive data.
 		dive_data_t divedata = {0};
-		divedata.devdata = &devdata;
+		divedata.device = device;
 		divedata.fingerprint = NULL;
 		divedata.number = 0;
 
@@ -747,7 +683,7 @@ dowork (dc_family_t backend, unsigned int model, const char *devname, const char
 
 		// Store the fingerprint data.
 		if (g_cachedir) {
-			fpwrite (divedata.fingerprint, g_cachedir, devdata.backend, devdata.devinfo.serial);
+			fpwrite (divedata.fingerprint, g_cachedir, dc_device_get_type (device), devdata.devinfo.serial);
 		}
 
 		// Free the fingerprint buffer.
@@ -774,6 +710,7 @@ main (int argc, char *argv[])
 {
 	// Default values.
 	dc_family_t backend = DC_FAMILY_NULL;
+	const char *name = NULL;
 	const char *logfile = "output.log";
 	const char *rawfile = "output.bin";
 	const char *xmlfile = "output.xml";
@@ -785,8 +722,11 @@ main (int argc, char *argv[])
 #ifndef _MSC_VER
 	// Parse command-line options.
 	int opt = 0;
-	while ((opt = getopt (argc, argv, "b:t:f:l:m:d:c:h")) != -1) {
+	while ((opt = getopt (argc, argv, "n:b:t:f:l:m:d:c:h")) != -1) {
 		switch (opt) {
+		case 'n':
+			name = optarg;
+			break;
 		case 'b':
 			backend = lookup_type (optarg);
 			break;
@@ -835,20 +775,32 @@ main (int argc, char *argv[])
 		dives = 1;
 	}
 
-	// The backend is a mandatory argument.
-	if (backend == DC_FAMILY_NULL) {
-		usage (argv[0]);
-		return EXIT_FAILURE;
-	}
-
 	signal (SIGINT, sighandler);
 
 	message_set_logfile (logfile);
 
+	/* Search for a matching device descriptor. */
+	dc_descriptor_t *descriptor = NULL;
+	dc_status_t rc = search (&descriptor, name, backend, model);
+	if (rc != DC_STATUS_SUCCESS) {
+		message_set_logfile (NULL);
+		return EXIT_FAILURE;
+	}
+
+	/* Fail if no device descriptor found. */
+	if (descriptor == NULL) {
+		WARNING ("No matching device found.");
+		usage (argv[0]);
+		message_set_logfile (NULL);
+		return EXIT_FAILURE;
+	}
+
 	dc_buffer_t *fp = fpconvert (fingerprint);
-	dc_status_t rc = dowork (backend, model, devname, rawfile, xmlfile, memory, dives, fp);
+	rc = dowork (descriptor, devname, rawfile, xmlfile, memory, dives, fp);
 	dc_buffer_free (fp);
 	message ("Result: %s\n", errmsg (rc));
+
+	dc_descriptor_free (descriptor);
 
 	message_set_logfile (NULL);
 
