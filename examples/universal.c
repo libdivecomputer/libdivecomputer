@@ -28,6 +28,12 @@
 #include <unistd.h>
 #endif
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 #ifdef _WIN32
 #define DC_TICKS_FORMAT "%I64d"
 #else
