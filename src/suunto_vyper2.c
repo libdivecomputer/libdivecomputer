@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/suunto_vyper2.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "suunto_common2.h"
 #include "serial.h"
 #include "checksum.h"
@@ -75,7 +75,7 @@ device_is_suunto_vyper2 (dc_device_t *abstract)
 
 
 dc_status_t
-suunto_vyper2_device_open (dc_device_t **out, const char *name)
+suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -83,7 +83,7 @@ suunto_vyper2_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	suunto_vyper2_device_t *device = (suunto_vyper2_device_t *) malloc (sizeof (suunto_vyper2_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -96,7 +96,7 @@ suunto_vyper2_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -104,7 +104,7 @@ suunto_vyper2_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (9600 8N1).
 	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -112,7 +112,7 @@ suunto_vyper2_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (3000 ms).
 	if (serial_set_timeout (device->port, 3000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -120,7 +120,7 @@ suunto_vyper2_device_open (dc_device_t **out, const char *name)
 
 	// Set the DTR line (power supply for the interface).
 	if (serial_set_dtr (device->port, 1) == -1) {
-		WARNING ("Failed to set the DTR line.");
+		ERROR (context, "Failed to set the DTR line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -181,7 +181,7 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -191,25 +191,25 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	// Receive the answer of the dive computer.
 	n = serial_read (device->port, answer, asize);
 	if (n != asize) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the header of the package.
 	if (answer[0] != command[0]) {
-		WARNING ("Unexpected answer header.");
+		ERROR (abstract->context, "Unexpected answer header.");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the size of the package.
 	if (array_uint16_be (answer + 1) + 4 != asize) {
-		WARNING ("Unexpected answer size.");
+		ERROR (abstract->context, "Unexpected answer size.");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the parameters of the package.
 	if (memcmp (command + 3, answer + 3, asize - size - 4) != 0) {
-		WARNING ("Unexpected answer parameters.");
+		ERROR (abstract->context, "Unexpected answer parameters.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -217,7 +217,7 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	unsigned char crc = answer[asize - 1];
 	unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 

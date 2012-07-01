@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/suunto_eon.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "suunto_common.h"
 #include "serial.h"
@@ -76,7 +76,7 @@ device_is_suunto_eon (dc_device_t *abstract)
 
 
 dc_status_t
-suunto_eon_device_open (dc_device_t **out, const char *name)
+suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -84,7 +84,7 @@ suunto_eon_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	suunto_eon_device_t *device = (suunto_eon_device_t *) malloc (sizeof (suunto_eon_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -97,7 +97,7 @@ suunto_eon_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -105,7 +105,7 @@ suunto_eon_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (1200 8N2).
 	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -113,7 +113,7 @@ suunto_eon_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000ms).
 	if (serial_set_timeout (device->port, -1) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -121,7 +121,7 @@ suunto_eon_device_open (dc_device_t **out, const char *name)
 
 	// Clear the RTS line.
 	if (serial_set_rts (device->port, 0)) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -165,7 +165,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SUUNTO_EON_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -178,7 +178,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char command[1] = {'P'};
 	int rc = serial_write (device->port, command, sizeof (command));
 	if (rc != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (rc);
 	}
 
@@ -186,7 +186,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char answer[SUUNTO_EON_MEMORY_SIZE + 1] = {0};
 	rc = serial_read (device->port, answer, sizeof (answer));
 	if (rc != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (rc);
 	}
 
@@ -198,7 +198,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char crc = answer[sizeof (answer) - 1];
 	unsigned char ccrc = checksum_add_uint8 (answer, sizeof (answer) - 1, 0x00);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -254,7 +254,7 @@ suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsig
 	memcpy (command + 1, data, size);
 	int rc = serial_write (device->port, command, sizeof (command));
 	if (rc != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (rc);
 	}
 
@@ -274,7 +274,7 @@ suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 	unsigned char command[2] = {'T', interval};
 	int rc = serial_write (device->port, command, sizeof (command));
 	if (rc != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (rc);
 	}
 

@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/reefnet_sensuspro.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "checksum.h"
@@ -71,7 +71,7 @@ device_is_reefnet_sensuspro (dc_device_t *abstract)
 
 
 dc_status_t
-reefnet_sensuspro_device_open (dc_device_t **out, const char *name)
+reefnet_sensuspro_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -79,7 +79,7 @@ reefnet_sensuspro_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t *) malloc (sizeof (reefnet_sensuspro_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -96,7 +96,7 @@ reefnet_sensuspro_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -104,7 +104,7 @@ reefnet_sensuspro_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (19200 8N1).
 	rc = serial_configure (device->port, 19200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -112,7 +112,7 @@ reefnet_sensuspro_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (3000ms).
 	if (serial_set_timeout (device->port, 3000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -157,7 +157,7 @@ reefnet_sensuspro_device_get_handshake (dc_device_t *abstract, unsigned char dat
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < REEFNET_SENSUSPRO_HANDSHAKE_SIZE) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -204,6 +204,8 @@ reefnet_sensuspro_device_set_fingerprint (dc_device_t *abstract, const unsigned 
 static dc_status_t
 reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Assert a break condition.
 	serial_set_break (device->port, 1);
 
@@ -211,7 +213,7 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	unsigned char handshake[REEFNET_SENSUSPRO_HANDSHAKE_SIZE + 2] = {0};
 	int rc = serial_read (device->port, handshake, sizeof (handshake));
 	if (rc != sizeof (handshake)) {
-		WARNING ("Failed to receive the handshake.");
+		ERROR (abstract->context, "Failed to receive the handshake.");
 		return EXITCODE (rc);
 	}
 
@@ -222,7 +224,7 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	unsigned short crc = array_uint16_le (handshake + REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (handshake, REEFNET_SENSUSPRO_HANDSHAKE_SIZE);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -255,6 +257,8 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 static dc_status_t
 reefnet_sensuspro_send (reefnet_sensuspro_device_t *device, unsigned char command)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Wake-up the device.
 	dc_status_t rc = reefnet_sensuspro_handshake (device);
 	if (rc != DC_STATUS_SUCCESS)
@@ -263,7 +267,7 @@ reefnet_sensuspro_send (reefnet_sensuspro_device_t *device, unsigned char comman
 	// Send the instruction code to the device.
 	int n = serial_write (device->port, &command, 1);
 	if (n != 1) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -282,7 +286,7 @@ reefnet_sensuspro_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, REEFNET_SENSUSPRO_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -305,7 +309,7 @@ reefnet_sensuspro_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		int n = serial_read (device->port, answer + nbytes, len);
 		if (n != len) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 
@@ -319,7 +323,7 @@ reefnet_sensuspro_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned short crc = array_uint16_le (answer + REEFNET_SENSUSPRO_MEMORY_SIZE);
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (answer, REEFNET_SENSUSPRO_MEMORY_SIZE);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -374,7 +378,7 @@ reefnet_sensuspro_device_write_interval (dc_device_t *abstract, unsigned char in
 
 	int n = serial_write (device->port, &interval, 1);
 	if (n != 1) {
-		WARNING ("Failed to send the new value.");
+		ERROR (abstract->context, "Failed to send the data packet.");
 		return EXITCODE (n);
 	}
 

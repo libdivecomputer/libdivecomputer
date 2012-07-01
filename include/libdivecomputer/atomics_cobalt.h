@@ -22,6 +22,7 @@
 #ifndef ATOMICS_COBALT_H
 #define ATOMICS_COBALT_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -30,13 +31,13 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-atomics_cobalt_device_open (dc_device_t **device);
+atomics_cobalt_device_open (dc_device_t **device, dc_context_t *context);
 
 dc_status_t
 atomics_cobalt_device_set_simulation (dc_device_t *device, unsigned int simulation);
 
 dc_status_t
-atomics_cobalt_parser_create (dc_parser_t **parser);
+atomics_cobalt_parser_create (dc_parser_t **parser, dc_context_t *context);
 
 dc_status_t
 atomics_cobalt_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);

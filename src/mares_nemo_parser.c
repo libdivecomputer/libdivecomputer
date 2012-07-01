@@ -24,8 +24,8 @@
 
 #include <libdivecomputer/mares_nemo.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -79,7 +79,7 @@ parser_is_mares_nemo (dc_parser_t *abstract)
 
 
 dc_status_t
-mares_nemo_parser_create (dc_parser_t **out, unsigned int model)
+mares_nemo_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -87,7 +87,7 @@ mares_nemo_parser_create (dc_parser_t **out, unsigned int model)
 	// Allocate memory.
 	mares_nemo_parser_t *parser = (mares_nemo_parser_t *) malloc (sizeof (mares_nemo_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -433,7 +433,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				// in the summary entry). If both values are different, the
 				// the profile data is probably incorrect.
 				if (count != n) {
-					WARNING ("Unexpected number of samples.");
+					ERROR (abstract->context, "Unexpected number of samples.");
 					return DC_STATUS_DATAFORMAT;
 				}
 			} else {

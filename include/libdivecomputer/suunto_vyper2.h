@@ -26,6 +26,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#include "context.h"
 #include "device.h"
 
 #define SUUNTO_VYPER2_MEMORY_SIZE 0x8000
@@ -33,7 +34,7 @@ extern "C" {
 #define SUUNTO_VYPER2_VERSION_SIZE 0x04
 
 dc_status_t
-suunto_vyper2_device_open (dc_device_t **device, const char *name);
+suunto_vyper2_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 suunto_vyper2_device_reset_maxdepth (dc_device_t *device);

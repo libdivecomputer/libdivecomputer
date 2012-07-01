@@ -24,8 +24,8 @@
 #include <assert.h> // assert
 
 #include <libdivecomputer/mares_puck.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "mares_common.h"
 #include "serial.h"
@@ -94,7 +94,7 @@ device_is_mares_puck (dc_device_t *abstract)
 
 
 dc_status_t
-mares_puck_device_open (dc_device_t **out, const char *name)
+mares_puck_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -102,7 +102,7 @@ mares_puck_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	mares_puck_device_t *device = (mares_puck_device_t *) malloc (sizeof (mares_puck_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -116,7 +116,7 @@ mares_puck_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->base.port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -124,7 +124,7 @@ mares_puck_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (38400 8N1).
 	rc = serial_configure (device->base.port, 38400, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->base.port);
 		free (device);
 		return DC_STATUS_IO;
@@ -132,7 +132,7 @@ mares_puck_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000 ms).
 	if (serial_set_timeout (device->base.port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->base.port);
 		free (device);
 		return DC_STATUS_IO;
@@ -141,7 +141,7 @@ mares_puck_device_open (dc_device_t **out, const char *name)
 	// Clear the DTR/RTS lines.
 	if (serial_set_dtr (device->base.port, 0) == -1 ||
 		serial_set_rts (device->base.port, 0) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->base.port);
 		free (device);
 		return DC_STATUS_IO;
@@ -227,7 +227,7 @@ mares_puck_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -261,7 +261,7 @@ mares_puck_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_common_extract_dives (device->layout, device->fingerprint, data, callback, userdata);
+	rc = mares_common_extract_dives (abstract->context, device->layout, device->fingerprint, data, callback, userdata);
 
 	dc_buffer_free (buffer);
 
@@ -280,6 +280,7 @@ mares_puck_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 	if (size < PACKETSIZE)
 		return DC_STATUS_DATAFORMAT;
 
+	dc_context_t *context = (abstract ? abstract->context : NULL);
 	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
 
 	const mares_common_layout_t *layout = NULL;
@@ -302,5 +303,5 @@ mares_puck_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 	if (size < layout->memsize)
 		return DC_STATUS_DATAFORMAT;
 
-	return mares_common_extract_dives (layout, fingerprint, data, callback, userdata);
+	return mares_common_extract_dives (context, layout, fingerprint, data, callback, userdata);
 }

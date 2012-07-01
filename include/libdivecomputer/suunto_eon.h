@@ -22,6 +22,7 @@
 #ifndef SUUNTO_EON_H
 #define SUUNTO_EON_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -32,7 +33,7 @@ extern "C" {
 #define SUUNTO_EON_MEMORY_SIZE 0x900
 
 dc_status_t
-suunto_eon_device_open (dc_device_t **device, const char *name);
+suunto_eon_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 suunto_eon_device_write_name (dc_device_t *device, unsigned char data[], unsigned int size);
@@ -44,7 +45,7 @@ dc_status_t
 suunto_eon_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-suunto_eon_parser_create (dc_parser_t **parser, int spyder);
+suunto_eon_parser_create (dc_parser_t **parser, dc_context_t *context, int spyder);
 
 #ifdef __cplusplus
 }

@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/hw_ostc.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "checksum.h"
@@ -84,11 +84,13 @@ device_is_hw_ostc (dc_device_t *abstract)
 static dc_status_t
 hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Send the command.
 	unsigned char command[1] = {cmd};
 	int n = serial_write (device->port, command, sizeof (command));
 	if (n != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -97,13 +99,13 @@ hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
 		unsigned char answer[1] = {0};
 		n = serial_read (device->port, answer, sizeof (answer));
 		if (n != sizeof (answer)) {
-			WARNING ("Failed to receive the echo.");
+			ERROR (abstract->context, "Failed to receive the echo.");
 			return EXITCODE (n);
 		}
 
 		// Verify the echo.
 		if (memcmp (answer, command, sizeof (command)) != 0) {
-			WARNING ("Unexpected echo.");
+			ERROR (abstract->context, "Unexpected echo.");
 			return DC_STATUS_PROTOCOL;
 		}
 	}
@@ -113,7 +115,7 @@ hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
 
 
 dc_status_t
-hw_ostc_device_open (dc_device_t **out, const char *name)
+hw_ostc_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -121,7 +123,7 @@ hw_ostc_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	hw_ostc_device_t *device = (hw_ostc_device_t *) malloc (sizeof (hw_ostc_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -135,7 +137,7 @@ hw_ostc_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -143,7 +145,7 @@ hw_ostc_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (115200 8N1).
 	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -151,7 +153,7 @@ hw_ostc_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data.
 	if (serial_set_timeout (device->port, 4000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -215,7 +217,7 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -228,7 +230,7 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char command[1] = {'a'};
 	int rc = serial_write (device->port, command, sizeof (command));
 	if (rc != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (rc);
 	}
 
@@ -236,14 +238,14 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char header[SZ_HEADER] = {0};
 	int n = serial_read (device->port, header, sizeof (header));
 	if (n != sizeof (header)) {
-		WARNING ("Failed to receive the header.");
+		ERROR (abstract->context, "Failed to receive the header.");
 		return EXITCODE (n);
 	}
 
 	// Verify the header.
 	unsigned char preamble[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x55};
 	if (memcmp (header, preamble, sizeof (preamble)) != 0) {
-		WARNING ("Unexpected answer header.");
+		ERROR (abstract->context, "Unexpected answer header.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -264,7 +266,7 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, size)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -290,7 +292,7 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		// Read the packet.
 		int n = serial_read (device->port, data + nbytes, len);
 		if (n != len) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 
@@ -344,7 +346,7 @@ hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned in
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MD2HASH) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -356,7 +358,7 @@ hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned in
 	// Read the answer.
 	int n = serial_read (device->port, data, SZ_MD2HASH);
 	if (n != SZ_MD2HASH) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
@@ -373,7 +375,7 @@ hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 		return DC_STATUS_INVALIDARGS;
 
 	if (datetime == NULL) {
-		WARNING ("Invalid parameter specified.");
+		ERROR (abstract->context, "Invalid parameter specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -388,7 +390,7 @@ hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 		datetime->month, datetime->day, datetime->year - 2000};
 	int n = serial_write (device->port, packet, sizeof (packet));
 	if (n != sizeof (packet)) {
-		WARNING ("Failed to send the data packet.");
+		ERROR (abstract->context, "Failed to send the data packet.");
 		return EXITCODE (n);
 	}
 
@@ -405,12 +407,12 @@ hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned c
 		return DC_STATUS_INVALIDARGS;
 
 	if (bank > 2) {
-		WARNING ("Invalid eeprom bank specified.");
+		ERROR (abstract->context, "Invalid eeprom bank specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
 	if (size < SZ_EEPROM) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -423,7 +425,7 @@ hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned c
 	// Read the answer.
 	int n = serial_read (device->port, data, SZ_EEPROM);
 	if (n != SZ_EEPROM) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
@@ -440,12 +442,12 @@ hw_ostc_device_eeprom_write (dc_device_t *abstract, unsigned int bank, const uns
 		return DC_STATUS_INVALIDARGS;
 
 	if (bank > 2) {
-		WARNING ("Invalid eeprom bank specified.");
+		ERROR (abstract->context, "Invalid eeprom bank specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
 	if (size != SZ_EEPROM) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -493,7 +495,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -505,7 +507,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 		// content. Usually the total size is around 4K, which is used as an
 		// initial guess and expanded when necessary.
 		if (!dc_buffer_reserve (buffer, 4096)) {
-			WARNING ("Insufficient buffer space available.");
+			ERROR (abstract->context, "Insufficient buffer space available.");
 			return DC_STATUS_NOMEMORY;
 		}
 	} else {
@@ -514,7 +516,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 		// allocated immediately.
 		bpp = (format == HW_OSTC_FORMAT_RGB16) ? 2 : 3;
 		if (!dc_buffer_resize (buffer, WIDTH * HEIGHT * bpp)) {
-			WARNING ("Insufficient buffer space available.");
+			ERROR (abstract->context, "Insufficient buffer space available.");
 			return DC_STATUS_NOMEMORY;
 		}
 	}
@@ -543,7 +545,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 		unsigned char raw[3] = {0};
 		int n = serial_read (device->port, raw, 1);
 		if (n != 1) {
-			WARNING ("Failed to receive the packet.");
+			ERROR (abstract->context, "Failed to receive the packet.");
 			return EXITCODE (n);
 		}
 
@@ -561,7 +563,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 			// Color pixel.
 			n = serial_read (device->port, raw + 1, 2);
 			if (n != 2) {
-				WARNING ("Failed to receive the packet.");
+				ERROR (abstract->context, "Failed to receive the packet.");
 				return EXITCODE (n);
 			}
 
@@ -572,7 +574,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 
 		// Check for buffer overflows.
 		if (npixels + count > WIDTH * HEIGHT) {
-			WARNING ("Unexpected number of pixels received.");
+			ERROR (abstract->context, "Unexpected number of pixels received.");
 			return DC_STATUS_DATAFORMAT;
 		}
 

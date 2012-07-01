@@ -24,8 +24,8 @@
 #include <assert.h> // assert
 
 #include <libdivecomputer/cressi_edy.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "checksum.h"
@@ -85,38 +85,40 @@ device_is_cressi_edy (dc_device_t *abstract)
 static dc_status_t
 cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	assert (asize >= csize);
 
 	// Flush the serial input buffer.
 	int rc = serial_flush (device->port, SERIAL_QUEUE_INPUT);
 	if (rc == -1) {
-		WARNING ("Failed to flush the serial input buffer.");
+		ERROR (abstract->context, "Failed to flush the serial input buffer.");
 		return DC_STATUS_IO;
 	}
 
 	// Send the command to the device.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
 	// Receive the answer of the device.
 	n = serial_read (device->port, answer, asize);
 	if (n != asize) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the echo.
 	if (memcmp (answer, command, csize) != 0) {
-		WARNING ("Unexpected echo.");
+		ERROR (abstract->context, "Unexpected echo.");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the trailer of the packet.
 	if (trailer && answer[asize - 1] != 0x45) {
-		WARNING ("Unexpected answer trailer byte.");
+		ERROR (abstract->context, "Unexpected answer trailer byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -171,7 +173,7 @@ cressi_edy_quit (cressi_edy_device_t *device)
 
 
 dc_status_t
-cressi_edy_device_open (dc_device_t **out, const char *name)
+cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -179,7 +181,7 @@ cressi_edy_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	cressi_edy_device_t *device = (cressi_edy_device_t *) malloc (sizeof (cressi_edy_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -193,7 +195,7 @@ cressi_edy_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -201,7 +203,7 @@ cressi_edy_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (1200 8N1).
 	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -209,7 +211,7 @@ cressi_edy_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000 ms).
 	if (serial_set_timeout (device->port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -218,7 +220,7 @@ cressi_edy_device_open (dc_device_t **out, const char *name)
 	// Set the DTR and clear the RTS line.
 	if (serial_set_dtr (device->port, 1) == -1 ||
 		serial_set_rts (device->port, 0) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -232,7 +234,7 @@ cressi_edy_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (4800 8N1).
 	rc = serial_configure (device->port, 4800, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -332,7 +334,7 @@ cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, CRESSI_EDY_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -363,7 +365,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	unsigned char config[CRESSI_EDY_PACKET_SIZE] = {0};
 	dc_status_t rc = cressi_edy_device_read (abstract, 0x7F80, config, sizeof (config));
 	if (rc != DC_STATUS_SUCCESS) {
-		WARNING ("Failed to read the configuration data.");
+		ERROR (abstract->context, "Failed to read the configuration data.");
 		return rc;
 	}
 
@@ -378,7 +380,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		last < RB_LOGBOOK_BEGIN || last >= RB_LOGBOOK_END) {
 		if (last == 0xFF)
 			return DC_STATUS_SUCCESS;
-		WARNING ("Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -388,7 +390,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_le (config + 0x7E) * PAGESIZE + BASE;
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
-		WARNING ("Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -406,7 +408,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx) * PAGESIZE + BASE;
 		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
-			WARNING ("Invalid ringbuffer pointer detected.");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 			return DC_STATUS_DATAFORMAT;
 		}
 
@@ -428,7 +430,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			// Read the memory page.
 			rc = cressi_edy_device_read (abstract, address, buffer + offset, CRESSI_EDY_PACKET_SIZE);
 			if (rc != DC_STATUS_SUCCESS) {
-				WARNING ("Failed to read the memory page.");
+				ERROR (abstract->context, "Failed to read the memory page.");
 				return rc;
 			}
 

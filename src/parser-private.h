@@ -22,6 +22,7 @@
 #ifndef PARSER_PRIVATE_H
 #define PARSER_PRIVATE_H
 
+#include <libdivecomputer/context.h>
 #include <libdivecomputer/parser.h>
 
 #ifdef __cplusplus
@@ -35,6 +36,7 @@ typedef struct parser_backend_t parser_backend_t;
 
 struct dc_parser_t {
 	const parser_backend_t *backend;
+	dc_context_t *context;
 	const unsigned char *data;
 	unsigned int size;
 };

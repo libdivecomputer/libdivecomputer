@@ -24,8 +24,8 @@
 #include <assert.h> // assert
 
 #include <libdivecomputer/reefnet_sensusultra.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "checksum.h"
@@ -77,7 +77,7 @@ device_is_reefnet_sensusultra (dc_device_t *abstract)
 
 
 dc_status_t
-reefnet_sensusultra_device_open (dc_device_t **out, const char *name)
+reefnet_sensusultra_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -85,7 +85,7 @@ reefnet_sensusultra_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t *) malloc (sizeof (reefnet_sensusultra_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -103,7 +103,7 @@ reefnet_sensusultra_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -111,7 +111,7 @@ reefnet_sensusultra_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (115200 8N1).
 	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -119,7 +119,7 @@ reefnet_sensusultra_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (3000ms).
 	if (serial_set_timeout (device->port, 3000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -164,7 +164,7 @@ reefnet_sensusultra_device_get_handshake (dc_device_t *abstract, unsigned char d
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < REEFNET_SENSUSULTRA_HANDSHAKE_SIZE) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -225,24 +225,26 @@ reefnet_sensusultra_device_set_fingerprint (dc_device_t *abstract, const unsigne
 static dc_status_t
 reefnet_sensusultra_send_uchar (reefnet_sensusultra_device_t *device, unsigned char value)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Wait for the prompt byte.
 	unsigned char prompt = 0;
 	int rc = serial_read (device->port, &prompt, 1);
 	if (rc != 1) {
-		WARNING ("Failed to receive the prompt byte");
+		ERROR (abstract->context, "Failed to receive the prompt byte");
 		return EXITCODE (rc);
 	}
 
 	// Verify the prompt byte.
 	if (prompt != PROMPT) {
-		WARNING ("Unexpected answer data.");
+		ERROR (abstract->context, "Unexpected answer data.");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Send the value to the device.
 	rc = serial_write (device->port, &value, 1);
 	if (rc != 1) {
-		WARNING ("Failed to send the value.");
+		ERROR (abstract->context, "Failed to send the value.");
 		return EXITCODE (rc);
 	}
 
@@ -282,7 +284,7 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 	// Receive the data packet.
 	int rc = serial_read (device->port, data, size);
 	if (rc != size) {
-		WARNING ("Failed to receive the packet.");
+		ERROR (abstract->context, "Failed to receive the packet.");
 		return EXITCODE (rc);
 	}
 
@@ -290,7 +292,7 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 	unsigned short crc = array_uint16_le (data + size - 2);
 	unsigned short ccrc = checksum_crc_ccitt_uint16 (data + header, size - header - 2);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -339,6 +341,8 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device, unsigned sh
 static dc_status_t
 reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *data, unsigned int size, unsigned int pagenum)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	assert (size >= REEFNET_SENSUSULTRA_PACKET_SIZE + 4);
 
 	unsigned int nretries = 0;
@@ -362,7 +366,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 	// Verify the page number.
 	unsigned int page = array_uint16_le (data);
 	if (page != pagenum) {
-		WARNING ("Unexpected page number."); 
+		ERROR (abstract->context, "Unexpected page number.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -413,7 +417,7 @@ reefnet_sensusultra_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -442,7 +446,7 @@ reefnet_sensusultra_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		// Prepend the packet to the buffer.
 		if (!dc_buffer_prepend (buffer, packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE)) {
-			WARNING ("Insufficient buffer space available.");
+			ERROR (abstract->context, "Insufficient buffer space available.");
 			return DC_STATUS_NOMEMORY;
 		}
 
@@ -468,7 +472,7 @@ reefnet_sensusultra_device_read_user (dc_device_t *abstract, unsigned char *data
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -511,7 +515,7 @@ reefnet_sensusultra_device_write_user (dc_device_t *abstract, const unsigned cha
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < REEFNET_SENSUSULTRA_MEMORY_USER_SIZE) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -608,7 +612,7 @@ reefnet_sensusultra_device_sense (dc_device_t *abstract, unsigned char *data, un
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < REEFNET_SENSUSULTRA_SENSE_SIZE) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -709,7 +713,7 @@ reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 
 	dc_buffer_t *buffer = dc_buffer_new (REEFNET_SENSUSULTRA_MEMORY_DATA_SIZE);
 	if (buffer == NULL) {
-		WARNING ("Memory allocation error.");
+		ERROR (abstract->context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -750,7 +754,7 @@ reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 
 		// Prepend the packet to the buffer.
 		if (!dc_buffer_prepend (buffer, packet + 2, REEFNET_SENSUSULTRA_PACKET_SIZE)) {
-			WARNING ("Insufficient buffer space available.");
+			ERROR (abstract->context, "Insufficient buffer space available.");
 			return DC_STATUS_NOMEMORY;
 		}
 

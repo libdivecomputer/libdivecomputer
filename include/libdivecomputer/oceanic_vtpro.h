@@ -22,6 +22,7 @@
 #ifndef OCEANIC_VTPRO_H
 #define OCEANIC_VTPRO_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -30,13 +31,13 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-oceanic_vtpro_device_open (dc_device_t **device, const char *name);
+oceanic_vtpro_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 oceanic_vtpro_device_keepalive (dc_device_t *device);
 
 dc_status_t
-oceanic_vtpro_parser_create (dc_parser_t **parser);
+oceanic_vtpro_parser_create (dc_parser_t **parser, dc_context_t *context);
 
 #ifdef __cplusplus
 }

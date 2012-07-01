@@ -22,6 +22,7 @@
 #ifndef MARES_ICONHD_H
 #define MARES_ICONHD_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -32,13 +33,13 @@ extern "C" {
 #define MARES_ICONHD_MEMORY_SIZE 0x100000
 
 dc_status_t
-mares_iconhd_device_open (dc_device_t **device, const char *name);
+mares_iconhd_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 mares_iconhd_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-mares_iconhd_parser_create (dc_parser_t **parser, unsigned int model);
+mares_iconhd_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);
 
 #ifdef __cplusplus
 }

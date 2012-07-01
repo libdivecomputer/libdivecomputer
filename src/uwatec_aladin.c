@@ -23,8 +23,8 @@
 #include <memory.h> // memcpy
 
 #include <libdivecomputer/uwatec_aladin.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "ringbuffer.h"
@@ -78,7 +78,7 @@ device_is_uwatec_aladin (dc_device_t *abstract)
 
 
 dc_status_t
-uwatec_aladin_device_open (dc_device_t **out, const char *name)
+uwatec_aladin_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -86,7 +86,7 @@ uwatec_aladin_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t *) malloc (sizeof (uwatec_aladin_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -102,7 +102,7 @@ uwatec_aladin_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -110,7 +110,7 @@ uwatec_aladin_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (19200 8N1).
 	rc = serial_configure (device->port, 19200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -118,7 +118,7 @@ uwatec_aladin_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (INFINITE).
 	if (serial_set_timeout (device->port, -1) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -127,7 +127,7 @@ uwatec_aladin_device_open (dc_device_t **out, const char *name)
 	// Clear the RTS line and set the DTR line.
 	if (serial_set_dtr (device->port, 1) == -1 ||
 		serial_set_rts (device->port, 0) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -205,7 +205,7 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, UWATEC_ALADIN_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -223,7 +223,7 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		int rc = serial_read (device->port, answer + i, 1);
 		if (rc != 1) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (rc);
 		}
 		if (answer[i] == (i < 3 ? 0x55 : 0x00)) {
@@ -244,7 +244,7 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Receive the remaining part of the package.
 	int rc = serial_read (device->port, answer + 4, sizeof (answer) - 4);
 	if (rc != sizeof (answer) - 4) {
-		WARNING ("Unexpected EOF in answer.");
+		ERROR (abstract->context, "Unexpected EOF in answer.");
 		return EXITCODE (rc);
 	}
 
@@ -259,7 +259,7 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned short crc = array_uint16_le (answer + UWATEC_ALADIN_MEMORY_SIZE);
 	unsigned short ccrc = checksum_add_uint16 (answer, UWATEC_ALADIN_MEMORY_SIZE, 0x0000);
 	if (ccrc != crc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 

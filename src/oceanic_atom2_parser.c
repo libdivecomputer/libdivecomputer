@@ -23,9 +23,9 @@
 
 #include <libdivecomputer/oceanic_atom2.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
 #include "oceanic_common.h"
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -88,7 +88,7 @@ parser_is_oceanic_atom2 (dc_parser_t *abstract)
 
 
 dc_status_t
-oceanic_atom2_parser_create (dc_parser_t **out, unsigned int model)
+oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -96,7 +96,7 @@ oceanic_atom2_parser_create (dc_parser_t **out, unsigned int model)
 	// Allocate memory.
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) malloc (sizeof (oceanic_atom2_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

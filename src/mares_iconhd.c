@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/mares_iconhd.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "array.h"
@@ -86,9 +86,11 @@ device_is_mares_iconhd (dc_device_t *abstract)
 static unsigned int
 mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
 {
+	dc_context_t *context = (device ? ((dc_device_t *) device)->context : NULL);
+
 	// Try to correct an invalid model code using the version packet.
 	if (model == 0xFF) {
-		WARNING("Invalid model code detected!");
+		WARNING (context, "Invalid model code detected!");
 		const unsigned char iconhdnet[] = "Icon AIR";
 		if (device && memcmp (device->version + 0x46, iconhdnet, sizeof (iconhdnet) - 1) == 0)
 			model = ICONHDNET;
@@ -115,7 +117,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -123,13 +125,13 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	unsigned char header[1] = {0};
 	n = serial_read (device->port, header, sizeof (header));
 	if (n != sizeof (header)) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the header byte.
 	if (header[0] != ACK) {
-		WARNING ("Unexpected answer byte.");
+		ERROR (abstract->context, "Unexpected answer byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -150,7 +152,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 		// Read the packet.
 		n = serial_read (device->port, answer + nbytes, len);
 		if (n != len) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 
@@ -167,13 +169,13 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	unsigned char trailer[1] = {0};
 	n = serial_read (device->port, trailer, sizeof (trailer));
 	if (n != sizeof (trailer)) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the trailer byte.
 	if (trailer[0] != EOF) {
-		WARNING ("Unexpected answer byte.");
+		ERROR (abstract->context, "Unexpected answer byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -206,7 +208,7 @@ mares_iconhd_read (mares_iconhd_device_t *device, unsigned int address, unsigned
 
 
 dc_status_t
-mares_iconhd_device_open (dc_device_t **out, const char *name)
+mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -214,7 +216,7 @@ mares_iconhd_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) malloc (sizeof (mares_iconhd_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -229,7 +231,7 @@ mares_iconhd_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -237,7 +239,7 @@ mares_iconhd_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (256000 8N1).
 	rc = serial_configure (device->port, BAUDRATE, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -245,7 +247,7 @@ mares_iconhd_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000 ms).
 	if (serial_set_timeout (device->port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -255,7 +257,7 @@ mares_iconhd_device_open (dc_device_t **out, const char *name)
 	if (serial_set_dtr (device->port, 0) == -1 ||
 		serial_set_rts (device->port, 0) == -1)
 	{
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -333,7 +335,7 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, MARES_ICONHD_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -378,6 +380,7 @@ dc_status_t
 mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
 
 	if (abstract && !device_is_mares_iconhd (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -402,14 +405,14 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 			break;
 	}
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
-		WARNING ("Ringbuffer pointer out of range.");
+		ERROR (context, "Ringbuffer pointer out of range.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Make the ringbuffer linear, to avoid having to deal with the wrap point.
 	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN);
 	if (buffer == NULL) {
-		WARNING ("Out of memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -445,7 +448,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		if (length == 0 || length == 0xFFFFFFFF)
 			break;
 		if (length != nbytes) {
-			WARNING ("Calculated and stored size are not equal.");
+			ERROR (context, "Calculated and stored size are not equal.");
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}

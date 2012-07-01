@@ -23,9 +23,8 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/utils.h>
-
 #include "oceanic_common.h"
+#include "context-private.h"
 #include "device-private.h"
 #include "ringbuffer.h"
 #include "array.h"
@@ -154,7 +153,7 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -185,7 +184,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	unsigned char id[PAGESIZE] = {0};
 	dc_status_t rc = dc_device_read (abstract, layout->cf_devinfo, id, sizeof (id));
 	if (rc != DC_STATUS_SUCCESS) {
-		WARNING ("Cannot read device id.");
+		ERROR (abstract->context, "Failed to read the memory page.");
 		return rc;
 	}
 
@@ -207,7 +206,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	unsigned char pointers[PAGESIZE] = {0};
 	rc = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
 	if (rc != DC_STATUS_SUCCESS) {
-		WARNING ("Cannot read pointers.");
+		ERROR (abstract->context, "Failed to read the memory page.");
 		return rc;
 	}
 
@@ -377,7 +376,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			// This appears to happen on some devices, and we attempt to
 			// fix this here.
 			if (array_isequal (logbooks + current, layout->rb_logbook_entry_size, 0xFF)) {
-				WARNING("Uninitialized logbook entries detected!");
+				WARNING (abstract->context, "Uninitialized logbook entries detected!");
 				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
@@ -395,7 +394,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 				rb_entry_last < layout->rb_profile_begin ||
 				rb_entry_last >= layout->rb_profile_end)
 			{
-				WARNING("Invalid ringbuffer pointer detected!");
+				ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 				status = DC_STATUS_DATAFORMAT;
 				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
@@ -409,13 +408,13 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			// Skip gaps between the profiles.
 			unsigned int gap = 0;
 			if (previous && rb_entry_end != previous) {
-				WARNING ("Profiles are not continuous.");
+				WARNING (abstract->context, "Profiles are not continuous.");
 				gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
 			}
 
 			// Make sure the profile size is valid.
 			if (rb_entry_size + gap > remaining) {
-				WARNING ("Unexpected profile size.");
+				WARNING (abstract->context, "Unexpected profile size.");
 				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;
 				break;
@@ -490,7 +489,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		// Skip gaps between the profiles.
 		unsigned int gap = 0;
 		if (rb_entry_end != previous) {
-			WARNING ("Profiles are not continuous.");
+			WARNING (abstract->context, "Profiles are not continuous.");
 			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
 		}
 

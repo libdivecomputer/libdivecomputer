@@ -53,7 +53,7 @@ dc_status_t
 mares_common_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 
 dc_status_t
-mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dc_dive_callback_t callback, void *userdata);
+mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dc_dive_callback_t callback, void *userdata);
 
 #ifdef __cplusplus
 }

@@ -22,8 +22,8 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/uwatec_memomouse.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -62,7 +62,7 @@ parser_is_uwatec_memomouse (dc_parser_t *abstract)
 
 
 dc_status_t
-uwatec_memomouse_parser_create (dc_parser_t **out, unsigned int devtime, dc_ticks_t systime)
+uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -70,7 +70,7 @@ uwatec_memomouse_parser_create (dc_parser_t **out, unsigned int devtime, dc_tick
 	// Allocate memory.
 	uwatec_memomouse_parser_t *parser = (uwatec_memomouse_parser_t *) malloc (sizeof (uwatec_memomouse_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

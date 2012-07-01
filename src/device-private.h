@@ -39,6 +39,8 @@ typedef struct device_backend_t device_backend_t;
 
 struct dc_device_t {
 	const device_backend_t *backend;
+	// Library context.
+	dc_context_t *context;
 	// Event notifications.
 	unsigned int event_mask;
 	dc_event_callback_t event_callback;

@@ -22,8 +22,8 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/mares_iconhd.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -64,7 +64,7 @@ parser_is_mares_iconhd (dc_parser_t *abstract)
 
 
 dc_status_t
-mares_iconhd_parser_create (dc_parser_t **out, unsigned int model)
+mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -72,7 +72,7 @@ mares_iconhd_parser_create (dc_parser_t **out, unsigned int model)
 	// Allocate memory.
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) malloc (sizeof (mares_iconhd_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

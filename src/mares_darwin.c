@@ -25,8 +25,8 @@
 
 #include <libdivecomputer/mares_darwin.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "mares_common.h"
 #include "array.h"
@@ -101,7 +101,7 @@ device_is_mares_darwin (dc_device_t *abstract)
 }
 
 dc_status_t
-mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int model)
+mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -109,7 +109,7 @@ mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int mode
 	// Allocate memory.
 	mares_darwin_device_t *device = (mares_darwin_device_t *) malloc (sizeof (mares_darwin_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -127,7 +127,7 @@ mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int mode
 	// Open the device.
 	int rc = serial_open (&device->base.port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -135,7 +135,7 @@ mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int mode
 	// Set the serial communication protocol (9600 8N1).
 	rc = serial_configure (device->base.port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->base.port);
 		free (device);
 		return DC_STATUS_IO;
@@ -143,7 +143,7 @@ mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int mode
 
 	// Set the timeout for receiving data (1000 ms).
 	if (serial_set_timeout (device->base.port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->base.port);
 		free (device);
 		return DC_STATUS_IO;
@@ -152,7 +152,7 @@ mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int mode
 	// Set the DTR/RTS lines.
 	if (serial_set_dtr (device->base.port, 1) == -1 ||
 		serial_set_rts (device->base.port, 1) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->base.port);
 		free (device);
 		return DC_STATUS_IO;
@@ -216,7 +216,7 @@ mares_darwin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -274,21 +274,21 @@ mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_be (data + 0x8A);
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
-		WARNING ("Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Get the logbook index.
 	unsigned int last = data[0x8C];
 	if (last >= layout->rb_logbook_count) {
-		WARNING ("Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Allocate memory for the largest possible dive.
 	unsigned char *buffer = malloc (layout->rb_logbook_size + layout->rb_profile_end - layout->rb_profile_begin);
 	if (buffer == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (abstract->context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

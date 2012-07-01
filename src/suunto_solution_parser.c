@@ -23,8 +23,8 @@
 
 #include <libdivecomputer/suunto_solution.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 
 typedef struct suunto_solution_parser_t suunto_solution_parser_t;
@@ -63,7 +63,7 @@ parser_is_suunto_solution (dc_parser_t *abstract)
 
 
 dc_status_t
-suunto_solution_parser_create (dc_parser_t **out)
+suunto_solution_parser_create (dc_parser_t **out, dc_context_t *context)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -71,7 +71,7 @@ suunto_solution_parser_create (dc_parser_t **out)
 	// Allocate memory.
 	suunto_solution_parser_t *parser = (suunto_solution_parser_t *) malloc (sizeof (suunto_solution_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -237,7 +237,7 @@ suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				sample.event.type = SAMPLE_EVENT_ASCENT;
 				break;
 			default: // Unknown
-				WARNING ("Unknown event");
+				WARNING (abstract->context, "Unknown event");
 				break;
 			}
 

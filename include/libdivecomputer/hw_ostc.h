@@ -22,6 +22,7 @@
 #ifndef HW_OSTC_H
 #define HW_OSTC_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 #include "buffer.h"
@@ -37,7 +38,7 @@ typedef enum hw_ostc_format_t {
 } hw_ostc_format_t;
 
 dc_status_t
-hw_ostc_device_open (dc_device_t **device, const char *name);
+hw_ostc_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 hw_ostc_device_md2hash (dc_device_t *device, unsigned char data[], unsigned int size);
@@ -61,7 +62,7 @@ dc_status_t
 hw_ostc_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **parser, unsigned int frog);
+hw_ostc_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int frog);
 
 #ifdef __cplusplus
 }

@@ -34,6 +34,7 @@
 #define DC_TICKS_FORMAT "%lld"
 #endif
 
+#include <libdivecomputer/context.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
 #include <libdivecomputer/utils.h>
@@ -579,7 +580,7 @@ search (dc_descriptor_t **out, const char *name, dc_family_t backend, unsigned i
 
 
 static dc_status_t
-dowork (dc_descriptor_t *descriptor, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
+dowork (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, const char *rawfile, const char *xmlfile, int memory, int dives, dc_buffer_t *fingerprint)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
@@ -592,7 +593,7 @@ dowork (dc_descriptor_t *descriptor, const char *devname, const char *rawfile, c
 		dc_descriptor_get_product (descriptor),
 		devname ? devname : "null");
 	dc_device_t *device = NULL;
-	rc = dc_device_open (&device, descriptor, devname);
+	rc = dc_device_open (&device, context, descriptor, devname);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error opening device.");
 		return rc;
@@ -772,9 +773,19 @@ main (int argc, char *argv[])
 
 	message_set_logfile (logfile);
 
+	dc_context_t *context = NULL;
+	dc_status_t rc = dc_context_new (&context);
+	if (rc != DC_STATUS_SUCCESS) {
+		message_set_logfile (NULL);
+		return EXIT_FAILURE;
+	}
+
+	dc_context_set_loglevel (context, DC_LOGLEVEL_ALL);
+	dc_context_set_logfunc (context, logfunc, NULL);
+
 	/* Search for a matching device descriptor. */
 	dc_descriptor_t *descriptor = NULL;
-	dc_status_t rc = search (&descriptor, name, backend, model);
+	rc = search (&descriptor, name, backend, model);
 	if (rc != DC_STATUS_SUCCESS) {
 		message_set_logfile (NULL);
 		return EXIT_FAILURE;
@@ -789,11 +800,12 @@ main (int argc, char *argv[])
 	}
 
 	dc_buffer_t *fp = fpconvert (fingerprint);
-	rc = dowork (descriptor, devname, rawfile, xmlfile, memory, dives, fp);
+	rc = dowork (context, descriptor, devname, rawfile, xmlfile, memory, dives, fp);
 	dc_buffer_free (fp);
 	message ("Result: %s\n", errmsg (rc));
 
 	dc_descriptor_free (descriptor);
+	dc_context_free (context);
 
 	message_set_logfile (NULL);
 

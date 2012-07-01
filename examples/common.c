@@ -19,6 +19,8 @@
  * MA 02110-1301 USA
  */
 
+#include <libdivecomputer/utils.h>
+
 #include "common.h"
 
 const char *
@@ -50,4 +52,12 @@ errmsg (dc_status_t rc)
 	default:
 		return "Unknown error";
 	}
+}
+
+void
+logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
+{
+	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
+
+	message ("%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
 }

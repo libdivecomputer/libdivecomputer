@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/mares_nemo.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "mares_common.h"
 #include "serial.h"
@@ -96,7 +96,7 @@ device_is_mares_nemo (dc_device_t *abstract)
 
 
 dc_status_t
-mares_nemo_device_open (dc_device_t **out, const char *name)
+mares_nemo_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -104,7 +104,7 @@ mares_nemo_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	mares_nemo_device_t *device = (mares_nemo_device_t *) malloc (sizeof (mares_nemo_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -118,7 +118,7 @@ mares_nemo_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -126,7 +126,7 @@ mares_nemo_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (9600 8N1).
 	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -134,7 +134,7 @@ mares_nemo_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000 ms).
 	if (serial_set_timeout (device->port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -143,7 +143,7 @@ mares_nemo_device_open (dc_device_t **out, const char *name)
 	// Set the DTR/RTS lines.
 	if (serial_set_dtr (device->port, 1) == -1 ||
 		serial_set_rts (device->port, 1) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -204,7 +204,7 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, MEMORYSIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -227,7 +227,7 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	for (unsigned int i = 0; i < 20;) {
 		int n = serial_read (device->port, &header, 1);
 		if (n != 1) {
-			WARNING ("Failed to receive the header.");
+			ERROR (abstract->context, "Failed to receive the header.");
 			return EXITCODE (n);
 		}
 		if (header == 0xEE) {
@@ -247,7 +247,7 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		unsigned char packet[(PACKETSIZE + 1) * 2] = {0};
 		int n = serial_read (device->port, packet, sizeof (packet));
 		if (n != sizeof (packet)) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 
@@ -259,20 +259,20 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		if (crc1 == ccrc1 && crc2 == ccrc2) {
 			// Both packets have a correct checksum.
 			if (memcmp (packet, packet + PACKETSIZE + 1, PACKETSIZE) != 0) {
-				WARNING ("Both packets are not equal.");
+				ERROR (abstract->context, "Both packets are not equal.");
 				return DC_STATUS_PROTOCOL;
 			}
 			dc_buffer_append (buffer, packet, PACKETSIZE);
 		} else if (crc1 == ccrc1) {
 			// Only the first packet has a correct checksum.
-			WARNING ("Only the first packet has a correct checksum.");
+			WARNING (abstract->context, "Only the first packet has a correct checksum.");
 			dc_buffer_append (buffer, packet, PACKETSIZE);
 		} else if (crc2 == ccrc2) {
 			// Only the second packet has a correct checksum.
-			WARNING ("Only the second packet has a correct checksum.");
+			WARNING (abstract->context, "Only the second packet has a correct checksum.");
 			dc_buffer_append (buffer, packet + PACKETSIZE + 1, PACKETSIZE);
 		} else {
-			WARNING ("Unexpected answer CRC.");
+			ERROR (abstract->context, "Unexpected answer checksum.");
 			return DC_STATUS_PROTOCOL;
 		}
 
@@ -327,6 +327,7 @@ mares_nemo_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 	if (size < PACKETSIZE)
 		return DC_STATUS_DATAFORMAT;
 
+	dc_context_t *context = (abstract ? abstract->context : NULL);
 	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
 
 	const mares_common_layout_t *layout = NULL;
@@ -346,5 +347,5 @@ mares_nemo_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 	if (size < layout->memsize)
 		return DC_STATUS_DATAFORMAT;
 
-	return mares_common_extract_dives (layout, fingerprint, data, callback, userdata);
+	return mares_common_extract_dives (context, layout, fingerprint, data, callback, userdata);
 }

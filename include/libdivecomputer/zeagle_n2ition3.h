@@ -22,6 +22,7 @@
 #ifndef ZEAGLE_N2ITION3_H
 #define ZEAGLE_N2ITION3_H
 
+#include "context.h"
 #include "device.h"
 
 #ifdef __cplusplus
@@ -32,7 +33,7 @@ extern "C" {
 #define ZEAGLE_N2ITION3_PACKET_SIZE 64
 
 dc_status_t
-zeagle_n2ition3_device_open (dc_device_t **device, const char *name);
+zeagle_n2ition3_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 #ifdef __cplusplus
 }

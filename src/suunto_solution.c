@@ -23,8 +23,8 @@
 
 #include <libdivecomputer/suunto_solution.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "ringbuffer.h"
 #include "serial.h"
@@ -69,7 +69,7 @@ device_is_suunto_solution (dc_device_t *abstract)
 
 
 dc_status_t
-suunto_solution_device_open (dc_device_t **out, const char *name)
+suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -77,7 +77,7 @@ suunto_solution_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	suunto_solution_device_t *device = (suunto_solution_device_t *) malloc (sizeof (suunto_solution_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -90,7 +90,7 @@ suunto_solution_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -98,7 +98,7 @@ suunto_solution_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (1200 8N2).
 	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -106,7 +106,7 @@ suunto_solution_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000ms).
 	if (serial_set_timeout (device->port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -114,7 +114,7 @@ suunto_solution_device_open (dc_device_t **out, const char *name)
 
 	// Clear the RTS line.
 	if (serial_set_rts (device->port, 0)) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -158,7 +158,7 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SUUNTO_SOLUTION_MEMORY_SIZE)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -183,7 +183,8 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Receive: 0x3F
 	n = serial_read (device->port, answer, 1);
 	if (n != 1) return EXITCODE (n);
-	if (answer[0] != 0x3F) WARNING ("Unexpected answer byte.");
+	if (answer[0] != 0x3F)
+		WARNING (abstract->context, "Unexpected answer byte.");
 
 	// Send: 0x4D, 0x01, 0x01
 	command[0] = 0x4D;
@@ -200,7 +201,8 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		// Receive: 0x01, i, data[i]
 		n = serial_read (device->port, answer, 3);
 		if (n != 3) return EXITCODE (n);
-		if (answer[0] != 0x01 || answer[1] != i) WARNING ("Unexpected answer byte.");
+		if (answer[0] != 0x01 || answer[1] != i)
+			WARNING (abstract->context, "Unexpected answer byte.");
 
 		// Send: i
 		command[0] = i;
@@ -209,7 +211,8 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		// Receive: data[i]
 		n = serial_read (device->port, data + i, 1);
 		if (n != 1) return EXITCODE (n);
-		if (data[i] != answer[2]) WARNING ("Unexpected answer byte.");
+		if (data[i] != answer[2])
+			WARNING (abstract->context, "Unexpected answer byte.");
 
 		// Send: 0x0D
 		command[0] = 0x0D;
@@ -223,7 +226,8 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Receive: 0x02, 0x00, 0x80
 	n = serial_read (device->port, answer, 3);
 	if (n != 3) return EXITCODE (n);
-	if (answer[0] != 0x02 || answer[1] != 0x00 || answer[2] != 0x80) WARNING ("Unexpected answer byte.");
+	if (answer[0] != 0x02 || answer[1] != 0x00 || answer[2] != 0x80)
+		WARNING (abstract->context, "Unexpected answer byte.");
 
 	// Send: 0x80
 	command[0] = 0x80;
@@ -232,7 +236,8 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Receive: 0x80
 	n = serial_read (device->port, answer, 1);
 	if (n != 1) return EXITCODE (n);
-	if (answer[0] != 0x80) WARNING ("Unexpected answer byte.");
+	if (answer[0] != 0x80)
+		WARNING (abstract->context, "Unexpected answer byte.");
 
 	// Send: 0x20
 	command[0] = 0x20;
@@ -241,7 +246,8 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Receive: 0x3F
 	n = serial_read (device->port, answer, 1);
 	if (n != 1) return EXITCODE (n);
-	if (answer[0] != 0x3F) WARNING ("Unexpected answer byte.");
+	if (answer[0] != 0x3F)
+		WARNING (abstract->context, "Unexpected answer byte.");
 
 	// Update and emit a progress event.
 	progress.current += 1;

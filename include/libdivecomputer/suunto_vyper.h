@@ -22,6 +22,7 @@
 #ifndef SUUNTO_VYPER_H
 #define SUUNTO_VYPER_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -33,7 +34,7 @@ extern "C" {
 #define SUUNTO_VYPER_PACKET_SIZE 32
 
 dc_status_t
-suunto_vyper_device_open (dc_device_t **device, const char *name);
+suunto_vyper_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 suunto_vyper_device_set_delay (dc_device_t *device, unsigned int delay);
@@ -45,7 +46,7 @@ dc_status_t
 suunto_vyper_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-suunto_vyper_parser_create (dc_parser_t **parser);
+suunto_vyper_parser_create (dc_parser_t **parser, dc_context_t *context);
 
 #ifdef __cplusplus
 }

@@ -22,6 +22,7 @@
 #ifndef UWATEC_SMART_H
 #define UWATEC_SMART_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -32,7 +33,7 @@ extern "C" {
 #define UWATEC_SMART_VERSION_SIZE 9
 
 dc_status_t
-uwatec_smart_device_open (dc_device_t **device);
+uwatec_smart_device_open (dc_device_t **device, dc_context_t *context);
 
 dc_status_t
 uwatec_smart_device_set_timestamp (dc_device_t *device, unsigned int timestamp);
@@ -41,7 +42,7 @@ dc_status_t
 uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-uwatec_smart_parser_create (dc_parser_t **parser, unsigned int model, unsigned int devtime, dc_ticks_t systime);
+uwatec_smart_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model, unsigned int devtime, dc_ticks_t systime);
 
 #ifdef __cplusplus
 }

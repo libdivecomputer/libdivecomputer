@@ -24,8 +24,8 @@
 #include <assert.h> // assert
 
 #include <libdivecomputer/uwatec_memomouse.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
 #include "checksum.h"
@@ -76,7 +76,7 @@ device_is_uwatec_memomouse (dc_device_t *abstract)
 
 
 dc_status_t
-uwatec_memomouse_device_open (dc_device_t **out, const char *name)
+uwatec_memomouse_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -84,7 +84,7 @@ uwatec_memomouse_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t *) malloc (sizeof (uwatec_memomouse_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -100,7 +100,7 @@ uwatec_memomouse_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -108,7 +108,7 @@ uwatec_memomouse_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (9600 8N1).
 	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -116,7 +116,7 @@ uwatec_memomouse_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (1000 ms).
 	if (serial_set_timeout (device->port, 1000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -125,7 +125,7 @@ uwatec_memomouse_device_open (dc_device_t **out, const char *name)
 	// Clear the RTS and DTR lines.
 	if (serial_set_rts (device->port, 0) == -1 ||
 		serial_set_dtr (device->port, 0) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -198,12 +198,14 @@ uwatec_memomouse_device_set_fingerprint (dc_device_t *abstract, const unsigned c
 static dc_status_t
 uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	assert (result != NULL);
 
 	// Receive the header of the package.
 	int rc = serial_read (device->port, data, 1);
 	if (rc != 1) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (rc);
 	}
 
@@ -213,14 +215,14 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 	// Verify the header of the package.
 	unsigned int len = data[0];
 	if (len + 2 > size) {
-		WARNING ("Unexpected answer start byte(s).");
+		ERROR (abstract->context, "Unexpected answer start byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Receive the remaining part of the package.
 	rc = serial_read (device->port, data + 1, len + 1);
 	if (rc != len + 1) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (rc);
 	}
 
@@ -231,7 +233,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 	unsigned char crc = data[len + 1];
 	unsigned char ccrc = checksum_xor_uint8 (data, len + 1, 0x00);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -244,6 +246,8 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 static dc_status_t
 uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	while ((rc = uwatec_memomouse_read_packet (device, data, size, result)) != DC_STATUS_SUCCESS) {
 		// Automatically discard a corrupted packet, 
@@ -258,7 +262,7 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 		unsigned char value = NAK;
 		int n = serial_write (device->port, &value, 1);
 		if (n != 1) {
-			WARNING ("Failed to reject the packet.");
+			ERROR (abstract->context, "Failed to reject the packet.");
 			return EXITCODE (n);
 		}
 	}
@@ -270,9 +274,11 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 static dc_status_t
 uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer_t *buffer, dc_event_progress_t *progress)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -294,7 +300,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 		unsigned char value = ACK;
 		int n = serial_write (device->port, &value, 1);
 		if (n != 1) {
-			WARNING ("Failed to accept the packet.");
+			ERROR (abstract->context, "Failed to accept the packet.");
 			return EXITCODE (n);
 		}
 
@@ -302,7 +308,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 			// The first packet should contain at least
 			// the total size of the inner packet.
 			if (length < 2) {
-				WARNING ("First package is too small.");
+				ERROR (abstract->context, "Data packet is too short.");
 				return DC_STATUS_PROTOCOL;
 			}
 
@@ -311,7 +317,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 
 			// Pre-allocate the required amount of memory.
 			if (!dc_buffer_reserve (buffer, total)) {
-				WARNING ("Insufficient buffer space available.");
+				ERROR (abstract->context, "Insufficient buffer space available.");
 				return DC_STATUS_NOMEMORY;
 			}
 		}
@@ -336,7 +342,7 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 	unsigned char crc = data[total - 1];
 	unsigned char ccrc = checksum_xor_uint8 (data, total - 1, 0x00);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -368,7 +374,7 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 		unsigned char value = NAK;
 		int n = serial_write (device->port, &value, 1);
 		if (n != 1) {
-			WARNING ("Failed to reject the packet.");
+			ERROR (abstract->context, "Failed to reject the packet.");
 			return EXITCODE (n);
 		}
 
@@ -407,21 +413,21 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 		// Send the command to the device.
 		int n = serial_write (device->port, command, sizeof (command));
 		if (n != sizeof (command)) {
-			WARNING ("Failed to send the command.");
+			ERROR (abstract->context, "Failed to send the command.");
 			return EXITCODE (n);
 		}
 
 		// Wait for the answer (ACK).
 		n = serial_read (device->port, &answer, 1);
 		if (n != 1) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 	}
 
 	// Verify the answer.
 	if (answer != ACK) {
-		WARNING ("Unexpected answer start byte(s).");
+		ERROR (abstract->context, "Unexpected answer start byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -466,7 +472,7 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -476,7 +482,7 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Set the DTR line.
 	if (serial_set_dtr (device->port, 1) == -1) {
-		WARNING ("Failed to set the RTS line.");
+		ERROR (abstract->context, "Failed to set the RTS line.");
 		return DC_STATUS_IO;
 	}
 
@@ -485,7 +491,7 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Clear the DTR line again.
 	if (serial_set_dtr (device->port, 0) == -1) {
-		WARNING ("Failed to set the RTS line.");
+		ERROR (abstract->context, "Failed to set the RTS line.");
 		return DC_STATUS_IO;
 	}
 

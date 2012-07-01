@@ -23,8 +23,8 @@
 #include <stdlib.h> // malloc, free
 
 #include <libdivecomputer/oceanic_veo250.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "oceanic_common.h"
 #include "serial.h"
@@ -102,7 +102,7 @@ oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char comman
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -110,13 +110,13 @@ oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char comman
 	unsigned char response = NAK;
 	n = serial_read (device->port, &response, 1);
 	if (n != 1) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the response of the dive computer.
 	if (response != ACK) {
-		WARNING ("Unexpected answer start byte(s).");
+		ERROR (abstract->context, "Unexpected answer start byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -127,6 +127,8 @@ oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char comman
 static dc_status_t
 oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Send the command to the device. If the device responds with an
 	// ACK byte, the command was received successfully and the answer
 	// (if any) follows after the ACK byte. If the device responds with
@@ -150,13 +152,13 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 	// Receive the answer of the dive computer.
 	int n = serial_read (device->port, answer, asize);
 	if (n != asize) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the last byte of the answer.
 	if (answer[asize - 1] != NAK) {
-		WARNING ("Unexpected answer byte.");
+		ERROR (abstract->context, "Unexpected answer byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -167,11 +169,13 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 static dc_status_t
 oceanic_veo250_init (oceanic_veo250_device_t *device)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Send the command to the dive computer.
 	unsigned char command[2] = {0x55, 0x00};
 	int n = serial_write (device->port, command, sizeof (command));
 	if (n != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -179,7 +183,7 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 	unsigned char answer[13] = {0};
 	n = serial_read (device->port, answer, sizeof (answer));
 	if (n != sizeof (answer)) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		if (n == 0)
 			return DC_STATUS_SUCCESS;
 		return EXITCODE (n);
@@ -190,7 +194,7 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 		0x50, 0x50, 0x53, 0x2D, 0x2D, 0x4F, 0x4B,
 		0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30};
 	if (memcmp (answer, response, sizeof (response)) != 0) {
-		WARNING ("Unexpected answer byte(s).");
+		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -201,11 +205,13 @@ oceanic_veo250_init (oceanic_veo250_device_t *device)
 static dc_status_t
 oceanic_veo250_quit (oceanic_veo250_device_t *device)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Send the command to the dive computer.
 	unsigned char command[2] = {0x98, 0x00};
 	int n = serial_write (device->port, command, sizeof (command));
 	if (n != sizeof (command)) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -214,7 +220,7 @@ oceanic_veo250_quit (oceanic_veo250_device_t *device)
 
 
 dc_status_t
-oceanic_veo250_device_open (dc_device_t **out, const char *name)
+oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -222,7 +228,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 	// Allocate memory.
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t *) malloc (sizeof (oceanic_veo250_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -241,7 +247,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -249,7 +255,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 	// Set the serial communication protocol (9600 8N1).
 	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -257,7 +263,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 
 	// Set the timeout for receiving data (3000 ms).
 	if (serial_set_timeout (device->port, 3000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -266,7 +272,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 	// Set the DTR and RTS lines.
 	if (serial_set_dtr (device->port, 1) == -1 ||
 		serial_set_rts (device->port, 1) == -1) {
-		WARNING ("Failed to set the DTR/RTS line.");
+		ERROR (context, "Failed to set the DTR/RTS line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -348,7 +354,7 @@ oceanic_veo250_device_keepalive (dc_device_t *abstract)
 
 	// Verify the answer.
 	if (answer[0] != NAK) {
-		WARNING ("Unexpected answer byte(s).");
+		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -377,7 +383,7 @@ oceanic_veo250_device_version (dc_device_t *abstract, unsigned char data[], unsi
 	unsigned char crc = answer[PAGESIZE];
 	unsigned char ccrc = checksum_add_uint8 (answer, PAGESIZE, 0x00);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -431,7 +437,7 @@ oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigne
 			unsigned char crc = answer[offset + PAGESIZE];
 			unsigned char ccrc = checksum_add_uint8 (answer + offset, PAGESIZE, 0x00);
 			if (crc != ccrc) {
-				WARNING ("Unexpected answer CRC.");
+				ERROR (abstract->context, "Unexpected answer checksum.");
 				return DC_STATUS_PROTOCOL;
 			}
 

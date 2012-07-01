@@ -24,8 +24,8 @@
 
 #include <libdivecomputer/uwatec_smart.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -76,7 +76,7 @@ parser_is_uwatec_smart (dc_parser_t *abstract)
 
 
 dc_status_t
-uwatec_smart_parser_create (dc_parser_t **out, unsigned int model, unsigned int devtime, dc_ticks_t systime)
+uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -84,7 +84,7 @@ uwatec_smart_parser_create (dc_parser_t **out, unsigned int model, unsigned int 
 	// Allocate memory.
 	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) malloc (sizeof (uwatec_smart_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -524,7 +524,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			id = uwatec_smart_identify (data + offset, size - offset);
 		}
 		if (id >= entries) {
-			WARNING ("Invalid type bits.");
+			ERROR (abstract->context, "Invalid type bits.");
 			return DC_STATUS_DATAFORMAT;
 		}
 
@@ -549,7 +549,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Check for buffer overflows.
 		if (offset + table[id].extrabytes > size) {
-			WARNING ("Incomplete sample data.");
+			ERROR (abstract->context, "Incomplete sample data.");
 			return DC_STATUS_DATAFORMAT;
 		}
 
@@ -629,7 +629,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			complete = value;
 			break;
 		default:
-			WARNING ("Unknown sample type.");
+			WARNING (abstract->context, "Unknown sample type.");
 			break;
 		}
 

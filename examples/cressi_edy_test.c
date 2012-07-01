@@ -29,12 +29,18 @@
 dc_status_t
 test_dump_memory (const char* name, const char* filename)
 {
+	dc_context_t *context = NULL;
 	dc_device_t *device = NULL;
 
+	dc_context_new (&context);
+	dc_context_set_loglevel (context, DC_LOGLEVEL_ALL);
+	dc_context_set_logfunc (context, logfunc, NULL);
+
 	message ("cressi_edy_device_open\n");
-	dc_status_t rc = cressi_edy_device_open (&device, name);
+	dc_status_t rc = cressi_edy_device_open (&device, context, name);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
+		dc_context_free (context);
 		return rc;
 	}
 
@@ -46,6 +52,7 @@ test_dump_memory (const char* name, const char* filename)
 		WARNING ("Cannot read memory.");
 		dc_buffer_free (buffer);
 		dc_device_close (device);
+		dc_context_free (context);
 		return rc;
 	}
 
@@ -62,8 +69,11 @@ test_dump_memory (const char* name, const char* filename)
 	rc = dc_device_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Cannot close device.");
+		dc_context_free (context);
 		return rc;
 	}
+
+	dc_context_free (context);
 
 	return DC_STATUS_SUCCESS;
 }

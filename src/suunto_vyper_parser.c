@@ -23,8 +23,8 @@
 
 #include <libdivecomputer/suunto_vyper.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 
 typedef struct suunto_vyper_parser_t suunto_vyper_parser_t;
@@ -64,7 +64,7 @@ parser_is_suunto_vyper (dc_parser_t *abstract)
 
 
 dc_status_t
-suunto_vyper_parser_create (dc_parser_t **out)
+suunto_vyper_parser_create (dc_parser_t **out, dc_context_t *context)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -72,7 +72,7 @@ suunto_vyper_parser_create (dc_parser_t **out)
 	// Allocate memory.
 	suunto_vyper_parser_t *parser = (suunto_vyper_parser_t *) malloc (sizeof (suunto_vyper_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -320,7 +320,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.event.value = data[offset++];
 				break;
 			default: // Unknown
-				WARNING ("Unknown event");
+				WARNING (abstract->context, "Unknown event");
 				break;
 			}
 

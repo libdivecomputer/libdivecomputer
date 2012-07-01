@@ -23,8 +23,7 @@
 #include <string.h> // memcpy, memcmp
 #include <assert.h> // assert
 
-#include <libdivecomputer/utils.h>
-
+#include "context-private.h"
 #include "mares_common.h"
 #include "checksum.h"
 #include "array.h"
@@ -141,7 +140,7 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	// Send the command to the device.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -150,26 +149,26 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 		unsigned char echo[PACKETSIZE] = {0};
 		n = serial_read (device->port, echo, csize);
 		if (n != csize) {
-			WARNING ("Failed to receive the echo.");
+			ERROR (abstract->context, "Failed to receive the echo.");
 			return EXITCODE (n);
 		}
 
 		// Verify the echo.
 		if (memcmp (echo, command, csize) != 0) {
-			WARNING ("Unexpected echo.");
+			WARNING (abstract->context, "Unexpected echo.");
 		}
 	}
 
 	// Receive the answer of the device.
 	n = serial_read (device->port, answer, asize);
 	if (n != asize) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the header and trailer of the packet.
 	if (answer[0] != '<' || answer[asize - 1] != '>') {
-		WARNING ("Unexpected answer header/trailer byte.");
+		ERROR (abstract->context, "Unexpected answer header/trailer byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -178,7 +177,7 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	unsigned char ccrc = checksum_add_uint8 (answer + 1, asize - 4, 0x00);
 	mares_common_convert_ascii_to_binary (answer + asize - 3, 2, &crc, 1);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -253,7 +252,7 @@ mares_common_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 
 
 dc_status_t
-mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dc_dive_callback_t callback, void *userdata)
+mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *layout, const unsigned char fingerprint[], const unsigned char data[], dc_dive_callback_t callback, void *userdata)
 {
 	assert (layout != NULL);
 
@@ -266,7 +265,7 @@ mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = array_uint16_le (data + 0x6B);
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
-		WARNING ("Ringbuffer pointer out of range.");
+		ERROR (context, "Ringbuffer pointer out of range.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -277,7 +276,7 @@ mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned 
 		layout->rb_profile_end - layout->rb_profile_begin +
 		layout->rb_freedives_end - layout->rb_freedives_begin);
 	if (buffer == NULL) {
-		WARNING ("Out of memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -353,7 +352,7 @@ mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned 
 		// something is wrong and an error is returned.
 		unsigned int length = array_uint16_le (buffer + offset);
 		if (length != nbytes) {
-			WARNING ("Calculated and stored size are not equal.");
+			ERROR (context, "Calculated and stored size are not equal.");
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -381,7 +380,7 @@ mares_common_extract_dives (const mares_common_layout_t *layout, const unsigned 
 			// equals the number of freedives in the profile data. If
 			// both values are different, the profile data is incomplete.
 			if (count != nsamples) {
-				WARNING ("Unexpected number of freedive sessions.");
+				ERROR (context, "Unexpected number of freedive sessions.");
 				free (buffer);
 				return DC_STATUS_DATAFORMAT;
 			}

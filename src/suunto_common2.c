@@ -23,8 +23,7 @@
 #include <string.h> // memcmp, memcpy
 #include <assert.h> // assert
 
-#include <libdivecomputer/utils.h>
-
+#include "context-private.h"
 #include "suunto_common2.h"
 #include "ringbuffer.h"
 #include "checksum.h"
@@ -107,7 +106,7 @@ dc_status_t
 suunto_common2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	if (size < SZ_VERSION) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_INVALIDARGS;
 	}
 
@@ -218,7 +217,7 @@ suunto_common2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -250,7 +249,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	unsigned char version[SZ_VERSION] = {0};
 	dc_status_t rc = suunto_common2_device_version (abstract, version, sizeof (version));
 	if (rc != DC_STATUS_SUCCESS) {
-		WARNING ("Cannot read memory header.");
+		ERROR (abstract->context, "Failed to read the memory header.");
 		return rc;
 	}
 
@@ -262,7 +261,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	unsigned char serial[SZ_MINIMUM > 4 ? SZ_MINIMUM : 4] = {0};
 	rc = suunto_common2_device_read (abstract, layout->serial, serial, sizeof (serial));
 	if (rc != DC_STATUS_SUCCESS) {
-		WARNING ("Cannot read memory header.");
+		ERROR (abstract->context, "Failed to read the memory header.");
 		return rc;
 	}
 
@@ -281,7 +280,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	unsigned char header[8] = {0};
 	rc = suunto_common2_device_read (abstract, 0x0190, header, sizeof (header));
 	if (rc != DC_STATUS_SUCCESS) {
-		WARNING ("Cannot read memory header.");
+		ERROR (abstract->context, "Failed to read the memory header.");
 		return rc;
 	}
 
@@ -297,7 +296,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		begin < layout->rb_profile_begin ||
 		begin >= layout->rb_profile_end)
 	{
-		WARNING("Invalid ringbuffer pointer detected!");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -305,7 +304,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 
 	unsigned char *data = (unsigned char *) malloc (layout->rb_profile_end - layout->rb_profile_begin + SZ_MINIMUM);
 	if (data == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (abstract->context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -339,7 +338,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		unsigned int size = RB_PROFILE_DISTANCE (layout, current, previous, 1);
 
 		if (size < 4 || size > remaining) {
-			WARNING ("Unexpected profile size.");
+			ERROR (abstract->context, "Unexpected profile size.");
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -376,7 +375,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			// Read the package.
 			rc = suunto_common2_device_read (abstract, address - extra, data + offset - extra, len + extra);
 			if (rc != DC_STATUS_SUCCESS) {
-				WARNING ("Cannot read memory.");
+				ERROR (abstract->context, "Failed to read the memory.");
 				free (data);
 				return rc;
 			}
@@ -404,12 +403,12 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			next < layout->rb_profile_begin ||
 			next >= layout->rb_profile_end)
 		{
-			WARNING("Invalid ringbuffer pointer detected!");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
 		if (next != previous && next != current) {
-			WARNING ("Profiles are not continuous.");
+			ERROR (abstract->context, "Profiles are not continuous.");
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -429,7 +428,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 				return DC_STATUS_SUCCESS;
 			}
 		} else {
-			WARNING ("Skipping incomplete dive.");
+			ERROR (abstract->context, "Skipping incomplete dive.");
 			status = DC_STATUS_DATAFORMAT;
 		}
 

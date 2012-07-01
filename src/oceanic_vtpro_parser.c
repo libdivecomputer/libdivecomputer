@@ -23,9 +23,9 @@
 
 #include <libdivecomputer/oceanic_vtpro.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
 #include "oceanic_common.h"
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -66,7 +66,7 @@ parser_is_oceanic_vtpro (dc_parser_t *abstract)
 
 
 dc_status_t
-oceanic_vtpro_parser_create (dc_parser_t **out)
+oceanic_vtpro_parser_create (dc_parser_t **out, dc_context_t *context)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -74,7 +74,7 @@ oceanic_vtpro_parser_create (dc_parser_t **out)
 	// Allocate memory.
 	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) malloc (sizeof (oceanic_vtpro_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -256,7 +256,7 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		// Get the current timestamp.
 		unsigned int current = bcd2dec (data[offset + 1] & 0x0F) * 60 + bcd2dec (data[offset + 0]);
 		if (current < timestamp) {
-			WARNING ("Timestamp moved backwards.");
+			ERROR (abstract->context, "Timestamp moved backwards.");
 			return DC_STATUS_DATAFORMAT;
 		}
 
@@ -294,11 +294,11 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 		if (interval) {
 			if (current > timestamp + 1) {
-				WARNING ("Unexpected timestamp jump.");
+				ERROR (abstract->context, "Unexpected timestamp jump.");
 				return DC_STATUS_DATAFORMAT;
 			}
 			if (i >= count) {
-				WARNING ("Unexpected number of samples with the same timestamp.");
+				ERROR (abstract->context, "Unexpected number of samples with the same timestamp.");
 				return DC_STATUS_DATAFORMAT;
 			}
 		}

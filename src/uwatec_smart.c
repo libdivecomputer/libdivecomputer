@@ -23,8 +23,8 @@
 #include <string.h>	// strncmp, strstr
 
 #include <libdivecomputer/uwatec_smart.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "irda.h"
 #include "array.h"
@@ -96,15 +96,17 @@ uwatec_smart_discovery (unsigned int address, const char *name, unsigned int cha
 static dc_status_t
 uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	int n = irda_socket_write (device->socket, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
 	n = irda_socket_read (device->socket, answer, asize);
 	if (n != asize) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
@@ -115,6 +117,8 @@ uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char comman
 static dc_status_t
 uwatec_smart_handshake (uwatec_smart_device_t *device)
 {
+	dc_device_t *abstract = (dc_device_t *) device;
+
 	// Command template.
 	unsigned char answer[1] = {0};
 	unsigned char command[5] = {0x00, 0x10, 0x27, 0, 0};
@@ -127,7 +131,7 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 
 	// Verify the answer.
 	if (answer[0] != 0x01) {
-		WARNING ("Unexpected answer byte(s).");
+		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -139,7 +143,7 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 
 	// Verify the answer.
 	if (answer[0] != 0x01) {
-		WARNING ("Unexpected answer byte(s).");
+		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -148,7 +152,7 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 
 
 dc_status_t
-uwatec_smart_device_open (dc_device_t **out)
+uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -156,7 +160,7 @@ uwatec_smart_device_open (dc_device_t **out)
 	// Allocate memory.
 	uwatec_smart_device_t *device = (uwatec_smart_device_t *) malloc (sizeof (uwatec_smart_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -173,7 +177,7 @@ uwatec_smart_device_open (dc_device_t **out)
 	// Open the irda socket.
 	int rc = irda_socket_open (&device->socket);
 	if (rc == -1) {
-		WARNING ("Failed to open the irda socket.");
+		ERROR (context, "Failed to open the irda socket.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -181,14 +185,14 @@ uwatec_smart_device_open (dc_device_t **out)
 	// Discover the device.
 	rc = irda_socket_discover (device->socket, uwatec_smart_discovery, device);
 	if (rc == -1) {
-		WARNING ("Failed to discover the device.");
+		ERROR (context, "Failed to discover the device.");
 		irda_socket_close (device->socket);
 		free (device);
 		return DC_STATUS_IO;
 	}
 
 	if (device->address == 0) {
-		WARNING ("No dive computer found.");
+		ERROR (context, "No dive computer found.");
 		irda_socket_close (device->socket);
 		free (device);
 		return DC_STATUS_IO;
@@ -197,7 +201,7 @@ uwatec_smart_device_open (dc_device_t **out)
 	// Connect the device.
 	rc = irda_socket_connect_lsap (device->socket, device->address, 1);
 	if (rc == -1) {
-		WARNING ("Failed to connect the device.");
+		ERROR (context, "Failed to connect the device.");
 		irda_socket_close (device->socket);
 		free (device);
 		return DC_STATUS_IO;
@@ -273,7 +277,7 @@ uwatec_smart_device_version (dc_device_t *abstract, unsigned char data[], unsign
 	uwatec_smart_device_t *device = (uwatec_smart_device_t *) abstract;
 
 	if (size < UWATEC_SMART_VERSION_SIZE) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -311,7 +315,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -376,7 +380,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, length)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -395,7 +399,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	if (total != length + 4) {
-		WARNING ("Received an unexpected size.");
+		ERROR (abstract->context, "Received an unexpected size.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -415,7 +419,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		int n = irda_socket_read (device->socket, data + nbytes, len);
 		if (n != len) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE (n);
 		}
 

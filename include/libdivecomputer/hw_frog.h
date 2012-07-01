@@ -22,6 +22,7 @@
 #ifndef HW_FROG_H
 #define HW_FROG_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 #include "buffer.h"
@@ -31,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-hw_frog_device_open (dc_device_t **device, const char *name);
+hw_frog_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 hw_frog_device_clock (dc_device_t *device, const dc_datetime_t *datetime);

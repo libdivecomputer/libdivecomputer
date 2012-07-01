@@ -22,6 +22,7 @@
 #ifndef CRESSI_EDY_H
 #define CRESSI_EDY_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -33,10 +34,10 @@ extern "C" {
 #define CRESSI_EDY_PACKET_SIZE 128
 
 dc_status_t
-cressi_edy_device_open (dc_device_t **device, const char *name);
+cressi_edy_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
-cressi_edy_parser_create (dc_parser_t **parser, unsigned int model);
+cressi_edy_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);
 
 #ifdef __cplusplus
 }

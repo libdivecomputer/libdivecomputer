@@ -23,8 +23,8 @@
 
 #include <libdivecomputer/suunto_eon.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -66,7 +66,7 @@ parser_is_suunto_eon (dc_parser_t *abstract)
 
 
 dc_status_t
-suunto_eon_parser_create (dc_parser_t **out, int spyder)
+suunto_eon_parser_create (dc_parser_t **out, dc_context_t *context, int spyder)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -74,7 +74,7 @@ suunto_eon_parser_create (dc_parser_t **out, int spyder)
 	// Allocate memory.
 	suunto_eon_parser_t *parser = (suunto_eon_parser_t *) malloc (sizeof (suunto_eon_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -326,7 +326,7 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				sample.event.type = SAMPLE_EVENT_ASCENT;
 				break;
 			default: // Unknown
-				WARNING ("Unknown event");
+				WARNING (abstract->context, "Unknown event");
 				break;
 			}
 

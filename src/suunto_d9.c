@@ -24,8 +24,8 @@
 #include <assert.h> // assert
 
 #include <libdivecomputer/suunto_d9.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "suunto_common2.h"
 #include "serial.h"
 #include "checksum.h"
@@ -93,6 +93,7 @@ static dc_status_t
 suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	// The list with possible baudrates.
 	const int baudrates[] = {9600, 115200};
@@ -109,7 +110,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 		// Adjust the baudrate.
 		int rc = serial_configure (device->port, baudrates[idx], 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 		if (rc == -1) {
-			WARNING ("Failed to set the terminal attributes.");
+			ERROR (abstract->context, "Failed to set the terminal attributes.");
 			return DC_STATUS_IO;
 		}
 
@@ -124,7 +125,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 
 
 dc_status_t
-suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
+suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -132,7 +133,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 	// Allocate memory.
 	suunto_d9_device_t *device = (suunto_d9_device_t *) malloc (sizeof (suunto_d9_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -146,7 +147,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 	// Open the device.
 	int rc = serial_open (&device->port, name);
 	if (rc == -1) {
-		WARNING ("Failed to open the serial port.");
+		ERROR (context, "Failed to open the serial port.");
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -154,7 +155,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 	// Set the serial communication protocol (9600 8N1).
 	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
-		WARNING ("Failed to set the terminal attributes.");
+		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -162,7 +163,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 
 	// Set the timeout for receiving data (3000 ms).
 	if (serial_set_timeout (device->port, 3000) == -1) {
-		WARNING ("Failed to set the timeout.");
+		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -170,7 +171,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 
 	// Set the DTR line (power supply for the interface).
 	if (serial_set_dtr (device->port, 1) == -1) {
-		WARNING ("Failed to set the DTR line.");
+		ERROR (context, "Failed to set the DTR line.");
 		serial_close (device->port);
 		free (device);
 		return DC_STATUS_IO;
@@ -185,7 +186,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 	// Try to autodetect the protocol variant.
 	dc_status_t status = suunto_d9_device_autodetect (device, model);
 	if (status != DC_STATUS_SUCCESS) {
-		WARNING ("Failed to identify the protocol variant.");
+		ERROR (context, "Failed to identify the protocol variant.");
 		serial_close (device->port);
 		free (device);
 		return status;
@@ -239,7 +240,7 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
 
@@ -248,13 +249,13 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 	assert (sizeof (echo) >= csize);
 	n = serial_read (device->port, echo, csize);
 	if (n != csize) {
-		WARNING ("Failed to receive the echo.");
+		ERROR (abstract->context, "Failed to receive the echo.");
 		return EXITCODE (n);
 	}
 
 	// Verify the echo.
 	if (memcmp (command, echo, csize) != 0) {
-		WARNING ("Unexpected echo.");
+		ERROR (abstract->context, "Unexpected echo.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -264,25 +265,25 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 	// Receive the answer of the dive computer.
 	n = serial_read (device->port, answer, asize);
 	if (n != asize) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE (n);
 	}
 
 	// Verify the header of the package.
 	if (answer[0] != command[0]) {
-		WARNING ("Unexpected answer header.");
+		ERROR (abstract->context, "Unexpected answer header.");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the size of the package.
 	if (array_uint16_be (answer + 1) + 4 != asize) {
-		WARNING ("Unexpected answer size.");
+		ERROR (abstract->context, "Unexpected answer size.");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Verify the parameters of the package.
 	if (memcmp (command + 3, answer + 3, asize - size - 4) != 0) {
-		WARNING ("Unexpected answer parameters.");
+		ERROR (abstract->context, "Unexpected answer parameters.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -290,7 +291,7 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 	unsigned char crc = answer[asize - 1];
 	unsigned char ccrc = checksum_xor_uint8 (answer, asize - 1, 0x00);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 

@@ -22,8 +22,8 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/cressi_edy.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -61,7 +61,7 @@ parser_is_cressi_edy (dc_parser_t *abstract)
 
 
 dc_status_t
-cressi_edy_parser_create (dc_parser_t **out, unsigned int model)
+cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -69,7 +69,7 @@ cressi_edy_parser_create (dc_parser_t **out, unsigned int model)
 	// Allocate memory.
 	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) malloc (sizeof (cressi_edy_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

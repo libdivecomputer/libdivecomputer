@@ -22,6 +22,7 @@
 #ifndef MARES_PUCK_H
 #define MARES_PUCK_H
 
+#include "context.h"
 #include "device.h"
 #include "parser.h"
 
@@ -30,7 +31,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-mares_puck_device_open (dc_device_t **device, const char *name);
+mares_puck_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 mares_puck_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);

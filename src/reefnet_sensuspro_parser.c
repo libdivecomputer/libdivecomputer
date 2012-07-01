@@ -24,8 +24,8 @@
 
 #include <libdivecomputer/reefnet_sensuspro.h>
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -72,7 +72,7 @@ parser_is_reefnet_sensuspro (dc_parser_t *abstract)
 
 
 dc_status_t
-reefnet_sensuspro_parser_create (dc_parser_t **out, unsigned int devtime, dc_ticks_t systime)
+reefnet_sensuspro_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int devtime, dc_ticks_t systime)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -80,7 +80,7 @@ reefnet_sensuspro_parser_create (dc_parser_t **out, unsigned int devtime, dc_tic
 	// Allocate memory.
 	reefnet_sensuspro_parser_t *parser = (reefnet_sensuspro_parser_t *) malloc (sizeof (reefnet_sensuspro_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

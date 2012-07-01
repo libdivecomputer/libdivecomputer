@@ -22,8 +22,8 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/hw_ostc.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -68,7 +68,7 @@ parser_is_hw_ostc (dc_parser_t *abstract)
 
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, unsigned int frog)
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -76,7 +76,7 @@ hw_ostc_parser_create (dc_parser_t **out, unsigned int frog)
 	// Allocate memory.
 	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) malloc (sizeof (hw_ostc_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 

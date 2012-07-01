@@ -23,8 +23,8 @@
 #include <string.h>	// memcmp
 
 #include <libdivecomputer/suunto_d9.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
@@ -84,7 +84,7 @@ parser_is_suunto_d9 (dc_parser_t *abstract)
 
 
 dc_status_t
-suunto_d9_parser_create (dc_parser_t **out, unsigned int model)
+suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -92,7 +92,7 @@ suunto_d9_parser_create (dc_parser_t **out, unsigned int model)
 	// Allocate memory.
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t *) malloc (sizeof (suunto_d9_parser_t));
 	if (parser == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -459,7 +459,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_MANDATORY;
 						break;
 					default: // Unknown
-						WARNING ("Unknown event");
+						WARNING (abstract->context, "Unknown event");
 						break;
 					}
 					if (type & 0x80)
@@ -512,7 +512,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 4;
 					break;
 				default:
-					WARNING ("Unknown event");
+					WARNING (abstract->context, "Unknown event");
 					break;
 				}
 

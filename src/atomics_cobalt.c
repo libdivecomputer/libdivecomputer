@@ -31,8 +31,8 @@
 #endif
 
 #include <libdivecomputer/atomics_cobalt.h>
-#include <libdivecomputer/utils.h>
 
+#include "context-private.h"
 #include "device-private.h"
 #include "checksum.h"
 #include "array.h"
@@ -86,7 +86,7 @@ device_is_atomics_cobalt (dc_device_t *abstract)
 
 
 dc_status_t
-atomics_cobalt_device_open (dc_device_t **out)
+atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
 {
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -95,7 +95,7 @@ atomics_cobalt_device_open (dc_device_t **out)
 	// Allocate memory.
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) malloc (sizeof (atomics_cobalt_device_t));
 	if (device == NULL) {
-		WARNING ("Failed to allocate memory.");
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -110,14 +110,14 @@ atomics_cobalt_device_open (dc_device_t **out)
 
 	int rc = libusb_init (&device->context);
 	if (rc < 0) {
-		WARNING ("Failed to initialize usb support.");
+		ERROR (context, "Failed to initialize usb support.");
 		free (device);
 		return DC_STATUS_IO;
 	}
 
 	device->handle = libusb_open_device_with_vid_pid (device->context, VID, PID);
 	if (device->handle == NULL) {
-		WARNING ("Failed to open the usb device.");
+		ERROR (context, "Failed to open the usb device.");
 		libusb_exit (device->context);
 		free (device);
 		return DC_STATUS_IO;
@@ -125,7 +125,7 @@ atomics_cobalt_device_open (dc_device_t **out)
 
 	rc = libusb_claim_interface (device->handle, 0);
 	if (rc < 0) {
-		WARNING ("Failed to claim the usb interface.");
+		ERROR (context, "Failed to claim the usb interface.");
 		libusb_close (device->handle);
 		libusb_exit (device->context);
 		free (device);
@@ -134,7 +134,7 @@ atomics_cobalt_device_open (dc_device_t **out)
 
 	dc_status_t status = atomics_cobalt_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
-		WARNING ("Failed to identify the dive computer.");
+		ERROR (context, "Failed to identify the dive computer.");
 		libusb_close (device->handle);
 		libusb_exit (device->context);
 		free (device);
@@ -220,7 +220,7 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE(rc);
 	}
 
@@ -230,7 +230,7 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 	rc = libusb_bulk_transfer (device->handle, 0x82,
 		packet, sizeof (packet), &length, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS || length != sizeof (packet)) {
-		WARNING ("Failed to receive the answer.");
+		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE(rc);
 	}
 
@@ -238,7 +238,7 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 	unsigned short crc = array_uint16_le (packet + SZ_VERSION);
 	unsigned short ccrc = checksum_add_uint16 (packet, SZ_VERSION, 0x0);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -262,7 +262,7 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
@@ -276,7 +276,7 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS) {
-		WARNING ("Failed to send the command.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE(rc);
 	}
 
@@ -288,7 +288,7 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 		rc = libusb_bulk_transfer (device->handle, 0x82,
 			packet, sizeof (packet), &length, TIMEOUT);
 		if (rc != LIBUSB_SUCCESS) {
-			WARNING ("Failed to receive the answer.");
+			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE(rc);
 		}
 
@@ -309,13 +309,13 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 
 	// Check for a buffer error.
 	if (dc_buffer_get_size (buffer) != nbytes) {
-		WARNING ("Insufficient buffer space available.");
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Check for the minimum length.
 	if (nbytes < 2) {
-		WARNING ("Data packet is too short.");
+		ERROR (abstract->context, "Data packet is too short.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -330,7 +330,7 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 	unsigned short crc = array_uint16_le (data + nbytes - 2);
 	unsigned short ccrc = checksum_add_uint16 (data, nbytes - 2, 0x0);
 	if (crc != ccrc) {
-		WARNING ("Unexpected answer CRC.");
+		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
 	}
 
