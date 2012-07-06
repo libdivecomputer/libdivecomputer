@@ -54,7 +54,7 @@ mares_common_device_init (mares_common_device_t *device, const device_backend_t 
 }
 
 
-static void
+static int
 mares_common_convert_binary_to_ascii (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
 {
 	assert (osize == 2 * isize);
@@ -72,10 +72,12 @@ mares_common_convert_binary_to_ascii (const unsigned char input[], unsigned int 
 		unsigned char lsn = input[i] & 0x0F;
 		output[i * 2 + 1] = ascii[lsn];
 	}
+
+	return 0;
 }
 
 
-static void
+static int
 mares_common_convert_ascii_to_binary (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
 {
 	assert (isize == 2 * osize);
@@ -92,13 +94,15 @@ mares_common_convert_ascii_to_binary (const unsigned char input[], unsigned int 
 			else if (ascii >= 'a' && ascii <= 'f')
 				number = 10 + ascii - 'a';
 			else
-				WARNING ("Invalid character.");
+				return -1; /* Invalid character */
 
 			value <<= 4;
 			value += number;
 		}
 		output[i] = value;
 	}
+
+	return 0;
 }
 
 
