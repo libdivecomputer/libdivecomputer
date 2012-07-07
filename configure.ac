@@ -20,6 +20,9 @@ AC_CONFIG_MACRO_DIR([m4])
 # Initialize automake.
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
+# Fix for automake >= 1.12
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+
 # Initialize libtool.
 LT_PREREQ([2.2.0])
 LT_INIT([win32-dll])
