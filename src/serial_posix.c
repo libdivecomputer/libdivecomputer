@@ -663,7 +663,7 @@ serial_set_break (serial_t *device, int level)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-	int action = (level ? TIOCSBRK : TIOCCBRK);
+	unsigned long action = (level ? TIOCSBRK : TIOCCBRK);
 
 	if (ioctl (device->fd, action, NULL) != 0) {
 		TRACE ("ioctl");
@@ -677,7 +677,7 @@ serial_set_break (serial_t *device, int level)
 static int
 serial_set_status (int fd, int value, int level)
 {
-	int action = (level ? TIOCMBIS : TIOCMBIC);
+	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
 
 	if (ioctl (fd, action, &value) != 0) {
 		TRACE ("ioctl");
