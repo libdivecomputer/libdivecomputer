@@ -175,7 +175,7 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	device->devtime = 0;
 
 	// Open the irda socket.
-	int rc = irda_socket_open (&device->socket);
+	int rc = irda_socket_open (&device->socket, context);
 	if (rc == -1) {
 		ERROR (context, "Failed to open the irda socket.");
 		free (device);

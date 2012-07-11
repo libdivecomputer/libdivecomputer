@@ -22,6 +22,8 @@
 #ifndef IRDA_H
 #define IRDA_H
 
+#include <libdivecomputer/context.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -34,7 +36,7 @@ int irda_errcode (void);
 
 const char* irda_errmsg (void);
 
-int irda_socket_open (irda_t **device);
+int irda_socket_open (irda_t **device, dc_context_t *context);
 
 int irda_socket_close (irda_t *device);
 
