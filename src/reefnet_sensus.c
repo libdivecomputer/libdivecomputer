@@ -116,7 +116,7 @@ reefnet_sensus_device_open (dc_device_t **out, dc_context_t *context, const char
 	memset (device->handshake, 0, sizeof (device->handshake));
 
 	// Open the device.
-	int rc = serial_open (&device->port, name);
+	int rc = serial_open (&device->port, context, name);
 	if (rc == -1) {
 		ERROR (context, "Failed to open the serial port.");
 		free (device);

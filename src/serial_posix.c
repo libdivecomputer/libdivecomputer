@@ -43,19 +43,12 @@
 #define TIOCINQ FIONREAD
 #endif
 
-#include <libdivecomputer/utils.h>
-
 #include "serial.h"
-
-#define TRACE(expr) \
-{ \
-	int error = errno; \
-	message ("TRACE (%s:%d, %s): %s (%d)\n", __FILE__, __LINE__, \
-		expr, serial_errmsg (), serial_errcode ()); \
-	errno = error; \
-}
+#include "context-private.h"
 
 struct serial_t {
+	/* Library context. */
+	dc_context_t *context;
 	/*
 	 * The file descriptor corresponding to the serial port.
 	 */
@@ -93,7 +86,7 @@ const char* serial_errmsg (void)
 //
 
 int
-serial_open (serial_t **out, const char* name)
+serial_open (serial_t **out, dc_context_t *context, const char* name)
 {
 	if (out == NULL)
 		return -1; // EINVAL (Invalid argument)
@@ -101,9 +94,12 @@ serial_open (serial_t **out, const char* name)
 	// Allocate memory.
 	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
 	if (device == NULL) {
-		TRACE ("malloc");
+		SYSERROR (context, errno);
 		return -1; // ENOMEM (Not enough space)
 	}
+
+	// Library context.
+	device->context = context;
 
 	// Default to blocking reads.
 	device->timeout = -1;
@@ -117,7 +113,7 @@ serial_open (serial_t **out, const char* name)
 	// without waiting for the modem connection to complete.
 	device->fd = open (name, O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (device->fd == -1) {
-		TRACE ("open");
+		SYSERROR (context, errno);
 		free (device);
 		return -1; // Error during open call.
 	}
@@ -127,7 +123,7 @@ serial_open (serial_t **out, const char* name)
 	// It is also used to check if the obtained
 	// file descriptor represents a terminal device.
 	if (tcgetattr (device->fd, &device->tty) != 0) {
-		TRACE ("tcgetattr");
+		SYSERROR (context, errno);
 		close (device->fd);
 		free (device);
 		return -1;
@@ -150,7 +146,7 @@ serial_close (serial_t *device)
 
 	// Restore the initial terminal attributes.
 	if (tcsetattr (device->fd, TCSANOW, &device->tty) != 0) {
-		TRACE ("tcsetattr");
+		SYSERROR (device->context, errno);
 		close (device->fd);
 		free (device);
 		return -1;
@@ -158,7 +154,7 @@ serial_close (serial_t *device)
 
 	// Close the device.
 	if (close (device->fd) != 0) {
-		TRACE ("close");
+		SYSERROR (device->context, errno);
 		free (device);
 		return -1;
 	}
@@ -182,7 +178,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	// Retrieve the current settings.
 	struct termios tty;
 	if (tcgetattr (device->fd, &tty) != 0) {
-		TRACE ("tcgetattr");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -278,7 +274,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	}
 	if (cfsetispeed (&tty, baud) != 0 ||
 		cfsetospeed (&tty, baud) != 0) {
-		TRACE ("cfsetispeed/cfsetospeed");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -360,7 +356,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 	// Apply the new settings.
 	if (tcsetattr (device->fd, TCSANOW, &tty) != 0) {
-		TRACE ("tcsetattr");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -371,11 +367,11 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 	struct termios active;
 	if (tcgetattr (device->fd, &active) != 0) {
-		TRACE ("tcgetattr");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 	if (memcmp (&tty, &active, sizeof (struct termios) != 0)) {
-		TRACE ("memcmp");
+		ERROR (device->context, "Failed to set the terminal attributes.");
 		return -1;
 	}
 
@@ -385,7 +381,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		// Get the current settings.
 		struct serial_struct ss;
 		if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0) {
-			TRACE ("ioctl");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 
@@ -396,13 +392,13 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 		// Apply the new settings.
 		if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0) {
-			TRACE ("ioctl");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 #elif defined(IOSSIOSPEED)
 		speed_t speed = baudrate;
 		if (ioctl (device->fd, IOSSIOSPEED, &speed) != 0) {
-			TRACE ("ioctl");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 #else
@@ -482,7 +478,7 @@ serial_read (serial_t *device, void *data, unsigned int size)
 		if (timeout > 0) {
 			struct timeval now;
 			if (gettimeofday (&now, NULL) != 0) {
-				TRACE ("gettimeofday");
+				SYSERROR (device->context, errno);
 				return -1;
 			}
 
@@ -508,7 +504,7 @@ serial_read (serial_t *device, void *data, unsigned int size)
 		if (rc < 0) {
 			if (errno == EINTR)
 				continue; // Retry.
-			TRACE ("select");
+			SYSERROR (device->context, errno);
 			return -1; // Error during select call.
 		} else if (rc == 0) {
 			break; // Timeout.
@@ -518,7 +514,7 @@ serial_read (serial_t *device, void *data, unsigned int size)
 		if (n < 0) {
 			if (errno == EINTR || errno == EAGAIN)
 				continue; // Retry.
-			TRACE ("read");
+			SYSERROR (device->context, errno);
 			return -1; // Error during read call.
 		} else if (n == 0) {
 			 break; // EOF.
@@ -541,7 +537,7 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 	if (device->halfduplex) {
 		// Get the current time.
 		if (gettimeofday (&tvb, NULL) != 0) {
-			TRACE ("gettimeofday");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 	}
@@ -556,7 +552,7 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 		if (rc < 0) {
 			if (errno == EINTR)
 				continue; // Retry.
-			TRACE ("select");
+			SYSERROR (device->context, errno);
 			return -1; // Error during select call.
 		} else if (rc == 0) {
 			break; // Timeout.
@@ -566,7 +562,7 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 		if (n < 0) {
 			if (errno == EINTR || errno == EAGAIN)
 				continue; // Retry.
-			TRACE ("write");
+			SYSERROR (device->context, errno);
 			return -1; // Error during write call.
 		} else if (n == 0) {
 			 break; // EOF.
@@ -578,7 +574,7 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 	// Wait until all data has been transmitted.
 	while (tcdrain (device->fd) != 0) {
 		if (errno != EINTR ) {
-			TRACE ("tcdrain");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 	}
@@ -586,7 +582,7 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 	if (device->halfduplex) {
 		// Get the current time.
 		if (gettimeofday (&tve, NULL) != 0) {
-			TRACE ("gettimeofday");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 
@@ -635,7 +631,7 @@ serial_flush (serial_t *device, int queue)
 	}
 
 	if (tcflush (device->fd, flags) != 0) {
-		TRACE ("tcflush");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -650,7 +646,7 @@ serial_send_break (serial_t *device)
 		return -1; // EINVAL (Invalid argument)
 
 	if (tcsendbreak (device->fd, 0) != 0) {
-		TRACE ("tcsendbreak");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 	
@@ -667,7 +663,7 @@ serial_set_break (serial_t *device, int level)
 	unsigned long action = (level ? TIOCSBRK : TIOCCBRK);
 
 	if (ioctl (device->fd, action, NULL) != 0) {
-		TRACE ("ioctl");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -685,7 +681,7 @@ serial_set_dtr (serial_t *device, int level)
 
 	int value = TIOCM_DTR;
 	if (ioctl (device->fd, action, &value) != 0) {
-		TRACE ("ioctl");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -703,7 +699,7 @@ serial_set_rts (serial_t *device, int level)
 
 	int value = TIOCM_RTS;
 	if (ioctl (device->fd, action, &value) != 0) {
-		TRACE ("ioctl");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -719,7 +715,7 @@ serial_get_received (serial_t *device)
 
 	int bytes = 0;
 	if (ioctl (device->fd, TIOCINQ, &bytes) != 0) {
-		TRACE ("ioctl");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -735,7 +731,7 @@ serial_get_transmitted (serial_t *device)
 
 	int bytes = 0;
 	if (ioctl (device->fd, TIOCOUTQ, &bytes) != 0) {
-		TRACE ("ioctl");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -751,7 +747,7 @@ serial_get_line (serial_t *device, int line)
 
 	int status = 0;
 	if (ioctl (device->fd, TIOCMGET, &status) != 0) {
-		TRACE ("ioctl");
+		SYSERROR (device->context, errno);
 		return -1;
 	}
 
@@ -784,7 +780,7 @@ serial_sleep (serial_t *device, unsigned long timeout)
 
 	while (nanosleep (&ts, &ts) != 0) {
 		if (errno != EINTR ) {
-			TRACE ("nanosleep");
+			SYSERROR (device->context, errno);
 			return -1;
 		}
 	}

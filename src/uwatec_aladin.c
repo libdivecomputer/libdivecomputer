@@ -100,7 +100,7 @@ uwatec_aladin_device_open (dc_device_t **out, dc_context_t *context, const char 
 	device->devtime = 0;
 
 	// Open the device.
-	int rc = serial_open (&device->port, name);
+	int rc = serial_open (&device->port, context, name);
 	if (rc == -1) {
 		ERROR (context, "Failed to open the serial port.");
 		free (device);

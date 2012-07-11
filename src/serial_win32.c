@@ -22,19 +22,12 @@
 #include <stdlib.h>
 #include <windows.h>
 
-#include <libdivecomputer/utils.h>
-
 #include "serial.h"
-
-#define TRACE(expr) \
-{ \
-	DWORD error = GetLastError (); \
-	message ("TRACE (%s:%d, %s): %s (%d)\n", __FILE__, __LINE__, \
-		expr, serial_errmsg (), serial_errcode ()); \
-	SetLastError (error); \
-}
+#include "context-private.h"
 
 struct serial_t {
+	/* Library context. */
+	dc_context_t *context;
 	/*
 	 * The file descriptor corresponding to the serial port.
 	 */
@@ -91,7 +84,7 @@ const char* serial_errmsg (void)
 //
 
 int
-serial_open (serial_t **out, const char* name)
+serial_open (serial_t **out, dc_context_t *context, const char* name)
 {
 	if (out == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
@@ -112,9 +105,12 @@ serial_open (serial_t **out, const char* name)
 	// Allocate memory.
 	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
 	if (device == NULL) {
-		TRACE ("malloc");
+		SYSERROR (context, ERROR_OUTOFMEMORY);
 		return -1; // ERROR_OUTOFMEMORY (Not enough storage is available to complete this operation)
 	}
+
+	// Library context.
+	device->context = context;
 
 	// Default to full-duplex.
 	device->halfduplex = 0;
@@ -129,7 +125,7 @@ serial_open (serial_t **out, const char* name)
 			0, // Non-overlapped I/O.
 			NULL);
 	if (device->hFile == INVALID_HANDLE_VALUE) {
-		TRACE ("CreateFile");
+		SYSERROR (context, GetLastError ());
 		free (device);
 		return -1;
 	}
@@ -140,7 +136,7 @@ serial_open (serial_t **out, const char* name)
 	// represents a serial device.
 	if (!GetCommState (device->hFile, &device->dcb) ||
 		!GetCommTimeouts (device->hFile, &device->timeouts)) {
-		TRACE ("GetCommState/GetCommTimeouts");
+		SYSERROR (context, GetLastError ());
 		CloseHandle (device->hFile);
 		free (device);
 		return -1;
@@ -164,7 +160,7 @@ serial_close (serial_t *device)
 	// Restore the initial communication settings and timeouts.
 	if (!SetCommState (device->hFile, &device->dcb) || 
 		!SetCommTimeouts (device->hFile, &device->timeouts)) {
-		TRACE ("SetCommState/SetCommTimeouts");
+		SYSERROR (device->context, GetLastError ());
 		CloseHandle (device->hFile);
 		free (device);
 		return -1;
@@ -172,7 +168,7 @@ serial_close (serial_t *device)
 
 	// Close the device.
 	if (!CloseHandle (device->hFile)) {
-		TRACE ("CloseHandle");
+		SYSERROR (device->context, GetLastError ());
 		free (device);
 		return -1;
 	}
@@ -196,7 +192,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	// Retrieve the current settings.
 	DCB dcb;
 	if (!GetCommState (device->hFile, &dcb)) {
-		TRACE ("GetCommState");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -273,7 +269,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 	// Apply the new settings.
 	if (!SetCommState (device->hFile, &dcb)) {
-		TRACE ("SetCommState");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -296,7 +292,7 @@ serial_set_timeout (serial_t *device, long timeout)
 	// Retrieve the current timeouts.
 	COMMTIMEOUTS timeouts;
 	if (!GetCommTimeouts (device->hFile, &timeouts)) {
-		TRACE ("GetCommTimeouts");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -326,7 +322,7 @@ serial_set_timeout (serial_t *device, long timeout)
 
 	// Activate the new timeouts.
 	if (!SetCommTimeouts (device->hFile, &timeouts)) {
-		TRACE ("SetCommTimeouts");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -344,7 +340,7 @@ serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
 	if (!SetupComm (device->hFile, input, output)) {
-		TRACE ("SetupComm");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -372,7 +368,7 @@ serial_read (serial_t *device, void* data, unsigned int size)
 
 	DWORD dwRead = 0;
 	if (!ReadFile (device->hFile, data, size, &dwRead, NULL)) {
-		TRACE ("ReadFile");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -391,21 +387,21 @@ serial_write (serial_t *device, const void* data, unsigned int size)
 		// Get the current time.
 		if (!QueryPerformanceFrequency(&freq) ||
 			!QueryPerformanceCounter(&begin)) {
-			TRACE ("QueryPerformanceCounter");
+			SYSERROR (device->context, GetLastError ());
 			return -1;
 		}
 	}
 
 	DWORD dwWritten = 0;
 	if (!WriteFile (device->hFile, data, size, &dwWritten, NULL)) {
-		TRACE ("WriteFile");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
 	if (device->halfduplex) {
 		// Get the current time.
 		if (!QueryPerformanceCounter(&end))  {
-			TRACE ("QueryPerformanceCounter");
+			SYSERROR (device->context, GetLastError ());
 			return -1;
 		}
 
@@ -452,7 +448,7 @@ serial_flush (serial_t *device, int queue)
 	}
 
 	if (!PurgeComm (device->hFile, flags)) {
-		TRACE ("PurgeComm");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -467,14 +463,14 @@ serial_send_break (serial_t *device)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
 	if (!SetCommBreak (device->hFile)) {
-		TRACE ("SetCommBreak");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
 	Sleep (250);
 
 	if (!ClearCommBreak (device->hFile)) {
-		TRACE ("ClearCommBreak");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -490,12 +486,12 @@ serial_set_break (serial_t *device, int level)
 
 	if (level) {
 		if (!SetCommBreak (device->hFile)) {
-			TRACE ("SetCommBreak");
+			SYSERROR (device->context, GetLastError ());
 			return -1;
 		}
 	} else {
 		if (!ClearCommBreak (device->hFile)) {
-			TRACE ("ClearCommBreak");
+			SYSERROR (device->context, GetLastError ());
 			return -1;
 		}
 	}
@@ -512,7 +508,7 @@ serial_set_dtr (serial_t *device, int level)
 	int status = (level ? SETDTR : CLRDTR);
 	
 	if (!EscapeCommFunction (device->hFile, status)) {
-		TRACE ("EscapeCommFunction");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 	
@@ -529,7 +525,7 @@ serial_set_rts (serial_t *device, int level)
 	int status = (level ? SETRTS : CLRRTS);
 	
 	if (!EscapeCommFunction (device->hFile, status)) {
-		TRACE ("EscapeCommFunction");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 	
@@ -546,7 +542,7 @@ serial_get_received (serial_t *device)
 	COMSTAT stats;
 
 	if (!ClearCommError (device->hFile, NULL, &stats)) {
-		TRACE ("ClearCommError");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -563,7 +559,7 @@ serial_get_transmitted (serial_t *device)
 	COMSTAT stats;
 
 	if (!ClearCommError (device->hFile, NULL, &stats)) {
-		TRACE ("ClearCommError");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 
@@ -579,7 +575,7 @@ serial_get_line (serial_t *device, int line)
 
 	DWORD stats = 0;
 	if (!GetCommModemStatus (device->hFile, &stats)) {
-		TRACE ("GetCommModemStatus");
+		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
 

@@ -22,6 +22,8 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+#include <libdivecomputer/context.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -56,7 +58,7 @@ typedef enum serial_line_t {
 int serial_errcode (void);
 const char* serial_errmsg (void);
 
-int serial_open (serial_t **device, const char* name);
+int serial_open (serial_t **device, dc_context_t *context, const char* name);
 
 int serial_close (serial_t *device);
 
