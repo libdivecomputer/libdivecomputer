@@ -607,10 +607,3 @@ serial_sleep (unsigned long timeout)
 
 	return 0;
 }
-
-
-int
-serial_timer (void)
-{
-	return GetTickCount ();
-}

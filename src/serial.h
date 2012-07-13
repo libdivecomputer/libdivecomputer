@@ -108,8 +108,6 @@ int serial_get_line (serial_t *device, int line);
 
 int serial_sleep (unsigned long timeout /* milliseconds */);
 
-int serial_timer (void);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

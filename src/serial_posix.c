@@ -675,12 +675,16 @@ serial_set_break (serial_t *device, int level)
 }
 
 
-static int
-serial_set_status (int fd, int value, int level)
+int
+serial_set_dtr (serial_t *device, int level)
 {
+	if (device == NULL)
+		return -1; // EINVAL (Invalid argument)
+
 	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
 
-	if (ioctl (fd, action, &value) != 0) {
+	int value = TIOCM_DTR;
+	if (ioctl (device->fd, action, &value) != 0) {
 		TRACE ("ioctl");
 		return -1;
 	}
@@ -690,22 +694,20 @@ serial_set_status (int fd, int value, int level)
 
 
 int
-serial_set_dtr (serial_t *device, int level)
-{
-	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
-
-	return serial_set_status (device->fd, TIOCM_DTR, level);
-}
-
-
-int
 serial_set_rts (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-	return serial_set_status (device->fd, TIOCM_RTS, level);
+	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
+
+	int value = TIOCM_RTS;
+	if (ioctl (device->fd, action, &value) != 0) {
+		TRACE ("ioctl");
+		return -1;
+	}
+
+	return 0;
 }
 
 
@@ -785,17 +787,4 @@ serial_sleep (unsigned long timeout)
 	}
 
 	return 0;
-}
-
-
-int
-serial_timer (void)
-{
-	struct timeval tv;
-	if (gettimeofday (&tv, NULL) != 0) {
-		TRACE ("gettimeofday");
-		return 0;
-	}
-
-	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
