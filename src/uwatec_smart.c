@@ -170,13 +170,10 @@ uwatec_smart_device_open (dc_device_t **out)
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 
-	irda_init ();
-
 	// Open the irda socket.
 	int rc = irda_socket_open (&device->socket);
 	if (rc == -1) {
 		WARNING ("Failed to open the irda socket.");
-		irda_cleanup ();
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -186,7 +183,6 @@ uwatec_smart_device_open (dc_device_t **out)
 	if (rc == -1) {
 		WARNING ("Failed to discover the device.");
 		irda_socket_close (device->socket);
-		irda_cleanup ();
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -194,7 +190,6 @@ uwatec_smart_device_open (dc_device_t **out)
 	if (device->address == 0) {
 		WARNING ("No dive computer found.");
 		irda_socket_close (device->socket);
-		irda_cleanup ();
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -204,7 +199,6 @@ uwatec_smart_device_open (dc_device_t **out)
 	if (rc == -1) {
 		WARNING ("Failed to connect the device.");
 		irda_socket_close (device->socket);
-		irda_cleanup ();
 		free (device);
 		return DC_STATUS_IO;
 	}
@@ -228,12 +222,9 @@ uwatec_smart_device_close (dc_device_t *abstract)
 
 	// Close the device.
 	if (irda_socket_close (device->socket) == -1) {
-		irda_cleanup ();
 		free (device);
 		return DC_STATUS_IO;
 	}
-
-	irda_cleanup ();
 
 	// Free memory.	
 	free (device);

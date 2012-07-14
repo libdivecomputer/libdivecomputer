@@ -34,10 +34,6 @@ int irda_errcode (void);
 
 const char* irda_errmsg (void);
 
-int irda_init (void);
-
-int irda_cleanup (void);
-
 int irda_socket_open (irda_t **device);
 
 int irda_socket_close (irda_t *device);

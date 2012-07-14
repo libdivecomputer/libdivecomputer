@@ -113,45 +113,6 @@ const char* irda_errmsg (void)
 }
 
 
-int irda_init (void)
-{
-#ifdef _WIN32
-	WSADATA wsaData;
-	WORD wVersionRequested = MAKEWORD (2, 2);
-	if (WSAStartup (wVersionRequested, &wsaData) != 0) {
-		TRACE ("WSAStartup");
-		return -1;
-	}
-
-	// Confirm that the WinSock DLL supports 2.2.
-	// Note that if the DLL supports versions greater
-	// than 2.2 in addition to 2.2, it will still return
-	// 2.2 in wVersion since that is the version we requested.
-	if (LOBYTE (wsaData.wVersion) != 2 || 
-		HIBYTE (wsaData.wVersion) != 2) {
-		TRACE ("wsaData.wVersion");
-		WSACleanup ();
-		return -1; 
-	}
-#endif
-
-	return 0;
-}
-
-
-int irda_cleanup (void)
-{
-#ifdef _WIN32
-	if (WSACleanup () != 0) {
-		TRACE ("WSACleanup");
-		return -1;
-	}
-#endif
-
-	return 0;
-}
-
-
 int
 irda_socket_open (irda_t **out)
 {
@@ -168,6 +129,28 @@ irda_socket_open (irda_t **out)
 	// Default to blocking reads.
 	device->timeout = -1;
 
+#ifdef _WIN32
+	// Initialize the winsock dll.
+	WSADATA wsaData;
+	WORD wVersionRequested = MAKEWORD (2, 2);
+	if (WSAStartup (wVersionRequested, &wsaData) != 0) {
+		TRACE ("WSAStartup");
+		free (device);
+		return -1;
+	}
+
+	// Confirm that the winsock dll supports version 2.2.
+	// Note that if the dll supports versions greater than 2.2 in addition to
+	// 2.2, it will still return 2.2 since that is the version we requested.
+	if (LOBYTE (wsaData.wVersion) != 2 || 
+		HIBYTE (wsaData.wVersion) != 2) {
+		TRACE ("wsaData.wVersion");
+		WSACleanup ();
+		free (device);
+		return -1; 
+	}
+#endif
+
 	// Open the socket.
 	device->fd = socket (AF_IRDA, SOCK_STREAM, 0);
 #ifdef _WIN32
@@ -176,6 +159,9 @@ irda_socket_open (irda_t **out)
 	if (device->fd == -1) {
 #endif
 		TRACE ("socket");
+#ifdef _WIN32
+		WSACleanup ();
+#endif
 		free (device);
 		return -1;
 	}
@@ -203,9 +189,21 @@ irda_socket_close (irda_t *device)
 	if (close (device->fd) != 0) {
 		TRACE ("close");
 #endif
+#ifdef _WIN32
+		WSACleanup ();
+#endif
 		free (device);
 		return -1;
 	}
+
+#ifdef _WIN32
+	// Terminate the winsock dll.
+	if (WSACleanup () != 0) {
+		TRACE ("WSACleanup");
+		free (device);
+		return -1;
+	}
+#endif
 
 	// Free memory.	
 	free (device);
