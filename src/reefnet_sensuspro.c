@@ -246,7 +246,7 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	devinfo.serial = array_uint16_le (handshake + 4);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
-	serial_sleep (10);
+	serial_sleep (device->port, 10);
 
 	return DC_STATUS_SUCCESS;
 }
@@ -370,7 +370,7 @@ reefnet_sensuspro_device_write_interval (dc_device_t *abstract, unsigned char in
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	serial_sleep (10);
+	serial_sleep (device->port, 10);
 
 	int n = serial_write (device->port, &interval, 1);
 	if (n != 1) {

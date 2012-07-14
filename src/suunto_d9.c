@@ -177,7 +177,7 @@ suunto_d9_device_open (dc_device_t **out, const char *name, unsigned int model)
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	serial_sleep (100);
+	serial_sleep (device->port, 100);
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);

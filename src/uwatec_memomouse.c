@@ -372,7 +372,7 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 			return EXITCODE (n);
 		}
 
-		serial_sleep (300);
+		serial_sleep (device->port, 300);
 	}
 
 	// Read the ID string.
@@ -395,7 +395,7 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 
 	// Wait a small amount of time before sending the command.
 	// Without this delay, the transfer will fail most of the time.
-	serial_sleep (50);
+	serial_sleep (device->port, 50);
 
 	// Keep send the command to the device, 
 	// until the ACK answer is received.
@@ -431,7 +431,7 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 			return DC_STATUS_CANCELLED;
 
 		device_event_emit (&device->base, DC_EVENT_WAITING, NULL);
-		serial_sleep (100);
+		serial_sleep (device->port, 100);
 	}
 
 	// Fetch the current system time.
@@ -472,7 +472,7 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Give the interface some time to notice the DTR
 	// line change from a previous transfer (if any).
-	serial_sleep (500);
+	serial_sleep (device->port, 500);
 
 	// Set the DTR line.
 	if (serial_set_dtr (device->port, 1) == -1) {

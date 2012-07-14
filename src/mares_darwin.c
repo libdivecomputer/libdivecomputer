@@ -159,7 +159,7 @@ mares_darwin_device_open (dc_device_t **out, const char *name, unsigned int mode
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep (100);
+	serial_sleep (device->base.port, 100);
 	serial_flush (device->base.port, SERIAL_QUEUE_BOTH);
 
 	// Override the base class values.

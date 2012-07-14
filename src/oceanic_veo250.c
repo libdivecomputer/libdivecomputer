@@ -144,7 +144,7 @@ oceanic_veo250_transfer (oceanic_veo250_device_t *device, const unsigned char co
 			return rc;
 
 		// Delay the next attempt.
-		serial_sleep (100);
+		serial_sleep (device->port, 100);
 	}
 
 	// Receive the answer of the dive computer.
@@ -273,7 +273,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	serial_sleep (100);
+	serial_sleep (device->port, 100);
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
@@ -287,7 +287,7 @@ oceanic_veo250_device_open (dc_device_t **out, const char *name)
 	}
 
 	// Delay the sending of the version command.
-	serial_sleep (100);
+	serial_sleep (device->port, 100);
 
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (manually activated by

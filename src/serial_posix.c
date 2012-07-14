@@ -606,7 +606,7 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 			// The remaining time is rounded up to the nearest millisecond to
 			// match the Windows implementation. The higher resolution is
 			// pointless anyway, since we already added a fudge factor above.
-			serial_sleep ((remaining + 999) / 1000);
+			serial_sleep (device, (remaining + 999) / 1000);
 		}
 	}
 
@@ -773,8 +773,11 @@ serial_get_line (serial_t *device, int line)
 
 
 int
-serial_sleep (unsigned long timeout)
+serial_sleep (serial_t *device, unsigned long timeout)
 {
+	if (device == NULL)
+		return -1;
+
 	struct timespec ts;
 	ts.tv_sec  = (timeout / 1000);
 	ts.tv_nsec = (timeout % 1000) * 1000000;

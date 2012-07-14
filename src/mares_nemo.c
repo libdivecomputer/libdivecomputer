@@ -219,7 +219,7 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			return DC_STATUS_CANCELLED;
 
 		device_event_emit (abstract, DC_EVENT_WAITING, NULL);
-		serial_sleep (100);
+		serial_sleep (device->port, 100);
 	}
 
 	// Receive the header of the package.

@@ -394,7 +394,7 @@ reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short c
 		// not accidentally buffered by the host and (mis)interpreted as part
 		// of the next packet.
 
-		serial_sleep (250);
+		serial_sleep (device->port, 250);
 		serial_flush (device->port, SERIAL_QUEUE_BOTH);
 	}
 

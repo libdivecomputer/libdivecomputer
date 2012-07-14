@@ -127,7 +127,7 @@ suunto_vyper2_device_open (dc_device_t **out, const char *name)
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	serial_sleep (100);
+	serial_sleep (device->port, 100);
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
@@ -173,7 +173,7 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
-	serial_sleep (0x190 + 0xC8);
+	serial_sleep (device->port, 600);
 
 	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);

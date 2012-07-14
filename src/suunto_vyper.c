@@ -149,7 +149,7 @@ suunto_vyper_device_open (dc_device_t **out, const char *name)
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	serial_sleep (100);
+	serial_sleep (device->port, 100);
 
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
@@ -198,7 +198,7 @@ suunto_vyper_device_set_delay (dc_device_t *abstract, unsigned int delay)
 static dc_status_t
 suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[], unsigned int csize)
 {
-	serial_sleep (device->delay);
+	serial_sleep (device->port, device->delay);
 
 	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);
@@ -221,7 +221,7 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 	// receive the reply before RTS is cleared. We have to wait some time 
 	// before clearing RTS (around 30ms). But if we wait too long (> 500ms), 
 	// the reply disappears again.
-	serial_sleep (200);
+	serial_sleep (device->port, 200);
 	serial_flush (device->port, SERIAL_QUEUE_INPUT);
 
 	// Clear RTS to receive the reply.

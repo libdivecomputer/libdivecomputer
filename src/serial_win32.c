@@ -423,7 +423,7 @@ serial_write (serial_t *device, const void* data, unsigned int size)
 			// The remaining time is rounded up to the nearest millisecond
 			// because the Windows Sleep() function doesn't have a higher
 			// resolution.
-			serial_sleep ((remaining + 999) / 1000);
+			serial_sleep (device, (remaining + 999) / 1000);
 		}
 	}
 
@@ -601,8 +601,11 @@ serial_get_line (serial_t *device, int line)
 
 
 int
-serial_sleep (unsigned long timeout)
+serial_sleep (serial_t *device, unsigned long timeout)
 {
+	if (device == NULL)
+		return -1;
+
 	Sleep (timeout);
 
 	return 0;

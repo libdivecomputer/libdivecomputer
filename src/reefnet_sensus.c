@@ -277,7 +277,7 @@ reefnet_sensus_handshake (reefnet_sensus_device_t *device)
 	// Wait at least 10 ms to ensures the data line is
 	// clear before transmission from the host begins.
 
-	serial_sleep (10);
+	serial_sleep (device->port, 10);
 
 	return DC_STATUS_SUCCESS;
 }

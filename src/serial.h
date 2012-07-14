@@ -106,7 +106,7 @@ int serial_get_transmitted (serial_t *device);
 
 int serial_get_line (serial_t *device, int line);
 
-int serial_sleep (unsigned long timeout /* milliseconds */);
+int serial_sleep (serial_t *device, unsigned long timeout /* milliseconds */);
 
 #ifdef __cplusplus
 }

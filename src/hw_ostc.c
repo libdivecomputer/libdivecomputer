@@ -158,7 +158,7 @@ hw_ostc_device_open (dc_device_t **out, const char *name)
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep (100);
+	serial_sleep (device->port, 100);
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	*out = (dc_device_t*) device;

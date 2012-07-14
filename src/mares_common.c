@@ -135,7 +135,7 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 		return DC_STATUS_CANCELLED;
 
 	if (device->delay) {
-		serial_sleep (device->delay);
+		serial_sleep (device->port, device->delay);
 	}
 
 	// Send the command to the device.
