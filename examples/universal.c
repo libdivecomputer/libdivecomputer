@@ -37,8 +37,8 @@
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
-#include <libdivecomputer/utils.h>
 
+#include "utils.h"
 #include "common.h"
 
 static const char *g_cachedir = NULL;

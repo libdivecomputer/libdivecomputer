@@ -23,7 +23,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include <libdivecomputer/utils.h>
+#include "utils.h"
 
 static FILE* g_logfile = NULL;
 

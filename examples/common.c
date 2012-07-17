@@ -19,9 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#include <libdivecomputer/utils.h>
-
 #include "common.h"
+#include "utils.h"
 
 const char *
 errmsg (dc_status_t rc)

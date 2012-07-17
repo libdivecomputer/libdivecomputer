@@ -23,8 +23,8 @@
 #include <time.h>	// time
 
 #include <libdivecomputer/reefnet_sensuspro.h>
-#include <libdivecomputer/utils.h>
 
+#include "utils.h"
 #include "common.h"
 
 dc_status_t

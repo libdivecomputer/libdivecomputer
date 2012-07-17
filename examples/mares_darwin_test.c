@@ -22,8 +22,8 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
 #include <libdivecomputer/mares_darwin.h>
-#include <libdivecomputer/utils.h>
 
+#include "utils.h"
 #include "common.h"
 
 dc_status_t

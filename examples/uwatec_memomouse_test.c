@@ -22,8 +22,8 @@
 #include <stdio.h>	// fopen, fwrite, fclose
 
 #include <libdivecomputer/uwatec_memomouse.h>
-#include <libdivecomputer/utils.h>
 
+#include "utils.h"
 #include "common.h"
 
 dc_status_t

@@ -19,8 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DEBUG_H
-#define DEBUG_H
+#ifndef EXAMPLES_UTILS_H
+#define EXAMPLES_UTILS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,4 +36,4 @@ void message_set_logfile (const char* filename);
 }
 #endif /* __cplusplus */
 
-#endif /* DEBUG_H */
+#endif /* EXAMPLES_UTILS_H */

@@ -75,9 +75,6 @@ dc_device_set_fingerprint
 dc_device_version
 dc_device_write
 
-message
-message_set_logfile
-
 cressi_edy_device_open
 mares_nemo_device_open
 mares_nemo_extract_dives

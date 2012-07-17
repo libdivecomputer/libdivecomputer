@@ -29,7 +29,8 @@ if IRDA
 bin_PROGRAMS += smart
 endif
 
-COMMON = common.c common.h
+COMMON = common.c common.h \
+	utils.c utils.h
 
 universal_SOURCES = universal.c $(COMMON)
 

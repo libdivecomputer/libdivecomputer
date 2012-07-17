@@ -24,8 +24,8 @@
 #include <string.h>	// memset
 
 #include <libdivecomputer/uwatec_smart.h>
-#include <libdivecomputer/utils.h>
 
+#include "utils.h"
 #include "common.h"
 
 dc_status_t

@@ -23,8 +23,8 @@
 #include <stdlib.h>	// atoi
 
 #include <libdivecomputer/suunto_vyper.h>
-#include <libdivecomputer/utils.h>
 
+#include "utils.h"
 #include "common.h"
 
 dc_status_t

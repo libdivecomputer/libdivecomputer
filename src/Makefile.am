@@ -47,8 +47,7 @@ libdivecomputer_la_SOURCES = \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \
-	buffer.c \
-	utils.c
+	buffer.c
 
 if OS_WIN32
 libdivecomputer_la_SOURCES += serial.h serial_win32.c
