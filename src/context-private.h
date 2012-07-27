@@ -22,17 +22,29 @@
 #ifndef DC_CONTEXT_PRIVATE_H
 #define DC_CONTEXT_PRIVATE_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <libdivecomputer/context.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef ENABLE_LOGGING
 #define SYSERROR(context, errcode) dc_context_syserror (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, errcode)
 #define ERROR(context, ...) dc_context_log (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define WARNING(context, ...) dc_context_log (context, DC_LOGLEVEL_WARNING, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define INFO(context, ...) dc_context_log (context, DC_LOGLEVEL_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define DEBUG(context, ...) dc_context_log (context, DC_LOGLEVEL_DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#else
+#define SYSERROR(context, errcode)
+#define ERROR(context, ...)
+#define WARNING(context, ...)
+#define INFO(context, ...)
+#define DEBUG(context, ...)
+#endif
 
 dc_status_t
 dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...);

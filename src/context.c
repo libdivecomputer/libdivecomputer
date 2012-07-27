@@ -34,9 +34,12 @@ struct dc_context_t {
 	dc_loglevel_t loglevel;
 	dc_logfunc_t logfunc;
 	void *userdata;
+#ifdef ENABLE_LOGGING
 	char msg[4096];
+#endif
 };
 
+#ifdef ENABLE_LOGGING
 static void
 logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
 {
@@ -44,6 +47,7 @@ logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsign
 
 	fprintf (stderr, "%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
 }
+#endif
 
 dc_status_t
 dc_context_new (dc_context_t **out)
@@ -57,11 +61,18 @@ dc_context_new (dc_context_t **out)
 	if (context == NULL)
 		return DC_STATUS_NOMEMORY;
 
+#ifdef ENABLE_LOGGING
 	context->loglevel = DC_LOGLEVEL_WARNING;
 	context->logfunc = logfunc;
+#else
+	context->loglevel = DC_LOGLEVEL_NONE;
+	context->logfunc = NULL;
+#endif
 	context->userdata = NULL;
 
+#ifdef ENABLE_LOGGING
 	memset (context->msg, 0, sizeof (context->msg));
+#endif
 
 	*out = context;
 
@@ -82,7 +93,9 @@ dc_context_set_loglevel (dc_context_t *context, dc_loglevel_t loglevel)
 	if (context == NULL)
 		return DC_STATUS_INVALIDARGS;
 
+#ifdef ENABLE_LOGGING
 	context->loglevel = loglevel;
+#endif
 
 	return DC_STATUS_SUCCESS;
 }
@@ -93,8 +106,10 @@ dc_context_set_logfunc (dc_context_t *context, dc_logfunc_t logfunc, void *userd
 	if (context == NULL)
 		return DC_STATUS_INVALIDARGS;
 
+#ifdef ENABLE_LOGGING
 	context->logfunc = logfunc;
 	context->userdata = userdata;
+#endif
 
 	return DC_STATUS_SUCCESS;
 }
@@ -102,11 +117,14 @@ dc_context_set_logfunc (dc_context_t *context, dc_logfunc_t logfunc, void *userd
 dc_status_t
 dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...)
 {
+#ifdef ENABLE_LOGGING
 	va_list ap;
+#endif
 
 	if (context == NULL)
 		return DC_STATUS_INVALIDARGS;
 
+#ifdef ENABLE_LOGGING
 	if (loglevel > context->loglevel)
 		return DC_STATUS_SUCCESS;
 
@@ -118,6 +136,7 @@ dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file,
 	va_end (ap);
 
 	context->logfunc (context, loglevel, file, line, function, context->msg, context->userdata);
+#endif
 
 	return DC_STATUS_SUCCESS;
 }

@@ -28,6 +28,15 @@ LT_PREREQ([2.2.0])
 LT_INIT([win32-dll])
 LT_PROG_RC
 
+# Logging support.
+AC_ARG_ENABLE([logging],
+	[AS_HELP_STRING([--enable-logging=@<:@yes/no@:>@],
+		[Enable logging @<:@default=yes@:>@])],
+	[], [enable_logging=yes])
+AS_IF([test "x$enable_logging" = "xyes"], [
+	AC_DEFINE(ENABLE_LOGGING, [1], [Enable logging.])
+])
+
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_CC_C99
