@@ -32,6 +32,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define UNUSED(x) (void)sizeof(x)
+
 #ifdef ENABLE_LOGGING
 #define SYSERROR(context, errcode) dc_context_syserror (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, errcode)
 #define ERROR(context, ...) dc_context_log (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
@@ -39,11 +41,11 @@ extern "C" {
 #define INFO(context, ...) dc_context_log (context, DC_LOGLEVEL_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define DEBUG(context, ...) dc_context_log (context, DC_LOGLEVEL_DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #else
-#define SYSERROR(context, errcode)
-#define ERROR(context, ...)
-#define WARNING(context, ...)
-#define INFO(context, ...)
-#define DEBUG(context, ...)
+#define SYSERROR(context, errcode) UNUSED(context)
+#define ERROR(context, ...) UNUSED(context)
+#define WARNING(context, ...) UNUSED(context)
+#define INFO(context, ...) UNUSED(context)
+#define DEBUG(context, ...) UNUSED(context)
 #endif
 
 dc_status_t
