@@ -37,6 +37,15 @@ AS_IF([test "x$enable_logging" = "xyes"], [
 	AC_DEFINE(ENABLE_LOGGING, [1], [Enable logging.])
 ])
 
+# Pseudo terminal support.
+AC_ARG_ENABLE([pty],
+	[AS_HELP_STRING([--enable-pty=@<:@yes/no@:>@],
+		[Enable pseudo terminal support @<:@default=no@:>@])],
+	[], [enable_pty=no])
+AS_IF([test "x$enable_pty" = "xyes"], [
+	AC_DEFINE(ENABLE_PTY, [1], [Enable pseudo terminal support.])
+])
+
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_CC_C99

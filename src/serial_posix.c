@@ -43,6 +43,12 @@
 #define TIOCINQ FIONREAD
 #endif
 
+#ifdef ENABLE_PTY
+#define NOPTY (errno != EINVAL && errno != ENOTTY)
+#else
+#define NOPTY 1
+#endif
+
 #include "serial.h"
 #include "context-private.h"
 
@@ -103,6 +109,7 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 		return -1; // Error during open call.
 	}
 
+#ifndef ENABLE_PTY
 	// Enable exclusive access mode.
 	if (ioctl (device->fd, TIOCEXCL, NULL) != 0) {
 		SYSERROR (context, errno);
@@ -110,6 +117,7 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 		free (device);
 		return -1;
 	}
+#endif
 
 	// Retrieve the current terminal attributes, to 
 	// be able to restore them when closing the device.
@@ -373,7 +381,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 #if defined(TIOCGSERIAL) && defined(TIOCSSERIAL)
 		// Get the current settings.
 		struct serial_struct ss;
-		if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0) {
+		if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0 && NOPTY) {
 			SYSERROR (device->context, errno);
 			return -1;
 		}
@@ -384,13 +392,13 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		ss.flags |= ASYNC_SPD_CUST;
 
 		// Apply the new settings.
-		if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0) {
+		if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0 && NOPTY) {
 			SYSERROR (device->context, errno);
 			return -1;
 		}
 #elif defined(IOSSIOSPEED)
 		speed_t speed = baudrate;
-		if (ioctl (device->fd, IOSSIOSPEED, &speed) != 0) {
+		if (ioctl (device->fd, IOSSIOSPEED, &speed) != 0 && NOPTY) {
 			SYSERROR (device->context, errno);
 			return -1;
 		}
@@ -655,7 +663,7 @@ serial_set_break (serial_t *device, int level)
 
 	unsigned long action = (level ? TIOCSBRK : TIOCCBRK);
 
-	if (ioctl (device->fd, action, NULL) != 0) {
+	if (ioctl (device->fd, action, NULL) != 0 && NOPTY) {
 		SYSERROR (device->context, errno);
 		return -1;
 	}
@@ -673,7 +681,7 @@ serial_set_dtr (serial_t *device, int level)
 	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
 
 	int value = TIOCM_DTR;
-	if (ioctl (device->fd, action, &value) != 0) {
+	if (ioctl (device->fd, action, &value) != 0 && NOPTY) {
 		SYSERROR (device->context, errno);
 		return -1;
 	}
@@ -691,7 +699,7 @@ serial_set_rts (serial_t *device, int level)
 	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
 
 	int value = TIOCM_RTS;
-	if (ioctl (device->fd, action, &value) != 0) {
+	if (ioctl (device->fd, action, &value) != 0 && NOPTY) {
 		SYSERROR (device->context, errno);
 		return -1;
 	}
