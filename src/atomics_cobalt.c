@@ -36,9 +36,11 @@
 #include "utils.h"
 #include "array.h"
 
+#define EXITCODE(rc) (rc == LIBUSB_ERROR_TIMEOUT ? DEVICE_STATUS_TIMEOUT : DEVICE_STATUS_IO)
+
 #define VID 0x0471
 #define PID 0x0888
-#define TIMEOUT 1000
+#define TIMEOUT 2000
 
 #define FP_OFFSET 20
 
@@ -218,7 +220,7 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS) {
 		WARNING ("Failed to send the command.");
-		return DEVICE_STATUS_IO;
+		return EXITCODE(rc);
 	}
 
 	// Receive the answer from the dive computer.
@@ -228,7 +230,7 @@ atomics_cobalt_device_version (device_t *abstract, unsigned char data[], unsigne
 		packet, sizeof (packet), &length, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS || length != sizeof (packet)) {
 		WARNING ("Failed to receive the answer.");
-		return DEVICE_STATUS_IO;
+		return EXITCODE(rc);
 	}
 
 	// Verify the checksum of the packet.
@@ -274,19 +276,19 @@ atomics_cobalt_read_dive (device_t *abstract, dc_buffer_t *buffer, int init, dev
 		bRequest, 0, 0, NULL, 0, TIMEOUT);
 	if (rc != LIBUSB_SUCCESS) {
 		WARNING ("Failed to send the command.");
-		return DEVICE_STATUS_IO;
+		return EXITCODE(rc);
 	}
 
 	unsigned int nbytes = 0;
 	while (1) {
 		// Receive the answer from the dive computer.
 		int length = 0;
-		unsigned char packet[10 * 1024] = {0};
+		unsigned char packet[8 * 1024] = {0};
 		rc = libusb_bulk_transfer (device->handle, 0x82,
 			packet, sizeof (packet), &length, TIMEOUT);
-		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT) {
+		if (rc != LIBUSB_SUCCESS) {
 			WARNING ("Failed to receive the answer.");
-			return DEVICE_STATUS_IO;
+			return EXITCODE(rc);
 		}
 
 		// Update and emit a progress event.
