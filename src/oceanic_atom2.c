@@ -63,6 +63,7 @@ static const device_backend_t oceanic_atom2_device_backend = {
 	oceanic_atom2_device_close /* close */
 };
 
+static const unsigned char aeris_manta_version[]   = "MANTA  R\0\0  512K";
 static const unsigned char aeris_atmosai_version[] = "ATMOSAI R\0\0 512K";
 static const unsigned char aeris_epic_version[]  = "2M EPIC r\0\0 512K";
 static const unsigned char aeris_f10_version[] = "FREEWAER \0\0 512K";
@@ -84,7 +85,6 @@ static const unsigned char sherwood_wisdom2_version[] = "WISDOM R\0\0  512K";
 static const unsigned char tusa_element2_version[] = "ELEMENT2 \0\0 512K";
 static const unsigned char tusa_zen_version[]      = "TUSAZEN \0\0  512K";
 static const unsigned char tusa_zenair_version[]   = "TUZENAIR \0\0 512K";
-
 
 static const oceanic_common_layout_t aeris_f10_layout = {
 	0x10000, /* memsize */
@@ -382,6 +382,7 @@ oceanic_atom2_device_open (device_t **out, const char* name)
 		device->base.layout = &oceanic_atom1_layout;
 	else if (oceanic_common_match (sherwood_insight_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (sherwood_wisdom2_version, device->version, sizeof (device->version)) ||
+		oceanic_common_match (aeris_manta_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (aeris_atmosai_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_geo2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_veo3_version, device->version, sizeof (device->version)) ||
