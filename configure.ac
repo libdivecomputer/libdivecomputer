@@ -78,6 +78,7 @@ AC_CHECK_HEADERS([linux/serial.h])
 AC_CHECK_HEADERS([IOKit/serial/ioss.h])
 
 # Checks for library functions.
+AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([localtime_r gmtime_r])
 
 # Versioning.

@@ -24,6 +24,10 @@
 #include <stdarg.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "context-private.h"
 
 struct dc_context_t {
@@ -116,4 +120,44 @@ dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file,
 	context->logfunc (context, loglevel, file, line, function, context->msg, context->userdata);
 
 	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, int errcode)
+{
+	const char *errmsg = NULL;
+
+#ifdef _WIN32
+	char buffer[256];
+
+	DWORD rc = FormatMessageA (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, errcode, 0, buffer, sizeof (buffer), NULL);
+
+	/* Remove the CRLF and period at the end of the error message. */
+	while (rc > 0 && (
+		buffer[rc - 1] == '\n' ||
+		buffer[rc - 1] == '\r' ||
+		buffer[rc - 1] == '.'))
+	{
+		buffer[rc - 1] = '\0';
+		rc--;
+	}
+
+	if (rc > 0)
+		errmsg = buffer;
+#elif defined (HAVE_STRERROR_R)
+	char buffer[256];
+
+	int rc = strerror_r (errcode, buffer, sizeof (buffer));
+	if (rc == 0)
+		errmsg = buffer;
+#else
+	/* Fallback to the non-threadsafe function. */
+	errmsg = strerror (errcode);
+#endif
+
+	if (errmsg == NULL)
+		errmsg = "Unknown system error";
+
+	return dc_context_log (context, loglevel, file, line, function, "%s (%d)", errmsg, errcode);
 }

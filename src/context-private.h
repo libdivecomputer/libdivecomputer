@@ -28,6 +28,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define SYSERROR(context, errcode) dc_context_syserror (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, errcode)
 #define ERROR(context, ...) dc_context_log (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define WARNING(context, ...) dc_context_log (context, DC_LOGLEVEL_WARNING, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 #define INFO(context, ...) dc_context_log (context, DC_LOGLEVEL_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
@@ -35,6 +36,9 @@ extern "C" {
 
 dc_status_t
 dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...);
+
+dc_status_t
+dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, int errcode);
 
 #ifdef __cplusplus
 }
