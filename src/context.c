@@ -40,6 +40,42 @@ struct dc_context_t {
 };
 
 #ifdef ENABLE_LOGGING
+/*
+ * A wrapper for the vsnprintf function, which will always null terminate the
+ * string and returns a negative value if the destination buffer is too small.
+ */
+static int
+l_vsnprintf (char *str, size_t size, const char *format, va_list ap)
+{
+	int n;
+
+	if (size == 0)
+		return 0;
+
+#ifdef _MSC_VER
+	/*
+	 * The non-standard vsnprintf implementation provided by MSVC doesn't null
+	 * terminate the string and returns a negative value if the destination
+	 * buffer is too small.
+	 */
+	n = _vsnprintf (str, size - 1, format, ap);
+	if (n == size - 1 || n < 0)
+		str[size - 1] = 0;
+#else
+	/*
+	 * The C99 vsnprintf function will always null terminate the string. If the
+	 * destination buffer is too small, the return value is the number of
+	 * characters that would have been written if the buffer had been large
+	 * enough.
+	 */
+	n = vsnprintf (str, size, format, ap);
+	if (n >= size)
+		n = -1;
+#endif
+
+	return n;
+}
+
 static void
 logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
 {
@@ -132,7 +168,7 @@ dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file,
 		return DC_STATUS_SUCCESS;
 
 	va_start (ap, format);
-	vsnprintf (context->msg, sizeof (context->msg), format, ap);
+	l_vsnprintf (context->msg, sizeof (context->msg), format, ap);
 	va_end (ap);
 
 	context->logfunc (context, loglevel, file, line, function, context->msg, context->userdata);
