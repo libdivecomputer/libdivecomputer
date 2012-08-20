@@ -62,45 +62,6 @@ struct irda_t {
 };
 
 
-int irda_errcode (void)
-{
-#ifdef _WIN32
-	return WSAGetLastError ();
-#else
-	return errno;
-#endif
-}
-
-
-const char* irda_errmsg (void)
-{
-#ifdef _WIN32
-	static char buffer[256] = {0};
-	unsigned int size = sizeof (buffer) / sizeof (char);
-
-	DWORD errcode = WSAGetLastError ();
-	DWORD rc = FormatMessageA (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, errcode, 0, buffer, size, NULL);
-	// Remove certain characters ('\r', '\n' and '.')
-	// at the end of the error message.
-	while (rc > 0 && (
-			buffer[rc-1] == '\n' ||
-			buffer[rc-1] == '\r' ||
-			buffer[rc-1] == '.')) {
-		buffer[rc-1] = '\0';
-		rc--;
-	}
-	if (rc) {
-		return buffer;
-	} else {
-		return NULL;
-	}
-#else
-	return strerror (errno);
-#endif
-}
-
-
 int
 irda_socket_open (irda_t **out, dc_context_t *context)
 {

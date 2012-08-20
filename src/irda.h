@@ -32,10 +32,6 @@ typedef struct irda_t irda_t;
 
 typedef void (*irda_callback_t) (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata);
 
-int irda_errcode (void);
-
-const char* irda_errmsg (void);
-
 int irda_socket_open (irda_t **device, dc_context_t *context);
 
 int irda_socket_close (irda_t *device);

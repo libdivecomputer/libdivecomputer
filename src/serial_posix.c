@@ -67,21 +67,6 @@ struct serial_t {
 };
 
 //
-// Error reporting.
-//
-
-int serial_errcode (void)
-{
-	return errno;
-}
-
-
-const char* serial_errmsg (void)
-{
-	return strerror (errno);
-}
-
-//
 // Open the serial port.
 //
 

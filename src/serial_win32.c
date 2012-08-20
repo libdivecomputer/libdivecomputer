@@ -46,40 +46,6 @@ struct serial_t {
 };
 
 //
-// Error reporting.
-//
-
-int serial_errcode (void)
-{
-	return GetLastError ();
-}
-
-
-const char* serial_errmsg (void)
-{
-	static char buffer[256] = {0};
-	unsigned int size = sizeof (buffer) / sizeof (char);
-
-	DWORD errcode = GetLastError ();
-	DWORD rc = FormatMessageA (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, errcode, 0, buffer, size, NULL);
-	// Remove certain characters ('\r', '\n' and '.')
-	// at the end of the error message.
-	while (rc > 0 && (
-			buffer[rc-1] == '\n' ||
-			buffer[rc-1] == '\r' ||
-			buffer[rc-1] == '.')) {
-		buffer[rc-1] = '\0';
-		rc--;
-	}
-	if (rc) {
-		return buffer;
-	} else {
-		return NULL;
-	}
-}
-
-//
 // Open the serial port.
 //
 

@@ -55,9 +55,6 @@ typedef enum serial_line_t {
 	SERIAL_LINE_RNG, // Ring indicator
 } serial_line_t;
 
-int serial_errcode (void);
-const char* serial_errmsg (void);
-
 int serial_open (serial_t **device, dc_context_t *context, const char* name);
 
 int serial_close (serial_t *device);
