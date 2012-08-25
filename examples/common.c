@@ -58,5 +58,9 @@ logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsign
 {
 	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
 
-	message ("%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
+	if (loglevel == DC_LOGLEVEL_ERROR || loglevel == DC_LOGLEVEL_WARNING) {
+		message ("%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
+	} else {
+		message ("%s: %s\n", loglevels[loglevel], msg);
+	}
 }
