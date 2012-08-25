@@ -176,6 +176,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	INFO (device->context, "Configure: baudrate=%i, databits=%i, parity=%i, stopbits=%i, flowcontrol=%i",
+		baudrate, databits, parity, stopbits, flowcontrol);
+
 	// Retrieve the current settings.
 	struct termios tty;
 	if (tcgetattr (device->fd, &tty) != 0) {
@@ -424,6 +427,8 @@ serial_set_timeout (serial_t *device, long timeout)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	INFO (device->context, "Timeout: value=%li", timeout);
+
 	device->timeout = timeout;
 
 	return 0;
@@ -524,6 +529,8 @@ serial_read (serial_t *device, void *data, unsigned int size)
 		nbytes += n;
 	}
 
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
+
 	return nbytes;
 }
 
@@ -607,6 +614,8 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 		}
 	}
 
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
+
 	return nbytes;
 }
 
@@ -616,6 +625,10 @@ serial_flush (serial_t *device, int queue)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
+
+	INFO (device->context, "Flush: queue=%u, input=%i, output=%i", queue,
+		serial_get_received (device),
+		serial_get_transmitted (device));
 
 	int flags = 0;	
 
@@ -661,6 +674,8 @@ serial_set_break (serial_t *device, int level)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	INFO (device->context, "Break: value=%i", level);
+
 	unsigned long action = (level ? TIOCSBRK : TIOCCBRK);
 
 	if (ioctl (device->fd, action, NULL) != 0 && NOPTY) {
@@ -677,6 +692,8 @@ serial_set_dtr (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
+
+	INFO (device->context, "DTR: value=%i", level);
 
 	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
 
@@ -695,6 +712,8 @@ serial_set_rts (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
+
+	INFO (device->context, "RTS: value=%i", level);
 
 	unsigned long action = (level ? TIOCMBIS : TIOCMBIC);
 
@@ -774,6 +793,8 @@ serial_sleep (serial_t *device, unsigned long timeout)
 {
 	if (device == NULL)
 		return -1;
+
+	INFO (device->context, "Sleep: value=%lu", timeout);
 
 	struct timespec ts;
 	ts.tv_sec  = (timeout / 1000);

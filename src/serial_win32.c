@@ -155,6 +155,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
+	INFO (device->context, "Configure: baudrate=%i, databits=%i, parity=%i, stopbits=%i, flowcontrol=%i",
+		baudrate, databits, parity, stopbits, flowcontrol);
+
 	// Retrieve the current settings.
 	DCB dcb;
 	if (!GetCommState (device->hFile, &dcb)) {
@@ -255,6 +258,8 @@ serial_set_timeout (serial_t *device, long timeout)
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
+	INFO (device->context, "Timeout: value=%li", timeout);
+
 	// Retrieve the current timeouts.
 	COMMTIMEOUTS timeouts;
 	if (!GetCommTimeouts (device->hFile, &timeouts)) {
@@ -338,6 +343,8 @@ serial_read (serial_t *device, void* data, unsigned int size)
 		return -1;
 	}
 
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, dwRead);
+
 	return dwRead;
 }
 
@@ -389,6 +396,8 @@ serial_write (serial_t *device, const void* data, unsigned int size)
 		}
 	}
 
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, dwWritten);
+
 	return dwWritten;
 }
 
@@ -398,6 +407,10 @@ serial_flush (serial_t *device, int queue)
 {
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	INFO (device->context, "Flush: queue=%u, input=%i, output=%i", queue,
+		serial_get_received (device),
+		serial_get_transmitted (device));
 
 	DWORD flags = 0;	
 
@@ -450,6 +463,8 @@ serial_set_break (serial_t *device, int level)
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
+	INFO (device->context, "Break: value=%i", level);
+
 	if (level) {
 		if (!SetCommBreak (device->hFile)) {
 			SYSERROR (device->context, GetLastError ());
@@ -471,6 +486,8 @@ serial_set_dtr (serial_t *device, int level)
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
+	INFO (device->context, "DTR: value=%i", level);
+
 	int status = (level ? SETDTR : CLRDTR);
 	
 	if (!EscapeCommFunction (device->hFile, status)) {
@@ -487,6 +504,8 @@ serial_set_rts (serial_t *device, int level)
 {
 	if (device == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	INFO (device->context, "RTS: value=%i", level);
 
 	int status = (level ? SETRTS : CLRRTS);
 	
@@ -567,6 +586,8 @@ serial_sleep (serial_t *device, unsigned long timeout)
 {
 	if (device == NULL)
 		return -1;
+
+	INFO (device->context, "Sleep: value=%lu", timeout);
 
 	Sleep (timeout);
 
