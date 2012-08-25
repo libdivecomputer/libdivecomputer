@@ -76,6 +76,51 @@ l_vsnprintf (char *str, size_t size, const char *format, va_list ap)
 	return n;
 }
 
+static int
+l_snprintf (char *str, size_t size, const char *format, ...)
+{
+	va_list ap;
+	int n;
+
+	va_start (ap, format);
+	n = l_vsnprintf (str, size, format, ap);
+	va_end (ap);
+
+	return n;
+}
+
+static int
+l_hexdump (char *str, size_t size, const unsigned char data[], size_t n)
+{
+	const unsigned char ascii[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
+	if (size == 0)
+		return -1;
+
+	/* The maximum number of bytes. */
+	size_t maxlength = (size - 1) / 2;
+
+	/* The actual number of bytes. */
+	size_t length = (n > maxlength ? maxlength : n);
+
+	for (size_t i = 0; i < length; ++i) {
+		/* Set the most-significant nibble. */
+		unsigned char msn = (data[i] >> 4) & 0x0F;
+		str[i * 2 + 0] = ascii[msn];
+
+		/* Set the least-significant nibble. */
+		unsigned char lsn = data[i] & 0x0F;
+		str[i * 2 + 1] = ascii[lsn];
+	}
+
+	/* Null terminate the hex string. */
+	str[length * 2] = 0;
+
+	return (n > maxlength ? -1 : length * 2);
+}
+
 static void
 logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
 {
@@ -215,4 +260,33 @@ dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *
 		errmsg = "Unknown system error";
 
 	return dc_context_log (context, loglevel, file, line, function, "%s (%d)", errmsg, errcode);
+}
+
+dc_status_t
+dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *prefix, const unsigned char data[], unsigned int size)
+{
+#ifdef ENABLE_LOGGING
+	int n;
+#endif
+
+	if (context == NULL || prefix == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+#ifdef ENABLE_LOGGING
+	if (loglevel > context->loglevel)
+		return DC_STATUS_SUCCESS;
+
+	if (context->logfunc == NULL)
+		return DC_STATUS_SUCCESS;
+
+	n = l_snprintf (context->msg, sizeof (context->msg), "%s: size=%u, data=", prefix, size);
+
+	if (n >= 0) {
+		n = l_hexdump (context->msg + n, sizeof (context->msg) - n, data, size);
+	}
+
+	context->logfunc (context, loglevel, file, line, function, context->msg, context->userdata);
+#endif
+
+	return DC_STATUS_SUCCESS;
 }
