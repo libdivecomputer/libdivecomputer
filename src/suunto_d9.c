@@ -76,7 +76,7 @@ static const suunto_common2_layout_t suunto_d9tx_layout = {
 	0x10000, /* memsize */
 	0x0024, /* serial */
 	0x019A, /* rb_profile_begin */
-	0xFFFE /* rb_profile_end */
+	0xEBF0 /* rb_profile_end */
 };
 
 static int

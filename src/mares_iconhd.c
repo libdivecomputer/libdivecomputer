@@ -442,7 +442,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		// equals the calculated length. If both values are different,
 		// something is wrong and an error is returned.
 		unsigned int length = array_uint32_le (buffer + offset);
-		if (length == 0)
+		if (length == 0 || length == 0xFFFFFFFF)
 			break;
 		if (length != nbytes) {
 			WARNING ("Calculated and stored size are not equal.");

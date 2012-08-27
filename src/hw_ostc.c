@@ -404,7 +404,7 @@ hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned c
 	if (! device_is_hw_ostc (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (bank > 1) {
+	if (bank > 2) {
 		WARNING ("Invalid eeprom bank specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -415,8 +415,8 @@ hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned c
 	}
 
 	// Send the command.
-	unsigned char command = (bank == 0) ? 'g' : 'j';
-	dc_status_t rc = hw_ostc_send (device, command, 0);
+	const unsigned char command[] = {'g', 'j', 'm'};
+	dc_status_t rc = hw_ostc_send (device, command[bank], 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -439,7 +439,7 @@ hw_ostc_device_eeprom_write (dc_device_t *abstract, unsigned int bank, const uns
 	if (! device_is_hw_ostc (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (bank > 1) {
+	if (bank > 2) {
 		WARNING ("Invalid eeprom bank specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -450,8 +450,8 @@ hw_ostc_device_eeprom_write (dc_device_t *abstract, unsigned int bank, const uns
 	}
 
 	// Send the command.
-	unsigned char command = (bank == 0) ? 'd' : 'i';
-	dc_status_t rc = hw_ostc_send (device, command, 1);
+	const unsigned char command[] = {'d', 'i', 'n'};
+	dc_status_t rc = hw_ostc_send (device, command[bank], 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
