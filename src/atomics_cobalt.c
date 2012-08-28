@@ -37,7 +37,7 @@
 #include "checksum.h"
 #include "array.h"
 
-#define EXITCODE(rc) (rc == LIBUSB_ERROR_TIMEOUT ? DEVICE_STATUS_TIMEOUT : DEVICE_STATUS_IO)
+#define EXITCODE(rc) (rc == LIBUSB_ERROR_TIMEOUT ? DC_STATUS_TIMEOUT : DC_STATUS_IO)
 
 #define VID 0x0471
 #define PID 0x0888
