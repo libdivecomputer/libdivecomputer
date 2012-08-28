@@ -23,36 +23,9 @@
 
 #include "irda.h"
 
-int
-irda_errcode (void)
-{
-	return 0;
-}
-
-
-const char *
-irda_errmsg (void)
-{
-	return NULL;
-}
-
 
 int
-irda_init (void)
-{
-	return -1;
-}
-
-
-int
-irda_cleanup (void)
-{
-	return -1;
-}
-
-
-int
-irda_socket_open (irda_t **out)
+irda_socket_open (irda_t **out, dc_context_t *context)
 {
     return -1;
 }
