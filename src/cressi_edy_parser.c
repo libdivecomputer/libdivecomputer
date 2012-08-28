@@ -74,7 +74,7 @@ cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &cressi_edy_parser_backend);
+	parser_init (&parser->base, context, &cressi_edy_parser_backend);
 
 	// Set the default values.
 	parser->model = model;

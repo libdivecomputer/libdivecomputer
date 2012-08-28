@@ -101,7 +101,7 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &oceanic_atom2_parser_backend);
+	parser_init (&parser->base, context, &oceanic_atom2_parser_backend);
 
 	// Set the default values.
 	parser->model = model;

@@ -82,7 +82,7 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &suunto_solution_device_backend);
+	device_init (&device->base, context, &suunto_solution_device_backend);
 
 	// Set the default values.
 	device->port = NULL;

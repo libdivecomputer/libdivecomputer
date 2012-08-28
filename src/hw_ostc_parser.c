@@ -81,7 +81,7 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int fr
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &hw_ostc_parser_backend);
+	parser_init (&parser->base, context, &hw_ostc_parser_backend);
 
 	parser->frog = frog;
 

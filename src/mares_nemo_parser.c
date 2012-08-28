@@ -92,7 +92,7 @@ mares_nemo_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &mares_nemo_parser_backend);
+	parser_init (&parser->base, context, &mares_nemo_parser_backend);
 
 	// Get the freedive mode for this model.
 	unsigned int freedive = 2;

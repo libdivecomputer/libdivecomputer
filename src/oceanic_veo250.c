@@ -233,7 +233,7 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	}
 
 	// Initialize the base class.
-	oceanic_common_device_init (&device->base, &oceanic_veo250_device_backend);
+	oceanic_common_device_init (&device->base, context, &oceanic_veo250_device_backend);
 
 	// Override the base class values.
 	device->base.layout = &oceanic_veo250_layout;

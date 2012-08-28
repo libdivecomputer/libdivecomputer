@@ -107,7 +107,7 @@ mares_puck_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Initialize the base class.
-	mares_common_device_init (&device->base, &mares_puck_device_backend);
+	mares_common_device_init (&device->base, context, &mares_puck_device_backend);
 
 	// Set the default values.
 	device->layout = NULL;

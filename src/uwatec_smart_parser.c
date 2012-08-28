@@ -89,7 +89,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &uwatec_smart_parser_backend);
+	parser_init (&parser->base, context, &uwatec_smart_parser_backend);
 
 	// Set the default values.
 	parser->model = model;

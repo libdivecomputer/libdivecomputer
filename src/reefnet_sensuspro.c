@@ -84,7 +84,7 @@ reefnet_sensuspro_device_open (dc_device_t **out, dc_context_t *context, const c
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &reefnet_sensuspro_device_backend);
+	device_init (&device->base, context, &reefnet_sensuspro_device_backend);
 
 	// Set the default values.
 	device->port = NULL;

@@ -38,11 +38,11 @@
 
 
 void
-device_init (dc_device_t *device, const device_backend_t *backend)
+device_init (dc_device_t *device, dc_context_t *context, const device_backend_t *backend)
 {
 	device->backend = backend;
 
-	device->context = NULL;
+	device->context = context;
 
 	device->event_mask = 0;
 	device->event_callback = NULL;

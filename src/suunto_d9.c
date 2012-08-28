@@ -138,7 +138,7 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 	}
 
 	// Initialize the base class.
-	suunto_common2_device_init (&device->base, &suunto_d9_device_backend);
+	suunto_common2_device_init (&device->base, context, &suunto_d9_device_backend);
 
 	// Set the default values.
 	device->port = NULL;

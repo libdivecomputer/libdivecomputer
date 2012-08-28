@@ -76,7 +76,7 @@ suunto_solution_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &suunto_solution_parser_backend);
+	parser_init (&parser->base, context, &suunto_solution_parser_backend);
 
 	// Set the default values.
 	parser->cached = 0;

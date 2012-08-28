@@ -322,7 +322,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Initialize the base class.
-	oceanic_common_device_init (&device->base, &oceanic_atom2_device_backend);
+	oceanic_common_device_init (&device->base, context, &oceanic_atom2_device_backend);
 
 	// Set the default values.
 	device->port = NULL;

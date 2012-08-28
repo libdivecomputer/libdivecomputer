@@ -24,6 +24,7 @@
 
 #include <limits.h>
 
+#include <libdivecomputer/context.h>
 #include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
@@ -72,7 +73,7 @@ struct device_backend_t {
 };
 
 void
-device_init (dc_device_t *device, const device_backend_t *backend);
+device_init (dc_device_t *device, dc_context_t *context, const device_backend_t *backend);
 
 void
 device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data);

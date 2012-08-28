@@ -200,7 +200,7 @@ hw_frog_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &hw_frog_device_backend);
+	device_init (&device->base, context, &hw_frog_device_backend);
 
 	// Set the default values.
 	device->port = NULL;

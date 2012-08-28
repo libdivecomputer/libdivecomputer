@@ -64,7 +64,7 @@ int
 oceanic_common_match (const unsigned char *pattern, const unsigned char *string, unsigned int n);
 
 void
-oceanic_common_device_init (oceanic_common_device_t *device, const device_backend_t *backend);
+oceanic_common_device_init (oceanic_common_device_t *device, dc_context_t *context, const device_backend_t *backend);
 
 dc_status_t
 oceanic_common_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);

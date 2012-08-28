@@ -77,7 +77,7 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &mares_iconhd_parser_backend);
+	parser_init (&parser->base, context, &mares_iconhd_parser_backend);
 
 	// Set the default values.
 	parser->model = model;

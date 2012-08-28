@@ -56,7 +56,7 @@ struct parser_backend_t {
 };
 
 void
-parser_init (dc_parser_t *parser, const parser_backend_t *backend);
+parser_init (dc_parser_t *parser, dc_context_t *context, const parser_backend_t *backend);
 
 typedef struct sample_statistics_t {
 	unsigned int divetime;

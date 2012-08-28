@@ -121,10 +121,10 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 
 
 void
-parser_init (dc_parser_t *parser, const parser_backend_t *backend)
+parser_init (dc_parser_t *parser, dc_context_t *context, const parser_backend_t *backend)
 {
 	parser->backend = backend;
-	parser->context = NULL;
+	parser->context = context;
 	parser->data = NULL;
 	parser->size = 0;
 }

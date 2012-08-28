@@ -221,7 +221,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, &mares_iconhd_device_backend);
+	device_init (&device->base, context, &mares_iconhd_device_backend);
 
 	// Set the default values.
 	device->port = NULL;

@@ -86,7 +86,7 @@ reefnet_sensus_parser_create (dc_parser_t **out, dc_context_t *context, unsigned
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &reefnet_sensus_parser_backend);
+	parser_init (&parser->base, context, &reefnet_sensus_parser_backend);
 
 	// Set the default values.
 	parser->atmospheric = ATM;

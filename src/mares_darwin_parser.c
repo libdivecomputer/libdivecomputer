@@ -80,7 +80,7 @@ mares_darwin_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &mares_darwin_parser_backend);
+	parser_init (&parser->base, context, &mares_darwin_parser_backend);
 
 	if (model == DARWINAIR) {
 		parser->headersize = 60;

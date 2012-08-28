@@ -82,7 +82,7 @@ atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, &atomics_cobalt_parser_backend);
+	parser_init (&parser->base, context, &atomics_cobalt_parser_backend);
 
 	// Set the default values.
 	parser->atmospheric = 0.0;
