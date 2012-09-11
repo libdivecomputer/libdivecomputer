@@ -46,6 +46,7 @@
 #define VT4         0x4447
 #define OC1B        0x4449
 #define ATOM3       0x444C
+#define OCS         0x4450
 #define VT41        0x4452
 #define ATOM31      0x4456
 
@@ -165,6 +166,7 @@ oceanic_atom2_parser_get_datetime (parser_t *abstract, dc_datetime_t *datetime)
 		switch (parser->model) {
 		case OC1A:
 		case OC1B:
+		case OCS:
 		case VT4:
 		case VT41:
 		case ATOM3:
@@ -266,7 +268,8 @@ oceanic_atom2_parser_get_field (parser_t *abstract, parser_field_type_t type, un
 	unsigned int footersize = 2 * PAGESIZE / 2;
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
-		parser->model == VEO20 || parser->model == VEO30) {
+		parser->model == VEO20 || parser->model == VEO30 ||
+		parser->model == OCS) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -359,7 +362,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 	unsigned int footersize = 2 * PAGESIZE / 2;
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
-		parser->model == VEO20 || parser->model == VEO30) {
+		parser->model == VEO20 || parser->model == VEO30 ||
+		parser->model == OCS) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -402,7 +406,7 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 		samplesize = 2;
 
 	unsigned int have_temperature = 1, have_pressure = 1;
-	if (parser->model == VEO30) {
+	if (parser->model == VEO30 || parser->model == OCS) {
 		have_pressure = 0;
 	} else if (parser->model == F10) {
 		have_temperature = 0;
@@ -506,6 +510,8 @@ oceanic_atom2_parser_samples_foreach (parser_t *abstract, sample_callback_t call
 					parser->model == VEO30 || parser->model == OC1A ||
 					parser->model == OC1B) {
 					temperature = data[offset + 3];
+				} else if (parser->model == OCS) {
+					temperature = data[offset + 1];
 				} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31) {
 					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
 				} else {
