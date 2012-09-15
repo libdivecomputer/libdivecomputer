@@ -704,6 +704,7 @@ main (int argc, char *argv[])
 {
 	// Default values.
 	dc_family_t backend = DC_FAMILY_NULL;
+	dc_loglevel_t loglevel = DC_LOGLEVEL_WARNING;
 	const char *name = NULL;
 	const char *logfile = "output.log";
 	const char *rawfile = "output.bin";
@@ -716,7 +717,7 @@ main (int argc, char *argv[])
 #ifndef _MSC_VER
 	// Parse command-line options.
 	int opt = 0;
-	while ((opt = getopt (argc, argv, "n:b:t:f:l:m:d:c:h")) != -1) {
+	while ((opt = getopt (argc, argv, "n:b:t:f:l:m:d:c:vh")) != -1) {
 		switch (opt) {
 		case 'n':
 			name = optarg;
@@ -733,6 +734,9 @@ main (int argc, char *argv[])
 			break;
 		case 'l':
 			logfile = optarg;
+			break;
+		case 'v':
+			loglevel++;
 			break;
 		case 'm':
 			memory = 1;
@@ -780,7 +784,7 @@ main (int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	dc_context_set_loglevel (context, DC_LOGLEVEL_ALL);
+	dc_context_set_loglevel (context, loglevel);
 	dc_context_set_logfunc (context, logfunc, NULL);
 
 	/* Search for a matching device descriptor. */
