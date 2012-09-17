@@ -418,6 +418,12 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 	progress.maximum = (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT) + size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Finish immediately if there are no dives available.
+	if (ndives == 0) {
+		free (header);
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Allocate enough memory for the largest dive.
 	unsigned char *profile = malloc (maxsize);
 	if (profile == NULL) {
