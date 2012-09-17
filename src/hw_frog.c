@@ -455,6 +455,15 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 			return rc;
 		}
 
+		// Verify the header in the logbook and profile are identical.
+		if (memcmp (profile, header + offset, RB_LOGBOOK_SIZE) != 0) {
+			ERROR (abstract->context, "Unexpected profile header.");
+			free (profile);
+			free (header);
+			return rc;
+
+		}
+
 		if (callback && !callback (profile, length, profile + 9, sizeof (device->fingerprint), userdata))
 			break;
 	}
