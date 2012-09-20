@@ -1,3 +1,54 @@
+Version 0.2.0 (2012-09-21)
+==========================
+
+The v0.2.0 release marks the first step towards a redesign of the public
+interface. The major highlights of this release are the introduction of
+a namespace prefix, the device enumeration support, and a much more
+flexible logging system.
+
+Please note that the public interface has changed significantly, and
+therefore this release is NOT backwards compatible with the previous
+release. Applications will have to be updated to support the new
+features!
+
+New features:
+
+ * Add support for the Heinrichs Weikamp Frog.
+ * Separate private and public headers.
+ * Use common status codes for the device and parser layers.
+ * Use a common backend type for the device and parser layers.
+ * Introduce a namespace prefix for the high-level public api.
+ * Add the device enumeration support.
+ * Add a dc_device_open convenience function.
+ * Add a dc_parser_new convenience function.
+ * Add a new library context object.
+ * Add support for an application defined logging function.
+ * Add an option to disable the logging.
+ * Add an option to enable support for pseudo terminals.
+
+Bug fixes:
+
+ * [d9] Enable the model hint to speedup the autodetection.
+ * [ostc] Add support for eeprom bank number 2.
+ * [iconhd] Fix the detection of the last dive.
+ * [d9] Fix the profile ringbuffer end.
+ * [misc] Fix a build error with automake 1.12 or newer.
+ * [serial] Fix some ioctl calls on 64bit Mac OS X.
+ * [cobalt] Fix the libusb timeout handling.
+ * [atom2] Add support for the Aeris Manta.
+ * [irda] Remove the IrDA init and cleanup functions.
+ * [serial] Enable exclusive access mode.
+ * [atom2] Add support for the Oceanic OCS.
+ * [frog] Finish immediately if there are no dives available.
+ * [frog] Verify the header in the logbook and profile are identical.
+ * [atom2] Fixed date parsing for Oceanic VEO 3.0
+ * [smart] Add support for the Uwatec Galileo Trimix.
+ * [vyper] Don't exceed the maximum number of bytes.
+ * [d9] Fix the gas mix parsing.
+ * [d9] Take the gas model into account to parse the gas mixes.
+ * [misc] Update the list with supported models.
+ * [misc] Update the msvc project file.
+
 Version 0.1.0 (2012-04-27)
 ==========================
 
