@@ -219,7 +219,10 @@ suunto_d9_parser_get_field (parser_t *abstract, parser_field_type_t type, unsign
 			if (parser->model == HELO2) {
 				gasmix->helium = data[0x58 - SKIP + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x58 - SKIP + 6 * flags + 1] / 100.0;
-			} else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx) {
+			} else if (parser->model == D9tx) {
+				gasmix->helium = data[0x87 + 6 * flags + 2] / 100.0;
+				gasmix->oxygen = data[0x87 + 6 * flags + 1] / 100.0;
+			} else if (parser->model == D4i || parser->model == D6i) {
 				gasmix->helium = data[0x5F + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x5F + 6 * flags + 1] / 100.0;
 			} else {
