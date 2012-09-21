@@ -43,6 +43,12 @@
 #define D6i      0x1A
 #define D9tx     0x1B
 
+#define AIR      0
+#define NITROX   1
+#define GAUGE    2
+#define FREEDIVE 3
+#define MIXED    4
+
 typedef struct suunto_d9_parser_t suunto_d9_parser_t;
 
 struct suunto_d9_parser_t {
@@ -186,6 +192,14 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 	if (size < config)
 		return DC_STATUS_DATAFORMAT;
 
+	// Gas model
+	unsigned int gasmodel_offset = 0x1D - SKIP;
+	if (parser->model == HELO2)
+		gasmodel_offset += 6;
+	if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+		gasmodel_offset = 0x1D;
+	unsigned int gasmodel = data[gasmodel_offset];
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
@@ -204,7 +218,9 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 			*((double *) value) = array_uint16_le (data + 0x0D - SKIP) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (parser->model == HELO2) {
+			if (gasmodel == AIR) {
+				*((unsigned int *) value) = 1;
+			} else if (parser->model == HELO2) {
 				*((unsigned int *) value) = 8;
 			} else if (parser->model == D9tx) {
 				*((unsigned int *) value) = 8;
@@ -217,10 +233,16 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 			}
 			break;
 		case DC_FIELD_GASMIX:
-			if (parser->model == HELO2) {
+			if (gasmodel == AIR) {
+				gasmix->helium = 0.0;
+				gasmix->oxygen = 0.21;
+			} else if (parser->model == HELO2) {
 				gasmix->helium = data[0x58 - SKIP + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x58 - SKIP + 6 * flags + 1] / 100.0;
-			} else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx) {
+			} else if (parser->model == D9tx) {
+				gasmix->helium = data[0x87 + 6 * flags + 2] / 100.0;
+				gasmix->oxygen = data[0x87 + 6 * flags + 1] / 100.0;
+			} else if (parser->model == D4i || parser->model == D6i) {
 				gasmix->helium = data[0x5F + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[0x5F + 6 * flags + 1] / 100.0;
 			} else {

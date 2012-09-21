@@ -38,6 +38,7 @@
 #define ALADINTEC2G   0x13
 #define SMARTCOM      0x14
 #define SMARTTEC      0x18
+#define GALILEOTRIMIX 0x19
 #define SMARTZ        0x1C
 
 typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
@@ -208,6 +209,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	unsigned int size = abstract->size;
 
 	unsigned int header = 0;
+	unsigned int trimix = 0;
 	const uwatec_smart_header_info_t *table = NULL;
 
 	// Load the correct table.
@@ -217,7 +219,12 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		table = &uwatec_smart_pro_header;
 		break;
 	case GALILEO:
+	case GALILEOTRIMIX:
 		header = 152;
+		if (data[43] & 0x80) {
+			header = 0xB1;
+			trimix = 1;
+		}
 		table = &uwatec_galileo_sol_header;
 		break;
 	case ALADINTEC:
@@ -258,7 +265,10 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = table->ngases;
+			if (trimix)
+				*((unsigned int *) value) = 0;
+			else
+				*((unsigned int *) value) = table->ngases;
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
@@ -341,6 +351,8 @@ typedef enum {
 	BEARING,
 	ALARMS,
 	TIME,
+	UNKNOWN1,
+	UNKNOWN2,
 } uwatec_smart_sample_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -430,6 +442,8 @@ uwatec_smart_sample_info_t uwatec_galileo_sol_table [] = {
 	{HEARTRATE,      1, 0, 8, 0, 1}, // 1111 0111 dddddddd
 	{BEARING,        1, 0, 8, 0, 2}, // 1111 1000 dddddddd dddddddd
 	{ALARMS,         1, 2, 8, 0, 1}, // 1111 1001 dddddddd
+	{UNKNOWN1,       1, 0, 8, 0, 0}, // 1111 1010 (8 bytes)
+	{UNKNOWN2,       1, 0, 8, 0, 1}, // 1111 1011 dddddddd (n-1 bytes)
 };
 
 static dc_status_t
@@ -446,6 +460,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	const uwatec_smart_sample_info_t *table = NULL;
 	unsigned int entries = 0;
 	unsigned int header = 0;
+	unsigned int trimix = 0;
 
 	// Load the correct table.
 	switch (parser->model) {
@@ -455,7 +470,12 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		entries = NELEMENTS (uwatec_smart_pro_table);
 		break;
 	case GALILEO:
+	case GALILEOTRIMIX:
 		header = 152;
+		if (data[43] & 0x80) {
+			header = 0xB1;
+			trimix = 1;
+		}
 		table = uwatec_galileo_sol_table;
 		entries = NELEMENTS (uwatec_galileo_sol_table);
 		break;
@@ -516,7 +536,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Process the type bits in the bitstream.
 		unsigned int id = 0;
-		if (parser->model == GALILEO) {
+		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {
@@ -589,8 +609,13 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			break;
 		case PRESSURE:
 			if (table[id].absolute) {
-				tank = table[id].index;
-				pressure = value / 4.0;
+				if (trimix) {
+					tank = (value & 0xF000) >> 24;
+					pressure = (value & 0x0FFF) / 4.0;
+				} else {
+					tank = table[id].index;
+					pressure = value / 4.0;
+				}
 				have_pressure = 1;
 			} else {
 				pressure += svalue / 4.0;
@@ -627,6 +652,20 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			break;
 		case TIME:
 			complete = value;
+			break;
+		case UNKNOWN1:
+			if (offset + 8 > size) {
+				ERROR (abstract->context, "Incomplete sample data.");
+				return DC_STATUS_DATAFORMAT;
+			}
+			offset += 8;
+			break;
+		case UNKNOWN2:
+			if (value < 1 || offset + value - 1 > size) {
+				ERROR (abstract->context, "Incomplete sample data.");
+				return DC_STATUS_DATAFORMAT;
+			}
+			offset += value - 1;
 			break;
 		default:
 			WARNING (abstract->context, "Unknown sample type.");

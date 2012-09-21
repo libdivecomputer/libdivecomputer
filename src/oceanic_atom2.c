@@ -78,6 +78,7 @@ static const unsigned char oceanic_vt41_version[]  = "OCEAVT41 \0\0 1024";
 static const unsigned char oceanic_geo2_version[]  = "OCEGEO20 \0\0 512K";
 static const unsigned char oceanic_oc1a_version[]  = "OCWATCH R\0\0 1024";
 static const unsigned char oceanic_oc1b_version[]  = "OC1WATCH \0\0 1024";
+static const unsigned char oceanic_ocs_version[]   = "OCSWATCH \0\0 1024";
 static const unsigned char oceanic_veo1_version[]  = "OCEVEO10 \0\0   8K";
 static const unsigned char oceanic_veo2_version[]  = "OCEVEO20 \0\0 512K";
 static const unsigned char oceanic_veo3_version[]  = "OCEVEO30 \0\0 512K";
@@ -372,6 +373,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Override the base class values.
 	if (oceanic_common_match (oceanic_oc1a_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_oc1b_version, device->version, sizeof (device->version)) ||
+		oceanic_common_match (oceanic_ocs_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_atom3_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_atom31_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_vt4_version, device->version, sizeof (device->version)) ||

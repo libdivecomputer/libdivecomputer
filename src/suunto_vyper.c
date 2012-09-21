@@ -440,6 +440,8 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 		// Update and emit a progress event.
 		if (progress) {
 			progress->current += len;
+			if (progress->current > progress->maximum)
+				progress->current = progress->maximum;
 			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
 
@@ -557,9 +559,16 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 		return DC_STATUS_NOMEMORY;
 
 	unsigned int ndives = 0;
+	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
 	while ((rc = suunto_vyper_read_dive (abstract, buffer, (ndives == 0), &progress)) == DC_STATUS_SUCCESS) {
 		unsigned char *data = dc_buffer_get_data (buffer);
 		unsigned int size = dc_buffer_get_size (buffer);
+
+		if (size > remaining) {
+			ERROR (abstract->context, "Unexpected number of bytes received.");
+			dc_buffer_free (buffer);
+			return DC_STATUS_DATAFORMAT;
+		}
 
 		if (size == 0) {
 			dc_buffer_free (buffer);
@@ -576,6 +585,7 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 			return DC_STATUS_SUCCESS;
 		}
 
+		remaining -= size;
 		ndives++;
 	}
 
