@@ -162,6 +162,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"DiveRite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	/* Atomic Aquatics Cobalt */
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},
+	/* Shearwater Predator */
+	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2},
 };
 
 typedef struct dc_descriptor_iterator_t {

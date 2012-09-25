@@ -30,6 +30,7 @@
 #include <libdivecomputer/cressi.h>
 #include <libdivecomputer/zeagle.h>
 #include <libdivecomputer/atomics.h>
+#include <libdivecomputer/shearwater.h>
 
 #include "parser-private.h"
 #include "device-private.h"
@@ -109,6 +110,9 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context);
+		break;
+	case DC_FAMILY_SHEARWATER_PREDATOR:
+		rc = shearwater_predator_parser_create (&parser, context);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

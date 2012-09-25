@@ -32,6 +32,7 @@
 #include <libdivecomputer/cressi.h>
 #include <libdivecomputer/zeagle.h>
 #include <libdivecomputer/atomics.h>
+#include <libdivecomputer/shearwater.h>
 
 #include "device-private.h"
 #include "context-private.h"
@@ -133,6 +134,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_device_open (&device, context);
+		break;
+	case DC_FAMILY_SHEARWATER_PREDATOR:
+		rc = shearwater_predator_device_open (&device, context, name);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

@@ -74,7 +74,9 @@ typedef enum dc_family_t {
 	/* Zeagle */
 	DC_FAMILY_ZEAGLE_N2ITION3 = (8 << 16),
 	/* Atomic Aquatics */
-	DC_FAMILY_ATOMICS_COBALT = (9 << 16)
+	DC_FAMILY_ATOMICS_COBALT = (9 << 16),
+	/* Shearwater */
+	DC_FAMILY_SHEARWATER_PREDATOR = (10 << 16)
 } dc_family_t;
 
 #ifdef __cplusplus

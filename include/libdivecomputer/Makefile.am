@@ -41,4 +41,6 @@ libdivecomputer_HEADERS = 	\
 	zeagle.h \
 	zeagle_n2ition3.h \
 	atomics.h \
-	atomics_cobalt.h
+	atomics_cobalt.h \
+	shearwater.h \
+	shearwater_predator.h
