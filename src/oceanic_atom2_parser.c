@@ -47,6 +47,7 @@
 #define VT4         0x4447
 #define OC1B        0x4449
 #define ATOM3       0x444C
+#define DG03        0x444D
 #define OCS         0x4450
 #define VT41        0x4452
 #define ATOM31      0x4456
@@ -182,6 +183,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case VEO20:
 		case VEO30:
 		case GEO20:
+		case DG03:
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
@@ -518,7 +520,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
 				} else {
 					unsigned int sign;
-					if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
+					if (parser->model == DG03)
+						sign = (~data[offset + 5] & 0x04) >> 2;
+					else if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;
