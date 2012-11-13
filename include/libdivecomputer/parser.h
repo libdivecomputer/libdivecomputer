@@ -47,7 +47,9 @@ typedef enum dc_field_type_t {
 	DC_FIELD_MAXDEPTH,
 	DC_FIELD_AVGDEPTH,
 	DC_FIELD_GASMIX_COUNT,
-	DC_FIELD_GASMIX
+	DC_FIELD_GASMIX,
+	DC_FIELD_SALINITY,
+	DC_FIELD_ATMOSPHERIC
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
@@ -92,6 +94,16 @@ typedef enum parser_sample_vendor_t {
 	SAMPLE_VENDOR_OCEANIC_VEO250,
 	SAMPLE_VENDOR_OCEANIC_ATOM2
 } parser_sample_vendor_t;
+
+typedef enum dc_water_t {
+	DC_WATER_FRESH,
+	DC_WATER_SALT
+} dc_water_t;
+
+typedef struct dc_salinity_t {
+	dc_water_t type;
+	double density;
+} dc_salinity_t;
 
 typedef struct dc_gasmix_t {
 	double helium;
