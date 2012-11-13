@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/hw_ostc.h>
+#include "libdivecomputer/units.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -307,7 +308,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Depth (mbar).
 		unsigned int depth = array_uint16_le (data + offset);
-		sample.depth = depth / 100.0;
+		sample.depth = (depth * BAR / 1000.0) / (GRAVITY * data[43] * 10.0);
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 		offset += 2;
 
