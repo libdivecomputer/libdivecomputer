@@ -30,7 +30,7 @@
 #include "array.h"
 
 #define ATOM1       0x4250
-#define EPIC        0x4257
+#define EPICA       0x4257
 #define VT3         0x4258
 #define T3          0x4259
 #define ATOM2       0x4342
@@ -50,6 +50,7 @@
 #define DG03        0x444D
 #define OCS         0x4450
 #define VT41        0x4452
+#define EPICB       0x4453
 #define ATOM31      0x4456
 
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
@@ -482,7 +483,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
 				tank = (data[offset + 1] & 0x03) - 1;
-				if (parser->model == ATOM2 || parser->model == EPIC)
+				if (parser->model == ATOM2 || parser->model == EPICA || parser->model == EPICB)
 					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
@@ -522,7 +523,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					unsigned int sign;
 					if (parser->model == DG03)
 						sign = (~data[offset + 5] & 0x04) >> 2;
-					else if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
+					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
+						parser->model == EPICA || parser->model == EPICB)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;

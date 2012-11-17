@@ -66,7 +66,8 @@ static const device_backend_t oceanic_atom2_device_backend = {
 
 static const unsigned char aeris_manta_version[]   = "MANTA  R\0\0  512K";
 static const unsigned char aeris_atmosai_version[] = "ATMOSAI R\0\0 512K";
-static const unsigned char aeris_epic_version[]  = "2M EPIC r\0\0 512K";
+static const unsigned char aeris_epica_version[]   = "2M EPIC r\0\0 512K";
+static const unsigned char aeris_epicb_version[]   = "EPIC1  R\0\0  512K";
 static const unsigned char aeris_f10_version[] = "FREEWAER \0\0 512K";
 static const unsigned char oceanic_proplus2_version[] = "PROPLUS2 \0\0 512K";
 static const unsigned char oceanic_atom1_version[] = "ATOM rev\0\0  256K";
@@ -399,7 +400,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		oceanic_common_match (tusa_element2_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (tusa_zen_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom2b_layout;
-	else if (oceanic_common_match (aeris_epic_version, device->version, sizeof (device->version)) ||
+	else if (oceanic_common_match (aeris_epica_version, device->version, sizeof (device->version)) ||
+		oceanic_common_match (aeris_epicb_version, device->version, sizeof (device->version)) ||
 		oceanic_common_match (oceanic_atom2_version, device->version, sizeof (device->version)))
 		device->base.layout = &oceanic_atom2c_layout;
 	else if (oceanic_common_match (oceanic_veo1_version, device->version, sizeof (device->version)))
