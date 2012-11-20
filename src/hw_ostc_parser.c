@@ -294,6 +294,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		info[i].size    = (data[37 + i] & 0xF0) >> 4;
 		switch (i) {
 		case 0: // Temperature
+		case 1: // Deco / NDL
 			if (info[i].size != 2)
 				return DC_STATUS_DATAFORMAT;
 			break;
@@ -337,25 +338,59 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		}
 
 		// Alarms
+		sample.event.type = 0;
+		sample.event.time = 0;
+		sample.event.flags = 0;
+		sample.event.value = 0;
 		switch (events & 0x0F) {
 		case 0: // No Alarm
+			break;
 		case 1: // Slow
+			sample.event.type = SAMPLE_EVENT_ASCENT;
+			break;
 		case 2: // Deco Stop missed
+			sample.event.type = SAMPLE_EVENT_CEILING;
+			break;
 		case 3: // Deep Stop missed
+			sample.event.type = SAMPLE_EVENT_CEILING;
+			break;
 		case 4: // ppO2 Low Warning
+			sample.event.type = SAMPLE_EVENT_PO2;
+			break;
 		case 5: // ppO2 High Warning
+			sample.event.type = SAMPLE_EVENT_PO2;
+			break;
 		case 6: // Manual Marker
+			sample.event.type = SAMPLE_EVENT_BOOKMARK;
+			break;
 		case 7: // Low Battery
 			break;
 		}
+		if (sample.event.type && callback)
+			callback (DC_SAMPLE_EVENT, sample, userdata);
 
-		// Manual Gas Set
+		// Manual Gas Set & Change
 		if (events & 0x10) {
+			if (offset + 2 > size)
+				return DC_STATUS_DATAFORMAT;
+			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+			sample.event.time = 0;
+			sample.event.flags = 0;
+			sample.event.value = data[offset] | (data[offset + 1] << 16);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset += 2;
 		}
 
 		// Gas Change
 		if (events & 0x20) {
+			if (offset + 1 > size || data[offset] >= 5)
+				return DC_STATUS_DATAFORMAT;
+			unsigned int idx = data[offset];
+			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+			sample.event.time = 0;
+			sample.event.flags = 0;
+			sample.event.value = data[19 + 2 * idx] | (data[20 + 2 * idx] << 16);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset++;
 		}
 
@@ -369,6 +404,17 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					sample.temperature = value / 10.0;
 					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 					break;
+				case 1: // Deco / NDL
+					if (data[offset]) {
+						sample.event.type = SAMPLE_EVENT_DECOSTOP;
+						sample.event.value = data[offset] | ((data[offset + 1] * 60) << 16);
+					} else {
+						sample.event.type = SAMPLE_EVENT_NDL;
+						sample.event.value = data[offset + 1] * 60;
+					}
+					sample.event.time = 0;
+					sample.event.flags = 0;
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 				default: // Not yet used.
 					break;
 				}

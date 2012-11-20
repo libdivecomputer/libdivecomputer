@@ -238,7 +238,8 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		"violation", "bookmark", "surface", "safety stop", "gaschange",
 		"safety stop (voluntary)", "safety stop (mandatory)", "deepstop",
 		"ceiling (safety stop)", "unknown", "divetime", "maxdepth",
-		"OLF", "PO2", "airtime", "rgbm", "heading", "tissue level warning"};
+		"OLF", "PO2", "airtime", "rgbm", "heading", "tissue level warning",
+		"gaschange2", "ndl"};
 
 	sample_data_t *sampledata = (sample_data_t *) userdata;
 

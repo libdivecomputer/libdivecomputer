@@ -77,7 +77,9 @@ typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_AIRTIME,
 	SAMPLE_EVENT_RGBM,
 	SAMPLE_EVENT_HEADING,
-	SAMPLE_EVENT_TISSUELEVEL
+	SAMPLE_EVENT_TISSUELEVEL,
+	SAMPLE_EVENT_GASCHANGE2,
+	SAMPLE_EVENT_NDL
 } parser_sample_event_t;
 
 typedef enum parser_sample_flags_t {
