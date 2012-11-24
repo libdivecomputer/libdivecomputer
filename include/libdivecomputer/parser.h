@@ -54,7 +54,10 @@ typedef enum dc_field_type_t {
 
 typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_NONE,
-	SAMPLE_EVENT_DECOSTOP,
+	SAMPLE_EVENT_DECOSTOP, /* The event value contains an optional decompression
+	                          depth (in meters) and time (in seconds), packed as
+	                          two 16bit integers in respectively the low and
+	                          high part. */
 	SAMPLE_EVENT_RBT,
 	SAMPLE_EVENT_ASCENT,
 	SAMPLE_EVENT_CEILING,
@@ -64,7 +67,7 @@ typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_BOOKMARK,
 	SAMPLE_EVENT_SURFACE,
 	SAMPLE_EVENT_SAFETYSTOP,
-	SAMPLE_EVENT_GASCHANGE,
+	SAMPLE_EVENT_GASCHANGE, /* The event value contains the O2 percentage. */
 	SAMPLE_EVENT_SAFETYSTOP_VOLUNTARY,
 	SAMPLE_EVENT_SAFETYSTOP_MANDATORY,
 	SAMPLE_EVENT_DEEPSTOP,
@@ -78,8 +81,11 @@ typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_RGBM,
 	SAMPLE_EVENT_HEADING,
 	SAMPLE_EVENT_TISSUELEVEL,
-	SAMPLE_EVENT_GASCHANGE2,
-	SAMPLE_EVENT_NDL
+	SAMPLE_EVENT_GASCHANGE2, /* The event value contains the O2 and He
+	                            percentages, packed as two 16bit integers in
+	                            respectively the low and high part. */
+	SAMPLE_EVENT_NDL /* The event value contains an optional no decompression
+	                    time (in seconds). */
 } parser_sample_event_t;
 
 typedef enum parser_sample_flags_t {
