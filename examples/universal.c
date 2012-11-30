@@ -375,6 +375,36 @@ doparse (FILE *fp, dc_device_t *device, const unsigned char data[], unsigned int
 			gasmix.nitrogen * 100.0);
 	}
 
+	// Parse the salinity.
+	message ("Parsing the salinity.\n");
+	dc_salinity_t salinity = {DC_WATER_FRESH, 0.0};
+	rc = dc_parser_get_field (parser, DC_FIELD_SALINITY, 0, &salinity);
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the salinity.");
+		dc_parser_destroy (parser);
+		return rc;
+	}
+
+	if (rc != DC_STATUS_UNSUPPORTED) {
+		fprintf (fp, "<salinity type=\"%u\">%.1f</salinity>\n",
+			salinity.type, salinity.density);
+	}
+
+	// Parse the atmospheric pressure.
+	message ("Parsing the atmospheric pressure.\n");
+	double atmospheric = 0.0;
+	rc = dc_parser_get_field (parser, DC_FIELD_ATMOSPHERIC, 0, &atmospheric);
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the atmospheric pressure.");
+		dc_parser_destroy (parser);
+		return rc;
+	}
+
+	if (rc != DC_STATUS_UNSUPPORTED) {
+		fprintf (fp, "<atmospheric>%.5f</atmospheric>\n",
+			atmospheric);
+	}
+
 	// Initialize the sample data.
 	sample_data_t sampledata = {0};
 	sampledata.nsamples = 0;
