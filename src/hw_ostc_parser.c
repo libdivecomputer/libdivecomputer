@@ -212,6 +212,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
+	unsigned int salinity = data[43];
 
 	if (value) {
 		switch (type) {
@@ -236,11 +237,14 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_SALINITY:
-			if (data[43] == 100)
+			if (salinity < 100 || salinity > 104)
+				return DC_STATUS_UNSUPPORTED;
+
+			if (salinity == 100)
 				water->type = DC_WATER_FRESH;
 			else
 				water->type = DC_WATER_SALT;
-			water->density = data[43] * 10.0;
+			water->density = salinity * 10.0;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			*((double *) value) = array_uint16_le (data + 15) / 1000.0;
