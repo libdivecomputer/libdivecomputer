@@ -277,6 +277,12 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	// Get the sample rate.
 	unsigned int samplerate = data[36];
 
+	// Get the salinity factor.
+	unsigned int salinity = data[43];
+	if (salinity < 100 || salinity > 104)
+		salinity = 100;
+	double hydrostatic = GRAVITY * salinity * 10.0;
+
 	// Get the extended sample configuration.
 	hw_ostc_sample_info_t info[NINFO];
 	for (unsigned int i = 0; i < NINFO; ++i) {
@@ -308,7 +314,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Depth (mbar).
 		unsigned int depth = array_uint16_le (data + offset);
-		sample.depth = (depth * BAR / 1000.0) / (GRAVITY * data[43] * 10.0);
+		sample.depth = (depth * BAR / 1000.0) / hydrostatic;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 		offset += 2;
 
