@@ -29,6 +29,9 @@
 #include "serial.h"
 #include "array.h"
 
+#define PREDATOR 2
+#define PETREL   3
+
 #define SZ_PACKET  254
 #define SZ_BLOCK   0x80
 #define SZ_MEMORY  0x20080
@@ -463,17 +466,12 @@ shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 	return rc;
 }
 
-dc_status_t
-shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+
+static dc_status_t
+shearwater_predator_extract_predator (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	shearwater_predator_device_t *device = (shearwater_predator_device_t*) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
-
-	if (abstract && !device_is_shearwater_predator (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	if (size < SZ_MEMORY)
-		return DC_STATUS_DATAFORMAT;
 
 	// Locate the most recent dive.
 	// The device maintains an internal counter which is incremented for every
@@ -571,4 +569,71 @@ shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char da
 	free (buffer);
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+{
+	shearwater_predator_device_t *device = (shearwater_predator_device_t*) abstract;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	// Search the ringbuffer to locate matching header and footer
+	// markers. Because the Petrel does reorder the internal ringbuffer
+	// before sending the data, the most recent dive is always the first
+	// one. Therefore, there is no need to search for it, as we have to
+	// do for the Predator.
+	unsigned int header = 0;
+	unsigned int have_header = 0;
+	unsigned int offset = RB_PROFILE_BEGIN;
+	while (offset != RB_PROFILE_END) {
+		if (array_isequal (data + offset, SZ_BLOCK, 0xFF)) {
+			// Ignore empty blocks explicitly, because otherwise they are
+			// incorrectly recognized as header markers.
+			break;
+		} else if (data[offset + 0] == 0xFF && data[offset + 1] == 0xFF) {
+			// Remember the header marker.
+			header = offset;
+			have_header = 1;
+		} else if (data[offset + 0] == 0xFF && data[offset + 1] == 0xFE && have_header) {
+			// The dive number in the header and footer should be identical.
+			if (memcmp (data + header + 2, data + offset + 2, 2) != 0) {
+				ERROR (context, "Unexpected dive number.");
+				return DC_STATUS_DATAFORMAT;
+			}
+
+			// Check the fingerprint data.
+			if (device && memcmp (data + header + 12, device->fingerprint, sizeof (device->fingerprint)) == 0)
+				break;
+
+			if (callback && !callback (data + header, offset + SZ_BLOCK - header, data + header + 12, sizeof (device->fingerprint), userdata))
+				break;
+
+			// Reset the header marker.
+			have_header = 0;
+		}
+
+		offset += SZ_BLOCK;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+dc_status_t
+shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+{
+	if (abstract && !device_is_shearwater_predator (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	if (size < SZ_MEMORY)
+		return DC_STATUS_DATAFORMAT;
+
+	unsigned int model = data[0x2000D];
+
+	if (model == PETREL) {
+		return shearwater_predator_extract_petrel (abstract, data, size, callback, userdata);
+	} else {
+		return shearwater_predator_extract_predator (abstract, data, size, callback, userdata);
+	}
 }

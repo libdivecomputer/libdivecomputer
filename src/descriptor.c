@@ -164,6 +164,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},
 	/* Shearwater Predator */
 	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2},
+	{"Shearwater", "Petrel",   DC_FAMILY_SHEARWATER_PREDATOR, 3},
 };
 
 typedef struct dc_descriptor_iterator_t {
