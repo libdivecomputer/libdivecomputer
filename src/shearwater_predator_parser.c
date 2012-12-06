@@ -157,7 +157,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 				*((double *) value) = array_uint16_be (data + size - SZ_BLOCK + 4);
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 5;
+			*((unsigned int *) value) = 10;
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->oxygen = data[20 + flags] / 100.0;
