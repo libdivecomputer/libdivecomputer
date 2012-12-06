@@ -196,6 +196,9 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 	// Get the unit system.
 	unsigned int units = data[8];
 
+	// Previous gas mix.
+	unsigned int o2_previous = 0, he_previous = 0;
+
 	unsigned int time = 0;
 	unsigned int offset = SZ_BLOCK;
 	while (offset + SZ_BLOCK < size) {
@@ -229,11 +232,17 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
 		// Gaschange.
-		sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-		sample.event.time = 0;
-		sample.event.flags = 0;
-		sample.event.value = data[offset + 7] | (data[offset + 8] << 16);
-		if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+		unsigned int o2 = data[offset + 7];
+		unsigned int he = data[offset + 8];
+		if (o2 != o2_previous || he != he_previous) {
+			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+			sample.event.time = 0;
+			sample.event.flags = 0;
+			sample.event.value = o2 | (he << 16);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			o2_previous = o2;
+			he_previous = he;
+		}
 
 		// Deco stop / NDL.
 		unsigned int decostop = array_uint16_be (data + offset + 2);
