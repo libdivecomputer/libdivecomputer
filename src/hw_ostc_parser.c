@@ -302,6 +302,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			if (info[i].size != 2)
 				return DC_STATUS_DATAFORMAT;
 			break;
+		case 5: // CNS
+			if (info[i].size != 1)
+				return DC_STATUS_DATAFORMAT;
+			break;
 		default: // Not yet used.
 			break;
 		}
@@ -419,6 +423,11 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					sample.event.time = 0;
 					sample.event.flags = 0;
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					break;
+				case 5: // CNS
+					sample.cns = data[offset] / 100.0;
+					if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
+					break;
 				default: // Not yet used.
 					break;
 				}
@@ -429,6 +438,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// SetPoint Change
 		if (events & 0x40) {
+			if (offset + 1 > size)
+				return DC_STATUS_DATAFORMAT;
+			sample.setpoint = data[offset] / 100.0;
+			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
 			offset++;
 		}
 	}

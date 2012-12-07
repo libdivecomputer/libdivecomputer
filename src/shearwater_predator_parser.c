@@ -231,6 +231,10 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			sample.temperature = temperature;
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
+		// PPO2
+		sample.ppo2 = data[offset + 6] / 100.0;
+		if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+
 		// Gaschange.
 		unsigned int o2 = data[offset + 7];
 		unsigned int he = data[offset + 8];

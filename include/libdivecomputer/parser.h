@@ -39,7 +39,10 @@ typedef enum dc_sample_type_t {
 	DC_SAMPLE_RBT,
 	DC_SAMPLE_HEARTBEAT,
 	DC_SAMPLE_BEARING,
-	DC_SAMPLE_VENDOR
+	DC_SAMPLE_VENDOR,
+	DC_SAMPLE_SETPOINT,
+	DC_SAMPLE_PPO2,
+	DC_SAMPLE_CNS
 } dc_sample_type_t;
 
 typedef enum dc_field_type_t {
@@ -141,6 +144,9 @@ typedef union dc_sample_value_t {
 		unsigned int size;
 		const void *data;
 	} vendor;
+	double setpoint;
+	double ppo2;
+	double cns;
 } dc_sample_value_t;
 
 typedef struct dc_parser_t dc_parser_t;
