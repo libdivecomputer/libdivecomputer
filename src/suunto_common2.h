@@ -41,6 +41,7 @@ typedef struct suunto_common2_layout_t {
 typedef struct suunto_common2_device_t {
 	dc_device_t base;
 	const suunto_common2_layout_t *layout;
+	unsigned char version[4];
 	unsigned char fingerprint[7];
 } suunto_common2_device_t;
 

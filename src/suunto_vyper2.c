@@ -134,6 +134,15 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Enable half-duplex emulation.
 	serial_set_halfduplex (device->port, 1);
 
+	// Read the version info.
+	dc_status_t status = suunto_common2_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to read the version info.");
+		serial_close (device->port);
+		free (device);
+		return status;
+	}
+
 	// Override the base class values.
 	device->base.layout = &suunto_vyper2_layout;
 
