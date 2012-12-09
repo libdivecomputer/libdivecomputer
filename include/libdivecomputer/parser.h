@@ -42,7 +42,8 @@ typedef enum dc_sample_type_t {
 	DC_SAMPLE_VENDOR,
 	DC_SAMPLE_SETPOINT,
 	DC_SAMPLE_PPO2,
-	DC_SAMPLE_CNS
+	DC_SAMPLE_CNS,
+	DC_SAMPLE_DECO
 } dc_sample_type_t;
 
 typedef enum dc_field_type_t {
@@ -57,10 +58,7 @@ typedef enum dc_field_type_t {
 
 typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_NONE,
-	SAMPLE_EVENT_DECOSTOP, /* The event value contains an optional decompression
-	                          depth (in meters) and time (in seconds), packed as
-	                          two 16bit integers in respectively the low and
-	                          high part. */
+	SAMPLE_EVENT_DECOSTOP,
 	SAMPLE_EVENT_RBT,
 	SAMPLE_EVENT_ASCENT,
 	SAMPLE_EVENT_CEILING,
@@ -87,8 +85,6 @@ typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_GASCHANGE2, /* The event value contains the O2 and He
 	                            percentages, packed as two 16bit integers in
 	                            respectively the low and high part. */
-	SAMPLE_EVENT_NDL /* The event value contains an optional no decompression
-	                    time (in seconds). */
 } parser_sample_event_t;
 
 typedef enum parser_sample_flags_t {
@@ -110,6 +106,13 @@ typedef enum dc_water_t {
 	DC_WATER_FRESH,
 	DC_WATER_SALT
 } dc_water_t;
+
+typedef enum dc_deco_type_t {
+	DC_DECO_NDL,
+	DC_DECO_DECOSTOP,
+	DC_DECO_DEEPSTOP,
+	DC_DECO_SAFETYSTOP
+} dc_deco_type_t;
 
 typedef struct dc_salinity_t {
 	dc_water_t type;
@@ -147,6 +150,11 @@ typedef union dc_sample_value_t {
 	double setpoint;
 	double ppo2;
 	double cns;
+	struct {
+		unsigned int type;
+		unsigned int time;
+		double depth;
+	} deco;
 } dc_sample_value_t;
 
 typedef struct dc_parser_t dc_parser_t;

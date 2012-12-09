@@ -414,15 +414,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					break;
 				case 1: // Deco / NDL
 					if (data[offset]) {
-						sample.event.type = SAMPLE_EVENT_DECOSTOP;
-						sample.event.value = data[offset] | ((data[offset + 1] * 60) << 16);
+						sample.deco.type = DC_DECO_DECOSTOP;
+						sample.deco.depth = data[offset];
 					} else {
-						sample.event.type = SAMPLE_EVENT_NDL;
-						sample.event.value = data[offset + 1] * 60;
+						sample.deco.type = DC_DECO_NDL;
+						sample.deco.depth = 0.0;
 					}
-					sample.event.time = 0;
-					sample.event.flags = 0;
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					sample.deco.time = data[offset + 1] * 60;
+					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 					break;
 				case 5: // CNS
 					sample.cns = data[offset] / 100.0;
