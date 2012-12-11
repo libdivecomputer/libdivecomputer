@@ -296,18 +296,20 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	for (unsigned int i = 0; i < NINFO; ++i) {
 		info[i].divisor = (data[37 + i] & 0x0F);
 		info[i].size    = (data[37 + i] & 0xF0) >> 4;
-		switch (i) {
-		case 0: // Temperature
-		case 1: // Deco / NDL
-			if (info[i].size != 2)
-				return DC_STATUS_DATAFORMAT;
-			break;
-		case 5: // CNS
-			if (info[i].size != 1)
-				return DC_STATUS_DATAFORMAT;
-			break;
-		default: // Not yet used.
-			break;
+		if (info[i].divisor) {
+			switch (i) {
+			case 0: // Temperature
+			case 1: // Deco / NDL
+				if (info[i].size != 2)
+					return DC_STATUS_DATAFORMAT;
+				break;
+			case 5: // CNS
+				if (info[i].size != 1)
+					return DC_STATUS_DATAFORMAT;
+				break;
+			default: // Not yet used.
+				break;
+			}
 		}
 	}
 
