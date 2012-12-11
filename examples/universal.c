@@ -240,7 +240,9 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		"safety stop (voluntary)", "safety stop (mandatory)", "deepstop",
 		"ceiling (safety stop)", "unknown", "divetime", "maxdepth",
 		"OLF", "PO2", "airtime", "rgbm", "heading", "tissue level warning",
-		"gaschange2", "ndl"};
+		"gaschange2"};
+	static const char *decostop[] = {
+		"ndl", "deco", "deep", "safety"};
 
 	sample_data_t *sampledata = (sample_data_t *) userdata;
 
@@ -278,6 +280,19 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		for (unsigned int i = 0; i < value.vendor.size; ++i)
 			fprintf (sampledata->fp, "%02X", ((unsigned char *) value.vendor.data)[i]);
 		fprintf (sampledata->fp, "</vendor>\n");
+		break;
+	case DC_SAMPLE_SETPOINT:
+		fprintf (sampledata->fp, "   <setpoint>%.2f</setpoint>\n", value.setpoint);
+		break;
+	case DC_SAMPLE_PPO2:
+		fprintf (sampledata->fp, "   <ppo2>%.2f</ppo2>\n", value.ppo2);
+		break;
+	case DC_SAMPLE_CNS:
+		fprintf (sampledata->fp, "   <cns>%.2f</cns>\n", value.cns);
+		break;
+	case DC_SAMPLE_DECO:
+		fprintf (sampledata->fp, "   <deco time=\"%u\" depth=\"%.2f\">%s</deco>\n",
+			value.deco.time, value.deco.depth, decostop[value.deco.type]);
 		break;
 	default:
 		break;
