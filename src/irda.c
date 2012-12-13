@@ -22,6 +22,7 @@
 #include <stdlib.h> // malloc, free
 #include <stdio.h>	// snprintf
 #ifdef _WIN32
+	#define NOGDI
 	#include <winsock2.h>
 	#include <windows.h>
 	#include <af_irda.h>

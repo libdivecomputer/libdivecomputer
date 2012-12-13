@@ -27,6 +27,9 @@
 #include <stdlib.h> // malloc, free
 
 #ifdef HAVE_LIBUSB
+#ifdef _WIN32
+#define NOGDI
+#endif
 #include <libusb-1.0/libusb.h>
 #endif
 
