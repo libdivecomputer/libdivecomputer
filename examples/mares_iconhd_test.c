@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>	// fopen, fwrite, fclose
+#include <stdlib.h>
 
 #include <libdivecomputer/mares_iconhd.h>
 
@@ -27,7 +28,7 @@
 #include "common.h"
 
 dc_status_t
-test_dump_memory (const char* name, const char* filename)
+test_dump_memory (const char* name, const char* filename, unsigned int model)
 {
 	dc_context_t *context = NULL;
 	dc_device_t *device = NULL;
@@ -37,7 +38,7 @@ test_dump_memory (const char* name, const char* filename)
 	dc_context_set_logfunc (context, logfunc, NULL);
 
 	message ("mares_iconhd_device_open\n");
-	dc_status_t rc = mares_iconhd_device_open (&device, context, name);
+	dc_status_t rc = mares_iconhd_device_open (&device, context, name, model);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		dc_context_free (context);
@@ -88,14 +89,20 @@ int main(int argc, char *argv[])
 #else
 	const char* name = "/dev/ttyS0";
 #endif
+	unsigned int model = 0;
 
 	if (argc > 1) {
 		name = argv[1];
 	}
 
-	message ("DEVICE=%s\n", name);
+	if (argc > 2) {
+		model = strtoul (argv[2], NULL, 0);
+	}
 
-	dc_status_t a = test_dump_memory (name, "ICONHD.DMP");
+	message ("DEVICE=%s\n", name);
+	message ("MODEL=0x%02x\n", model);
+
+	dc_status_t a = test_dump_memory (name, "ICONHD.DMP", model);
 
 	message ("\nSUMMARY\n");
 	message ("-------\n");

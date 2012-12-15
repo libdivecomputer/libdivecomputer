@@ -149,6 +149,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Mares Icon HD */
 	{"Mares", "Icon HD",           DC_FAMILY_MARES_ICONHD , 0x14},
 	{"Mares", "Icon HD Net Ready", DC_FAMILY_MARES_ICONHD , 0x15},
+	{"Mares", "Nemo Wide 2",       DC_FAMILY_MARES_ICONHD , 0x19},
 	/* Heinrichs Weikamp */
 	{"Heinrichs Weikamp", "OSTC",     DC_FAMILY_HW_OSTC, 0},
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1},
