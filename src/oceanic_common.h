@@ -31,6 +31,10 @@ extern "C" {
 #define PAGESIZE 0x10
 #define FPMAXSIZE 0x20
 
+#define OCEANIC_COMMON_MATCH(version,patterns) \
+	oceanic_common_match ((version), (patterns), \
+	sizeof (patterns) / sizeof *(patterns))
+
 typedef struct oceanic_common_layout_t {
 	// Memory size.
 	unsigned int memsize;
@@ -60,8 +64,10 @@ typedef struct oceanic_common_device_t {
 	unsigned int multipage;
 } oceanic_common_device_t;
 
+typedef unsigned char oceanic_common_version_t[PAGESIZE + 1];
+
 int
-oceanic_common_match (const unsigned char *pattern, const unsigned char *string, unsigned int n);
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n);
 
 void
 oceanic_common_device_init (oceanic_common_device_t *device, dc_context_t *context, const device_backend_t *backend);

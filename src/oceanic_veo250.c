@@ -62,6 +62,15 @@ static const device_backend_t oceanic_veo250_device_backend = {
 	oceanic_veo250_device_close /* close */
 };
 
+static const oceanic_common_version_t oceanic_vtpro_version[] = {
+	{"GENREACT \0\0 256K"},
+	{"VEO 200 R\0\0 256K"},
+	{"VEO 250 R\0\0 256K"},
+	{"VEO 180 R\0\0 256K"},
+	{"AERISXR2 \0\0 256K"},
+	{"INSIGHT R\0\0 256K"},
+};
+
 static const oceanic_common_layout_t oceanic_veo250_layout = {
 	0x8000, /* memsize */
 	0x0000, /* cf_devinfo */

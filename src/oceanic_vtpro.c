@@ -62,8 +62,16 @@ static const device_backend_t oceanic_vtpro_device_backend = {
 	oceanic_vtpro_device_close /* close */
 };
 
-static const unsigned char oceanic_vtpro_version[]  = "VTPRO  r\0\0  256K";
-static const unsigned char oceanic_wisdom_version[] = "WISDOM r\0\0  256K";
+static const oceanic_common_version_t oceanic_vtpro_version[] = {
+	{"VERSAPRO \0\0 256K"},
+	{"PROPLUS2 \0\0 256K"},
+	{"ATMOSAIR \0\0 256K"},
+	{"VTPRO  r\0\0  256K"},
+};
+
+static const oceanic_common_version_t oceanic_wisdom_version[] = {
+	{"WISDOM r\0\0  256K"},
+};
 
 static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0x8000, /* memsize */
@@ -341,10 +349,11 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Override the base class values.
-	if (oceanic_common_match (oceanic_wisdom_version, device->version, sizeof (device->version)))
+	if (OCEANIC_COMMON_MATCH (device->version, oceanic_wisdom_version)) {
 		device->base.layout = &oceanic_wisdom_layout;
-	else
+	} else {
 		device->base.layout = &oceanic_vtpro_layout;
+	}
 
 	*out = (dc_device_t*) device;
 

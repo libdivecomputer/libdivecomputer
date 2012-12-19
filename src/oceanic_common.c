@@ -92,15 +92,27 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 }
 
 
-int
-oceanic_common_match (const unsigned char *pattern, const unsigned char *string, unsigned int n)
+static int
+oceanic_common_match_pattern (const unsigned char *string, const unsigned char *pattern)
 {
-	for (unsigned int i = 0; i < n; ++i, ++pattern, ++string) {
+	for (unsigned int i = 0; i < PAGESIZE; ++i, ++pattern, ++string) {
 		if (*pattern != '\0' && *pattern != *string)
 			return 0;
 	}
 
 	return 1;
+}
+
+
+int
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n)
+{
+	for (unsigned int i = 0; i < n; ++i) {
+		if (oceanic_common_match_pattern (version, patterns[i]))
+			return 1;
+	}
+
+	return 0;
 }
 
 
