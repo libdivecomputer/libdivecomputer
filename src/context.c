@@ -27,6 +27,8 @@
 #ifdef _WIN32
 #define NOGDI
 #include <windows.h>
+#else
+#include <sys/time.h>
 #endif
 
 #include "context-private.h"
@@ -37,6 +39,11 @@ struct dc_context_t {
 	void *userdata;
 #ifdef ENABLE_LOGGING
 	char msg[4096];
+#ifdef _WIN32
+	DWORD timestamp;
+#else
+	struct timeval timestamp;
+#endif
 #endif
 };
 
@@ -127,10 +134,29 @@ logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsign
 {
 	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
 
+	unsigned long seconds = 0, milliseconds = 0;
+
+#ifdef _WIN32
+	DWORD now = GetTickCount ();
+	DWORD delta = now - context->timestamp;
+	seconds = delta / 1000;
+	milliseconds = delta % 1000;
+#else
+	struct timeval now, delta;
+	gettimeofday (&now, NULL);
+	timersub (&now, &context->timestamp, &delta);
+	seconds = delta.tv_sec;
+	milliseconds = delta.tv_usec / 1000;
+#endif
+
 	if (loglevel == DC_LOGLEVEL_ERROR || loglevel == DC_LOGLEVEL_WARNING) {
-		fprintf (stderr, "%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
+		fprintf (stderr, "[%li.%03li] %s: %s [in %s:%d (%s)]\n",
+			seconds, milliseconds,
+			loglevels[loglevel], msg, file, line, function);
 	} else {
-		fprintf (stderr, "%s: %s\n", loglevels[loglevel], msg);
+		fprintf (stderr, "[%li.%03li] %s: %s\n",
+			seconds, milliseconds,
+			loglevels[loglevel], msg);
 	}
 }
 #endif
@@ -158,6 +184,11 @@ dc_context_new (dc_context_t **out)
 
 #ifdef ENABLE_LOGGING
 	memset (context->msg, 0, sizeof (context->msg));
+#ifdef _WIN32
+	context->timestamp = GetTickCount ();
+#else
+	gettimeofday (&context->timestamp, NULL);
+#endif
 #endif
 
 	*out = context;
