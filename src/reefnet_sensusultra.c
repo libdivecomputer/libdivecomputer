@@ -193,20 +193,6 @@ reefnet_sensusultra_device_set_maxretries (dc_device_t *abstract, unsigned int m
 }
 
 
-dc_status_t
-reefnet_sensusultra_device_set_timestamp (dc_device_t *abstract, unsigned int timestamp)
-{
-	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
-
-	if (! device_is_reefnet_sensusultra (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	device->timestamp = timestamp;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
 static dc_status_t
 reefnet_sensusultra_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
