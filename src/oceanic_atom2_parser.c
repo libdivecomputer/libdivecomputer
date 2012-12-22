@@ -30,7 +30,7 @@
 #include "array.h"
 
 #define ATOM1       0x4250
-#define EPIC        0x4257
+#define EPICA       0x4257
 #define VT3         0x4258
 #define T3          0x4259
 #define ATOM2       0x4342
@@ -47,9 +47,12 @@
 #define VT4         0x4447
 #define OC1B        0x4449
 #define ATOM3       0x444C
+#define DG03        0x444D
 #define OCS         0x4450
 #define VT41        0x4452
+#define EPICB       0x4453
 #define ATOM31      0x4456
+#define A300AI      0x4457
 
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
@@ -172,6 +175,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case VT41:
 		case ATOM3:
 		case ATOM31:
+		case A300AI:
 			datetime->year   = ((p[5] & 0xE0) >> 5) + ((p[7] & 0xE0) >> 2) + 2000;
 			datetime->month  = (p[3] & 0x0F);
 			datetime->day    = ((p[0] & 0x80) >> 3) + ((p[3] & 0xF0) >> 4);
@@ -182,6 +186,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case VEO20:
 		case VEO30:
 		case GEO20:
+		case DG03:
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
@@ -480,7 +485,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
 				tank = (data[offset + 1] & 0x03) - 1;
-				if (parser->model == ATOM2 || parser->model == EPIC)
+				if (parser->model == ATOM2 || parser->model == EPICA || parser->model == EPICB)
 					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
 				else
 					pressure = (((data[offset + 4] << 8) + data[offset + 5]) & 0x0FFF) * 2;
@@ -514,11 +519,14 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					temperature = data[offset + 3];
 				} else if (parser->model == OCS) {
 					temperature = data[offset + 1];
-				} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31) {
+				} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31 || parser->model == A300AI) {
 					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
 				} else {
 					unsigned int sign;
-					if (parser->model == ATOM2 || parser->model == EPIC || parser->model == PROPLUS21)
+					if (parser->model == DG03)
+						sign = (~data[offset + 5] & 0x04) >> 2;
+					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
+						parser->model == EPICA || parser->model == EPICB)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;
@@ -535,7 +543,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (have_pressure) {
 				if (parser->model == OC1A || parser->model == OC1B)
 					pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
-				else if (parser->model == ZENAIR || parser->model == VT4 || parser->model == VT41|| parser->model == ATOM3 || parser->model == ATOM31)
+				else if (parser->model == ZENAIR || parser->model == VT4 || parser->model == VT41|| parser->model == ATOM3 || parser->model == ATOM31 || parser->model == A300AI)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else
 					pressure -= data[offset + 1];

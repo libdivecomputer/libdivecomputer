@@ -20,6 +20,8 @@
  */
 
 #include <stdlib.h>
+
+#define NOGDI
 #include <windows.h>
 
 #include "serial.h"
