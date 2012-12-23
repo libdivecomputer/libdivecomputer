@@ -42,6 +42,7 @@
 #define SZ_HANDSHAKE 24
 #define SZ_SENSE     6
 
+#define MAXRETRIES 2
 #define PROMPT 0xA5
 #define ACCEPT PROMPT
 #define REJECT 0x00
@@ -50,7 +51,6 @@ typedef struct reefnet_sensusultra_device_t {
 	dc_device_t base;
 	serial_t *port;
 	unsigned char handshake[SZ_HANDSHAKE];
-	unsigned int maxretries;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -99,7 +99,6 @@ reefnet_sensusultra_device_open (dc_device_t **out, dc_context_t *context, const
 
 	// Set the default values.
 	device->port = NULL;
-	device->maxretries = 2;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
@@ -174,20 +173,6 @@ reefnet_sensusultra_device_get_handshake (dc_device_t *abstract, unsigned char d
 	}
 
 	memcpy (data, device->handshake, SZ_HANDSHAKE);
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-dc_status_t
-reefnet_sensusultra_device_set_maxretries (dc_device_t *abstract, unsigned int maxretries)
-{
-	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
-
-	if (! device_is_reefnet_sensusultra (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	device->maxretries = maxretries;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -345,7 +330,7 @@ reefnet_sensusultra_page (reefnet_sensusultra_device_t *device, unsigned char *d
 			return rc;
 
 		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= device->maxretries)
+		if (nretries++ >= MAXRETRIES)
 			return rc;
 
 		// Reject the packet.
@@ -381,7 +366,7 @@ reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short c
 			return rc;
 
 		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= device->maxretries)
+		if (nretries++ >= MAXRETRIES)
 			return rc;
 
 		// According to the developers guide, a 250 ms delay is suggested to
