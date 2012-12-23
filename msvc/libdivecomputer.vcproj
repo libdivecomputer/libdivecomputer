@@ -339,6 +339,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\shearwater_predator.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\shearwater_predator_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\suunto_common.c"
 				>
 			</File>
@@ -562,6 +570,14 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\serial.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\shearwater.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\shearwater_predator.h"
 				>
 			</File>
 			<File
