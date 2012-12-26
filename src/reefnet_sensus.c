@@ -266,6 +266,12 @@ reefnet_sensus_handshake (reefnet_sensus_device_t *device)
 	devinfo.serial = array_uint16_le (handshake + 6);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->handshake;
+	vendor.size = sizeof (device->handshake);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	// Wait at least 10 ms to ensures the data line is
 	// clear before transmission from the host begins.
 

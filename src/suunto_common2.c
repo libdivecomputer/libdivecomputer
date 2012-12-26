@@ -216,6 +216,12 @@ suunto_common2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SZ_PACKET);
 }
@@ -239,6 +245,12 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin +
 		8 + (SZ_MINIMUM > 4 ? SZ_MINIMUM : 4);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Read the serial number.
 	unsigned char serial[SZ_MINIMUM > 4 ? SZ_MINIMUM : 4] = {0};

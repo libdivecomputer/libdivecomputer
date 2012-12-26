@@ -36,7 +36,8 @@ typedef enum dc_event_type_t {
 	DC_EVENT_WAITING = (1 << 0),
 	DC_EVENT_PROGRESS = (1 << 1),
 	DC_EVENT_DEVINFO = (1 << 2),
-	DC_EVENT_CLOCK = (1 << 3)
+	DC_EVENT_CLOCK = (1 << 3),
+	DC_EVENT_VENDOR = (1 << 4)
 } dc_event_type_t;
 
 typedef struct dc_device_t dc_device_t;
@@ -56,6 +57,11 @@ typedef struct dc_event_clock_t {
 	unsigned int devtime;
 	dc_ticks_t systime;
 } dc_event_clock_t;
+
+typedef struct dc_event_vendor_t {
+	const unsigned char *data;
+	unsigned int size;
+} dc_event_vendor_t;
 
 typedef int (*dc_cancel_callback_t) (void *userdata);
 

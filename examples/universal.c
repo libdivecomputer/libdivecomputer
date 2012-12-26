@@ -455,6 +455,7 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 	const dc_event_progress_t *progress = (dc_event_progress_t *) data;
 	const dc_event_devinfo_t *devinfo = (dc_event_devinfo_t *) data;
 	const dc_event_clock_t *clock = (dc_event_clock_t *) data;
+	const dc_event_vendor_t *vendor = (dc_event_vendor_t *) data;
 
 	device_data_t *devdata = (device_data_t *) userdata;
 
@@ -485,6 +486,12 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 		devdata->clock = *clock;
 		message ("Event: systime=" DC_TICKS_FORMAT ", devtime=%u\n",
 			clock->systime, clock->devtime);
+		break;
+	case DC_EVENT_VENDOR:
+		message ("Event: vendor=");
+		for (unsigned int i = 0; i < vendor->size; ++i)
+			message ("%02X", vendor->data[i]);
+		message ("\n");
 		break;
 	default:
 		break;
@@ -654,7 +661,7 @@ dowork (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname,
 
 	// Register the event handler.
 	message ("Registering the event handler.\n");
-	int events = DC_EVENT_WAITING | DC_EVENT_PROGRESS | DC_EVENT_DEVINFO | DC_EVENT_CLOCK;
+	int events = DC_EVENT_WAITING | DC_EVENT_PROGRESS | DC_EVENT_DEVINFO | DC_EVENT_CLOCK | DC_EVENT_VENDOR;
 	rc = dc_device_set_events (device, events, event_cb, &devdata);
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error registering the event handler.");

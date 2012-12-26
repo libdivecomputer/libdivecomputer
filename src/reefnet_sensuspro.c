@@ -236,6 +236,12 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	devinfo.serial = array_uint16_le (handshake + 4);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->handshake;
+	vendor.size = sizeof (device->handshake);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	serial_sleep (device->port, 10);
 
 	return DC_STATUS_SUCCESS;

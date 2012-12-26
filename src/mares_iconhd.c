@@ -368,6 +368,12 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	progress.maximum = SZ_MEMORY;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	return mares_iconhd_read (device, 0, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), &progress);
 }

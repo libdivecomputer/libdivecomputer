@@ -358,6 +358,12 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	progress.maximum = SZ_MEMORY + 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_le (device->version + 12);

@@ -305,6 +305,12 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device, unsigned sh
 	devinfo.serial = array_uint16_le (handshake + 2);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->handshake;
+	vendor.size = sizeof (device->handshake);
+	device_event_emit (&device->base, DC_EVENT_VENDOR, &vendor);
+
 	// Send the instruction code to the device.
 	rc = reefnet_sensusultra_send_ushort (device, value);
 	if (rc != DC_STATUS_SUCCESS)

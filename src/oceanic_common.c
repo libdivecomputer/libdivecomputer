@@ -170,6 +170,12 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), PAGESIZE * device->multipage);
 }
@@ -192,6 +198,12 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		(layout->rb_profile_end - layout->rb_profile_begin) +
 		(layout->rb_logbook_end - layout->rb_logbook_begin);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Read the device id.
 	unsigned char id[PAGESIZE] = {0};
