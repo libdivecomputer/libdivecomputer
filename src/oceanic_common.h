@@ -59,6 +59,7 @@ typedef struct oceanic_common_layout_t {
 
 typedef struct oceanic_common_device_t {
 	dc_device_t base;
+	unsigned char version[PAGESIZE];
 	unsigned char fingerprint[FPMAXSIZE];
 	const oceanic_common_layout_t *layout;
 	unsigned int multipage;

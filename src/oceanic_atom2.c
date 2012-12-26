@@ -45,7 +45,6 @@
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
 	serial_t *port;
-	unsigned char version[PAGESIZE];
 } oceanic_atom2_device_t;
 
 static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -361,7 +360,6 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 	// Set the default values.
 	device->port = NULL;
-	memset (device->version, 0, sizeof (device->version));
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -397,7 +395,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
 	// by connecting the device), or already in download mode.
-	dc_status_t status = oceanic_atom2_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
+	dc_status_t status = oceanic_atom2_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
@@ -405,27 +403,27 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Override the base class values.
-	if (OCEANIC_COMMON_MATCH (device->version, aeris_f10_version)) {
+	if (OCEANIC_COMMON_MATCH (device->base.version, aeris_f10_version)) {
 		device->base.layout = &aeris_f10_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_atom1_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom1_version)) {
 		device->base.layout = &oceanic_atom1_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_atom2_version)) {
-		if (array_uint16_be (device->version + 0x09) >= 0x3349) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2_version)) {
+		if (array_uint16_be (device->base.version + 0x09) >= 0x3349) {
 			device->base.layout = &oceanic_atom2a_layout;
 		} else {
 			device->base.layout = &oceanic_atom2c_layout;
 		}
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_atom2a_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2a_version)) {
 		device->base.layout = &oceanic_atom2a_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_atom2b_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2b_version)) {
 		device->base.layout = &oceanic_atom2b_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_atom2c_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2c_version)) {
 		device->base.layout = &oceanic_atom2c_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, tusa_zenair_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, tusa_zenair_version)) {
 		device->base.layout = &tusa_zenair_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_oc1_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_oc1_version)) {
 		device->base.layout = &oceanic_oc1_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->version, oceanic_veo1_version)) {
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_veo1_version)) {
 		device->base.layout = &oceanic_veo1_layout;
 	} else {
 		device->base.layout = &oceanic_default_layout;

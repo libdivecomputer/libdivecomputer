@@ -46,7 +46,6 @@ typedef struct oceanic_veo250_device_t {
 	oceanic_common_device_t base;
 	serial_t *port;
 	unsigned int last;
-	unsigned char version[PAGESIZE];
 } oceanic_veo250_device_t;
 
 static dc_status_t oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -249,7 +248,6 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	// Set the default values.
 	device->port = NULL;
 	device->last = 0;
-	memset (device->version, 0, sizeof (device->version));
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -305,7 +303,7 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (manually activated by
 	// the user), or already in download mode.
-	status = oceanic_veo250_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
+	status = oceanic_veo250_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);

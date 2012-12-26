@@ -125,6 +125,7 @@ oceanic_common_device_init (oceanic_common_device_t *device, dc_context_t *conte
 	device_init (&device->base, context, backend);
 
 	// Set the default values.
+	memset (device->version, 0, sizeof (device->version));
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->layout = NULL;
 	device->multipage = 1;
