@@ -117,12 +117,12 @@ oceanic_common_match (const unsigned char *version, const oceanic_common_version
 
 
 void
-oceanic_common_device_init (oceanic_common_device_t *device, dc_context_t *context, const device_backend_t *backend)
+oceanic_common_device_init (oceanic_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
 {
 	assert (device != NULL);
 
 	// Initialize the base class.
-	device_init (&device->base, context, backend);
+	device_init (&device->base, context, vtable);
 
 	// Set the default values.
 	memset (device->version, 0, sizeof (device->version));

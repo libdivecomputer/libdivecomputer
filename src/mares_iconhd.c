@@ -70,7 +70,7 @@ static dc_status_t mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t 
 static dc_status_t mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t mares_iconhd_device_close (dc_device_t *abstract);
 
-static const device_backend_t mares_iconhd_device_backend = {
+static const dc_device_vtable_t mares_iconhd_device_vtable = {
 	DC_FAMILY_MARES_ICONHD,
 	mares_iconhd_device_set_fingerprint, /* set_fingerprint */
 	mares_iconhd_device_read, /* read */
@@ -86,7 +86,7 @@ device_is_mares_iconhd (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &mares_iconhd_device_backend;
+    return abstract->vtable == &mares_iconhd_device_vtable;
 }
 
 
@@ -250,7 +250,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &mares_iconhd_device_backend);
+	device_init (&device->base, context, &mares_iconhd_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

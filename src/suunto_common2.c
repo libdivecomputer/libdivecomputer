@@ -37,15 +37,15 @@
 
 #define RB_PROFILE_DISTANCE(l,a,b,m)  ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
-#define BACKEND(abstract)	((suunto_common2_device_backend_t *) abstract->backend)
+#define VTABLE(abstract)	((suunto_common2_device_vtable_t *) abstract->vtable)
 
 void
-suunto_common2_device_init (suunto_common2_device_t *device, dc_context_t *context, const suunto_common2_device_backend_t *backend)
+suunto_common2_device_init (suunto_common2_device_t *device, dc_context_t *context, const suunto_common2_device_vtable_t *vtable)
 {
 	assert (device != NULL);
 
 	// Initialize the base class.
-	device_init (&device->base, context, &backend->base);
+	device_init (&device->base, context, &vtable->base);
 
 	// Set the default values.
 	device->layout = NULL;
@@ -59,7 +59,7 @@ suunto_common2_transfer (dc_device_t *abstract, const unsigned char command[], u
 {
 	assert (asize >= size + 4);
 
-	if (BACKEND (abstract)->packet == NULL)
+	if (VTABLE (abstract)->packet == NULL)
 		return DC_STATUS_UNSUPPORTED;
 
 	// Occasionally, the dive computer does not respond to a command.
@@ -69,7 +69,7 @@ suunto_common2_transfer (dc_device_t *abstract, const unsigned char command[], u
 
 	unsigned int nretries = 0;
 	dc_status_t rc = DC_STATUS_SUCCESS;
-	while ((rc = BACKEND (abstract)->packet (abstract, command, csize, answer, asize, size)) != DC_STATUS_SUCCESS) {
+	while ((rc = VTABLE (abstract)->packet (abstract, command, csize, answer, asize, size)) != DC_STATUS_SUCCESS) {
 		// Automatically discard a corrupted packet,
 		// and request a new one.
 		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)

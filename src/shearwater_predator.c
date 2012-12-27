@@ -58,7 +58,7 @@ static dc_status_t shearwater_predator_device_dump (dc_device_t *abstract, dc_bu
 static dc_status_t shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t shearwater_predator_device_close (dc_device_t *abstract);
 
-static const device_backend_t shearwater_predator_device_backend = {
+static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	DC_FAMILY_SHEARWATER_PREDATOR,
 	shearwater_predator_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -75,7 +75,7 @@ device_is_shearwater_predator (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &shearwater_predator_device_backend;
+    return abstract->vtable == &shearwater_predator_device_vtable;
 }
 
 
@@ -267,7 +267,7 @@ shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, const
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &shearwater_predator_device_backend);
+	device_init (&device->base, context, &shearwater_predator_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

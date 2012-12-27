@@ -49,7 +49,7 @@ static dc_status_t suunto_solution_device_dump (dc_device_t *abstract, dc_buffer
 static dc_status_t suunto_solution_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t suunto_solution_device_close (dc_device_t *abstract);
 
-static const device_backend_t suunto_solution_device_backend = {
+static const dc_device_vtable_t suunto_solution_device_vtable = {
 	DC_FAMILY_SUUNTO_SOLUTION,
 	NULL, /* set_fingerprint */
 	NULL, /* read */
@@ -65,7 +65,7 @@ device_is_suunto_solution (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &suunto_solution_device_backend;
+    return abstract->vtable == &suunto_solution_device_vtable;
 }
 
 
@@ -83,7 +83,7 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &suunto_solution_device_backend);
+	device_init (&device->base, context, &suunto_solution_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

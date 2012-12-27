@@ -46,7 +46,7 @@ typedef struct suunto_common_layout_t {
 } suunto_common_layout_t;
 
 void
-suunto_common_device_init (suunto_common_device_t *device, dc_context_t *context, const device_backend_t *backend);
+suunto_common_device_init (suunto_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable);
 
 dc_status_t
 suunto_common_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);

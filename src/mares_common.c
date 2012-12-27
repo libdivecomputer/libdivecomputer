@@ -39,12 +39,12 @@
 #define FP_SIZE   5
 
 void
-mares_common_device_init (mares_common_device_t *device, dc_context_t *context, const device_backend_t *backend)
+mares_common_device_init (mares_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
 {
 	assert (device != NULL);
 
 	// Initialize the base class.
-	device_init (&device->base, context, backend);
+	device_init (&device->base, context, vtable);
 
 	// Set the default values.
 	device->port = NULL;

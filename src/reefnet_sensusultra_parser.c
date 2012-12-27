@@ -51,7 +51,7 @@ static dc_status_t reefnet_sensusultra_parser_get_field (dc_parser_t *abstract, 
 static dc_status_t reefnet_sensusultra_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 static dc_status_t reefnet_sensusultra_parser_destroy (dc_parser_t *abstract);
 
-static const parser_backend_t reefnet_sensusultra_parser_backend = {
+static const dc_parser_vtable_t reefnet_sensusultra_parser_vtable = {
 	DC_FAMILY_REEFNET_SENSUSULTRA,
 	reefnet_sensusultra_parser_set_data, /* set_data */
 	reefnet_sensusultra_parser_get_datetime, /* datetime */
@@ -67,7 +67,7 @@ parser_is_reefnet_sensusultra (dc_parser_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &reefnet_sensusultra_parser_backend;
+    return abstract->vtable == &reefnet_sensusultra_parser_vtable;
 }
 
 
@@ -85,7 +85,7 @@ reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context, uns
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, context, &reefnet_sensusultra_parser_backend);
+	parser_init (&parser->base, context, &reefnet_sensusultra_parser_vtable);
 
 	// Set the default values.
 	parser->atmospheric = ATM;

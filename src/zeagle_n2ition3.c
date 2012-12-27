@@ -59,7 +59,7 @@ static dc_status_t zeagle_n2ition3_device_dump (dc_device_t *abstract, dc_buffer
 static dc_status_t zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t zeagle_n2ition3_device_close (dc_device_t *abstract);
 
-static const device_backend_t zeagle_n2ition3_device_backend = {
+static const dc_device_vtable_t zeagle_n2ition3_device_vtable = {
 	DC_FAMILY_ZEAGLE_N2ITION3,
 	zeagle_n2ition3_device_set_fingerprint, /* set_fingerprint */
 	zeagle_n2ition3_device_read, /* read */
@@ -75,7 +75,7 @@ device_is_zeagle_n2ition3 (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &zeagle_n2ition3_device_backend;
+    return abstract->vtable == &zeagle_n2ition3_device_vtable;
 }
 
 
@@ -152,7 +152,7 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &zeagle_n2ition3_device_backend);
+	device_init (&device->base, context, &zeagle_n2ition3_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

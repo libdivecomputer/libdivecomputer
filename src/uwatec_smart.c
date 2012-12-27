@@ -48,7 +48,7 @@ static dc_status_t uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t 
 static dc_status_t uwatec_smart_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t uwatec_smart_device_close (dc_device_t *abstract);
 
-static const device_backend_t uwatec_smart_device_backend = {
+static const dc_device_vtable_t uwatec_smart_device_vtable = {
 	DC_FAMILY_UWATEC_SMART,
 	uwatec_smart_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -64,7 +64,7 @@ device_is_uwatec_smart (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &uwatec_smart_device_backend;
+    return abstract->vtable == &uwatec_smart_device_vtable;
 }
 
 
@@ -163,7 +163,7 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &uwatec_smart_device_backend);
+	device_init (&device->base, context, &uwatec_smart_device_vtable);
 
 	// Set the default values.
 	device->socket = NULL;

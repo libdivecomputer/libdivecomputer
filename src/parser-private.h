@@ -30,18 +30,18 @@ extern "C" {
 #endif /* __cplusplus */
 
 struct dc_parser_t;
-struct parser_backend_t;
+struct dc_parser_vtable_t;
 
-typedef struct parser_backend_t parser_backend_t;
+typedef struct dc_parser_vtable_t dc_parser_vtable_t;
 
 struct dc_parser_t {
-	const parser_backend_t *backend;
+	const dc_parser_vtable_t *vtable;
 	dc_context_t *context;
 	const unsigned char *data;
 	unsigned int size;
 };
 
-struct parser_backend_t {
+struct dc_parser_vtable_t {
 	dc_family_t type;
 
 	dc_status_t (*set_data) (dc_parser_t *parser, const unsigned char *data, unsigned int size);
@@ -56,7 +56,7 @@ struct parser_backend_t {
 };
 
 void
-parser_init (dc_parser_t *parser, dc_context_t *context, const parser_backend_t *backend);
+parser_init (dc_parser_t *parser, dc_context_t *context, const dc_parser_vtable_t *vtable);
 
 typedef struct sample_statistics_t {
 	unsigned int divetime;

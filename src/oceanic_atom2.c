@@ -51,7 +51,7 @@ static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned in
 static dc_status_t oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static dc_status_t oceanic_atom2_device_close (dc_device_t *abstract);
 
-static const device_backend_t oceanic_atom2_device_backend = {
+static const dc_device_vtable_t oceanic_atom2_device_vtable = {
 	DC_FAMILY_OCEANIC_ATOM2,
 	oceanic_common_device_set_fingerprint, /* set_fingerprint */
 	oceanic_atom2_device_read, /* read */
@@ -246,7 +246,7 @@ device_is_oceanic_atom2 (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &oceanic_atom2_device_backend;
+    return abstract->vtable == &oceanic_atom2_device_vtable;
 }
 
 
@@ -357,7 +357,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Initialize the base class.
-	oceanic_common_device_init (&device->base, context, &oceanic_atom2_device_backend);
+	oceanic_common_device_init (&device->base, context, &oceanic_atom2_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

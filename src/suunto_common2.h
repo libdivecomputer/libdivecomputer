@@ -47,13 +47,13 @@ typedef struct suunto_common2_device_t {
 	unsigned char fingerprint[7];
 } suunto_common2_device_t;
 
-typedef struct suunto_common2_device_backend_t {
-	device_backend_t base;
+typedef struct suunto_common2_device_vtable_t {
+	dc_device_vtable_t base;
 	dc_status_t (*packet) (dc_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
-} suunto_common2_device_backend_t;
+} suunto_common2_device_vtable_t;
 
 void
-suunto_common2_device_init (suunto_common2_device_t *device, dc_context_t *context, const suunto_common2_device_backend_t *backend);
+suunto_common2_device_init (suunto_common2_device_t *device, dc_context_t *context, const suunto_common2_device_vtable_t *vtable);
 
 dc_status_t
 suunto_common2_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);

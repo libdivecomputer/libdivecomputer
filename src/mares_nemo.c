@@ -58,7 +58,7 @@ static dc_status_t mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *b
 static dc_status_t mares_nemo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t mares_nemo_device_close (dc_device_t *abstract);
 
-static const device_backend_t mares_nemo_device_backend = {
+static const dc_device_vtable_t mares_nemo_device_vtable = {
 	DC_FAMILY_MARES_NEMO,
 	mares_nemo_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -90,7 +90,7 @@ device_is_mares_nemo (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &mares_nemo_device_backend;
+    return abstract->vtable == &mares_nemo_device_vtable;
 }
 
 
@@ -108,7 +108,7 @@ mares_nemo_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &mares_nemo_device_backend);
+	device_init (&device->base, context, &mares_nemo_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

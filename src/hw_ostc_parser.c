@@ -48,7 +48,7 @@ static dc_status_t hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_typ
 static dc_status_t hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 static dc_status_t hw_ostc_parser_destroy (dc_parser_t *abstract);
 
-static const parser_backend_t hw_ostc_parser_backend = {
+static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 	DC_FAMILY_HW_OSTC,
 	hw_ostc_parser_set_data, /* set_data */
 	hw_ostc_parser_get_datetime, /* datetime */
@@ -64,7 +64,7 @@ parser_is_hw_ostc (dc_parser_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &hw_ostc_parser_backend;
+    return abstract->vtable == &hw_ostc_parser_vtable;
 }
 
 
@@ -82,7 +82,7 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int fr
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, context, &hw_ostc_parser_backend);
+	parser_init (&parser->base, context, &hw_ostc_parser_vtable);
 
 	parser->frog = frog;
 

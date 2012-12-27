@@ -43,7 +43,7 @@ static dc_status_t mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_fiel
 static dc_status_t mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 static dc_status_t mares_iconhd_parser_destroy (dc_parser_t *abstract);
 
-static const parser_backend_t mares_iconhd_parser_backend = {
+static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 	DC_FAMILY_MARES_ICONHD,
 	mares_iconhd_parser_set_data, /* set_data */
 	mares_iconhd_parser_get_datetime, /* datetime */
@@ -59,7 +59,7 @@ parser_is_mares_iconhd (dc_parser_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &mares_iconhd_parser_backend;
+    return abstract->vtable == &mares_iconhd_parser_vtable;
 }
 
 
@@ -77,7 +77,7 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, context, &mares_iconhd_parser_backend);
+	parser_init (&parser->base, context, &mares_iconhd_parser_vtable);
 
 	// Set the default values.
 	parser->model = model;

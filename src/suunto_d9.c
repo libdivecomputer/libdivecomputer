@@ -50,7 +50,7 @@ typedef struct suunto_d9_device_t {
 static dc_status_t suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
 static dc_status_t suunto_d9_device_close (dc_device_t *abstract);
 
-static const suunto_common2_device_backend_t suunto_d9_device_backend = {
+static const suunto_common2_device_vtable_t suunto_d9_device_vtable = {
 	{
 		DC_FAMILY_SUUNTO_D9,
 		suunto_common2_device_set_fingerprint, /* set_fingerprint */
@@ -85,7 +85,7 @@ device_is_suunto_d9 (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == (const device_backend_t *) &suunto_d9_device_backend;
+    return abstract->vtable == (const dc_device_vtable_t *) &suunto_d9_device_vtable;
 }
 
 
@@ -138,7 +138,7 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 	}
 
 	// Initialize the base class.
-	suunto_common2_device_init (&device->base, context, &suunto_d9_device_backend);
+	suunto_common2_device_init (&device->base, context, &suunto_d9_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

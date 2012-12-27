@@ -46,7 +46,7 @@ static dc_status_t shearwater_predator_parser_get_field (dc_parser_t *abstract, 
 static dc_status_t shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 static dc_status_t shearwater_predator_parser_destroy (dc_parser_t *abstract);
 
-static const parser_backend_t shearwater_predator_parser_backend = {
+static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 	DC_FAMILY_SHEARWATER_PREDATOR,
 	shearwater_predator_parser_set_data, /* set_data */
 	shearwater_predator_parser_get_datetime, /* datetime */
@@ -62,7 +62,7 @@ parser_is_shearwater_predator (dc_parser_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &shearwater_predator_parser_backend;
+    return abstract->vtable == &shearwater_predator_parser_vtable;
 }
 
 
@@ -80,7 +80,7 @@ shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, context, &shearwater_predator_parser_backend);
+	parser_init (&parser->base, context, &shearwater_predator_parser_vtable);
 
 	*out = (dc_parser_t *) parser;
 

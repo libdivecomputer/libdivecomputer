@@ -63,7 +63,7 @@ static dc_status_t cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *b
 static dc_status_t cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t cressi_edy_device_close (dc_device_t *abstract);
 
-static const device_backend_t cressi_edy_device_backend = {
+static const dc_device_vtable_t cressi_edy_device_vtable = {
 	DC_FAMILY_CRESSI_EDY,
 	cressi_edy_device_set_fingerprint, /* set_fingerprint */
 	cressi_edy_device_read, /* read */
@@ -79,7 +79,7 @@ device_is_cressi_edy (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &cressi_edy_device_backend;
+    return abstract->vtable == &cressi_edy_device_vtable;
 }
 
 
@@ -187,7 +187,7 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &cressi_edy_device_backend);
+	device_init (&device->base, context, &cressi_edy_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

@@ -47,7 +47,7 @@ static dc_status_t suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *b
 static dc_status_t suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t suunto_eon_device_close (dc_device_t *abstract);
 
-static const device_backend_t suunto_eon_device_backend = {
+static const dc_device_vtable_t suunto_eon_device_vtable = {
 	DC_FAMILY_SUUNTO_EON,
 	suunto_common_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -72,7 +72,7 @@ device_is_suunto_eon (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &suunto_eon_device_backend;
+    return abstract->vtable == &suunto_eon_device_vtable;
 }
 
 
@@ -90,7 +90,7 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Initialize the base class.
-	suunto_common_device_init (&device->base, context, &suunto_eon_device_backend);
+	suunto_common_device_init (&device->base, context, &suunto_eon_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;

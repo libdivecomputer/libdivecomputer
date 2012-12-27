@@ -66,7 +66,7 @@ static dc_status_t atomics_cobalt_device_set_fingerprint (dc_device_t *abstract,
 static dc_status_t atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t atomics_cobalt_device_close (dc_device_t *abstract);
 
-static const device_backend_t atomics_cobalt_device_backend = {
+static const dc_device_vtable_t atomics_cobalt_device_vtable = {
 	DC_FAMILY_ATOMICS_COBALT,
 	atomics_cobalt_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -82,7 +82,7 @@ device_is_atomics_cobalt (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &atomics_cobalt_device_backend;
+    return abstract->vtable == &atomics_cobalt_device_vtable;
 }
 
 
@@ -101,7 +101,7 @@ atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &atomics_cobalt_device_backend);
+	device_init (&device->base, context, &atomics_cobalt_device_vtable);
 
 	// Set the default values.
 	device->context = NULL;

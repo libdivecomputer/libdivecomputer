@@ -34,12 +34,12 @@ extern "C" {
 #define EVENT_PROGRESS_INITIALIZER {0, UINT_MAX}
 
 struct dc_device_t;
-struct device_backend_t;
+struct dc_device_vtable_t;
 
-typedef struct device_backend_t device_backend_t;
+typedef struct dc_device_vtable_t dc_device_vtable_t;
 
 struct dc_device_t {
-	const device_backend_t *backend;
+	const dc_device_vtable_t *vtable;
 	// Library context.
 	dc_context_t *context;
 	// Event notifications.
@@ -54,7 +54,7 @@ struct dc_device_t {
 	dc_event_clock_t clock;
 };
 
-struct device_backend_t {
+struct dc_device_vtable_t {
 	dc_family_t type;
 
 	dc_status_t (*set_fingerprint) (dc_device_t *device, const unsigned char data[], unsigned int size);
@@ -71,7 +71,7 @@ struct device_backend_t {
 };
 
 void
-device_init (dc_device_t *device, dc_context_t *context, const device_backend_t *backend);
+device_init (dc_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable);
 
 void
 device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data);

@@ -72,7 +72,7 @@ static dc_status_t suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_t
 static dc_status_t suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 static dc_status_t suunto_d9_parser_destroy (dc_parser_t *abstract);
 
-static const parser_backend_t suunto_d9_parser_backend = {
+static const dc_parser_vtable_t suunto_d9_parser_vtable = {
 	DC_FAMILY_SUUNTO_D9,
 	suunto_d9_parser_set_data, /* set_data */
 	suunto_d9_parser_get_datetime, /* datetime */
@@ -88,7 +88,7 @@ parser_is_suunto_d9 (dc_parser_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &suunto_d9_parser_backend;
+    return abstract->vtable == &suunto_d9_parser_vtable;
 }
 
 
@@ -106,7 +106,7 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 	}
 
 	// Initialize the base class.
-	parser_init (&parser->base, context, &suunto_d9_parser_backend);
+	parser_init (&parser->base, context, &suunto_d9_parser_vtable);
 
 	// Set the default values.
 	parser->model = model;

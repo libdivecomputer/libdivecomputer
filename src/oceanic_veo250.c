@@ -51,7 +51,7 @@ typedef struct oceanic_veo250_device_t {
 static dc_status_t oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_veo250_device_close (dc_device_t *abstract);
 
-static const device_backend_t oceanic_veo250_device_backend = {
+static const dc_device_vtable_t oceanic_veo250_device_vtable = {
 	DC_FAMILY_OCEANIC_VEO250,
 	oceanic_common_device_set_fingerprint, /* set_fingerprint */
 	oceanic_veo250_device_read, /* read */
@@ -91,7 +91,7 @@ device_is_oceanic_veo250 (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &oceanic_veo250_device_backend;
+    return abstract->vtable == &oceanic_veo250_device_vtable;
 }
 
 
@@ -240,7 +240,7 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	}
 
 	// Initialize the base class.
-	oceanic_common_device_init (&device->base, context, &oceanic_veo250_device_backend);
+	oceanic_common_device_init (&device->base, context, &oceanic_veo250_device_vtable);
 
 	// Override the base class values.
 	device->base.layout = &oceanic_veo250_layout;

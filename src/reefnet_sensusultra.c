@@ -61,7 +61,7 @@ static dc_status_t reefnet_sensusultra_device_dump (dc_device_t *abstract, dc_bu
 static dc_status_t reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t reefnet_sensusultra_device_close (dc_device_t *abstract);
 
-static const device_backend_t reefnet_sensusultra_device_backend = {
+static const dc_device_vtable_t reefnet_sensusultra_device_vtable = {
 	DC_FAMILY_REEFNET_SENSUSULTRA,
 	reefnet_sensusultra_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -77,7 +77,7 @@ device_is_reefnet_sensusultra (dc_device_t *abstract)
 	if (abstract == NULL)
 		return 0;
 
-    return abstract->backend == &reefnet_sensusultra_device_backend;
+    return abstract->vtable == &reefnet_sensusultra_device_vtable;
 }
 
 
@@ -95,7 +95,7 @@ reefnet_sensusultra_device_open (dc_device_t **out, dc_context_t *context, const
 	}
 
 	// Initialize the base class.
-	device_init (&device->base, context, &reefnet_sensusultra_device_backend);
+	device_init (&device->base, context, &reefnet_sensusultra_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
