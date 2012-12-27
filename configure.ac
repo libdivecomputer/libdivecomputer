@@ -106,6 +106,11 @@ AC_SUBST([DC_VERSION_MINOR],[dc_version_minor])
 AC_SUBST([DC_VERSION_MICRO],[dc_version_micro])
 AC_SUBST([DC_VERSION_LIBTOOL],[dc_version_lt_current:dc_version_lt_revision:dc_version_lt_age])
 
+# Version suffix.
+m4_ifset([dc_version_suffix],[
+	AC_DEFINE(HAVE_VERSION_SUFFIX, [1], [Define if a version suffix is present.])
+])
+
 AC_CONFIG_FILES([
    libdivecomputer.pc
    Makefile

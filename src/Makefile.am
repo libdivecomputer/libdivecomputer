@@ -77,6 +77,8 @@ libdivecomputer.exp: libdivecomputer.symbols
 .rc.lo:
 	$(AM_V_GEN) $(LIBTOOL) --silent --tag=RC --mode=compile $(RC) $< -o $@
 
+libdivecomputer.lo: revision.h
+
 FORCE:
 $(top_srcdir)/revision: FORCE
 	@if (test -d $(top_srcdir)/.git && cd $(top_srcdir) \

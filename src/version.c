@@ -19,7 +19,15 @@
  * MA 02110-1301 USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <libdivecomputer/version.h>
+
+#ifdef HAVE_VERSION_SUFFIX
+#include "revision.h"
+#endif
 
 const char *
 dc_version (dc_version_t *version)
@@ -30,7 +38,11 @@ dc_version (dc_version_t *version)
 		version->micro = DC_VERSION_MICRO;
 	}
 
+#ifdef HAVE_VERSION_SUFFIX
+	return DC_VERSION " (" DC_VERSION_REVISION ")";
+#else
 	return DC_VERSION;
+#endif
 }
 
 int
