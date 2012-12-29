@@ -334,6 +334,19 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		sample.time = time;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
+		// Initial gas mix.
+		if (time == samplerate) {
+			unsigned int idx = data[31];
+			if (idx < 1 || idx > 5)
+				return DC_STATUS_DATAFORMAT;
+			idx--; /* Convert to a zero based index. */
+			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+			sample.event.time = 0;
+			sample.event.flags = 0;
+			sample.event.value = data[19 + 2 * idx] | (data[20 + 2 * idx] << 16);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+		}
+
 		// Depth (mbar).
 		unsigned int depth = array_uint16_le (data + offset);
 		sample.depth = (depth * BAR / 1000.0) / hydrostatic;
@@ -400,9 +413,12 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Gas Change
 		if (events & 0x20) {
-			if (offset + 1 > size || data[offset] >= 5)
+			if (offset + 1 > size)
 				return DC_STATUS_DATAFORMAT;
 			unsigned int idx = data[offset];
+			if (idx < 1 || idx > 5)
+				return DC_STATUS_DATAFORMAT;
+			idx--; /* Convert to a zero based index. */
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
