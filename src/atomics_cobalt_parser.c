@@ -224,6 +224,9 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	else
 		atmospheric = array_uint16_le (data + 0x26) * BAR / 1000.0;
 
+	// Previous gas mix - initialize with impossible value
+	unsigned int gasmix_previous = 0xFFFFFFFF;
+
 	unsigned int time = 0;
 	unsigned int offset = header;
 	while (offset + SZ_SEGMENT <= size) {
@@ -245,10 +248,45 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		sample.pressure.value = pressure * PSI / BAR;
 		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 
+		// Current gas mix
+		unsigned int gasmix = data[offset + 4];
+		if (gasmix >= ngasmixes) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		if (gasmix != gasmix_previous) {
+			unsigned int o2 = data[SZ_HEADER + SZ_GASMIX * gasmix + 4];
+			unsigned int he = data[SZ_HEADER + SZ_GASMIX * gasmix + 5];
+			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+			sample.event.time = 0;
+			sample.event.flags = 0;
+			sample.event.value = o2 | (he << 16);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			gasmix_previous = gasmix;
+		}
+
 		// Temperature (1 °F).
 		unsigned int temperature = data[offset + 8];
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+		// violation status
+		sample.event.type = 0;
+		sample.event.time = 0;
+		sample.event.value = 0;
+		sample.event.flags = 0;
+		unsigned int violation = data[offset + 11];
+		if (violation & 0x01) {
+			sample.event.type = SAMPLE_EVENT_ASCENT;
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+		}
+		if (violation & 0x04) {
+			sample.event.type = SAMPLE_EVENT_CEILING;
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+		}
+		if (violation & 0x08) {
+			sample.event.type = SAMPLE_EVENT_PO2;
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+		}
 
 		offset += SZ_SEGMENT;
 	}
