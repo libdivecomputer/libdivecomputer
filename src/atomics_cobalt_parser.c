@@ -228,6 +228,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
 	unsigned int time = 0;
+	unsigned int in_deco = 0;
 	unsigned int offset = header;
 	while (offset + SZ_SEGMENT <= size) {
 		dc_sample_value_t sample = {0};
@@ -287,6 +288,20 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 			sample.event.type = SAMPLE_EVENT_PO2;
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 		}
+
+		// NDL & deco
+		unsigned int ndl = data[offset + 5] * 60;
+		if (ndl > 0)
+			in_deco = 0;
+		else if (ndl == 0 && (violation & 0x02))
+			in_deco = 1;
+		if (in_deco)
+			sample.deco.type = DC_DECO_DECOSTOP;
+		else
+			sample.deco.type = DC_DECO_NDL;
+		sample.deco.time = ndl;
+		sample.deco.depth = 0.0;
+		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 
 		offset += SZ_SEGMENT;
 	}
