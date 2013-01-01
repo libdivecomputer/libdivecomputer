@@ -49,6 +49,10 @@
 #define FREEDIVE 3
 #define MIXED    4
 
+#define SAFETYSTOP   (1 << 0)
+#define DECOSTOP     (1 << 1)
+#define DEEPSTOP     (1 << 2)
+
 typedef struct suunto_d9_parser_t suunto_d9_parser_t;
 
 struct suunto_d9_parser_t {
@@ -339,6 +343,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	// Offset to the first marker position.
 	unsigned int marker = array_uint16_le (data + profile + 3);
 
+	unsigned int in_deco = 0;
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
 	unsigned int offset = profile + 5;
@@ -421,15 +426,31 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					switch (type & 0x7F) {
 					case 0x00: // Voluntary Safety Stop
 						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_VOLUNTARY;
+						if (type & 0x80)
+							in_deco &= ~SAFETYSTOP;
+						else
+							in_deco |= SAFETYSTOP;
 						break;
-					case 0x01: // Mandatory Safety Stop
+					case 0x01: // Mandatory Safety Stop - odd concept; model as deco stop
 						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_MANDATORY;
+						if (type & 0x80)
+							in_deco &= ~DECOSTOP;
+						else
+							in_deco |= DECOSTOP;
 						break;
 					case 0x02: // Deep Safety Stop
 						sample.event.type = SAMPLE_EVENT_DEEPSTOP;
+						if (type & 0x80)
+							in_deco &= ~DEEPSTOP;
+						else
+							in_deco |= DEEPSTOP;
 						break;
 					case 0x03: // Deco
 						sample.event.type = SAMPLE_EVENT_DECOSTOP;
+						if (type & 0x80)
+							in_deco &= ~DECOSTOP;
+						else
+							in_deco |= DECOSTOP;
 						break;
 					case 0x04: // Ascent Rate Warning
 						sample.event.type = SAMPLE_EVENT_ASCENT;
@@ -476,9 +497,17 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						break;
 					case 0x13: // Deep Safety Stop
 						sample.event.type = SAMPLE_EVENT_DEEPSTOP;
+						if (type & 0x80)
+							in_deco &= ~DEEPSTOP;
+						else
+							in_deco |= DEEPSTOP;
 						break;
-					case 0x14: // Mandatory Safety Stop
+					case 0x14: // Mandatory Safety Stop - again, model as deco stop
 						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_MANDATORY;
+						if (type & 0x80)
+							in_deco &= ~DECOSTOP;
+						else
+							in_deco |= DECOSTOP;
 						break;
 					default: // Unknown
 						WARNING (abstract->context, "Unknown event");
@@ -542,6 +571,20 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					break;
 			}
 		}
+
+		if (in_deco & DEEPSTOP) {
+			sample.deco.type = DC_DECO_DEEPSTOP;
+		} else if (in_deco & DECOSTOP) {
+			sample.deco.type = DC_DECO_DECOSTOP;
+		} else if (in_deco & SAFETYSTOP) {
+			sample.deco.type = DC_DECO_SAFETYSTOP;
+		} else {
+			sample.deco.type = DC_DECO_NDL;
+		}
+		sample.deco.time = 0;
+		sample.deco.depth = 0.0;
+		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+
 		time += interval_sample;
 		nsamples++;
 	}
