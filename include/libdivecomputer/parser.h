@@ -109,9 +109,9 @@ typedef enum dc_water_t {
 
 typedef enum dc_deco_type_t {
 	DC_DECO_NDL,
+	DC_DECO_SAFETYSTOP,
 	DC_DECO_DECOSTOP,
-	DC_DECO_DEEPSTOP,
-	DC_DECO_SAFETYSTOP
+	DC_DECO_DEEPSTOP
 } dc_deco_type_t;
 
 typedef struct dc_salinity_t {
