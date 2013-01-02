@@ -393,6 +393,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				unsigned int event = data[offset++];
 				unsigned int seconds, type, unknown, heading, percentage;
 				unsigned int current, next;
+				unsigned int he, o2;
 
 				sample.event.time = 0;
 				sample.event.flags = 0;
@@ -553,12 +554,12 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					if (offset + 4 > size)
 						return DC_STATUS_DATAFORMAT;
 					unknown = data[offset + 0];
-					unknown = data[offset + 1];
-					percentage = data[offset + 2];
+					he = data[offset + 1];
+					o2 = data[offset + 2];
 					seconds = data[offset + 3];
-					sample.event.type = SAMPLE_EVENT_GASCHANGE;
+					sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 					sample.event.time = seconds;
-					sample.event.value = percentage;
+					sample.event.value = o2 | (he << 16);
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 4;
 					break;
