@@ -32,6 +32,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &suunto_vyper_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -84,16 +86,6 @@ static const suunto_common_layout_t suunto_spyder_layout = {
 	6, /* fp_offset */
 	3 /* peek */
 };
-
-
-static int
-device_is_suunto_vyper (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &suunto_vyper_device_vtable;
-}
 
 
 dc_status_t
@@ -164,9 +156,6 @@ static dc_status_t
 suunto_vyper_device_close (dc_device_t *abstract)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
-
-	if (! device_is_suunto_vyper (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
@@ -266,9 +255,6 @@ suunto_vyper_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
-	if (! device_is_suunto_vyper (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the package size.
@@ -301,9 +287,6 @@ static dc_status_t
 suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
-
-	if (! device_is_suunto_vyper (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
@@ -460,7 +443,7 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 dc_status_t
 suunto_vyper_device_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init)
 {
-	if (! device_is_suunto_vyper (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	return suunto_vyper_read_dive (abstract, buffer, init, NULL);
@@ -470,9 +453,6 @@ suunto_vyper_device_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int i
 static dc_status_t
 suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
-	if (! device_is_suunto_vyper (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
@@ -489,9 +469,6 @@ static dc_status_t
 suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
-
-	if (! device_is_suunto_vyper (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
@@ -581,7 +558,7 @@ suunto_vyper_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 {
 	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
 
-	if (abstract && !device_is_suunto_vyper (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MEMORY)

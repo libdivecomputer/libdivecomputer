@@ -29,6 +29,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &mares_nemo_parser_vtable)
+
 #define NEMO        0
 #define NEMOWIDE    1
 #define NEMOAIR     4
@@ -66,16 +68,6 @@ static const dc_parser_vtable_t mares_nemo_parser_vtable = {
 	mares_nemo_parser_samples_foreach, /* samples_foreach */
 	mares_nemo_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_mares_nemo (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &mares_nemo_parser_vtable;
-}
 
 
 dc_status_t
@@ -118,9 +110,6 @@ mares_nemo_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int
 static dc_status_t
 mares_nemo_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_mares_nemo (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 

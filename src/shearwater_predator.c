@@ -29,6 +29,8 @@
 #include "serial.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &shearwater_predator_device_vtable)
+
 #define PREDATOR 2
 #define PETREL   3
 
@@ -67,16 +69,6 @@ static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	shearwater_predator_device_foreach, /* foreach */
 	shearwater_predator_device_close /* close */
 };
-
-
-static int
-device_is_shearwater_predator (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &shearwater_predator_device_vtable;
-}
 
 
 static int
@@ -623,7 +615,7 @@ shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char d
 dc_status_t
 shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
-	if (abstract && !device_is_shearwater_predator (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MEMORY)

@@ -27,6 +27,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &cressi_edy_parser_vtable)
+
 typedef struct cressi_edy_parser_t cressi_edy_parser_t;
 
 struct cressi_edy_parser_t {
@@ -48,16 +50,6 @@ static const dc_parser_vtable_t cressi_edy_parser_vtable = {
 	cressi_edy_parser_samples_foreach, /* samples_foreach */
 	cressi_edy_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_cressi_edy (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &cressi_edy_parser_vtable;
-}
 
 
 dc_status_t
@@ -88,9 +80,6 @@ cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int
 static dc_status_t
 cressi_edy_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_cressi_edy (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -101,9 +90,6 @@ cressi_edy_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 cressi_edy_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_cressi_edy (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 

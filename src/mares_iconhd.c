@@ -30,6 +30,8 @@
 #include "serial.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &mares_iconhd_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -79,15 +81,6 @@ static const dc_device_vtable_t mares_iconhd_device_vtable = {
 	mares_iconhd_device_foreach, /* foreach */
 	mares_iconhd_device_close /* close */
 };
-
-static int
-device_is_mares_iconhd (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &mares_iconhd_device_vtable;
-}
 
 
 static unsigned int
@@ -323,9 +316,6 @@ mares_iconhd_device_close (dc_device_t *abstract)
 {
 	mares_iconhd_device_t *device = (mares_iconhd_device_t*) abstract;
 
-	if (! device_is_mares_iconhd (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
@@ -431,7 +421,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
 
-	if (abstract && !device_is_mares_iconhd (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MEMORY)

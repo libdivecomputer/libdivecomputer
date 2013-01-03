@@ -32,6 +32,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &mares_puck_device_vtable)
+
 #define NEMOWIDE    1
 #define NEMOAIR     4
 #define PUCK        7
@@ -81,15 +83,6 @@ static const mares_common_layout_t mares_nemowide_layout = {
 	0x3400, /* rb_freedives_begin */
 	0x4000  /* rb_freedives_end */
 };
-
-static int
-device_is_mares_puck (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &mares_puck_device_vtable;
-}
 
 
 dc_status_t
@@ -273,7 +266,7 @@ mares_puck_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 {
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
 
-	if (abstract && !device_is_mares_puck (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < PACKETSIZE)

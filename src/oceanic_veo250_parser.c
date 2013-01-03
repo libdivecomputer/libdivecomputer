@@ -29,6 +29,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &oceanic_veo250_parser_vtable)
+
 typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
 
 struct oceanic_veo250_parser_t {
@@ -54,16 +56,6 @@ static const dc_parser_vtable_t oceanic_veo250_parser_vtable = {
 	oceanic_veo250_parser_samples_foreach, /* samples_foreach */
 	oceanic_veo250_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_oceanic_veo250 (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &oceanic_veo250_parser_vtable;
-}
 
 
 dc_status_t
@@ -97,9 +89,6 @@ oceanic_veo250_parser_create (dc_parser_t **out, dc_context_t *context, unsigned
 static dc_status_t
 oceanic_veo250_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_oceanic_veo250 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -111,9 +100,6 @@ static dc_status_t
 oceanic_veo250_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	oceanic_veo250_parser_t *parser = (oceanic_veo250_parser_t *) abstract;
-
-	if (! parser_is_oceanic_veo250 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
@@ -208,9 +194,6 @@ oceanic_veo250_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 static dc_status_t
 oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
-	if (! parser_is_oceanic_veo250 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 

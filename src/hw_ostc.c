@@ -30,6 +30,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -68,16 +70,6 @@ static const dc_device_vtable_t hw_ostc_device_vtable = {
 	hw_ostc_device_foreach, /* foreach */
 	hw_ostc_device_close /* close */
 };
-
-
-static int
-device_is_hw_ostc (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &hw_ostc_device_vtable;
-}
 
 
 static dc_status_t
@@ -173,9 +165,6 @@ hw_ostc_device_close (dc_device_t *abstract)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
 
-	if (! device_is_hw_ostc (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
@@ -210,9 +199,6 @@ static dc_status_t
 hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
-
-	if (! device_is_hw_ostc (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
@@ -346,7 +332,7 @@ hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned in
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (! device_is_hw_ostc (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MD2HASH) {
@@ -375,7 +361,7 @@ hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (! device_is_hw_ostc (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (datetime == NULL) {
@@ -407,7 +393,7 @@ hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned c
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (! device_is_hw_ostc (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (bank > 2) {
@@ -442,7 +428,7 @@ hw_ostc_device_eeprom_write (dc_device_t *abstract, unsigned int bank, const uns
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (! device_is_hw_ostc (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (bank > 2) {
@@ -477,7 +463,7 @@ hw_ostc_device_reset (dc_device_t *abstract)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (! device_is_hw_ostc (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Send the command.
@@ -494,7 +480,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (! device_is_hw_ostc (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Erase the current contents of the buffer.
@@ -629,7 +615,7 @@ hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], unsign
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (abstract && !device_is_hw_ostc (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char header[2] = {0xFA, 0xFA};

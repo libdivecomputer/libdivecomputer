@@ -31,6 +31,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &mares_nemo_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -83,15 +85,6 @@ static const mares_common_layout_t mares_nemo_apneist_layout = {
 	0x0800, /* rb_freedives_begin */
 	0x4000  /* rb_freedives_end */
 };
-
-static int
-device_is_mares_nemo (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &mares_nemo_device_vtable;
-}
 
 
 dc_status_t
@@ -161,9 +154,6 @@ static dc_status_t
 mares_nemo_device_close (dc_device_t *abstract)
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
-
-	if (! device_is_mares_nemo (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
@@ -320,7 +310,7 @@ mares_nemo_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 {
 	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
 
-	if (abstract && !device_is_mares_nemo (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < PACKETSIZE)

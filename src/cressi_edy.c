@@ -32,6 +32,8 @@
 #include "array.h"
 #include "ringbuffer.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &cressi_edy_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -72,15 +74,6 @@ static const dc_device_vtable_t cressi_edy_device_vtable = {
 	cressi_edy_device_foreach, /* foreach */
 	cressi_edy_device_close /* close */
 };
-
-static int
-device_is_cressi_edy (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &cressi_edy_device_vtable;
-}
 
 
 static dc_status_t
@@ -252,9 +245,6 @@ cressi_edy_device_close (dc_device_t *abstract)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
 
-	if (! device_is_cressi_edy (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Send the quit command.
 	cressi_edy_quit (device);
 
@@ -275,9 +265,6 @@ static dc_status_t
 cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
-
-	if (! device_is_cressi_edy (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if ((address % SZ_PAGE != 0) ||
 		(size    % SZ_PACKET != 0))
@@ -326,9 +313,6 @@ cressi_edy_device_set_fingerprint (dc_device_t *abstract, const unsigned char da
 static dc_status_t
 cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
-	if (! device_is_cressi_edy (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {

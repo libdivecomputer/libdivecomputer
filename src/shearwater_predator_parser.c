@@ -28,6 +28,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &shearwater_predator_parser_vtable)
+
 #define SZ_BLOCK   0x80
 #define SZ_SAMPLE  0x10
 
@@ -56,16 +58,6 @@ static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 };
 
 
-static int
-parser_is_shearwater_predator (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &shearwater_predator_parser_vtable;
-}
-
-
 dc_status_t
 shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context)
 {
@@ -91,9 +83,6 @@ shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context)
 static dc_status_t
 shearwater_predator_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_shearwater_predator (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -104,9 +93,6 @@ shearwater_predator_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_shearwater_predator (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 

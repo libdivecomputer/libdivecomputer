@@ -29,6 +29,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &oceanic_atom2_parser_vtable)
+
 #define ATOM1       0x4250
 #define EPICA       0x4257
 #define VT3         0x4258
@@ -81,16 +83,6 @@ static const dc_parser_vtable_t oceanic_atom2_parser_vtable = {
 };
 
 
-static int
-parser_is_oceanic_atom2 (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &oceanic_atom2_parser_vtable;
-}
-
-
 dc_status_t
 oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
@@ -122,9 +114,6 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 static dc_status_t
 oceanic_atom2_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_oceanic_atom2 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -136,9 +125,6 @@ static dc_status_t
 oceanic_atom2_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
-
-	if (! parser_is_oceanic_atom2 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
@@ -357,9 +343,6 @@ static dc_status_t
 oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
-
-	if (! parser_is_oceanic_atom2 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;

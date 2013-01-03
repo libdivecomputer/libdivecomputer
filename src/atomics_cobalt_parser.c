@@ -28,6 +28,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &atomics_cobalt_parser_vtable)
+
 #define SZ_HEADER       228
 #define SZ_GASMIX       18
 #define SZ_GASSWITCH    6
@@ -56,16 +58,6 @@ static const dc_parser_vtable_t atomics_cobalt_parser_vtable = {
 	atomics_cobalt_parser_samples_foreach, /* samples_foreach */
 	atomics_cobalt_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_atomics_cobalt (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &atomics_cobalt_parser_vtable;
-}
 
 
 dc_status_t
@@ -97,9 +89,6 @@ atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
 static dc_status_t
 atomics_cobalt_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_atomics_cobalt (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -110,9 +99,6 @@ atomics_cobalt_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 atomics_cobalt_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_atomics_cobalt (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 
@@ -122,7 +108,7 @@ atomics_cobalt_parser_set_calibration (dc_parser_t *abstract, double atmospheric
 {
 	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t*) abstract;
 
-	if (! parser_is_atomics_cobalt (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	parser->atmospheric = atmospheric;

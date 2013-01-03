@@ -29,6 +29,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &uwatec_smart_parser_vtable)
+
 #define NBITS 8
 #define NELEMENTS(x) ( sizeof(x) / sizeof((x)[0]) )
 
@@ -66,16 +68,6 @@ static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 };
 
 
-static int
-parser_is_uwatec_smart (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &uwatec_smart_parser_vtable;
-}
-
-
 dc_status_t
 uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model, unsigned int devtime, dc_ticks_t systime)
 {
@@ -106,9 +98,6 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 static dc_status_t
 uwatec_smart_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_uwatec_smart (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.	
 	free (abstract);
 
@@ -119,9 +108,6 @@ uwatec_smart_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_uwatec_smart (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 
@@ -450,9 +436,6 @@ static dc_status_t
 uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t*) abstract;
-
-	if (! parser_is_uwatec_smart (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;

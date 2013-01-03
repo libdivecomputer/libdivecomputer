@@ -30,6 +30,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), (const dc_device_vtable_t *) &suunto_vyper2_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -73,15 +75,6 @@ static const suunto_common2_layout_t suunto_helo2_layout = {
 	0x019A, /* rb_profile_begin */
 	0x7FFE /* rb_profile_end */
 };
-
-static int
-device_is_suunto_vyper2 (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == (const dc_device_vtable_t *) &suunto_vyper2_device_vtable;
-}
 
 
 dc_status_t
@@ -172,9 +165,6 @@ suunto_vyper2_device_close (dc_device_t *abstract)
 {
 	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
 
-	if (! device_is_suunto_vyper2 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
@@ -251,7 +241,7 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 dc_status_t
 suunto_vyper2_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
-	if (! device_is_suunto_vyper2 (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	return suunto_common2_device_version (abstract, data, size);
@@ -261,7 +251,7 @@ suunto_vyper2_device_version (dc_device_t *abstract, unsigned char data[], unsig
 dc_status_t
 suunto_vyper2_device_reset_maxdepth (dc_device_t *abstract)
 {
-	if (! device_is_suunto_vyper2 (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	return suunto_common2_device_reset_maxdepth (abstract);

@@ -40,6 +40,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &atomics_cobalt_device_vtable)
+
 #define EXITCODE(rc) (rc == LIBUSB_ERROR_TIMEOUT ? DC_STATUS_TIMEOUT : DC_STATUS_IO)
 
 #define VID 0x0471
@@ -75,15 +77,6 @@ static const dc_device_vtable_t atomics_cobalt_device_vtable = {
 	atomics_cobalt_device_foreach, /* foreach */
 	atomics_cobalt_device_close /* close */
 };
-
-static int
-device_is_atomics_cobalt (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &atomics_cobalt_device_vtable;
-}
 
 
 dc_status_t
@@ -156,9 +149,6 @@ atomics_cobalt_device_close (dc_device_t *abstract)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
-	if (! device_is_atomics_cobalt (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 #ifdef HAVE_LIBUSB
 	libusb_release_interface(device->handle, 0);
 	libusb_close (device->handle);
@@ -177,9 +167,6 @@ atomics_cobalt_device_set_fingerprint (dc_device_t *abstract, const unsigned cha
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
-	if (! device_is_atomics_cobalt (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	if (size && size != sizeof (device->fingerprint))
 		return DC_STATUS_INVALIDARGS;
 
@@ -197,7 +184,7 @@ atomics_cobalt_device_set_simulation (dc_device_t *abstract, unsigned int simula
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
-	if (! device_is_atomics_cobalt (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	device->simulation = simulation;
@@ -210,6 +197,9 @@ dc_status_t
 atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_VERSION)
 		return DC_STATUS_INVALIDARGS;
@@ -349,9 +339,6 @@ static dc_status_t
 atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
-
-	if (! device_is_atomics_cobalt (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;

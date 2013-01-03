@@ -31,6 +31,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &reefnet_sensusultra_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -70,15 +72,6 @@ static const dc_device_vtable_t reefnet_sensusultra_device_vtable = {
 	reefnet_sensusultra_device_foreach, /* foreach */
 	reefnet_sensusultra_device_close /* close */
 };
-
-static int
-device_is_reefnet_sensusultra (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &reefnet_sensusultra_device_vtable;
-}
 
 
 dc_status_t
@@ -143,9 +136,6 @@ reefnet_sensusultra_device_close (dc_device_t *abstract)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
@@ -164,7 +154,7 @@ reefnet_sensusultra_device_get_handshake (dc_device_t *abstract, unsigned char d
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_HANDSHAKE) {
@@ -182,9 +172,6 @@ static dc_status_t
 reefnet_sensusultra_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
-
-	if (! device_is_reefnet_sensusultra (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if (size && size != 4)
 		return DC_STATUS_INVALIDARGS;
@@ -393,9 +380,6 @@ reefnet_sensusultra_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_MEMORY)) {
@@ -450,7 +434,7 @@ reefnet_sensusultra_device_read_user (dc_device_t *abstract, unsigned char *data
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_USER) {
@@ -493,7 +477,7 @@ reefnet_sensusultra_device_write_user (dc_device_t *abstract, const unsigned cha
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_USER) {
@@ -541,7 +525,7 @@ reefnet_sensusultra_device_write_parameter (dc_device_t *abstract, reefnet_sensu
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Set the instruction code and validate the new value.
@@ -590,7 +574,7 @@ reefnet_sensusultra_device_sense (dc_device_t *abstract, unsigned char *data, un
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_SENSE) {
@@ -690,9 +674,6 @@ reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
 
-	if (! device_is_reefnet_sensusultra (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
@@ -777,7 +758,7 @@ reefnet_sensusultra_extract_dives (dc_device_t *abstract, const unsigned char da
 {
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t *) abstract;
 
-	if (abstract && !device_is_reefnet_sensusultra (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	unsigned int remaining = size;

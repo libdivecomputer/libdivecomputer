@@ -32,6 +32,8 @@
 #include "ringbuffer.h"
 #include "checksum.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable)
+
 #define MAXRETRIES 2
 
 #define EXITCODE(rc) \
@@ -240,16 +242,6 @@ static const oceanic_common_layout_t oceanic_veo1_layout = {
 };
 
 
-static int
-device_is_oceanic_atom2 (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &oceanic_atom2_device_vtable;
-}
-
-
 static dc_status_t
 oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
 {
@@ -441,9 +433,6 @@ oceanic_atom2_device_close (dc_device_t *abstract)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
-	if (! device_is_oceanic_atom2 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Send the quit command.
 	oceanic_atom2_quit (device);
 
@@ -465,7 +454,7 @@ oceanic_atom2_device_keepalive (dc_device_t *abstract)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
-	if (! device_is_oceanic_atom2 (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Send the command to the dive computer.
@@ -483,7 +472,7 @@ oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsig
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
 
-	if (! device_is_oceanic_atom2 (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < PAGESIZE)
@@ -505,9 +494,6 @@ static dc_status_t
 oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
-
-	if (! device_is_oceanic_atom2 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
@@ -541,9 +527,6 @@ static dc_status_t
 oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
-
-	if (! device_is_oceanic_atom2 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))

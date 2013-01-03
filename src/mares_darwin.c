@@ -31,6 +31,8 @@
 #include "mares_common.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &mares_darwin_device_vtable)
+
 #define DARWIN    0
 #define DARWINAIR 1
 
@@ -90,14 +92,6 @@ static const mares_darwin_layout_t mares_darwinair_layout = {
 	3       /* samplesize */
 };
 
-static int
-device_is_mares_darwin (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &mares_darwin_device_vtable;
-}
 
 dc_status_t
 mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
@@ -263,7 +257,7 @@ mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
-	if (!device_is_mares_darwin (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	assert (device->layout != NULL);

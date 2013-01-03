@@ -28,6 +28,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &reefnet_sensus_parser_vtable)
+
 #define SAMPLE_DEPTH_ADJUST	13
 
 typedef struct reefnet_sensus_parser_t reefnet_sensus_parser_t;
@@ -60,16 +62,6 @@ static const dc_parser_vtable_t reefnet_sensus_parser_vtable = {
 	reefnet_sensus_parser_samples_foreach, /* samples_foreach */
 	reefnet_sensus_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_reefnet_sensus (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &reefnet_sensus_parser_vtable;
-}
 
 
 dc_status_t
@@ -106,9 +98,6 @@ reefnet_sensus_parser_create (dc_parser_t **out, dc_context_t *context, unsigned
 static dc_status_t
 reefnet_sensus_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.	
 	free (abstract);
 
@@ -120,9 +109,6 @@ static dc_status_t
 reefnet_sensus_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
-
-	if (! parser_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
@@ -138,7 +124,7 @@ reefnet_sensus_parser_set_calibration (dc_parser_t *abstract, double atmospheric
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
 
-	if (! parser_is_reefnet_sensus (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	parser->atmospheric = atmospheric;
@@ -238,9 +224,6 @@ static dc_status_t
 reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
-
-	if (! parser_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;

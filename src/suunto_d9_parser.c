@@ -28,6 +28,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &suunto_d9_parser_vtable)
+
 #define MAXPARAMS 3
 
 #define D9       0x0E
@@ -82,16 +84,6 @@ static const dc_parser_vtable_t suunto_d9_parser_vtable = {
 };
 
 
-static int
-parser_is_suunto_d9 (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &suunto_d9_parser_vtable;
-}
-
-
 dc_status_t
 suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
@@ -120,9 +112,6 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 static dc_status_t
 suunto_d9_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_suunto_d9 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.	
 	free (abstract);
 
@@ -133,9 +122,6 @@ suunto_d9_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_suunto_d9 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 
@@ -275,9 +261,6 @@ static dc_status_t
 suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
-
-	if (! parser_is_suunto_d9 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;

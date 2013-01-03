@@ -27,6 +27,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &mares_iconhd_parser_vtable)
+
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 
@@ -51,16 +53,6 @@ static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 	mares_iconhd_parser_samples_foreach, /* samples_foreach */
 	mares_iconhd_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_mares_iconhd (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &mares_iconhd_parser_vtable;
-}
 
 
 dc_status_t
@@ -91,9 +83,6 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 static dc_status_t
 mares_iconhd_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_mares_iconhd (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 

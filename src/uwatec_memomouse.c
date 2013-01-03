@@ -31,6 +31,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_memomouse_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -63,15 +65,6 @@ static const dc_device_vtable_t uwatec_memomouse_device_vtable = {
 	uwatec_memomouse_device_foreach, /* foreach */
 	uwatec_memomouse_device_close /* close */
 };
-
-static int
-device_is_uwatec_memomouse (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &uwatec_memomouse_device_vtable;
-}
 
 
 dc_status_t
@@ -144,9 +137,6 @@ uwatec_memomouse_device_close (dc_device_t *abstract)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
-	if (! device_is_uwatec_memomouse (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
@@ -164,9 +154,6 @@ static dc_status_t
 uwatec_memomouse_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
-
-	if (! device_is_uwatec_memomouse (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if (size && size != 4)
 		return DC_STATUS_INVALIDARGS;
@@ -452,9 +439,6 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 
-	if (! device_is_uwatec_memomouse (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
@@ -487,9 +471,6 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 static dc_status_t
 uwatec_memomouse_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
-	if (! device_is_uwatec_memomouse (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	dc_buffer_t *buffer = dc_buffer_new (0);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
@@ -512,7 +493,7 @@ uwatec_memomouse_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 dc_status_t
 uwatec_memomouse_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
-	if (abstract && !device_is_uwatec_memomouse (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Parse the data stream to find the total number of dives.

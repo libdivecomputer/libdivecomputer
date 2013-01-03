@@ -30,6 +30,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &reefnet_sensus_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -62,15 +64,6 @@ static const dc_device_vtable_t reefnet_sensus_device_vtable = {
 	reefnet_sensus_device_foreach, /* foreach */
 	reefnet_sensus_device_close /* close */
 };
-
-static int
-device_is_reefnet_sensus (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &reefnet_sensus_device_vtable;
-}
 
 
 static dc_status_t
@@ -156,9 +149,6 @@ reefnet_sensus_device_close (dc_device_t *abstract)
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
 
-	if (! device_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Safely close the connection if the last handshake was
 	// successful, but no data transfer was ever initiated.
 	if (device->waiting)
@@ -182,7 +172,7 @@ reefnet_sensus_device_get_handshake (dc_device_t *abstract, unsigned char data[]
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
 
-	if (! device_is_reefnet_sensus (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_HANDSHAKE) {
@@ -200,9 +190,6 @@ static dc_status_t
 reefnet_sensus_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
-
-	if (! device_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if (size && size != 4)
 		return DC_STATUS_INVALIDARGS;
@@ -286,9 +273,6 @@ reefnet_sensus_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
 
-	if (! device_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
 	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_MEMORY)) {
@@ -362,9 +346,6 @@ reefnet_sensus_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 static dc_status_t
 reefnet_sensus_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
-	if (! device_is_reefnet_sensus (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
@@ -390,7 +371,7 @@ reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[],
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
 
-	if (abstract && !device_is_reefnet_sensus (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Search the entire data stream for start markers.

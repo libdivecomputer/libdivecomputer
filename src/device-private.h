@@ -70,6 +70,9 @@ struct dc_device_vtable_t {
 	dc_status_t (*close) (dc_device_t *device);
 };
 
+int
+dc_device_isinstance (dc_device_t *device, const dc_device_vtable_t *vtable);
+
 void
 device_init (dc_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable);
 

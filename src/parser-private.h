@@ -58,6 +58,9 @@ struct dc_parser_vtable_t {
 void
 parser_init (dc_parser_t *parser, dc_context_t *context, const dc_parser_vtable_t *vtable);
 
+int
+dc_parser_isinstance (dc_parser_t *parser, const dc_parser_vtable_t *vtable);
+
 typedef struct sample_statistics_t {
 	unsigned int divetime;
 	double maxdepth;

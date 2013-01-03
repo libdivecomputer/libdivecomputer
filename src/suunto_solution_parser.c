@@ -27,6 +27,8 @@
 #include "context-private.h"
 #include "parser-private.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &suunto_solution_parser_vtable)
+
 typedef struct suunto_solution_parser_t suunto_solution_parser_t;
 
 struct suunto_solution_parser_t {
@@ -50,16 +52,6 @@ static const dc_parser_vtable_t suunto_solution_parser_vtable = {
 	suunto_solution_parser_samples_foreach, /* samples_foreach */
 	suunto_solution_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_suunto_solution (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &suunto_solution_parser_vtable;
-}
 
 
 dc_status_t
@@ -92,9 +84,6 @@ suunto_solution_parser_create (dc_parser_t **out, dc_context_t *context)
 static dc_status_t
 suunto_solution_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_suunto_solution (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -106,9 +95,6 @@ static dc_status_t
 suunto_solution_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
 	suunto_solution_parser_t *parser = (suunto_solution_parser_t *) abstract;
-
-	if (! parser_is_suunto_solution (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Reset the cache.
 	parser->cached = 0;
@@ -188,9 +174,6 @@ suunto_solution_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 static dc_status_t
 suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
-	if (! parser_is_suunto_solution (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 

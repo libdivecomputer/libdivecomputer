@@ -31,6 +31,8 @@
 #include "ringbuffer.h"
 #include "checksum.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_veo250_device_vtable)
+
 #define MAXRETRIES 2
 #define MULTIPAGE  4
 
@@ -83,16 +85,6 @@ static const oceanic_common_layout_t oceanic_veo250_layout = {
 	1, /* pt_mode_global */
 	1 /* pt_mode_logbook */
 };
-
-
-static int
-device_is_oceanic_veo250 (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &oceanic_veo250_device_vtable;
-}
 
 
 static dc_status_t
@@ -322,9 +314,6 @@ oceanic_veo250_device_close (dc_device_t *abstract)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 
-	if (! device_is_oceanic_veo250 (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Switch the device back to surface mode.
 	oceanic_veo250_quit (device);
 
@@ -346,7 +335,7 @@ oceanic_veo250_device_keepalive (dc_device_t *abstract)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 
-	if (! device_is_oceanic_veo250 (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	unsigned char answer[2] = {0};
@@ -373,7 +362,7 @@ oceanic_veo250_device_version (dc_device_t *abstract, unsigned char data[], unsi
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
 
-	if (! device_is_oceanic_veo250 (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < PAGESIZE)
@@ -403,9 +392,6 @@ static dc_status_t
 oceanic_veo250_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_veo250_device_t *device = (oceanic_veo250_device_t*) abstract;
-
-	if (! device_is_oceanic_veo250 (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))

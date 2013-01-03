@@ -32,6 +32,8 @@
 #include "array.h"
 #include "ringbuffer.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &cressi_leonardo_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -68,15 +70,6 @@ static const dc_device_vtable_t cressi_leonardo_device_vtable = {
 	cressi_leonardo_device_foreach, /* foreach */
 	cressi_leonardo_device_close /* close */
 };
-
-static int
-device_is_cressi_leonardo (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &cressi_leonardo_device_vtable;
-}
 
 dc_status_t
 cressi_leonardo_device_open (dc_device_t **out, dc_context_t *context, const char *name)
@@ -289,7 +282,7 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
 
-	if (abstract && !device_is_cressi_leonardo (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MEMORY)

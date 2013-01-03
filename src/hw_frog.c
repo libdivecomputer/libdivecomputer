@@ -31,6 +31,8 @@
 #include "ringbuffer.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &hw_frog_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -76,16 +78,6 @@ static const dc_device_vtable_t hw_frog_device_vtable = {
 	hw_frog_device_foreach, /* foreach */
 	hw_frog_device_close /* close */
 };
-
-
-static int
-device_is_hw_frog (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &hw_frog_device_vtable;
-}
 
 
 static dc_status_t
@@ -297,7 +289,7 @@ hw_frog_device_version (dc_device_t *abstract, unsigned char data[], unsigned in
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
-	if (!device_is_hw_frog (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size != SZ_VERSION)
@@ -478,7 +470,7 @@ hw_frog_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
-	if (!device_is_hw_frog (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (datetime == NULL) {
@@ -503,7 +495,7 @@ hw_frog_device_display (dc_device_t *abstract, const char *text)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
-	if (!device_is_hw_frog (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Check the maximum length.
@@ -533,7 +525,7 @@ hw_frog_device_customtext (dc_device_t *abstract, const char *text)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
-	if (!device_is_hw_frog (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Check the maximum length.

@@ -28,6 +28,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_parser_isinstance((parser), &hw_ostc_parser_vtable)
+
 #define NINFO 6
 
 typedef struct hw_ostc_parser_t hw_ostc_parser_t;
@@ -58,16 +60,6 @@ static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 };
 
 
-static int
-parser_is_hw_ostc (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &hw_ostc_parser_vtable;
-}
-
-
 dc_status_t
 hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
 {
@@ -95,9 +87,6 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int fr
 static dc_status_t
 hw_ostc_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_hw_ostc (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -108,9 +97,6 @@ hw_ostc_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_hw_ostc (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 

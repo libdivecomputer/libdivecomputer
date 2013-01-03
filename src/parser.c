@@ -137,6 +137,16 @@ parser_init (dc_parser_t *parser, dc_context_t *context, const dc_parser_vtable_
 }
 
 
+int
+dc_parser_isinstance (dc_parser_t *parser, const dc_parser_vtable_t *vtable)
+{
+	if (parser == NULL)
+		return 0;
+
+	return parser->vtable == vtable;
+}
+
+
 dc_family_t
 dc_parser_get_type (dc_parser_t *parser)
 {

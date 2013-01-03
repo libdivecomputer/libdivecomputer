@@ -27,6 +27,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define ISINSTANCE(parser) dc_device_isinstance((parser), &cressi_leonardo_parser_vtable)
+
 #define SZ_HEADER 82
 
 typedef struct cressi_leonardo_parser_t cressi_leonardo_parser_t;
@@ -49,16 +51,6 @@ static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
 	cressi_leonardo_parser_samples_foreach, /* samples_foreach */
 	cressi_leonardo_parser_destroy /* destroy */
 };
-
-
-static int
-parser_is_cressi_leonardo (dc_parser_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &cressi_leonardo_parser_vtable;
-}
 
 
 dc_status_t
@@ -86,9 +78,6 @@ cressi_leonardo_parser_create (dc_parser_t **out, dc_context_t *context)
 static dc_status_t
 cressi_leonardo_parser_destroy (dc_parser_t *abstract)
 {
-	if (! parser_is_cressi_leonardo (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Free memory.
 	free (abstract);
 
@@ -99,9 +88,6 @@ cressi_leonardo_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 cressi_leonardo_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
-	if (! parser_is_cressi_leonardo (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	return DC_STATUS_SUCCESS;
 }
 

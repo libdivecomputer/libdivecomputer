@@ -31,6 +31,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &suunto_eon_device_vtable)
+
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
@@ -64,16 +66,6 @@ static const suunto_common_layout_t suunto_eon_layout = {
 	6, /* fp_offset */
 	3 /* peek */
 };
-
-
-static int
-device_is_suunto_eon (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &suunto_eon_device_vtable;
-}
 
 
 dc_status_t
@@ -139,9 +131,6 @@ suunto_eon_device_close (dc_device_t *abstract)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
-	if (! device_is_suunto_eon (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Close the device.
 	if (serial_close (device->port) == -1) {
 		free (device);
@@ -159,9 +148,6 @@ static dc_status_t
 suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
-
-	if (! device_is_suunto_eon (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	// Erase the current contents of the buffer and
 	// pre-allocate the required amount of memory.
@@ -248,7 +234,7 @@ suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsig
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
-	if (! device_is_suunto_eon (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size > 20)
@@ -272,7 +258,7 @@ suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 {
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
-	if (! device_is_suunto_eon (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Send the command.
@@ -292,7 +278,7 @@ suunto_eon_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 {
 	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
 
-	if (abstract && !device_is_suunto_eon (abstract))
+	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < SZ_MEMORY)

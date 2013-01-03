@@ -31,6 +31,8 @@
 #include "ringbuffer.h"
 #include "checksum.h"
 
+#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_vtpro_device_vtable)
+
 #define MAXRETRIES 2
 #define MULTIPAGE  4
 
@@ -97,15 +99,6 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 	0, /* pt_mode_global */
 	0 /* pt_mode_logbook */
 };
-
-static int
-device_is_oceanic_vtpro (dc_device_t *abstract)
-{
-	if (abstract == NULL)
-		return 0;
-
-    return abstract->vtable == &oceanic_vtpro_device_vtable;
-}
 
 
 static dc_status_t
@@ -364,9 +357,6 @@ oceanic_vtpro_device_close (dc_device_t *abstract)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
-	if (! device_is_oceanic_vtpro (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// Switch the device back to surface mode.
 	oceanic_vtpro_quit (device);
 
@@ -388,7 +378,7 @@ oceanic_vtpro_device_keepalive (dc_device_t *abstract)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
-	if (! device_is_oceanic_vtpro (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	// Send the command to the dive computer.
@@ -413,7 +403,7 @@ oceanic_vtpro_device_version (dc_device_t *abstract, unsigned char data[], unsig
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
-	if (! device_is_oceanic_vtpro (abstract))
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	if (size < PAGESIZE)
@@ -473,9 +463,6 @@ static dc_status_t
 oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
-
-	if (! device_is_oceanic_vtpro (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
