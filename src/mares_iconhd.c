@@ -21,6 +21,7 @@
 
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
+#include <assert.h> // assert
 
 #include <libdivecomputer/mares_iconhd.h>
 
@@ -40,6 +41,7 @@
 #define BAUDRATE 230400
 #endif
 
+#define MATRIX    0x0F
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 #define NEMOWIDE2 0x19
@@ -111,9 +113,11 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	// Send the command to the dive computer.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
+	assert (csize >= 2);
+
+	// Send the command header to the dive computer.
+	int n = serial_write (device->port, command, 2);
+	if (n != 2) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return EXITCODE (n);
 	}
@@ -130,6 +134,15 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	if (header[0] != ACK) {
 		ERROR (abstract->context, "Unexpected answer byte.");
 		return DC_STATUS_PROTOCOL;
+	}
+
+	// Send the command payload to the dive computer.
+	if (csize > 2) {
+		n = serial_write (device->port, command + 2, csize - 2);
+		if (n != csize - 2) {
+			ERROR (abstract->context, "Failed to send the command.");
+			return EXITCODE (n);
+		}
 	}
 
 	unsigned int nbytes = 0;
@@ -242,7 +255,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	device->port = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->version, 0, sizeof (device->version));
-	if (model == NEMOWIDE2) {
+	if (model == NEMOWIDE2 || model == MATRIX) {
 		device->packetsize = SZ_PACKET;
 	} else {
 		device->packetsize = 0;
@@ -257,7 +270,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	}
 
 	// Set the serial communication protocol (256000 8N1).
-	if (model == NEMOWIDE2) {
+	if (model == NEMOWIDE2 || model == MATRIX) {
 		rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
 	} else {
 		rc = serial_configure (device->port, BAUDRATE, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
