@@ -51,7 +51,6 @@
 typedef struct suunto_vyper_device_t {
 	suunto_common_device_t base;
 	serial_t *port;
-	unsigned int delay;
 } suunto_vyper_device_t;
 
 static dc_status_t suunto_vyper_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -115,7 +114,6 @@ suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *
 
 	// Set the default values.
 	device->port = NULL;
-	device->delay = 500;
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -183,26 +181,12 @@ suunto_vyper_device_close (dc_device_t *abstract)
 }
 
 
-dc_status_t
-suunto_vyper_device_set_delay (dc_device_t *abstract, unsigned int delay)
-{
-	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
-
-	if (! device_is_suunto_vyper (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	device->delay = delay;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
 static dc_status_t
 suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[], unsigned int csize)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	serial_sleep (device->port, device->delay);
+	serial_sleep (device->port, 500);
 
 	// Set RTS to send the command.
 	serial_set_rts (device->port, 1);

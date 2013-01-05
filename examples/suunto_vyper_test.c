@@ -28,7 +28,7 @@
 #include "common.h"
 
 dc_status_t
-test_dump_sdm (const char* name, unsigned int delay)
+test_dump_sdm (const char* name)
 {
 	dc_context_t *context = NULL;
 	dc_device_t *device = NULL;
@@ -44,8 +44,6 @@ test_dump_sdm (const char* name, unsigned int delay)
 		dc_context_free (context);
 		return rc;
 	}
-
-	suunto_vyper_device_set_delay (device, delay);
 
 	message ("dc_device_foreach\n");
 	rc = dc_device_foreach (device, NULL, NULL);
@@ -71,7 +69,7 @@ test_dump_sdm (const char* name, unsigned int delay)
 
 
 dc_status_t
-test_dump_memory (const char* name, unsigned int delay, const char* filename)
+test_dump_memory (const char* name, const char* filename)
 {
 	dc_context_t *context = NULL;
 	dc_device_t *device = NULL;
@@ -87,8 +85,6 @@ test_dump_memory (const char* name, unsigned int delay, const char* filename)
 		dc_context_free (context);
 		return rc;
 	}
-
-	suunto_vyper_device_set_delay (device, delay);
 
 	dc_buffer_t *buffer = dc_buffer_new (0);
 
@@ -134,20 +130,15 @@ int main(int argc, char *argv[])
 #else
 	const char* name = "/dev/ttyS0";
 #endif
-	
-	unsigned int delay = 500;
 
-	if (argc > 2) {
-		name = argv[1];
-		delay = atoi (argv[2]);
-	} else if (argc > 1) {
+	if (argc > 1) {
 		name = argv[1];
 	}
 
-	message ("DEVICE=%s, DELAY=%i\n", name, delay);
+	message ("DEVICE=%s\n", name);
 
-	dc_status_t a = test_dump_sdm (name, delay);
-	dc_status_t b = test_dump_memory (name, delay, "VYPER.DMP");
+	dc_status_t a = test_dump_sdm (name);
+	dc_status_t b = test_dump_memory (name, "VYPER.DMP");
 
 	message ("\nSUMMARY\n");
 	message ("-------\n");

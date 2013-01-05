@@ -121,7 +121,6 @@ suunto_vyper2_device_version
 suunto_vyper2_device_reset_maxdepth
 suunto_vyper_device_open
 suunto_vyper_device_read_dive
-suunto_vyper_device_set_delay
 suunto_vyper_extract_dives
 uwatec_aladin_device_open
 uwatec_aladin_extract_dives
