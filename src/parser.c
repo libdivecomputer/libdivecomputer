@@ -108,6 +108,9 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 	case DC_FAMILY_ZEAGLE_N2ITION3:
 		rc = cressi_edy_parser_create (&parser, context, device->devinfo.model);
 		break;
+	case DC_FAMILY_CRESSI_LEONARDO:
+		rc = cressi_leonardo_parser_create (&parser, context);
+		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context);
 		break;

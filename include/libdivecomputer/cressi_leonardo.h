@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2009 Jef Driesen
+ * Copyright (C) 2013 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,10 +19,27 @@
  * MA 02110-1301 USA
  */
 
-#ifndef CRESSI_H
-#define CRESSI_H
+#ifndef CRESSI_LEONARDO_H
+#define CRESSI_LEONARDO_H
 
-#include "cressi_edy.h"
-#include "cressi_leonardo.h"
+#include "context.h"
+#include "device.h"
+#include "parser.h"
 
-#endif /* CRESSI_H */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+dc_status_t
+cressi_leonardo_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+
+dc_status_t
+cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+
+dc_status_t
+cressi_leonardo_parser_create (dc_parser_t **parser, dc_context_t *context);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* CRESSI_LEONARDO_H */

@@ -71,6 +71,7 @@ typedef enum dc_family_t {
 	DC_FAMILY_HW_FROG,
 	/* Cressi */
 	DC_FAMILY_CRESSI_EDY = (7 << 16),
+	DC_FAMILY_CRESSI_LEONARDO,
 	/* Zeagle */
 	DC_FAMILY_ZEAGLE_N2ITION3 = (8 << 16),
 	/* Atomic Aquatics */

@@ -23,6 +23,7 @@ bin_PROGRAMS = \
 	ostc \
 	frog \
 	edy \
+	leonardo \
 	n2ition3 \
 	predator
 
@@ -74,6 +75,8 @@ ostc_SOURCES = hw_ostc_test.c $(COMMON)
 frog_SOURCES = hw_frog_test.c $(COMMON)
 
 edy_SOURCES = cressi_edy_test.c $(COMMON)
+
+leonardo_SOURCES = cressi_leonardo_test.c $(COMMON)
 
 n2ition3_SOURCES = zeagle_n2ition3_test.c $(COMMON)
 

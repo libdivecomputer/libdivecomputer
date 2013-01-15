@@ -60,6 +60,7 @@ oceanic_veo250_parser_create
 oceanic_atom2_parser_create
 hw_ostc_parser_create
 cressi_edy_parser_create
+cressi_leonardo_parser_create
 atomics_cobalt_parser_create
 atomics_cobalt_parser_set_calibration
 shearwater_predator_parser_create
@@ -76,6 +77,7 @@ dc_device_set_fingerprint
 dc_device_write
 
 cressi_edy_device_open
+cressi_leonardo_device_open
 mares_nemo_device_open
 mares_nemo_extract_dives
 mares_puck_device_open

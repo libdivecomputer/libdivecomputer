@@ -129,6 +129,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 	case DC_FAMILY_CRESSI_EDY:
 		rc = cressi_edy_device_open (&device, context, name);
 		break;
+	case DC_FAMILY_CRESSI_LEONARDO:
+		rc = cressi_leonardo_device_open (&device, context, name);
+		break;
 	case DC_FAMILY_ZEAGLE_N2ITION3:
 		rc = zeagle_n2ition3_device_open (&device, context, name);
 		break;

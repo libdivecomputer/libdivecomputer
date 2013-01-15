@@ -211,6 +211,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\cressi_leonardo.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cressi_leonardo_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\datetime.c"
 				>
 			</File>
@@ -458,6 +466,10 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\cressi_edy.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\cressi_leonardo.h"
 				>
 			</File>
 			<File

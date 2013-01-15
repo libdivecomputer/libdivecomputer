@@ -38,6 +38,7 @@ libdivecomputer_HEADERS = 	\
 	hw_frog.h \
 	cressi.h \
 	cressi_edy.h \
+	cressi_leonardo.h \
 	zeagle.h \
 	zeagle_n2ition3.h \
 	atomics.h \

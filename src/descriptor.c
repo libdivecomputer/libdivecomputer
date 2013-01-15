@@ -164,6 +164,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Heinrichs Weikamp", "Frog", DC_FAMILY_HW_FROG, 0},
 	/* Cressi Edy */
 	{"Cressi", "Edy", DC_FAMILY_CRESSI_EDY, 0},
+	/* Cressi Leonardo */
+	{"Cressi", "Leonardo", DC_FAMILY_CRESSI_LEONARDO, 0},
 	/* Zeagle N2iTiON3 */
 	{"Zeagle",   "N2iTiON3",   DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	{"Apeks",    "Quantum X",  DC_FAMILY_ZEAGLE_N2ITION3, 0},
