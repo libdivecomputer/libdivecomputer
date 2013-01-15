@@ -43,6 +43,12 @@ const unsigned char *
 array_search_backward (const unsigned char *data, unsigned int size,
                        const unsigned char *marker, unsigned int msize);
 
+int
+array_convert_bin2hex (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize);
+
+int
+array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize);
+
 unsigned int
 array_uint32_be (const unsigned char data[]);
 

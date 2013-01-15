@@ -93,6 +93,60 @@ array_search_backward (const unsigned char *data, unsigned int size,
 }
 
 
+int
+array_convert_bin2hex (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
+{
+	if (osize != 2 * isize)
+		return -1;
+
+	const unsigned char ascii[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
+	for (unsigned int i = 0; i < isize; ++i) {
+		// Set the most-significant nibble.
+		unsigned char msn = (input[i] >> 4) & 0x0F;
+		output[i * 2 + 0] = ascii[msn];
+
+		// Set the least-significant nibble.
+		unsigned char lsn = input[i] & 0x0F;
+		output[i * 2 + 1] = ascii[lsn];
+	}
+
+	return 0;
+}
+
+
+int
+array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
+{
+	if (isize != 2 * osize)
+		return -1;
+
+	for (unsigned int i = 0; i < osize; ++i) {
+		unsigned char value = 0;
+		for (unsigned int j = 0; j < 2; ++j) {
+			unsigned char number = 0;
+			unsigned char ascii = input[i * 2 + j];
+			if (ascii >= '0' && ascii <= '9')
+				number = ascii - '0';
+			else if (ascii >= 'A' && ascii <= 'F')
+				number = 10 + ascii - 'A';
+			else if (ascii >= 'a' && ascii <= 'f')
+				number = 10 + ascii - 'a';
+			else
+				return -1; /* Invalid character */
+
+			value <<= 4;
+			value += number;
+		}
+		output[i] = value;
+	}
+
+	return 0;
+}
+
+
 unsigned int
 array_uint32_be (const unsigned char data[])
 {

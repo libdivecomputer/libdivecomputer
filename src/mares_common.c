@@ -53,58 +53,6 @@ mares_common_device_init (mares_common_device_t *device, dc_context_t *context, 
 }
 
 
-static int
-mares_common_convert_binary_to_ascii (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
-{
-	assert (osize == 2 * isize);
-
-	const unsigned char ascii[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-
-	for (unsigned int i = 0; i < isize; ++i) {
-		// Set the most-significant nibble.
-		unsigned char msn = (input[i] >> 4) & 0x0F;
-		output[i * 2 + 0] = ascii[msn];
-
-		// Set the least-significant nibble.
-		unsigned char lsn = input[i] & 0x0F;
-		output[i * 2 + 1] = ascii[lsn];
-	}
-
-	return 0;
-}
-
-
-static int
-mares_common_convert_ascii_to_binary (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
-{
-	assert (isize == 2 * osize);
-
-	for (unsigned int i = 0; i < osize; ++i) {
-		unsigned char value = 0;
-		for (unsigned int j = 0; j < 2; ++j) {
-			unsigned char number = 0;
-			unsigned char ascii = input[i * 2 + j];
-			if (ascii >= '0' && ascii <= '9')
-				number = ascii - '0';
-			else if (ascii >= 'A' && ascii <= 'F')
-				number = 10 + ascii - 'A';
-			else if (ascii >= 'a' && ascii <= 'f')
-				number = 10 + ascii - 'a';
-			else
-				return -1; /* Invalid character */
-
-			value <<= 4;
-			value += number;
-		}
-		output[i] = value;
-	}
-
-	return 0;
-}
-
-
 static void
 mares_common_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned char ascii[], unsigned int asize)
 {
@@ -114,11 +62,11 @@ mares_common_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned
 	ascii[0] = '<';
 
 	// Data
-	mares_common_convert_binary_to_ascii (raw, rsize, ascii + 1, 2 * rsize);
+	array_convert_bin2hex (raw, rsize, ascii + 1, 2 * rsize);
 
 	// Checksum
 	unsigned char checksum = checksum_add_uint8 (ascii + 1, 2 * rsize, 0x00);
-	mares_common_convert_binary_to_ascii (&checksum, 1, ascii + 1 + 2 * rsize, 2);
+	array_convert_bin2hex (&checksum, 1, ascii + 1 + 2 * rsize, 2);
 
 	// Trailer
 	ascii[asize - 1] = '>';
@@ -175,7 +123,7 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	// Verify the checksum of the packet.
 	unsigned char crc = 0;
 	unsigned char ccrc = checksum_add_uint8 (answer + 1, asize - 4, 0x00);
-	mares_common_convert_ascii_to_binary (answer + asize - 3, 2, &crc, 1);
+	array_convert_hex2bin (answer + asize - 3, 2, &crc, 1);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
@@ -237,7 +185,7 @@ mares_common_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 			return rc;
 
 		// Extract the raw data from the packet.
-		mares_common_convert_ascii_to_binary (answer + 1, 2 * len, data, len);
+		array_convert_hex2bin (answer + 1, 2 * len, data, len);
 
 		nbytes += len;
 		address += len;
