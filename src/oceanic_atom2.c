@@ -97,6 +97,7 @@ static const oceanic_common_version_t oceanic_atom2c_version[] = {
 static const oceanic_common_version_t oceanic_default_version[] = {
 	{"OCE VT3 R\0\0 512K"},
 	{"ELITET3 R\0\0 512K"},
+	{"ELITET31 \0\0 512K"},
 	{"DATAMASK \0\0 512K"},
 	{"COMPMASK \0\0 512K"},
 	{"HOLLDG03 \0\0 512K"},
