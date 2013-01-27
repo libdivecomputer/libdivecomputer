@@ -147,8 +147,8 @@ suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 
 	unsigned int offset = 0x11;
 	if (parser->model == HELO2)
-		offset += 6;
-	if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+		offset = 0x17;
+	else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
 		offset = 0x13;
 
 	if (abstract->size < offset + 7)
@@ -191,15 +191,15 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 	if (parser->model == D4)
 		config += 1;
 	if (parser->model == HELO2)
-		config += 74;
+		config = 0x84;
 	if (size < config)
 		return DC_STATUS_DATAFORMAT;
 
 	// Gas model
 	unsigned int gasmodel_offset = 0x19;
 	if (parser->model == HELO2)
-		gasmodel_offset += 6;
-	if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+		gasmodel_offset = 0x1F;
+	else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
 		gasmodel_offset = 0x1D;
 	unsigned int gasmodel = data[gasmodel_offset];
 
@@ -279,7 +279,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	if (parser->model == D4)
 		config += 1;
 	if (parser->model == HELO2)
-		config += 74;
+		config = 0x84;
 	if (parser->model == D4i)
 		config = 0x65;
 	if (parser->model == D6i)
@@ -331,9 +331,8 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 
 	// Sample recording interval.
 	unsigned int interval_sample_offset = 0x18;
-	if (parser->model == HELO2)
-		interval_sample_offset += 6;
-	if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+	if (parser->model == HELO2 || parser->model == D4i ||
+		parser->model == D6i || parser->model == D9tx)
 		interval_sample_offset = 0x1E;
 	unsigned int interval_sample = data[interval_sample_offset];
 	if (interval_sample == 0)
