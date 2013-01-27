@@ -186,13 +186,31 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
+	// Gasmix information.
+	unsigned int gasmix_offset = 0x21, gasmix_count = 3;
+	if (parser->model == HELO2) {
+		gasmix_offset = 0x54;
+		gasmix_count = 8;
+	} else if (parser->model == D4i) {
+		gasmix_offset = 0x5F;
+		gasmix_count = 1;
+	} else if (parser->model == D6i) {
+		gasmix_offset = 0x5F;
+		gasmix_count = 2;
+	} else if (parser->model == D9tx) {
+		gasmix_offset = 0x87;
+		gasmix_count = 8;
+	}
+
 	// Offset to the configuration data.
 	unsigned int config = 0x3A;
-	if (parser->model == D4)
+	if (parser->model == D4) {
 		config += 1;
-	if (parser->model == HELO2)
-		config = 0x84;
-	if (size < config)
+	} else if (parser->model == HELO2 || parser->model == D4i ||
+		parser->model == D6i || parser->model == D9tx) {
+		config = gasmix_offset + gasmix_count * 6;
+	}
+	if (config + 1 > size)
 		return DC_STATUS_DATAFORMAT;
 
 	// Gas model
@@ -223,34 +241,21 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 		case DC_FIELD_GASMIX_COUNT:
 			if (gasmodel == AIR) {
 				*((unsigned int *) value) = 1;
-			} else if (parser->model == HELO2) {
-				*((unsigned int *) value) = 8;
-			} else if (parser->model == D9tx) {
-				*((unsigned int *) value) = 8;
-			} else if (parser->model == D6i) {
-				*((unsigned int *) value) = 2;
-			} else if (parser->model == D4i) {
-				*((unsigned int *) value) = 1;
 			} else {
-				*((unsigned int *) value) = 3;
+				*((unsigned int *) value) = gasmix_count;
 			}
 			break;
 		case DC_FIELD_GASMIX:
 			if (gasmodel == AIR) {
 				gasmix->helium = 0.0;
 				gasmix->oxygen = 0.21;
-			} else if (parser->model == HELO2) {
-				gasmix->helium = data[0x54 + 6 * flags + 2] / 100.0;
-				gasmix->oxygen = data[0x54 + 6 * flags + 1] / 100.0;
-			} else if (parser->model == D9tx) {
-				gasmix->helium = data[0x87 + 6 * flags + 2] / 100.0;
-				gasmix->oxygen = data[0x87 + 6 * flags + 1] / 100.0;
-			} else if (parser->model == D4i || parser->model == D6i) {
-				gasmix->helium = data[0x5F + 6 * flags + 2] / 100.0;
-				gasmix->oxygen = data[0x5F + 6 * flags + 1] / 100.0;
+			} else if (parser->model == HELO2 || parser->model == D4i ||
+				parser->model == D6i || parser->model == D9tx) {
+				gasmix->helium = data[gasmix_offset + 6 * flags + 2] / 100.0;
+				gasmix->oxygen = data[gasmix_offset + 6 * flags + 1] / 100.0;
 			} else {
 				gasmix->helium = 0.0;
-				gasmix->oxygen = data[0x21 + flags] / 100.0;
+				gasmix->oxygen = data[gasmix_offset + flags] / 100.0;
 			}
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
@@ -274,18 +279,30 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
+	// Gasmix information.
+	unsigned int gasmix_offset = 0x21, gasmix_count = 3;
+	if (parser->model == HELO2) {
+		gasmix_offset = 0x54;
+		gasmix_count = 8;
+	} else if (parser->model == D4i) {
+		gasmix_offset = 0x5F;
+		gasmix_count = 1;
+	} else if (parser->model == D6i) {
+		gasmix_offset = 0x5F;
+		gasmix_count = 2;
+	} else if (parser->model == D9tx) {
+		gasmix_offset = 0x87;
+		gasmix_count = 8;
+	}
+
 	// Offset to the configuration data.
 	unsigned int config = 0x3A;
-	if (parser->model == D4)
+	if (parser->model == D4) {
 		config += 1;
-	if (parser->model == HELO2)
-		config = 0x84;
-	if (parser->model == D4i)
-		config = 0x65;
-	if (parser->model == D6i)
-		config = 0x6B;
-	if (parser->model == D9tx)
-		config = 0xB7;
+	} else if (parser->model == HELO2 || parser->model == D4i ||
+		parser->model == D6i || parser->model == D9tx) {
+		config = gasmix_offset + gasmix_count * 6;
+	}
 	if (config + 1 > size)
 		return DC_STATUS_DATAFORMAT;
 
