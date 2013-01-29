@@ -65,6 +65,7 @@ static const oceanic_common_version_t oceanic_vtpro_version[] = {
 	{"GENREACT \0\0 256K"},
 	{"VEO 200 R\0\0 256K"},
 	{"VEO 250 R\0\0 256K"},
+	{"SEEMANN R\0\0 256K"},
 	{"VEO 180 R\0\0 256K"},
 	{"AERISXR2 \0\0 256K"},
 	{"INSIGHT R\0\0 256K"},
