@@ -196,7 +196,10 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 		gasmix_count = 1;
 	} else if (parser->model == D6i) {
 		gasmix_offset = 0x5F;
-		gasmix_count = 2;
+		if (data[1] == 0x63)
+			gasmix_count = 3;
+		else
+			gasmix_count = 2;
 	} else if (parser->model == D9tx) {
 		gasmix_offset = 0x87;
 		gasmix_count = 8;
@@ -289,7 +292,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		gasmix_count = 1;
 	} else if (parser->model == D6i) {
 		gasmix_offset = 0x5F;
-		gasmix_count = 2;
+		if (data[1] == 0x63)
+			gasmix_count = 3;
+		else
+			gasmix_count = 2;
 	} else if (parser->model == D9tx) {
 		gasmix_offset = 0x87;
 		gasmix_count = 8;
