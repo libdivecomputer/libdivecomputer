@@ -31,6 +31,8 @@ extern "C" {
 typedef struct suunto_common2_layout_t {
 	// Memory size.
 	unsigned int memsize;
+	// Fingerprint
+	unsigned int fingerprint;
 	// Serial number.
 	unsigned int serial;
 	// Profile ringbuffer

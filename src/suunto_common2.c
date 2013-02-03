@@ -35,8 +35,6 @@
 #define SZ_PACKET     0x78
 #define SZ_MINIMUM    8
 
-#define FP_OFFSET     0x15
-
 #define RB_PROFILE_DISTANCE(l,a,b,m)  ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
 #define BACKEND(abstract)	((suunto_common2_device_backend_t *) abstract->backend)
@@ -413,10 +411,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		}
 
 		if (next != current) {
-			unsigned int fp_offset = FP_OFFSET;
-			if (devinfo.model == 0x15)
-				fp_offset += 6; // HelO2
-
+			unsigned int fp_offset = layout->fingerprint + 4;
 			if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 				free (data);
 				return DC_STATUS_SUCCESS;

@@ -65,6 +65,7 @@ static const suunto_common2_device_backend_t suunto_d9_device_backend = {
 
 static const suunto_common2_layout_t suunto_d9_layout = {
 	0x8000, /* memsize */
+	0x0011, /* fingerprint */
 	0x0023, /* serial */
 	0x019A, /* rb_profile_begin */
 	0x7FFE /* rb_profile_end */
@@ -72,6 +73,7 @@ static const suunto_common2_layout_t suunto_d9_layout = {
 
 static const suunto_common2_layout_t suunto_d9tx_layout = {
 	0x10000, /* memsize */
+	0x0013, /* fingerprint */
 	0x0024, /* serial */
 	0x019A, /* rb_profile_begin */
 	0xEBF0 /* rb_profile_end */

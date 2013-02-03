@@ -35,6 +35,8 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define HELO2    0x15
+
 typedef struct suunto_vyper2_device_t {
 	suunto_common2_device_t base;
 	serial_t *port;
@@ -58,6 +60,15 @@ static const suunto_common2_device_backend_t suunto_vyper2_device_backend = {
 
 static const suunto_common2_layout_t suunto_vyper2_layout = {
 	0x8000, /* memsize */
+	0x0011, /* fingerprint */
+	0x0023, /* serial */
+	0x019A, /* rb_profile_begin */
+	0x7FFE /* rb_profile_end */
+};
+
+static const suunto_common2_layout_t suunto_helo2_layout = {
+	0x8000, /* memsize */
+	0x0017, /* fingerprint */
 	0x0023, /* serial */
 	0x019A, /* rb_profile_begin */
 	0x7FFE /* rb_profile_end */
@@ -144,7 +155,11 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Override the base class values.
-	device->base.layout = &suunto_vyper2_layout;
+	unsigned int model = device->base.version[0];
+	if (model == HELO2)
+		device->base.layout = &suunto_helo2_layout;
+	else
+		device->base.layout = &suunto_vyper2_layout;
 
 	*out = (dc_device_t*) device;
 
