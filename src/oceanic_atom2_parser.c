@@ -543,7 +543,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (have_pressure) {
 				if (parser->model == OC1A || parser->model == OC1B)
 					pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
-				else if (parser->model == ZENAIR || parser->model == VT4 || parser->model == VT41|| parser->model == ATOM3 || parser->model == ATOM31 || parser->model == A300AI)
+				else if (parser->model == VT4 || parser->model == VT41||
+					parser->model == ATOM3 || parser->model == ATOM31 ||
+					parser->model == ZENAIR ||parser->model == A300AI ||
+					parser->model == DG03)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else
 					pressure -= data[offset + 1];

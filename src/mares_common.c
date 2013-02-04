@@ -149,6 +149,7 @@ mares_common_transfer (mares_common_device_t *device, const unsigned char comman
 			return rc;
 
 		// Discard any garbage bytes.
+		serial_sleep (device->port, 100);
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 	}
 

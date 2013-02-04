@@ -186,7 +186,7 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			*((unsigned int *) value) = parser->divetime;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = (data[footer + 0] + ((data[footer + 1] & 0x0F) << 8)) * 1;
+			*((double *) value) = (data[footer + 0] + ((data[footer + 1] & 0x0F) << 8)) * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 1;
