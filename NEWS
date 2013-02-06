@@ -1,3 +1,67 @@
+Version 0.3.0 (2013-02-06)
+==========================
+
+The v0.3.0 release introduces some interesting features for technical divers,
+support for a number of new devices and many smaller bugfixes.
+
+There have been a few minor changes to the public interface, to remove a few
+deprecated functions. Therefore this release is not completely backwards
+compatible with the previous release. However, most applications won't be
+affected by these changes.
+
+New features:
+
+ * Add support for the Cressi Leonardo.
+ * Add support for the Mares Nemo Wide 2, Matrix and Puck Pro.
+ * Add support for the Shearwater Predator and Petrel.
+ * Add support for decostop / ndl samples
+ * Add support for setpoint, ppO2 and CNS
+ * Add support for salinity and atmospheric pressure
+ * Add a new gaschange2 event with O2 and He percentages.
+ * Add a new vendor event.
+ * Add some missing size macros.
+ * Add timestamps to the default log function.
+ * Include the git commit SHA1 in the version number.
+
+Removed/changed features:
+
+ * Remove the suunto_vyper_device_set_delay function.
+ * Remove the reefnet_sensusultra_device_set_maxretries function.
+ * Remove the xxx_device_set_timestamp functions.
+ * Remove the uwatec_smart_device_version function.
+ * Remove the dc_device_version function.
+ * Remove the page, packet and memory size macros from the public api.
+ * Add a model parameter to the mares_iconhd_device_open function.
+
+Bug fixes:
+
+ * [d9] Fix the fingerprint offset for the Suunto D4i, D6i and D9tx.
+ * [d9] Add support for the new D6i firmware.
+ * [veo250] Add support for the Seemann XP5.
+ * [atom2] Add support for a second Aeris Elite T3 variant.
+ * [atom2] Fix the tank pressure decoding for the Hollis DG03.
+ * [vtpro] Fix the unit conversion for the max depth.
+ * [iconhd] Decode the serial number as a 32 bit number.
+ * [suunto] Fix the decoding of the Suunto serial numbers.
+ * [d9] Add support for trimix gas changes.
+ * [cobalt] Add gas changes and violation events for Atomic Aquatics Cobalt
+ * [ostc] Fix gas handling for OSTC
+ * [misc] Log the date/time and version in the example applications.
+ * [puck] Add a small delay before retrying a packet.
+ * [misc] Update the msvc project file.
+ * [vyper2] Read the version info when opening the connection.
+ * [atom2] Fix a typo in the Sherwood Wisdom 3 model number.
+ * [misc] Fix a redefinition warning for the ERROR macro.
+ * [ostc] Skip the size validation for unused divisors.
+ * [atom2] Add support for the Aeris A300 AI.
+ * [ostc] Autodetect the three OSTC variants.
+ * [ostc] Fix a regression in the depth calculation.
+ * [atom2] Add support for a second Sherwood Insight variant.
+ * [ostc] This adds support for a subset of the events the OSTC provides.
+ * [ostc] Correct the OSTC depth calculation
+ * [atom2] Add support for a second Aeris Epic variant.
+ * [atom2] Fix the parser for the Hollis DG03.
+
 Version 0.2.0 (2012-09-21)
 ==========================
 
