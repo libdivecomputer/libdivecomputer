@@ -95,6 +95,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Aeris",    "Atmos AI",   DC_FAMILY_OCEANIC_VTPRO, 0x4244},
 	{"Oceanic",  "VT Pro",     DC_FAMILY_OCEANIC_VTPRO, 0x4245},
 	{"Sherwood", "Wisdom",     DC_FAMILY_OCEANIC_VTPRO, 0x4246},
+	{"Aeris",    "Elite",      DC_FAMILY_OCEANIC_VTPRO, 0x424F},
 	/* Oceanic Veo 250 */
 	{"Genesis", "React Pro", DC_FAMILY_OCEANIC_VEO250, 0x4247},
 	{"Oceanic", "Veo 200",   DC_FAMILY_OCEANIC_VEO250, 0x424B},

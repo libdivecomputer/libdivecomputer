@@ -66,6 +66,7 @@ static const oceanic_common_version_t oceanic_vtpro_version[] = {
 	{"PROPLUS2 \0\0 256K"},
 	{"ATMOSAIR \0\0 256K"},
 	{"VTPRO  r\0\0  256K"},
+	{"ELITE  r\0\0  256K"},
 };
 
 static const oceanic_common_version_t oceanic_wisdom_version[] = {
