@@ -29,6 +29,7 @@
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"
+#include "ihex.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc_device_vtable)
 
@@ -37,6 +38,10 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
+#define MAXRETRIES 9
+
 #define FW_190 0x015A
 
 #define SZ_MD2HASH 18
@@ -44,6 +49,13 @@
 #define SZ_HEADER 266
 #define SZ_FW_190 0x8000
 #define SZ_FW_NEW 0x10000
+
+#define SZ_FIRMWARE 0x17F40
+#define SZ_BLOCK    0x40
+
+#define ACK     0x4B /* "K" for ok */
+#define NAK     0x4E /* "N" for not ok */
+#define PICTYPE 0x57 /* PIC type (18F4685) */
 
 #define WIDTH  320
 #define HEIGHT 240
@@ -55,6 +67,11 @@ typedef struct hw_ostc_device_t {
 	serial_t *port;
 	unsigned char fingerprint[5];
 } hw_ostc_device_t;
+
+typedef struct hw_ostc_firmware_t {
+	unsigned char data[SZ_FIRMWARE];
+	unsigned char bitmap[SZ_FIRMWARE / SZ_BLOCK];
+} hw_ostc_firmware_t;
 
 static dc_status_t hw_ostc_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
@@ -649,6 +666,278 @@ hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], unsign
 		// Prepare for the next iteration.
 		previous = current;
 	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_firmware_readfile (hw_ostc_firmware_t *firmware, dc_context_t *context, const char *filename)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	if (firmware == NULL) {
+		ERROR (context, "Invalid arguments.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Initialize the buffers.
+	memset (firmware->data, 0xFF, sizeof (firmware->data));
+	memset (firmware->bitmap, 0x00, sizeof (firmware->bitmap));
+
+	// Open the hex file.
+	dc_ihex_file_t *file = NULL;
+	rc = dc_ihex_file_open (&file, context, filename);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to open the hex file.");
+		return rc;
+	}
+
+	// Read the hex file.
+	unsigned int lba = 0;
+	dc_ihex_entry_t entry;
+	while ((rc = dc_ihex_file_read (file, &entry)) == DC_STATUS_SUCCESS) {
+		if (entry.type == 0) {
+			// Data record.
+			unsigned int address = (lba << 16) + entry.address;
+			if (address + entry.length > SZ_FIRMWARE) {
+				WARNING (context, "Ignoring out of range record (0x%08x,%u).", address, entry.length);
+				continue;
+			}
+
+			// Copy the record to the buffer.
+			memcpy (firmware->data + address, entry.data, entry.length);
+
+			// Mark the corresponding blocks in the bitmap.
+			unsigned int begin = address / SZ_BLOCK;
+			unsigned int end = (address + entry.length + SZ_BLOCK - 1) / SZ_BLOCK;
+			for (unsigned int i = begin; i < end; ++i) {
+				firmware->bitmap[i] = 1;
+			}
+		} else if (entry.type == 1) {
+			// End of file record.
+			break;
+		} else if (entry.type == 4) {
+			// Extended linear address record.
+			lba = array_uint16_be (entry.data);
+		} else {
+			ERROR (context, "Unexpected record type.");
+			dc_ihex_file_close (file);
+			return DC_STATUS_DATAFORMAT;
+		}
+	}
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_DONE) {
+		ERROR (context, "Failed to read the record.");
+		dc_ihex_file_close (file);
+		return rc;
+	}
+
+	// Close the file.
+	dc_ihex_file_close (file);
+
+	// Verify the presence of the first block.
+	if (firmware->bitmap[0] == 0) {
+		ERROR (context, "No first data block.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Setup the last block.
+	// Copy the "goto main" instruction, stored in the first 8 bytes of the hex
+	// file, to the end of the last block at address 0x17F38. This last block
+	// needs to be present, regardless of whether it's included in the hex file
+	// or not!
+	memset (firmware->data + SZ_FIRMWARE - SZ_BLOCK, 0xFF, SZ_BLOCK - 8);
+	memcpy (firmware->data + SZ_FIRMWARE - 8, firmware->data, 8);
+	firmware->bitmap[C_ARRAY_SIZE(firmware->bitmap) - 1] = 1;
+
+	// Setup the first block.
+	// Copy the hardcoded "goto 0x17F40" instruction to the start of the first
+	// block at address 0x00000.
+	const unsigned char header[] = {0xA0, 0xEF, 0xBF, 0xF0};
+	memcpy (firmware->data, header, sizeof (header));
+
+	return rc;
+}
+
+
+static dc_status_t
+hw_ostc_firmware_setup_internal (hw_ostc_device_t *device)
+{
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	// Send the command.
+	unsigned char command[1] = {0xC1};
+	int n = serial_write (device->port, command, sizeof (command));
+	if (n != sizeof (command)) {
+		ERROR (abstract->context, "Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Read the response.
+	unsigned char answer[2] = {0};
+	n = serial_read (device->port, answer, sizeof (answer));
+	if (n != sizeof (answer)) {
+		ERROR (abstract->context, "Failed to receive the response.");
+		return EXITCODE (n);
+	}
+
+	// Verify the response.
+	const unsigned char expected[2] = {PICTYPE, ACK};
+	if (memcmp (answer, expected, sizeof (expected)) != 0) {
+		ERROR (abstract->context, "Unexpected response.");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_firmware_setup (hw_ostc_device_t *device)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	unsigned int nretries = 0;
+	while ((rc = hw_ostc_firmware_setup_internal (device)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
+			break;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			break;
+	}
+
+	return rc;
+}
+
+
+static dc_status_t
+hw_ostc_firmware_write_internal (hw_ostc_device_t *device, unsigned char *data, unsigned int size)
+{
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	// Send the packet.
+	int n = serial_write (device->port, data, size);
+	if (n != size) {
+		ERROR (abstract->context, "Failed to send the packet.");
+		return EXITCODE (n);
+	}
+
+	// Read the response.
+	unsigned char answer[1] = {0};
+	n = serial_read (device->port, answer, sizeof (answer));
+	if (n != sizeof (answer)) {
+		ERROR (abstract->context, "Failed to receive the response.");
+		return EXITCODE (n);
+	}
+
+	// Verify the response.
+	const unsigned char expected[] = {ACK};
+	if (memcmp (answer, expected, sizeof (expected)) != 0) {
+		ERROR (abstract->context, "Unexpected response.");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_firmware_write (hw_ostc_device_t *device, unsigned char *data, unsigned int size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	unsigned int nretries = 0;
+	while ((rc = hw_ostc_firmware_write_internal (device, data, size)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
+			break;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			break;
+	}
+
+	return rc;
+}
+
+
+dc_status_t
+hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	// Allocate memory for the firmware data.
+	hw_ostc_firmware_t *firmware = (hw_ostc_firmware_t *) malloc (sizeof (hw_ostc_firmware_t));
+	if (firmware == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Read the hex file.
+	rc = hw_ostc_firmware_readfile (firmware, context, filename);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to read the firmware file.");
+		free (firmware);
+		return rc;
+	}
+
+	// Temporary set a relative short timeout. The command to setup the
+	// bootloader needs to be send repeatedly, until the response packet is
+	// received. Thus the time between each two attempts is directly controlled
+	// by the timeout value.
+	serial_set_timeout (device->port, 300);
+
+	// Setup the bootloader.
+	rc = hw_ostc_firmware_setup (device);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to setup the bootloader.");
+		free (firmware);
+		return rc;
+	}
+
+	// Increase the timeout again.
+	serial_set_timeout (device->port, 1000);
+
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.maximum = C_ARRAY_SIZE(firmware->bitmap);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	for (unsigned int i = 0; i < C_ARRAY_SIZE(firmware->bitmap); ++i) {
+		// Skip empty blocks.
+		if (firmware->bitmap[i] == 0)
+			continue;
+
+		// Create the packet.
+		unsigned int address = i * SZ_BLOCK;
+		unsigned char packet[4 + SZ_BLOCK + 1] = {
+			(address >> 16) & 0xFF,
+			(address >>  8) & 0xFF,
+			(address      ) & 0xFF,
+			SZ_BLOCK
+		};
+		memcpy (packet + 4, firmware->data + address, SZ_BLOCK);
+		packet[sizeof (packet) - 1] = ~checksum_add_uint8 (packet, 4 + SZ_BLOCK, 0x00) + 1;
+
+		// Send the packet.
+		rc = hw_ostc_firmware_write (device, packet, sizeof (packet));
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the packet.");
+			free (firmware);
+			return rc;
+		}
+
+		// Update and emit a progress event.
+		progress.current = i + 1;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	}
+
+	free (firmware);
 
 	return DC_STATUS_SUCCESS;
 }
