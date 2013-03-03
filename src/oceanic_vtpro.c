@@ -63,6 +63,7 @@ static const device_backend_t oceanic_vtpro_device_backend = {
 
 static const oceanic_common_version_t oceanic_vtpro_version[] = {
 	{"VERSAPRO \0\0 256K"},
+	{"ATMOSTWO \0\0 256K"},
 	{"PROPLUS2 \0\0 256K"},
 	{"ATMOSAIR \0\0 256K"},
 	{"VTPRO  r\0\0  256K"},
