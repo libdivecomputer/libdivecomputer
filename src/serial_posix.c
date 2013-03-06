@@ -38,6 +38,10 @@
 #ifdef HAVE_IOKIT_SERIAL_IOSS_H
 #include <IOKit/serial/ioss.h>
 #endif
+#include <stdio.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <fnmatch.h>
 
 #ifndef TIOCINQ
 #define TIOCINQ FIONREAD
@@ -71,6 +75,52 @@ struct serial_t {
 	unsigned int baudrate;
 	unsigned int nbits;
 };
+
+
+int
+serial_enumerate (serial_callback_t callback, void *userdata)
+{
+	DIR *dp = NULL;
+	struct dirent *ep = NULL;
+	const char *dirname = "/dev";
+	const char *patterns[] = {
+#if defined (__APPLE__)
+		"tty.*",
+#else
+		"ttyS*",
+		"ttyUSB*",
+		"ttyACM*",
+		"rfcomm*",
+#endif
+		NULL
+	};
+
+	dp = opendir (dirname);
+	if (dp == NULL) {
+		return -1;
+	}
+
+	while ((ep = readdir (dp)) != NULL) {
+		for (size_t i = 0; patterns[i] != NULL; ++i) {
+			if (fnmatch (patterns[i], ep->d_name, 0) == 0) {
+				char filename[1024];
+				int n = snprintf (filename, sizeof (filename), "%s/%s", dirname, ep->d_name);
+				if (n >= sizeof (filename)) {
+					closedir (dp);
+					return -1;
+				}
+
+				callback (filename, userdata);
+				break;
+			}
+		}
+	}
+
+	closedir (dp);
+
+	return 0;
+}
+
 
 //
 // Open the serial port.
