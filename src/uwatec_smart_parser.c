@@ -601,7 +601,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			break;
 		case TEMPERATURE:
 			if (table[id].absolute) {
-				temperature = value / 2.5;
+				temperature = svalue / 2.5;
 				have_temperature = 1;
 			} else {
 				temperature += svalue / 2.5;
