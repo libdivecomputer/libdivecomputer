@@ -53,6 +53,7 @@
 #define EPICB       0x4453
 #define ATOM31      0x4456
 #define A300AI      0x4457
+#define PROPLUS3    0x4548
 
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
@@ -276,7 +277,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == OCS) {
+		parser->model == OCS || parser->model == PROPLUS3) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -370,7 +371,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == OCS) {
+		parser->model == OCS || parser->model == PROPLUS3) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -523,7 +524,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
 				} else {
 					unsigned int sign;
-					if (parser->model == DG03)
+					if (parser->model == DG03 || parser->model == PROPLUS3)
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB)
@@ -546,7 +547,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				else if (parser->model == VT4 || parser->model == VT41||
 					parser->model == ATOM3 || parser->model == ATOM31 ||
 					parser->model == ZENAIR ||parser->model == A300AI ||
-					parser->model == DG03)
+					parser->model == DG03 || parser->model == PROPLUS3)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else
 					pressure -= data[offset + 1];

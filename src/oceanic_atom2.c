@@ -87,6 +87,7 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 	{"ELEMENT2 \0\0 512K"},
 	{"OCEVEO20 \0\0 512K"},
 	{"TUSAZEN \0\0  512K"},
+	{"PROPLUS3 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
