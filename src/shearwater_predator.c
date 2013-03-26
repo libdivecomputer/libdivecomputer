@@ -336,7 +336,7 @@ shearwater_predator_device_set_fingerprint (dc_device_t *abstract, const unsigne
 
 
 static dc_status_t
-shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
+shearwater_predator_download (dc_device_t *abstract, dc_buffer_t *buffer, unsigned int address, unsigned int size)
 {
 	shearwater_predator_device_t *device = (shearwater_predator_device_t *) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -344,21 +344,26 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	unsigned char req_init[] = {
 		0x35, 0x00, 0x34,
-		0xDD, 0x00, 0x00, 0x00,
-		0x02, 0x00, 0x80};
+		(address >> 24) & 0xFF,
+		(address >> 16) & 0xFF,
+		(address >>  8) & 0xFF,
+		(address      ) & 0xFF,
+		(size >> 16) & 0xFF,
+		(size >>  8) & 0xFF,
+		(size      ) & 0xFF};
 	unsigned char req_block[] = {0x36, 0x00};
 	unsigned char req_quit[] = {0x37};
 	unsigned char response[SZ_PACKET];
 
 	// Erase the current contents of the buffer.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_MEMORY)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, size)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = 3 + SZ_MEMORY + 1;
+	progress.maximum = 3 + size + 1;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Transfer the init request.
@@ -379,7 +384,7 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	unsigned char block = 1;
 	unsigned int nbytes = 0;
-	while (nbytes < SZ_MEMORY) {
+	while (nbytes < size) {
 		// Transfer the block request.
 		req_block[1] = block;
 		rc = shearwater_predator_transfer (device, req_block, sizeof (req_block), response, sizeof (response), &n);
@@ -395,7 +400,7 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		// Verify the block length.
 		unsigned int length = n - 2;
-		if (nbytes + length > SZ_MEMORY) {
+		if (nbytes + length > size) {
 			ERROR (abstract->context, "Unexpected packet size.");
 			return DC_STATUS_PROTOCOL;
 		}
@@ -427,6 +432,13 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
+{
+	return shearwater_predator_download (abstract, buffer, 0xDD000000, SZ_MEMORY);
 }
 
 
