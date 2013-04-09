@@ -45,6 +45,7 @@ libdivecomputer_la_SOURCES = \
 	cressi_leonardo.c cressi_leonardo_parser.c \
 	zeagle_n2ition3.c \
 	atomics_cobalt.c atomics_cobalt_parser.c \
+	shearwater_common.h shearwater_common.c \
 	shearwater_predator.c shearwater_predator_parser.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
