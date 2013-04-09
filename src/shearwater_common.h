@@ -41,7 +41,7 @@ dc_status_t
 shearwater_common_close (shearwater_common_device_t *device);
 
 dc_status_t
-shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size);
+shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression);
 
 #ifdef __cplusplus
 }

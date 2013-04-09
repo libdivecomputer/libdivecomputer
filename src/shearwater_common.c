@@ -25,6 +25,7 @@
 #include "shearwater_common.h"
 
 #include "context-private.h"
+#include "array.h"
 
 #define SZ_PACKET  254
 
@@ -78,6 +79,65 @@ shearwater_common_close (shearwater_common_device_t *device)
 	}
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static int
+shearwater_common_decompress_lre (unsigned char *data, unsigned int size, dc_buffer_t *buffer, unsigned int *isfinal)
+{
+	// The RLE decompression algorithm does interpret the binary data as a
+	// stream of 9 bit values. Therefore, the total number of bits needs to be
+	// a multiple of 9 bits.
+	unsigned int nbits = size * 8;
+	if (nbits % 9 != 0)
+		return -1;
+
+	unsigned int offset = 0;
+	while (offset + 9 <= nbits) {
+		// Extract the 9 bit value.
+		unsigned int byte = offset / 8;
+		unsigned int bit  = offset % 8;
+		unsigned int shift = 16 - (bit + 9);
+		unsigned int value = (array_uint16_be (data + byte) >> shift) & 0x1FF;
+
+		// The 9th bit indicates whether the remaining 8 bits represent
+		// a run of zero bytes or not. If the bit is set, the value is
+		// not a run and doesn’t need expansion. If the bit is not set,
+		// the value contains the number of zero bytes in the run. A
+		// zero-length run indicates the end of the compressed stream.
+		if (value & 0x100) {
+			// Append the data byte directly.
+			unsigned char c = value & 0xFF;
+			if (!dc_buffer_append (buffer, &c, 1))
+				return -1;
+		} else if (value == 0) {
+			// Reached the end of the compressed stream.
+			if (isfinal)
+				*isfinal = 1;
+			break;
+		} else {
+			// Expand the run with zero bytes.
+			if (!dc_buffer_resize (buffer, dc_buffer_get_size (buffer) + value))
+				return -1;
+		}
+
+		offset += 9;
+	}
+
+	return 0;
+}
+
+
+static int
+shearwater_common_decompress_xor (unsigned char *data, unsigned int size)
+{
+	// Each block of 32 bytes is XOR'ed (in-place) with the previous block,
+	// except for the first block, which is passed through unchanged.
+	for (unsigned int i = 32; i < size; ++i) {
+		data[i] ^= data[i - 32];
+	}
+
+	return 0;
 }
 
 
@@ -256,14 +316,16 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 
 
 dc_status_t
-shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size)
+shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned int n = 0;
 
 	unsigned char req_init[] = {
-		0x35, 0x00, 0x34,
+		0x35,
+		(compression ? 0x10 : 0x00),
+		0x34,
 		(address >> 24) & 0xFF,
 		(address >> 16) & 0xFF,
 		(address >>  8) & 0xFF,
@@ -293,7 +355,7 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	}
 
 	// Verify the init response.
-	if (n != 3 || response[0] != 0x75 || response[1] != 0x10 || response[2] != 0x82) {
+	if (n != 3 || response[0] != 0x75 || response[1] != 0x10 || response[2] > SZ_PACKET) {
 		ERROR (abstract->context, "Unexpected response packet.");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -302,9 +364,10 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	progress.current += 3;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	unsigned int done = 0;
 	unsigned char block = 1;
 	unsigned int nbytes = 0;
-	while (nbytes < size) {
+	while (nbytes < size && !done) {
 		// Transfer the block request.
 		req_block[1] = block;
 		rc = shearwater_common_transfer (device, req_block, sizeof (req_block), response, sizeof (response), &n);
@@ -329,10 +392,27 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 		progress.current += length;
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-		dc_buffer_append (buffer, response + 2, length);
+		if (compression) {
+			if (shearwater_common_decompress_lre (response + 2, length, buffer, &done) != 0) {
+				ERROR (abstract->context, "Decompression error (LRE phase).");
+				return DC_STATUS_PROTOCOL;
+			}
+		} else {
+			if (!dc_buffer_append (buffer, response + 2, length)) {
+				ERROR (abstract->context, "Insufficient buffer space available.");
+				return DC_STATUS_PROTOCOL;
+			}
+		}
 
 		nbytes += length;
 		block++;
+	}
+
+	if (compression) {
+		if (shearwater_common_decompress_xor (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer)) != 0) {
+			ERROR (abstract->context, "Decompression error (XOR phase).");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	// Transfer the quit request.

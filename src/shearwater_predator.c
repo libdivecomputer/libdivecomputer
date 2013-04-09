@@ -134,7 +134,7 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
 
-	return shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY);
+	return shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY, 0);
 }
 
 
