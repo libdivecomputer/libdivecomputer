@@ -97,7 +97,8 @@ static const backend_table_t g_backends[] = {
 	{"leonardo",	DC_FAMILY_CRESSI_LEONARDO},
 	{"n2ition3",    DC_FAMILY_ZEAGLE_N2ITION3},
 	{"cobalt",      DC_FAMILY_ATOMICS_COBALT},
-	{"predator",	DC_FAMILY_SHEARWATER_PREDATOR}
+	{"predator",	DC_FAMILY_SHEARWATER_PREDATOR},
+	{"petrel",      DC_FAMILY_SHEARWATER_PETREL},
 };
 
 static dc_family_t

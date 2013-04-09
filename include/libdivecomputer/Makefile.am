@@ -44,4 +44,5 @@ libdivecomputer_HEADERS = 	\
 	atomics.h \
 	atomics_cobalt.h \
 	shearwater.h \
+	shearwater_petrel.h \
 	shearwater_predator.h

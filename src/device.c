@@ -141,6 +141,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 	case DC_FAMILY_SHEARWATER_PREDATOR:
 		rc = shearwater_predator_device_open (&device, context, name);
 		break;
+	case DC_FAMILY_SHEARWATER_PETREL:
+		rc = shearwater_petrel_device_open (&device, context, name);
+		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
 	}

@@ -65,6 +65,7 @@ cressi_leonardo_parser_create
 atomics_cobalt_parser_create
 atomics_cobalt_parser_set_calibration
 shearwater_predator_parser_create
+shearwater_petrel_parser_create
 
 dc_device_open
 dc_device_close
@@ -150,3 +151,4 @@ atomics_cobalt_device_version
 atomics_cobalt_device_set_simulation
 shearwater_predator_device_open
 shearwater_predator_extract_dives
+shearwater_petrel_device_open

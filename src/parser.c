@@ -117,6 +117,9 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 	case DC_FAMILY_SHEARWATER_PREDATOR:
 		rc = shearwater_predator_parser_create (&parser, context);
 		break;
+	case DC_FAMILY_SHEARWATER_PETREL:
+		rc = shearwater_petrel_parser_create (&parser, context);
+		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
 	}
