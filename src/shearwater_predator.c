@@ -134,6 +134,12 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
 
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_MEMORY)) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
+		return DC_STATUS_NOMEMORY;
+	}
+
 	return shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY, 0);
 }
 

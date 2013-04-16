@@ -338,7 +338,7 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	unsigned char response[SZ_PACKET];
 
 	// Erase the current contents of the buffer.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, size)) {
+	if (!dc_buffer_clear (buffer)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
