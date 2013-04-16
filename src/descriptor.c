@@ -280,3 +280,17 @@ dc_descriptor_get_model (dc_descriptor_t *descriptor)
 
 	return descriptor->model;
 }
+
+dc_transport_t
+dc_descriptor_get_transport (dc_descriptor_t *descriptor)
+{
+	if (descriptor == NULL)
+		return DC_TRANSPORT_NONE;
+
+	if (descriptor->type == DC_FAMILY_ATOMICS_COBALT)
+		return DC_TRANSPORT_USB;
+	else if (descriptor->type == DC_FAMILY_UWATEC_SMART)
+		return DC_TRANSPORT_IRDA;
+	else
+		return DC_TRANSPORT_SERIAL;
+}

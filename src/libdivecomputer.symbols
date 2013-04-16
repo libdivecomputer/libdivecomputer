@@ -31,6 +31,7 @@ dc_descriptor_get_vendor
 dc_descriptor_get_product
 dc_descriptor_get_type
 dc_descriptor_get_model
+dc_descriptor_get_transport
 
 dc_parser_new
 dc_parser_get_type
