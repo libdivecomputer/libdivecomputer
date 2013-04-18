@@ -314,7 +314,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 
 	// Number of parameters in the configuration data.
 	unsigned int nparams = data[config];
-	if (nparams > MAXPARAMS)
+	if (nparams == 0 || nparams > MAXPARAMS)
 		return DC_STATUS_DATAFORMAT;
 
 	// Available divisor values.
