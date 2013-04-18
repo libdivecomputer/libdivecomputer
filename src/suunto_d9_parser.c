@@ -41,6 +41,7 @@
 #define D4i      0x19
 #define D6i      0x1A
 #define D9tx     0x1B
+#define DX       0x1C
 
 #define AIR      0
 #define NITROX   1
@@ -146,7 +147,7 @@ suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
 
 	unsigned int offset = 0x11;
-	if (parser->model == HELO2)
+	if (parser->model == HELO2 || parser->model == DX)
 		offset = 0x17;
 	else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
 		offset = 0x13;
@@ -157,7 +158,8 @@ suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	const unsigned char *p = abstract->data + offset;
 
 	if (datetime) {
-		if (parser->model == D4i || parser->model == D6i || parser->model == D9tx) {
+		if (parser->model == D4i || parser->model == D6i ||
+			parser->model == D9tx || parser->model == DX) {
 			datetime->year   = p[0] + (p[1] << 8);
 			datetime->month  = p[2];
 			datetime->day    = p[3];
@@ -203,6 +205,9 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 	} else if (parser->model == D9tx) {
 		gasmix_offset = 0x87;
 		gasmix_count = 8;
+	} else if (parser->model == DX) {
+		gasmix_offset = 0xC1;
+		gasmix_count = 11;
 	}
 
 	// Offset to the configuration data.
@@ -210,7 +215,8 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 	if (parser->model == D4) {
 		config += 1;
 	} else if (parser->model == HELO2 || parser->model == D4i ||
-		parser->model == D6i || parser->model == D9tx) {
+		parser->model == D6i || parser->model == D9tx ||
+		parser->model == DX) {
 		config = gasmix_offset + gasmix_count * 6;
 	}
 	if (config + 1 > size)
@@ -222,6 +228,8 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 		gasmodel_offset = 0x1F;
 	else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
 		gasmodel_offset = 0x1D;
+	else if (parser->model == DX)
+		gasmodel_offset = 0x21;
 	unsigned int gasmodel = data[gasmodel_offset];
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
@@ -231,7 +239,8 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 		case DC_FIELD_DIVETIME:
 			if (parser->model == D4)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0B);
-			else if (parser->model == D4i || parser->model == D6i || parser->model == D9tx)
+			else if (parser->model == D4i || parser->model == D6i ||
+				parser->model == D9tx || parser->model == DX)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0D);
 			else if (parser->model == HELO2)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0D) * 60;
@@ -253,7 +262,8 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 				gasmix->helium = 0.0;
 				gasmix->oxygen = 0.21;
 			} else if (parser->model == HELO2 || parser->model == D4i ||
-				parser->model == D6i || parser->model == D9tx) {
+				parser->model == D6i || parser->model == D9tx ||
+				parser->model == DX) {
 				gasmix->helium = data[gasmix_offset + 6 * flags + 2] / 100.0;
 				gasmix->oxygen = data[gasmix_offset + 6 * flags + 1] / 100.0;
 			} else {
@@ -299,6 +309,9 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	} else if (parser->model == D9tx) {
 		gasmix_offset = 0x87;
 		gasmix_count = 8;
+	} else if (parser->model == DX) {
+		gasmix_offset = 0xC1;
+		gasmix_count = 11;
 	}
 
 	// Offset to the configuration data.
@@ -306,7 +319,8 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	if (parser->model == D4) {
 		config += 1;
 	} else if (parser->model == HELO2 || parser->model == D4i ||
-		parser->model == D6i || parser->model == D9tx) {
+		parser->model == D6i || parser->model == D9tx ||
+		parser->model == DX) {
 		config = gasmix_offset + gasmix_count * 6;
 	}
 	if (config + 1 > size)
@@ -357,6 +371,8 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	if (parser->model == HELO2 || parser->model == D4i ||
 		parser->model == D6i || parser->model == D9tx)
 		interval_sample_offset = 0x1E;
+	else if (parser->model == DX)
+		interval_sample_offset = 0x22;
 	unsigned int interval_sample = data[interval_sample_offset];
 	if (interval_sample == 0)
 		return DC_STATUS_DATAFORMAT;

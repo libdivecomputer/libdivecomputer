@@ -72,6 +72,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "D4i",  DC_FAMILY_SUUNTO_D9, 0x19},
 	{"Suunto", "D6i",  DC_FAMILY_SUUNTO_D9, 0x1A},
 	{"Suunto", "D9tx", DC_FAMILY_SUUNTO_D9, 0x1B},
+	{"Suunto", "DX",   DC_FAMILY_SUUNTO_D9, 0x1C},
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C},
 	{"Uwatec", "Aladin Sport Plus",   DC_FAMILY_UWATEC_ALADIN, 0x3E},
