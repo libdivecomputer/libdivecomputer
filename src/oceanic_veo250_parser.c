@@ -148,6 +148,8 @@ oceanic_veo250_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dateti
 
 		if (parser->model == VEO200 || parser->model == VEO250)
 			datetime->year += 3;
+		else if (parser->model == REACTPRO)
+			datetime->year += 2;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -272,7 +274,12 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (°F)
-		unsigned int temperature = data[offset + 7];
+		unsigned int temperature;
+		if (parser->model == REACTPRO) {
+			temperature = data[offset + 6];
+		} else {
+			temperature = data[offset + 7];
+		}
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
