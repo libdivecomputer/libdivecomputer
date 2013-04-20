@@ -29,6 +29,7 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define REACTPRO 0x4247
 #define VEO200   0x424B
 #define VEO250   0x424C
 
@@ -211,6 +212,8 @@ oceanic_veo250_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 static dc_status_t
 oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
+	oceanic_veo250_parser_t *parser = (oceanic_veo250_parser_t *) abstract;
+
 	if (! parser_is_oceanic_veo250 (abstract))
 		return DC_STATUS_INVALIDARGS;
 
@@ -222,7 +225,12 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 	unsigned int time = 0;
 	unsigned int interval = 0;
-	switch (data[0x27] & 0x03) {
+	unsigned int interval_idx = data[0x27] & 0x03;
+	if (parser->model == REACTPRO) {
+		interval_idx += 1;
+		interval_idx %= 4;
+	}
+	switch (interval_idx) {
 	case 0:
 		interval = 2;
 		break;
