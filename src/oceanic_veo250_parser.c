@@ -29,6 +29,9 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define VEO200   0x424B
+#define VEO250   0x424C
+
 typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
 
 struct oceanic_veo250_parser_t {
@@ -142,7 +145,7 @@ oceanic_veo250_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dateti
 		datetime->minute = p[2];
 		datetime->second = 0;
 
-		if (parser->model == 0x424B || parser->model == 0x424C)
+		if (parser->model == VEO200 || parser->model == VEO250)
 			datetime->year += 3;
 	}
 
