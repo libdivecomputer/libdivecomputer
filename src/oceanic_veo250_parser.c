@@ -32,6 +32,7 @@
 #define REACTPRO 0x4247
 #define VEO200   0x424B
 #define VEO250   0x424C
+#define REACTPROWHITE 0x4354
 
 typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
 
@@ -228,7 +229,7 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	unsigned int time = 0;
 	unsigned int interval = 0;
 	unsigned int interval_idx = data[0x27] & 0x03;
-	if (parser->model == REACTPRO) {
+	if (parser->model == REACTPRO || parser->model == REACTPROWHITE) {
 		interval_idx += 1;
 		interval_idx %= 4;
 	}
@@ -275,7 +276,7 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		// Temperature (°F)
 		unsigned int temperature;
-		if (parser->model == REACTPRO) {
+		if (parser->model == REACTPRO || parser->model == REACTPROWHITE) {
 			temperature = data[offset + 6];
 		} else {
 			temperature = data[offset + 7];
