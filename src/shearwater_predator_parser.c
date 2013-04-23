@@ -160,7 +160,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 
 	// Get the offset to the footer record.
 	unsigned int footer = size - SZ_BLOCK;
-	if (parser->petrel) {
+	if (parser->petrel || array_uint16_be (data + footer) == 0xFFFD) {
 		if (size < 3 * SZ_BLOCK)
 			return DC_STATUS_DATAFORMAT;
 
@@ -226,7 +226,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 	// Get the offset to the footer record.
 	unsigned int footer = size - SZ_BLOCK;
-	if (parser->petrel) {
+	if (parser->petrel || array_uint16_be (data + footer) == 0xFFFD) {
 		if (size < 3 * SZ_BLOCK)
 			return DC_STATUS_DATAFORMAT;
 

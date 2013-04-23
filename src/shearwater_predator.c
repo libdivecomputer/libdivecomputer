@@ -238,7 +238,7 @@ shearwater_predator_extract_predator (dc_device_t *abstract, const unsigned char
 	}
 
 	// Allocate memory for the profiles.
-	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN);
+	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN + SZ_BLOCK);
 	if (buffer == NULL) {
 		return DC_STATUS_NOMEMORY;
 	}
@@ -258,11 +258,15 @@ shearwater_predator_extract_predator (dc_device_t *abstract, const unsigned char
 		if (array_isequal (buffer + offset, SZ_BLOCK, 0xFF)) {
 			break;
 		} else if (buffer[offset + 0] == 0xFF && buffer[offset + 1] == 0xFF && have_footer) {
+			// Append the final block.
+			unsigned int length = footer + SZ_BLOCK - offset;
+			memcpy (buffer + offset + length, data + SZ_MEMORY - SZ_BLOCK, SZ_BLOCK);
+
 			// Check the fingerprint data.
 			if (device && memcmp (buffer + offset + 12, device->fingerprint, sizeof (device->fingerprint)) == 0)
 				break;
 
-			if (callback && !callback (buffer + offset, footer + SZ_BLOCK - offset, buffer + offset + 12, sizeof (device->fingerprint), userdata))
+			if (callback && !callback (buffer + offset, length + SZ_BLOCK, buffer + offset + 12, sizeof (device->fingerprint), userdata))
 				break;
 
 			have_footer = 0;
@@ -283,6 +287,12 @@ shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char d
 {
 	shearwater_predator_device_t *device = (shearwater_predator_device_t*) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	// Allocate memory for the profiles.
+	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN + SZ_BLOCK);
+	if (buffer == NULL) {
+		return DC_STATUS_NOMEMORY;
+	}
 
 	// Search the ringbuffer to locate matching header and footer
 	// markers. Because the Petrel does reorder the internal ringbuffer
@@ -305,14 +315,20 @@ shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char d
 			// The dive number in the header and footer should be identical.
 			if (memcmp (data + header + 2, data + offset + 2, 2) != 0) {
 				ERROR (context, "Unexpected dive number.");
+				free (buffer);
 				return DC_STATUS_DATAFORMAT;
 			}
 
+			// Append the final block.
+			unsigned int length = offset + SZ_BLOCK - header;
+			memcpy (buffer, data + header, length);
+			memcpy (buffer + length, data + SZ_MEMORY - SZ_BLOCK, SZ_BLOCK);
+
 			// Check the fingerprint data.
-			if (device && memcmp (data + header + 12, device->fingerprint, sizeof (device->fingerprint)) == 0)
+			if (device && memcmp (buffer + 12, device->fingerprint, sizeof (device->fingerprint)) == 0)
 				break;
 
-			if (callback && !callback (data + header, offset + SZ_BLOCK - header, data + header + 12, sizeof (device->fingerprint), userdata))
+			if (callback && !callback (buffer, length + SZ_BLOCK, buffer + 12, sizeof (device->fingerprint), userdata))
 				break;
 
 			// Reset the header marker.
@@ -321,6 +337,8 @@ shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char d
 
 		offset += SZ_BLOCK;
 	}
+
+	free (buffer);
 
 	return DC_STATUS_SUCCESS;
 }
