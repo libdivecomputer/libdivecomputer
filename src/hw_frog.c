@@ -80,6 +80,26 @@ static const dc_device_vtable_t hw_frog_device_vtable = {
 };
 
 
+static int
+hw_frog_strncpy (unsigned char *data, unsigned int size, const char *text)
+{
+	// Check the maximum length.
+	size_t length = (text ? strlen (text) : 0);
+	if (length > size) {
+		return -1;
+	}
+
+	// Copy the text.
+	if (length)
+		memcpy (data, text, length);
+
+	// Pad with spaces.
+	memset (data + length, 0x20, size - length);
+
+	return 0;
+}
+
+
 static dc_status_t
 hw_frog_transfer (hw_frog_device_t *device,
                   dc_event_progress_t *progress,
@@ -498,18 +518,12 @@ hw_frog_device_display (dc_device_t *abstract, const char *text)
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	// Check the maximum length.
-	size_t length = (text ? strlen (text) : 0);
-	if (length > SZ_DISPLAY) {
+	// Pad the data packet with spaces.
+	unsigned char packet[SZ_DISPLAY] = {0};
+	if (hw_frog_strncpy (packet, sizeof (packet), text) != 0) {
 		ERROR (abstract->context, "Invalid parameter specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
-
-	// Pad the data packet with spaces.
-	unsigned char packet[SZ_DISPLAY] = {0};
-	if (length)
-		memcpy (packet, text, length);
-	memset (packet + length, 0x20, sizeof (packet) - length);
 
 	// Send the command.
 	dc_status_t rc = hw_frog_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0);
@@ -528,18 +542,12 @@ hw_frog_device_customtext (dc_device_t *abstract, const char *text)
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	// Check the maximum length.
-	size_t length = (text ? strlen (text) : 0);
-	if (length > SZ_CUSTOMTEXT) {
+	// Pad the data packet with spaces.
+	unsigned char packet[SZ_CUSTOMTEXT] = {0};
+	if (hw_frog_strncpy (packet, sizeof (packet), text) != 0) {
 		ERROR (abstract->context, "Invalid parameter specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
-
-	// Pad the data packet with spaces.
-	unsigned char packet[SZ_CUSTOMTEXT] = {0};
-	if (length)
-		memcpy (packet, text, length);
-	memset (packet + length, 0x20, sizeof (packet) - length);
 
 	// Send the command.
 	dc_status_t rc = hw_frog_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
