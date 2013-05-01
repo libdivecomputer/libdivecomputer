@@ -163,6 +163,8 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
+	unsigned int air = (p[0] & 0x02) == 0;
+
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
@@ -172,11 +174,27 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = array_uint16_le (p + 0x04) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 3;
+			if (air) {
+				*((unsigned int *) value) = 1;
+			} else {
+				// Count the number of active gas mixes. The active gas
+				// mixes are always first, so we stop counting as soon
+				// as the first gas marked as disabled is found.
+				unsigned int i = 0;
+				while (i < 3) {
+					if (p[0x14 + i * 4 + 1] & 0x80)
+						break;
+					i++;
+				}
+				*((unsigned int *) value) = i;
+			}
 			break;
 		case DC_FIELD_GASMIX:
+			if (air)
+				gasmix->oxygen = 0.21;
+			else
+				gasmix->oxygen = p[0x14 + flags * 4] / 100.0;
 			gasmix->helium = 0.0;
-			gasmix->oxygen = p[0x14 + flags * 4] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
