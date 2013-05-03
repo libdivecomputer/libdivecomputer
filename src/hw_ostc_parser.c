@@ -31,6 +31,7 @@
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &hw_ostc_parser_vtable)
 
 #define NINFO 6
+#define MAXGASMIX 5
 
 typedef struct hw_ostc_parser_t hw_ostc_parser_t;
 
@@ -52,6 +53,11 @@ typedef struct hw_ostc_layout_t {
 	unsigned int salinity;
 	unsigned int duration;
 } hw_ostc_layout_t;
+
+typedef struct hw_ostc_gasmix_t {
+	unsigned int oxygen;
+	unsigned int helium;
+} hw_ostc_gasmix_t;
 
 static dc_status_t hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -321,6 +327,29 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		salinity = 100;
 	double hydrostatic = GRAVITY * salinity * 10.0;
 
+	// Get all the gas mixes.
+	unsigned int ngasmix = 0;
+	hw_ostc_gasmix_t gasmix[MAXGASMIX] = {{0}};
+	if (version == 0x22) {
+		ngasmix = 3;
+		for (unsigned int i = 0; i < ngasmix; ++i) {
+			gasmix[i].oxygen = data[25 + 2 * i];
+			gasmix[i].helium = 0;
+		}
+	} else {
+		ngasmix = 5;
+		for (unsigned int i = 0; i < ngasmix; ++i) {
+			gasmix[i].oxygen = data[19 + 2 * i + 0];
+			gasmix[i].helium = data[19 + 2 * i + 1];
+		}
+	}
+
+	// Get the index of the inital mix.
+	unsigned int initial = data[31];
+	if (initial < 1 || initial > ngasmix)
+		return DC_STATUS_DATAFORMAT;
+	initial--; /* Convert to a zero based index. */
+
 	// Get the extended sample configuration.
 	hw_ostc_sample_info_t info[NINFO];
 	for (unsigned int i = 0; i < NINFO; ++i) {
@@ -359,14 +388,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Initial gas mix.
 		if (time == samplerate) {
-			unsigned int idx = data[31];
-			if (idx < 1 || idx > 5)
-				return DC_STATUS_DATAFORMAT;
-			idx--; /* Convert to a zero based index. */
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = data[19 + 2 * idx] | (data[20 + 2 * idx] << 16);
+			sample.event.value = gasmix[initial].oxygen | (gasmix[initial].helium << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 		}
 
@@ -439,13 +464,13 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			if (offset + 1 > size)
 				return DC_STATUS_DATAFORMAT;
 			unsigned int idx = data[offset];
-			if (idx < 1 || idx > 5)
+			if (idx < 1 || idx > ngasmix)
 				return DC_STATUS_DATAFORMAT;
 			idx--; /* Convert to a zero based index. */
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = data[19 + 2 * idx] | (data[20 + 2 * idx] << 16);
+			sample.event.value = gasmix[idx].oxygen | (gasmix[idx].helium << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset++;
 		}
