@@ -44,6 +44,15 @@ typedef struct hw_ostc_sample_info_t {
 	unsigned int size;
 } hw_ostc_sample_info_t;
 
+typedef struct hw_ostc_layout_t {
+	unsigned int datetime;
+	unsigned int maxdepth;
+	unsigned int divetime;
+	unsigned int atmospheric;
+	unsigned int salinity;
+	unsigned int duration;
+} hw_ostc_layout_t;
+
 static dc_status_t hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
@@ -59,6 +68,23 @@ static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 	hw_ostc_parser_destroy /* destroy */
 };
 
+static const hw_ostc_layout_t hw_ostc_layout_ostc = {
+	3,  /* datetime */
+	8,  /* maxdepth */
+	10, /* divetime */
+	15, /* atmospheric */
+	43, /* salinity */
+	47, /* duration */
+};
+
+static const hw_ostc_layout_t hw_ostc_layout_frog = {
+	9,  /* datetime */
+	14, /* maxdepth */
+	16, /* divetime */
+	21, /* atmospheric */
+	43, /* salinity */
+	47, /* duration */
+};
 
 dc_status_t
 hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
@@ -113,15 +139,19 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 
 	// Check the profile version
 	unsigned int version = data[parser->frog ? 8 : 2];
+	const hw_ostc_layout_t *layout = NULL;
 	unsigned int header = 0;
 	switch (version) {
 	case 0x20:
+		layout = &hw_ostc_layout_ostc;
 		header = 47;
 		break;
 	case 0x21:
+		layout = &hw_ostc_layout_ostc;
 		header = 57;
 		break;
 	case 0x22:
+		layout = &hw_ostc_layout_frog;
 		header = 256;
 		break;
 	default:
@@ -135,21 +165,20 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	if (version == 0x21 || version == 0x22) {
 		// Use the dive time stored in the extended header, rounded down towards
 		// the nearest minute, to match the value displayed by the ostc.
-		divetime = (array_uint16_le (data + 47) / 60) * 60;
+		divetime = (array_uint16_le (data + layout->duration) / 60) * 60;
 	} else {
 		// Use the normal dive time (excluding the shallow parts of the dive).
-		divetime = array_uint16_le (data + 10) * 60 + data[12];
+		divetime = array_uint16_le (data + layout->divetime) * 60 + data[layout->divetime + 2];
 	}
 
-	if (parser->frog)
-		data += 6;
+	const unsigned char *p = data + layout->datetime;
 
 	dc_datetime_t dt;
-	dt.year   = data[5] + 2000;
-	dt.month  = data[3];
-	dt.day    = data[4];
-	dt.hour   = data[6];
-	dt.minute = data[7];
+	dt.year   = p[2] + 2000;
+	dt.month  = p[0];
+	dt.day    = p[1];
+	dt.hour   = p[3];
+	dt.minute = p[4];
 	dt.second = 0;
 
 	dc_ticks_t ticks = dc_datetime_mktime (&dt);
@@ -176,15 +205,19 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 
 	// Check the profile version
 	unsigned int version = data[parser->frog ? 8 : 2];
+	const hw_ostc_layout_t *layout = NULL;
 	unsigned int header = 0;
 	switch (version) {
 	case 0x20:
+		layout = &hw_ostc_layout_ostc;
 		header = 47;
 		break;
 	case 0x21:
+		layout = &hw_ostc_layout_ostc;
 		header = 57;
 		break;
 	case 0x22:
+		layout = &hw_ostc_layout_frog;
 		header = 256;
 		break;
 	default:
@@ -194,33 +227,33 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	if (size < header)
 		return DC_STATUS_DATAFORMAT;
 
-	if (parser->frog)
-		data += 6;
-
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
-	unsigned int salinity = data[43];
+	unsigned int salinity = data[layout->salinity];
 
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			*((unsigned int *) value) = array_uint16_le (data + 10) * 60 + data[12];
+			*((unsigned int *) value) = array_uint16_le (data + layout->divetime) * 60 + data[layout->divetime + 2];
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = array_uint16_le (data + 8) / 100.0;
+			*((double *) value) = array_uint16_le (data + layout->maxdepth) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (parser->frog)
+			if (version == 0x22) {
 				*((unsigned int *) value) = 3;
-			else
+			} else {
 				*((unsigned int *) value) = 6;
+			}
 			break;
 		case DC_FIELD_GASMIX:
-			gasmix->oxygen = data[19 + 2 * flags] / 100.0;
-			if (parser->frog)
+			if (version == 0x22) {
+				gasmix->oxygen = data[25 + 2 * flags] / 100.0;
 				gasmix->helium = 0.0;
-			else
-				gasmix->helium = data[20 + 2 * flags] / 100.0;
+			} else {
+				gasmix->oxygen = data[19 + 2 * flags + 0] / 100.0;
+				gasmix->helium = data[19 + 2 * flags + 1] / 100.0;
+			}
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_SALINITY:
@@ -234,7 +267,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			water->density = salinity * 10.0;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
-			*((double *) value) = array_uint16_le (data + 15) / 1000.0;
+			*((double *) value) = array_uint16_le (data + layout->atmospheric) / 1000.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -257,15 +290,19 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 	// Check the profile version
 	unsigned int version = data[parser->frog ? 8 : 2];
+	const hw_ostc_layout_t *layout = NULL;
 	unsigned int header = 0;
 	switch (version) {
 	case 0x20:
+		layout = &hw_ostc_layout_ostc;
 		header = 47;
 		break;
 	case 0x21:
+		layout = &hw_ostc_layout_ostc;
 		header = 57;
 		break;
 	case 0x22:
+		layout = &hw_ostc_layout_frog;
 		header = 256;
 		break;
 	default:
@@ -279,7 +316,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	unsigned int samplerate = data[36];
 
 	// Get the salinity factor.
-	unsigned int salinity = data[43];
+	unsigned int salinity = data[layout->salinity];
 	if (salinity < 100 || salinity > 104)
 		salinity = 100;
 	double hydrostatic = GRAVITY * salinity * 10.0;
