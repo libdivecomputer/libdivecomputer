@@ -93,6 +93,7 @@ static const backend_table_t g_backends[] = {
 	{"iconhd",      DC_FAMILY_MARES_ICONHD},
 	{"ostc",        DC_FAMILY_HW_OSTC},
 	{"frog",        DC_FAMILY_HW_FROG},
+	{"ostc3",       DC_FAMILY_HW_OSTC3},
 	{"edy",         DC_FAMILY_CRESSI_EDY},
 	{"leonardo",	DC_FAMILY_CRESSI_LEONARDO},
 	{"n2ition3",    DC_FAMILY_ZEAGLE_N2ITION3},

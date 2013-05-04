@@ -102,6 +102,7 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = hw_ostc_parser_create (&parser, context, 0);
 		break;
 	case DC_FAMILY_HW_FROG:
+	case DC_FAMILY_HW_OSTC3:
 		rc = hw_ostc_parser_create (&parser, context, 1);
 		break;
 	case DC_FAMILY_CRESSI_EDY:

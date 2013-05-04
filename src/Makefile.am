@@ -41,6 +41,7 @@ libdivecomputer_la_SOURCES = \
 	mares_iconhd.c mares_iconhd_parser.c \
 	hw_ostc.c hw_ostc_parser.c \
 	hw_frog.c \
+	hw_ostc3.c \
 	cressi_edy.c cressi_edy_parser.c \
 	cressi_leonardo.c cressi_leonardo_parser.c \
 	zeagle_n2ition3.c \

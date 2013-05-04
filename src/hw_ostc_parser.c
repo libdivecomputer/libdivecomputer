@@ -30,7 +30,7 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &hw_ostc_parser_vtable)
 
-#define NINFO 6
+#define MAXCONFIG 7
 #define MAXGASMIX 5
 
 typedef struct hw_ostc_parser_t hw_ostc_parser_t;
@@ -41,6 +41,7 @@ struct hw_ostc_parser_t {
 };
 
 typedef struct hw_ostc_sample_info_t {
+	unsigned int type;
 	unsigned int divisor;
 	unsigned int size;
 } hw_ostc_sample_info_t;
@@ -90,6 +91,15 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	21, /* atmospheric */
 	43, /* salinity */
 	47, /* duration */
+};
+
+static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
+	12, /* datetime */
+	17, /* maxdepth */
+	19, /* divetime */
+	24, /* atmospheric */
+	70, /* salinity */
+	75, /* duration */
 };
 
 dc_status_t
@@ -160,6 +170,10 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		layout = &hw_ostc_layout_frog;
 		header = 256;
 		break;
+	case 0x23:
+		layout = &hw_ostc_layout_ostc3;
+		header = 256;
+		break;
 	default:
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -168,7 +182,7 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned int divetime = 0;
-	if (version == 0x21 || version == 0x22) {
+	if (version > 0x20) {
 		// Use the dive time stored in the extended header, rounded down towards
 		// the nearest minute, to match the value displayed by the ostc.
 		divetime = (array_uint16_le (data + layout->duration) / 60) * 60;
@@ -180,9 +194,15 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	const unsigned char *p = data + layout->datetime;
 
 	dc_datetime_t dt;
-	dt.year   = p[2] + 2000;
-	dt.month  = p[0];
-	dt.day    = p[1];
+	if (version == 0x23) {
+		dt.year   = p[0] + 2000;
+		dt.month  = p[1];
+		dt.day    = p[2];
+	} else {
+		dt.year   = p[2] + 2000;
+		dt.month  = p[0];
+		dt.day    = p[1];
+	}
 	dt.hour   = p[3];
 	dt.minute = p[4];
 	dt.second = 0;
@@ -226,6 +246,10 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 		layout = &hw_ostc_layout_frog;
 		header = 256;
 		break;
+	case 0x23:
+		layout = &hw_ostc_layout_ostc3;
+		header = 256;
+		break;
 	default:
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -236,6 +260,8 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 	unsigned int salinity = data[layout->salinity];
+	if (version == 0x23)
+		salinity += 100;
 
 	if (value) {
 		switch (type) {
@@ -248,6 +274,8 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 		case DC_FIELD_GASMIX_COUNT:
 			if (version == 0x22) {
 				*((unsigned int *) value) = 3;
+			} else if (version == 0x23) {
+				*((unsigned int *) value) = 5;
 			} else {
 				*((unsigned int *) value) = 6;
 			}
@@ -256,6 +284,9 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			if (version == 0x22) {
 				gasmix->oxygen = data[25 + 2 * flags] / 100.0;
 				gasmix->helium = 0.0;
+			} else if (version == 0x23) {
+				gasmix->oxygen = data[28 + 4 * flags + 0] / 100.0;
+				gasmix->helium = data[28 + 4 * flags + 1] / 100.0;
 			} else {
 				gasmix->oxygen = data[19 + 2 * flags + 0] / 100.0;
 				gasmix->helium = data[19 + 2 * flags + 1] / 100.0;
@@ -311,6 +342,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		layout = &hw_ostc_layout_frog;
 		header = 256;
 		break;
+	case 0x23:
+		layout = &hw_ostc_layout_ostc3;
+		header = 256;
+		break;
 	default:
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -319,51 +354,83 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		return DC_STATUS_DATAFORMAT;
 
 	// Get the sample rate.
-	unsigned int samplerate = data[36];
+	unsigned int samplerate = 0;
+	if (version == 0x23)
+		samplerate = data[header + 3];
+	else
+		samplerate = data[36];
 
 	// Get the salinity factor.
 	unsigned int salinity = data[layout->salinity];
+	if (version == 0x23)
+		salinity += 100;
 	if (salinity < 100 || salinity > 104)
 		salinity = 100;
 	double hydrostatic = GRAVITY * salinity * 10.0;
 
-	// Get all the gas mixes.
-	unsigned int ngasmix = 0;
+	// Get all the gas mixes, and the index of the inital mix.
+	unsigned int ngasmix = 0, initial = 0;
 	hw_ostc_gasmix_t gasmix[MAXGASMIX] = {{0}};
 	if (version == 0x22) {
 		ngasmix = 3;
+		initial = data[31];
 		for (unsigned int i = 0; i < ngasmix; ++i) {
 			gasmix[i].oxygen = data[25 + 2 * i];
 			gasmix[i].helium = 0;
 		}
+	} else if (version == 0x23) {
+		ngasmix = 5;
+		for (unsigned int i = 0; i < ngasmix; ++i) {
+			gasmix[i].oxygen = data[28 + 4 * i + 0];
+			gasmix[i].helium = data[28 + 4 * i + 1];
+			// Find the first gas marked as the initial gas.
+			if (!initial && data[28 + 4 * i + 3] == 1) {
+				initial = i + 1; /* One based index! */
+			}
+		}
 	} else {
 		ngasmix = 5;
+		initial = data[31];
 		for (unsigned int i = 0; i < ngasmix; ++i) {
 			gasmix[i].oxygen = data[19 + 2 * i + 0];
 			gasmix[i].helium = data[19 + 2 * i + 1];
 		}
 	}
-
-	// Get the index of the inital mix.
-	unsigned int initial = data[31];
 	if (initial < 1 || initial > ngasmix)
 		return DC_STATUS_DATAFORMAT;
 	initial--; /* Convert to a zero based index. */
 
+	// Get the number of sample descriptors.
+	unsigned int nconfig = 0;
+	if (version == 0x23)
+		nconfig = data[header + 4];
+	else
+		nconfig = 6;
+	if (nconfig > MAXCONFIG)
+		return DC_STATUS_DATAFORMAT;
+
 	// Get the extended sample configuration.
-	hw_ostc_sample_info_t info[NINFO];
-	for (unsigned int i = 0; i < NINFO; ++i) {
-		info[i].divisor = (data[37 + i] & 0x0F);
-		info[i].size    = (data[37 + i] & 0xF0) >> 4;
+	hw_ostc_sample_info_t info[MAXCONFIG] = {{0}};
+	for (unsigned int i = 0; i < nconfig; ++i) {
+		if (version == 0x23) {
+			info[i].type    = data[header + 5 + 3 * i + 0];
+			info[i].size    = data[header + 5 + 3 * i + 1];
+			info[i].divisor = data[header + 5 + 3 * i + 2];
+		} else {
+			info[i].type    = i;
+			info[i].divisor = (data[37 + i] & 0x0F);
+			info[i].size    = (data[37 + i] & 0xF0) >> 4;
+		}
+
 		if (info[i].divisor) {
-			switch (i) {
+			switch (info[i].type) {
 			case 0: // Temperature
 			case 1: // Deco / NDL
 				if (info[i].size != 2)
 					return DC_STATUS_DATAFORMAT;
 				break;
 			case 5: // CNS
-				if (info[i].size != 1)
+				if (info[i].size != 1 && info[i].size != 2)
 					return DC_STATUS_DATAFORMAT;
 				break;
 			default: // Not yet used.
@@ -376,6 +443,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	unsigned int nsamples = 0;
 
 	unsigned int offset = header;
+	if (version == 0x23)
+		offset += 5 + 3 * nconfig;
 	while (offset + 3 <= size) {
 		dc_sample_value_t sample = {0};
 
@@ -403,16 +472,21 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Extended sample info.
 		unsigned int length =  data[offset] & 0x7F;
-		unsigned int events = (data[offset] & 0x80) >> 7;
 		offset += 1;
 
 		// Check for buffer overflows.
 		if (offset + length > size)
 			return DC_STATUS_DATAFORMAT;
 
-		// Get the event byte.
-		if (events) {
-			events = data[offset++];
+		// Get the event byte(s).
+		unsigned int nbits = 0;
+		unsigned int events = 0;
+		while (data[offset - 1] & 0x80) {
+			if (offset + 1 > size)
+				return DC_STATUS_DATAFORMAT;
+			events |= data[offset] << nbits;
+			nbits += 8;
+			offset++;
 		}
 
 		// Alarms
@@ -475,11 +549,20 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			offset++;
 		}
 
+		// SetPoint Change
+		if ((events & 0x40) && (version == 0x23)) {
+			if (offset + 1 > size)
+				return DC_STATUS_DATAFORMAT;
+			sample.setpoint = data[offset] / 100.0;
+			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+			offset++;
+		}
+
 		// Extended sample info.
-		for (unsigned int i = 0; i < NINFO; ++i) {
+		for (unsigned int i = 0; i < nconfig; ++i) {
 			if (info[i].divisor && (nsamples % info[i].divisor) == 0) {
 				unsigned int value = 0;
-				switch (i) {
+				switch (info[i].type) {
 				case 0: // Temperature (0.1 °C).
 					value = array_uint16_le (data + offset);
 					sample.temperature = value / 10.0;
@@ -497,7 +580,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 					break;
 				case 5: // CNS
-					sample.cns = data[offset] / 100.0;
+					if (info[i].size == 2)
+						sample.cns = array_uint16_le (data + offset) / 100.0;
+					else
+						sample.cns = data[offset] / 100.0;
 					if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 					break;
 				default: // Not yet used.
@@ -509,7 +595,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		}
 
 		// SetPoint Change
-		if (events & 0x40) {
+		if ((events & 0x40) && (version != 0x23)) {
 			if (offset + 1 > size)
 				return DC_STATUS_DATAFORMAT;
 			sample.setpoint = data[offset] / 100.0;

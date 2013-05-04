@@ -126,6 +126,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 	case DC_FAMILY_HW_FROG:
 		rc = hw_frog_device_open (&device, context, name);
 		break;
+	case DC_FAMILY_HW_OSTC3:
+		rc = hw_ostc3_device_open (&device, context, name);
+		break;
 	case DC_FAMILY_CRESSI_EDY:
 		rc = cressi_edy_device_open (&device, context, name);
 		break;

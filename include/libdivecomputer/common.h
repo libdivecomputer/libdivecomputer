@@ -69,6 +69,7 @@ typedef enum dc_family_t {
 	/* Heinrichs Weikamp */
 	DC_FAMILY_HW_OSTC = (6 << 16),
 	DC_FAMILY_HW_FROG,
+	DC_FAMILY_HW_OSTC3,
 	/* Cressi */
 	DC_FAMILY_CRESSI_EDY = (7 << 16),
 	DC_FAMILY_CRESSI_LEONARDO,
