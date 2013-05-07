@@ -19,6 +19,10 @@
  * MA 02110-1301 USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -77,6 +81,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Uwatec Memomouse */
 	{"Uwatec", "Memomouse", DC_FAMILY_UWATEC_MEMOMOUSE, 0},
 	/* Uwatec Smart */
+#ifdef HAVE_IRDA
 	{"Uwatec", "Smart Pro",     DC_FAMILY_UWATEC_SMART, 0x10},
 	{"Uwatec", "Galileo",       DC_FAMILY_UWATEC_SMART, 0x11},
 	{"Uwatec", "Aladin Tec",    DC_FAMILY_UWATEC_SMART, 0x12},
@@ -85,6 +90,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec", "Smart Tec",     DC_FAMILY_UWATEC_SMART, 0x18},
 	{"Uwatec", "Galileo Trimix",DC_FAMILY_UWATEC_SMART, 0x19},
 	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C},
+#endif
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2},
@@ -172,7 +178,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Apeks",    "Quantum X",  DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	{"DiveRite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	/* Atomic Aquatics Cobalt */
+#ifdef HAVE_LIBUSB
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},
+#endif
 	/* Shearwater Predator */
 	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2},
 	/* Shearwater Petrel */

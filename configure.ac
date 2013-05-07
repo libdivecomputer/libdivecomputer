@@ -89,6 +89,10 @@ AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], [irda_linux=yes], [i
 # endif
 ])
 
+if test "$irda_win32" = "yes" || test "$irda_linux" = "yes"; then
+	AC_DEFINE([HAVE_IRDA], [1], [IrDA support])
+fi
+
 AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"])
 
 # Checks for header files.
