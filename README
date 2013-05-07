@@ -6,7 +6,7 @@ communication with dive computers from various manufacturers.
 
 The official web site is:
 
-  http://www.divesoftware.org/libdc/
+  http://www.libdivecomputer.org/
 
 The sourceforge project page is:
 
@@ -39,11 +39,11 @@ Support
 
 Please send bug reports, feedback or questions to the mailing list:
 
-  https://lists.sourceforge.net/lists/listinfo/libdivecomputer-devel
+  http://libdivecomputer.org/cgi-bin/mailman/listinfo/devel
 
 or contact me directly:
 
-  jefdriesen@hotmail.com
+  jef@libdivecomputer.org
 
 License
 =======
