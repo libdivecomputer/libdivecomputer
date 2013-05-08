@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/shearwater_predator.h>
+#include <libdivecomputer/shearwater_petrel.h>
 #include <libdivecomputer/units.h>
 
 #include "context-private.h"
