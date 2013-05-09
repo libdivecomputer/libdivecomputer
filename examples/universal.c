@@ -727,6 +727,10 @@ dowork (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname,
 		// Open the output file.
 		divedata.fp = fopen (xmlfile, "w");
 
+		if (divedata.fp) {
+			fprintf (divedata.fp, "<device>\n");
+		}
+
 		// Download the dives.
 		message ("Downloading the dives.\n");
 		rc = dc_device_foreach (device, dive_cb, &divedata);
@@ -736,6 +740,10 @@ dowork (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname,
 			if (divedata.fp) fclose (divedata.fp);
 			dc_device_close (device);
 			return rc;
+		}
+
+		if (divedata.fp) {
+			fprintf (divedata.fp, "</device>\n");
 		}
 
 		// Store the fingerprint data.
