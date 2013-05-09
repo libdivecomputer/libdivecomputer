@@ -49,6 +49,7 @@
 #define ATOM3       0x444C
 #define DG03        0x444D
 #define OCS         0x4450
+#define OC1C        0x4451
 #define VT41        0x4452
 #define EPICB       0x4453
 #define ATOM31      0x4456
@@ -171,6 +172,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		switch (parser->model) {
 		case OC1A:
 		case OC1B:
+		case OC1C:
 		case OCS:
 		case VT4:
 		case VT41:
@@ -408,7 +410,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	}
 
 	unsigned int samplesize = PAGESIZE / 2;
-	if (parser->model == OC1A || parser->model == OC1B)
+	if (parser->model == OC1A || parser->model == OC1B || parser->model == OC1C)
 		samplesize = PAGESIZE;
 	else if (parser->model == F10)
 		samplesize = 2;
@@ -516,7 +518,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					temperature = data[offset + 6];
 				} else if (parser->model == GEO20 || parser->model == VEO20 ||
 					parser->model == VEO30 || parser->model == OC1A ||
-					parser->model == OC1B) {
+					parser->model == OC1B || parser->model == OC1C) {
 					temperature = data[offset + 3];
 				} else if (parser->model == OCS) {
 					temperature = data[offset + 1];
@@ -542,7 +544,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 			// Tank Pressure (psi)
 			if (have_pressure) {
-				if (parser->model == OC1A || parser->model == OC1B)
+				if (parser->model == OC1A || parser->model == OC1B || parser->model == OC1C)
 					pressure = (data[offset + 10] + (data[offset + 11] << 8)) & 0x0FFF;
 				else if (parser->model == VT4 || parser->model == VT41||
 					parser->model == ATOM3 || parser->model == ATOM31 ||
@@ -560,7 +562,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			unsigned int depth;
 			if (parser->model == GEO20 || parser->model == VEO20 ||
 				parser->model == VEO30 || parser->model == OC1A ||
-				parser->model == OC1B)
+				parser->model == OC1B || parser->model == OC1C)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else if (parser->model == ATOM1)
 				depth = data[offset + 3] * 16;

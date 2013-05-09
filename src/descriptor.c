@@ -147,6 +147,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Oceanic",  "Atom 3.0",            DC_FAMILY_OCEANIC_ATOM2, 0x444C},
 	{"Hollis",   "DG03",                DC_FAMILY_OCEANIC_ATOM2, 0x444D},
 	{"Oceanic",  "OCS",                 DC_FAMILY_OCEANIC_ATOM2, 0x4450},
+	{"Oceanic",  "OC1",                 DC_FAMILY_OCEANIC_ATOM2, 0x4451},
 	{"Oceanic",  "VT 4.1",              DC_FAMILY_OCEANIC_ATOM2, 0x4452},
 	{"Aeris",    "Epic",                DC_FAMILY_OCEANIC_ATOM2, 0x4453},
 	{"Aeris",    "Elite T3",            DC_FAMILY_OCEANIC_ATOM2, 0x4455},
