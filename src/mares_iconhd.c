@@ -89,6 +89,12 @@ static const mares_iconhd_layout_t mares_iconhd_layout = {
 	0x100000, /* rb_profile_end */
 };
 
+static const mares_iconhd_layout_t mares_matrix_layout = {
+	0x40000, /* memsize */
+	0x0A000, /* rb_profile_begin */
+	0x40000, /* rb_profile_end */
+};
+
 static unsigned int
 mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
 {
@@ -253,12 +259,13 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 
 	// Set the default values.
 	device->port = NULL;
-	device->layout = &mares_iconhd_layout;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->version, 0, sizeof (device->version));
 	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO) {
+		device->layout = &mares_matrix_layout;
 		device->packetsize = 64;
 	} else {
+		device->layout = &mares_iconhd_layout;
 		device->packetsize = 0;
 	}
 
