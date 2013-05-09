@@ -266,8 +266,16 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		fprintf (sampledata->fp, "   <temperature>%.2f</temperature>\n", value.temperature);
 		break;
 	case DC_SAMPLE_EVENT:
-		fprintf (sampledata->fp, "   <event type=\"%u\" time=\"%u\" flags=\"%u\" value=\"%u\">%s</event>\n",
-			value.event.type, value.event.time, value.event.flags, value.event.value, events[value.event.type]);
+		if (value.event.type == SAMPLE_EVENT_GASCHANGE2) {
+			fprintf (sampledata->fp, "   <gaschange o2=\"%u\" he=\"%u\" />\n",
+				value.event.value & 0xFFFF, (value.event.value >> 16) & 0xFFFF);
+		} else if (value.event.type == SAMPLE_EVENT_GASCHANGE) {
+			fprintf (sampledata->fp, "   <gaschange o2=\"%u\" />\n",
+				value.event.value);
+		} else {
+			fprintf (sampledata->fp, "   <event type=\"%u\" time=\"%u\" flags=\"%u\" value=\"%u\">%s</event>\n",
+				value.event.type, value.event.time, value.event.flags, value.event.value, events[value.event.type]);
+		}
 		break;
 	case DC_SAMPLE_RBT:
 		fprintf (sampledata->fp, "   <rbt>%u</rbt>\n", value.rbt);
