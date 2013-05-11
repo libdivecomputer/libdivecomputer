@@ -39,6 +39,7 @@
 #define COMPUMASK   0x4348
 #define OC1A        0x434E
 #define F10         0x434D
+#define ELEMENT2    0x4357
 #define VEO20       0x4359
 #define VEO30       0x435A
 #define ZENAIR      0x4442
@@ -416,7 +417,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		samplesize = 2;
 
 	unsigned int have_temperature = 1, have_pressure = 1;
-	if (parser->model == VEO30 || parser->model == OCS) {
+	if (parser->model == VEO30 || parser->model == OCS ||
+		parser->model == ELEMENT2) {
 		have_pressure = 0;
 	} else if (parser->model == F10) {
 		have_temperature = 0;
@@ -514,7 +516,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		} else {
 			// Temperature (°F)
 			if (have_temperature) {
-				if (parser->model == GEO || parser->model == ATOM1) {
+				if (parser->model == GEO || parser->model == ATOM1 ||
+					parser->model == ELEMENT2) {
 					temperature = data[offset + 6];
 				} else if (parser->model == GEO20 || parser->model == VEO20 ||
 					parser->model == VEO30 || parser->model == OC1A ||
