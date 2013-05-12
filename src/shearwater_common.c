@@ -256,7 +256,7 @@ shearwater_common_slip_read (shearwater_common_device_t *device, unsigned char d
 }
 
 
-static dc_status_t
+dc_status_t
 shearwater_common_transfer (shearwater_common_device_t *device, const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize, unsigned int *actual)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -281,6 +281,13 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 			return DC_STATUS_IO;
 		else
 			return DC_STATUS_TIMEOUT;
+	}
+
+	// Return early if no response packet is requested.
+	if (osize == 0) {
+		if (actual)
+			*actual = 0;
+		return DC_STATUS_SUCCESS;
 	}
 
 	// Receive the response packet.
@@ -309,7 +316,8 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 	}
 
 	memcpy (output, packet + 4, length - 1);
-	*actual = length - 1;
+	if (actual)
+		*actual = length - 1;
 
 	return DC_STATUS_SUCCESS;
 }

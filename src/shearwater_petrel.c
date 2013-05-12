@@ -101,6 +101,10 @@ shearwater_petrel_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
 
+	// Shutdown the device.
+	unsigned char request[] = {0x2E, 0x90, 0x20, 0x00};
+	shearwater_common_transfer (device, request, sizeof (request), NULL, 0, NULL);
+
 	// Close the device.
 	rc = shearwater_common_close (device);
 
