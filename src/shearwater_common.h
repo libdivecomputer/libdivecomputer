@@ -29,6 +29,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define ID_SERIAL   0x8010
+#define ID_FIRMWARE 0x8011
+
 typedef struct shearwater_common_device_t {
 	dc_device_t base;
 	serial_t *port;
@@ -45,6 +48,9 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 
 dc_status_t
 shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression);
+
+dc_status_t
+shearwater_common_identifier (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int id);
 
 #ifdef __cplusplus
 }

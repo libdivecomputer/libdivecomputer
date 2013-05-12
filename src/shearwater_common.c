@@ -441,3 +441,42 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 
 	return DC_STATUS_SUCCESS;
 }
+
+
+dc_status_t
+shearwater_common_identifier (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int id)
+{
+	dc_device_t *abstract = (dc_device_t *) device;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	// Erase the buffer.
+	if (!dc_buffer_clear (buffer)) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Transfer the request.
+	unsigned int n = 0;
+	unsigned char request[] = {0x22,
+		(id >> 8) & 0xFF,
+		(id     ) & 0xFF};
+	unsigned char response[SZ_PACKET];
+	rc = shearwater_common_transfer (device, request, sizeof (request), response, sizeof (response), &n);
+	if (rc != DC_STATUS_SUCCESS) {
+		return rc;
+	}
+
+	// Verify the response.
+	if (n < 3 || response[0] != 0x62 || response[1] != request[1] || response[2] != request[2]) {
+		ERROR (abstract->context, "Unexpected response packet.");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Append the packet to the output buffer.
+	if (!dc_buffer_append (buffer, response + 3, n - 3)) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	return rc;
+}

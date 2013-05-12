@@ -61,6 +61,21 @@ static const dc_device_vtable_t shearwater_petrel_device_vtable = {
 };
 
 
+static unsigned int
+str2num (unsigned char data[], unsigned int size, unsigned int offset)
+{
+	unsigned int value = 0;
+	for (unsigned int i = offset; i < size; ++i) {
+		if (data[i] < '0' || data[i] > '9')
+			break;
+		value *= 10;
+		value += data[i] - '0';
+	}
+
+	return value;
+}
+
+
 dc_status_t
 shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
@@ -147,6 +162,45 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		dc_buffer_free (manifests);
 		return DC_STATUS_NOMEMORY;
 	}
+
+	// Read the serial number.
+	rc = shearwater_common_identifier (&device->base, buffer, ID_SERIAL);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the serial number.");
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return rc;
+	}
+
+	// Convert to a number.
+	unsigned char serial[4] = {0};
+	if (array_convert_hex2bin (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer),
+		serial, sizeof (serial)) != 0 ) {
+		ERROR (abstract->context, "Failed to convert the serial number.");
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return DC_STATUS_DATAFORMAT;
+
+	}
+
+	// Read the firmware version.
+	rc = shearwater_common_identifier (&device->base, buffer, ID_FIRMWARE);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the firmware version.");
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return rc;
+	}
+
+	// Convert to a number.
+	unsigned int firmware = str2num (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), 1);
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = 3;
+	devinfo.firmware = firmware;
+	devinfo.serial = array_uint32_be (serial);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	while (1) {
 		// Download a manifest.
