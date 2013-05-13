@@ -2,7 +2,7 @@
 m4_define([dc_version_major],[0])
 m4_define([dc_version_minor],[4])
 m4_define([dc_version_micro],[0])
-m4_define([dc_version_suffix],[devel])
+m4_define([dc_version_suffix],[])
 m4_define([dc_version],dc_version_major.dc_version_minor.dc_version_micro[]m4_ifset([dc_version_suffix],-[dc_version_suffix]))
 
 # Libtool versioning.

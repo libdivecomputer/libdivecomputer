@@ -1,3 +1,52 @@
+Version 0.4.0 (2013-05-13)
+==========================
+
+The v0.4.0 release is mainly a bugfix release, and brings in support for a
+number of new devices. There are also two minor backwards incompatible changes,
+but most applications won't be affected by those.
+
+New features:
+
+ * Add support for the Heinrichs Weikamp OSTC3.
+ * Add support for the native Shearwater Petrel protocol.
+ * Add support for retrieving the transport type.
+
+Removed/changed features:
+
+ * The Shearwater Predator dive data format has been modified to include the
+   final block at the end of each dive. The parser retains support for the old
+   data format.
+ * The mares_iconhd_extract_dives function now requires a valid device handle.
+
+Bug fixes:
+
+ * [atom2] Fix temperature and tank pressure for the Tusa Element II.
+ * [atom2] Add support for yet another Oceanic OC1 variant.
+ * [iconhd] Limit the memory capacity to 256K.
+ * [d9] Add support for the Suunto DX.
+ * [d9] Prevent an infinite loop.
+ * [misc] Use a new xml element for the gaschange events.
+ * [misc] Add a root element to the xml output.
+ * [misc] Update the msvc project file.
+ * [misc] Exclude device descriptors for unsupported devices.
+ * [misc] Update the README with the new domain name.
+ * [frog] Fix the gas change events for the Heinrichs Weikamp Frog.
+ * [iconhd] Fix the parsing of the gas mixes.
+ * [leonardo] Add a devinfo event containing the serial number.
+ * [leonardo] Flush the serial buffers after opening the port.
+ * [leonardo] Fix a potential NULL pointer dereference.
+ * [atom2] Add support for the Genesis React Pro White
+ * [veo250] Fix the temperature and year for the Genesis React Pro.
+ * [veo250] Fix the sample rate for the Genesis React Pro.
+ * [misc] Add additional descriptors for Uwatec devices.
+ * [predator] Fix time conversion for Shearwater computers
+ * [misc] Add support for the Mares Nemo Steel and Titanium.
+ * [atom2] Add support for the Oceanic Pro Plus 3.
+ * [smart] Fix the decoding of negative temperatures.
+ * [misc] Re-order the decostop array to match the enum values.
+ * [vtpro] Add support for the Aeris Atmos 2.
+ * [vtpro] Add support for the Aeris Elite.
+
 Version 0.3.0 (2013-02-06)
 ==========================
 
