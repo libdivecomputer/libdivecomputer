@@ -245,7 +245,7 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		"OLF", "PO2", "airtime", "rgbm", "heading", "tissue level warning",
 		"gaschange2"};
 	static const char *decostop[] = {
-		"ndl", "deco", "deep", "safety"};
+		"ndl", "safety", "deco", "deep"};
 
 	sample_data_t *sampledata = (sample_data_t *) userdata;
 

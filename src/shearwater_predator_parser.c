@@ -141,7 +141,7 @@ shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *d
 
 	unsigned int ticks = array_uint32_be (data + 12);
 
-	if (!dc_datetime_localtime (datetime, ticks))
+	if (!dc_datetime_gmtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
 
 	return DC_STATUS_SUCCESS;

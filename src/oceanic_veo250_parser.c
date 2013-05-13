@@ -31,6 +31,11 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &oceanic_veo250_parser_vtable)
 
+#define REACTPRO 0x4247
+#define VEO200   0x424B
+#define VEO250   0x424C
+#define REACTPROWHITE 0x4354
+
 typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
 
 struct oceanic_veo250_parser_t {
@@ -128,8 +133,10 @@ oceanic_veo250_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dateti
 		datetime->minute = p[2];
 		datetime->second = 0;
 
-		if (parser->model == 0x424B || parser->model == 0x424C)
+		if (parser->model == VEO200 || parser->model == VEO250)
 			datetime->year += 3;
+		else if (parser->model == REACTPRO)
+			datetime->year += 2;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -194,6 +201,7 @@ oceanic_veo250_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 static dc_status_t
 oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
+	oceanic_veo250_parser_t *parser = (oceanic_veo250_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
@@ -202,7 +210,12 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 	unsigned int time = 0;
 	unsigned int interval = 0;
-	switch (data[0x27] & 0x03) {
+	unsigned int interval_idx = data[0x27] & 0x03;
+	if (parser->model == REACTPRO || parser->model == REACTPROWHITE) {
+		interval_idx += 1;
+		interval_idx %= 4;
+	}
+	switch (interval_idx) {
 	case 0:
 		interval = 2;
 		break;
@@ -244,7 +257,12 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (°F)
-		unsigned int temperature = data[offset + 7];
+		unsigned int temperature;
+		if (parser->model == REACTPRO || parser->model == REACTPROWHITE) {
+			temperature = data[offset + 6];
+		} else {
+			temperature = data[offset + 7];
+		}
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 

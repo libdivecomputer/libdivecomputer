@@ -35,6 +35,8 @@
 #include "parser-private.h"
 #include "device-private.h"
 
+#define REACTPROWHITE 0x4354
+
 dc_status_t
 dc_parser_new (dc_parser_t **out, dc_device_t *device)
 {
@@ -86,7 +88,10 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = oceanic_veo250_parser_create (&parser, context, device->devinfo.model);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
-		rc = oceanic_atom2_parser_create (&parser, context, device->devinfo.model);
+		if (device->devinfo.model == REACTPROWHITE)
+			rc = oceanic_veo250_parser_create (&parser, context, device->devinfo.model);
+		else
+			rc = oceanic_atom2_parser_create (&parser, context, device->devinfo.model);
 		break;
 	case DC_FAMILY_MARES_NEMO:
 	case DC_FAMILY_MARES_PUCK:

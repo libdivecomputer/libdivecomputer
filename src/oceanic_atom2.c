@@ -89,6 +89,7 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 	{"ELEMENT2 \0\0 512K"},
 	{"OCEVEO20 \0\0 512K"},
 	{"TUSAZEN \0\0  512K"},
+	{"PROPLUS3 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
@@ -122,6 +123,10 @@ static const oceanic_common_version_t oceanic_oc1_version[] = {
 
 static const oceanic_common_version_t oceanic_veo1_version[] = {
 	{"OCEVEO10 \0\0   8K"},
+};
+
+static const oceanic_common_version_t oceanic_reactpro_version[] = {
+	{"REACPRO2 \0\0 512K"},
 };
 
 static const oceanic_common_layout_t aeris_f10_layout = {
@@ -241,6 +246,18 @@ static const oceanic_common_layout_t oceanic_veo1_layout = {
 	0 /* pt_mode_logbook */
 };
 
+static const oceanic_common_layout_t oceanic_reactpro_layout = {
+	0xFFF0, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0400, /* rb_logbook_begin */
+	0x0600, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
+	0x0600, /* rb_profile_begin */
+	0xFFF0, /* rb_profile_end */
+	1, /* pt_mode_global */
+	1 /* pt_mode_logbook */
+};
 
 static dc_status_t
 oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
@@ -418,6 +435,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		device->base.layout = &oceanic_oc1_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_veo1_version)) {
 		device->base.layout = &oceanic_veo1_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_reactpro_version)) {
+		device->base.layout = &oceanic_reactpro_layout;
 	} else {
 		device->base.layout = &oceanic_default_layout;
 	}

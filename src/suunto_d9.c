@@ -43,6 +43,7 @@
 #define D4i      0x19
 #define D6i      0x1A
 #define D9tx     0x1B
+#define DX       0x1C
 
 typedef struct suunto_d9_device_t {
 	suunto_common2_device_t base;
@@ -81,6 +82,14 @@ static const suunto_common2_layout_t suunto_d9tx_layout = {
 	0xEBF0 /* rb_profile_end */
 };
 
+static const suunto_common2_layout_t suunto_dx_layout = {
+	0x10000, /* memsize */
+	0x0017, /* fingerprint */
+	0x0024, /* serial */
+	0x019A, /* rb_profile_begin */
+	0xEBF0 /* rb_profile_end */
+};
+
 
 static dc_status_t
 suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
@@ -93,7 +102,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 
 	// Use the model number as a hint to speedup the detection.
 	unsigned int hint = 0;
-	if (model == D4i || model == D6i || model == D9tx)
+	if (model == D4i || model == D6i || model == D9tx || model == DX)
 		hint = 1;
 
 	for (unsigned int i = 0; i < C_ARRAY_SIZE(baudrates); ++i) {
@@ -188,6 +197,8 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 	model = device->base.version[0];
 	if (model == D4i || model == D6i || model == D9tx)
 		device->base.layout = &suunto_d9tx_layout;
+	else if (model == DX)
+		device->base.layout = &suunto_dx_layout;
 	else
 		device->base.layout = &suunto_d9_layout;
 
