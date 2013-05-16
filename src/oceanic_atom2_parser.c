@@ -45,6 +45,7 @@
 #define VEO20       0x4359
 #define VEO30       0x435A
 #define ZENAIR      0x4442
+#define ATMOSAI2    0x4443
 #define PROPLUS21   0x4444
 #define GEO20       0x4446
 #define VT4         0x4447
@@ -515,7 +516,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					if (parser->model == DG03 || parser->model == PROPLUS3)
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
-						parser->model == EPICA || parser->model == EPICB)
+						parser->model == EPICA || parser->model == EPICB ||
+						parser->model == ATMOSAI2)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;
