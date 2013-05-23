@@ -112,7 +112,7 @@ dc_datetime_gmtime (dc_datetime_t *result,
 }
 
 dc_ticks_t
-dc_datetime_mktime (dc_datetime_t *dt)
+dc_datetime_mktime (const dc_datetime_t *dt)
 {
 	if (dt == NULL)
 		return -1;
