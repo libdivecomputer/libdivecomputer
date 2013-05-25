@@ -392,8 +392,13 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
 		unsigned int offset = idx * RB_LOGBOOK_SIZE;
 
+		// Get the firmware version.
+		unsigned int firmware = array_uint16_be (header + offset + 0x30);
+
 		// Calculate the profile length.
 		unsigned int length = RB_LOGBOOK_SIZE + array_uint24_le (header + offset + 9) - 6;
+		if (firmware >= 93)
+			length += 3;
 
 		// Check the fingerprint data.
 		if (memcmp (header + offset + 12, device->fingerprint, sizeof (device->fingerprint)) == 0)
@@ -428,8 +433,13 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
 		unsigned int offset = idx * RB_LOGBOOK_SIZE;
 
+		// Get the firmware version.
+		unsigned int firmware = array_uint16_be (header + offset + 0x30);
+
 		// Calculate the profile length.
 		unsigned int length = RB_LOGBOOK_SIZE + array_uint24_le (header + offset + 9) - 6;
+		if (firmware >= 93)
+			length += 3;
 
 		// Download the dive.
 		unsigned char number[1] = {idx};
