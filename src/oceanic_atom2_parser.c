@@ -176,7 +176,6 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case VT3:
 		case VEO20:
 		case VEO30:
-		case GEO20:
 		case DG03:
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
@@ -202,7 +201,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
-			if (parser->model == T3)
+			if (parser->model == T3 || parser->model == GEO20)
 				datetime->day = p[3] & 0x3F;
 			else
 				datetime->day = bcd2dec (p[3] & 0x3F);
