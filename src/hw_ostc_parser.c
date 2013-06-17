@@ -482,6 +482,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		unsigned int nbits = 0;
 		unsigned int events = 0;
 		while (data[offset - 1] & 0x80) {
+			if (nbits && version != 0x23)
+				break;
 			if (offset + 1 > size)
 				return DC_STATUS_DATAFORMAT;
 			events |= data[offset] << nbits;
