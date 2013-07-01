@@ -1,3 +1,16 @@
+Version 0.4.1 (2013-07-01)
+==========================
+
+The v0.4.1 release is a bugfix release.
+
+Bug fixes:
+
+ * [ostc] Add support for the new bailout event.
+ * [ostc] Interpret the 7th bit of the event byte correctly.
+ * [atom2] Fix the date/time for the Oceanic Geo 2.0.
+ * [ostc3] Adjust the length based on the firmware version.
+ * [atom2] Fix the temperature for the Aeris Atmos AI 2.
+
 Version 0.4.0 (2013-05-13)
 ==========================
 
