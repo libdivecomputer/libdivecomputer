@@ -123,6 +123,7 @@ static const oceanic_common_version_t oceanic_oc1_version[] = {
 
 static const oceanic_common_version_t oceanic_veo1_version[] = {
 	{"OCEVEO10 \0\0   8K"},
+	{"AERIS XR1 NX R\0\0"},
 };
 
 static const oceanic_common_version_t oceanic_reactpro_version[] = {
