@@ -237,7 +237,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (1/10 °C).
-		unsigned int temperature = array_uint16_le (data + offset + 2);
+		unsigned int temperature = array_uint16_le (data + offset + 2) & 0x0FFF;
 		sample.temperature = temperature / 10.0;
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
