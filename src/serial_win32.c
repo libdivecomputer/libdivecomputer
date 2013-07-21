@@ -111,6 +111,8 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	if (out == NULL)
 		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
 
+	INFO (context, "Open: name=%s", name ? name : "");
+
 	// Build the device name.
 	const char *devname = NULL;
 	char buffer[MAX_PATH] = "\\\\.\\";

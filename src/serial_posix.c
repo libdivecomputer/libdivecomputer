@@ -132,6 +132,8 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	if (out == NULL)
 		return -1; // EINVAL (Invalid argument)
 
+	INFO (context, "Open: name=%s", name ? name : "");
+
 	// Allocate memory.
 	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
 	if (device == NULL) {
