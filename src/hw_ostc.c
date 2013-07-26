@@ -793,7 +793,7 @@ hw_ostc_firmware_setup_internal (hw_ostc_device_t *device)
 
 
 static dc_status_t
-hw_ostc_firmware_setup (hw_ostc_device_t *device)
+hw_ostc_firmware_setup (hw_ostc_device_t *device, unsigned int maxretries)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
@@ -803,7 +803,7 @@ hw_ostc_firmware_setup (hw_ostc_device_t *device)
 			break;
 
 		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
+		if (nretries++ >= maxretries)
 			break;
 	}
 
@@ -893,7 +893,21 @@ hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
 	serial_set_timeout (device->port, 300);
 
 	// Setup the bootloader.
-	rc = hw_ostc_firmware_setup (device);
+	const unsigned int baudrates[] = {19200, 115200};
+	for (unsigned int i = 0; i < C_ARRAY_SIZE(baudrates); ++i) {
+		// Adjust the baudrate.
+		if (serial_configure (device->port, baudrates[i], 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE) == -1) {
+			ERROR (abstract->context, "Failed to set the terminal attributes.");
+			free (firmware);
+			return DC_STATUS_IO;
+		}
+
+		// Try to setup the bootloader.
+		unsigned int maxretries = (i == 0 ? 1 : MAXRETRIES);
+		rc = hw_ostc_firmware_setup (device, maxretries);
+		if (rc == DC_STATUS_SUCCESS)
+			break;
+	}
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to setup the bootloader.");
 		free (firmware);
