@@ -241,7 +241,7 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		"none", "deco", "rbt", "ascent", "ceiling", "workload", "transmitter",
 		"violation", "bookmark", "surface", "safety stop", "gaschange",
 		"safety stop (voluntary)", "safety stop (mandatory)", "deepstop",
-		"ceiling (safety stop)", "unknown", "divetime", "maxdepth",
+		"ceiling (safety stop)", "floor", "divetime", "maxdepth",
 		"OLF", "PO2", "airtime", "rgbm", "heading", "tissue level warning",
 		"gaschange2"};
 	static const char *decostop[] = {
