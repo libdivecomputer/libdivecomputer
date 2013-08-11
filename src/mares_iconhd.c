@@ -48,6 +48,7 @@
 #define ICONHDNET 0x15
 #define PUCKPRO   0x18
 #define NEMOWIDE2 0x19
+#define PUCK2     0x1F
 
 #define ACK 0xAA
 #define EOF 0xEA
@@ -261,7 +262,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	device->port = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->version, 0, sizeof (device->version));
-	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO) {
+	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO || model == PUCK2) {
 		device->layout = &mares_matrix_layout;
 		device->packetsize = 64;
 	} else {
@@ -278,7 +279,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	}
 
 	// Set the serial communication protocol (256000 8N1).
-	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO) {
+	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO || model == PUCK2) {
 		rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
 	} else {
 		rc = serial_configure (device->port, BAUDRATE, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
