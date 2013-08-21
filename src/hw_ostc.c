@@ -860,7 +860,14 @@ hw_ostc_firmware_write (hw_ostc_device_t *device, unsigned char *data, unsigned 
 	return rc;
 }
 
-
+/*
+ * Think twice before modifying the code for updating the ostc firmware!
+ * It has been carefully developed and tested with assistance from
+ * Heinrichs-Weikamp, using a special development unit. If you start
+ * experimenting with a normal unit and accidentally screw up, you might
+ * brick the device permanently and turn it into an expensive
+ * paperweight. You have been warned!
+ */
 dc_status_t
 hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
 {
