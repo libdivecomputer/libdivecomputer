@@ -39,6 +39,7 @@ libdivecomputer_la_SOURCES = \
 	mares_puck.c \
 	mares_darwin.c mares_darwin_parser.c \
 	mares_iconhd.c mares_iconhd_parser.c \
+	ihex.h ihex.c \
 	hw_ostc.c hw_ostc_parser.c \
 	hw_frog.c \
 	hw_ostc3.c \

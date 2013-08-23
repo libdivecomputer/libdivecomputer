@@ -140,6 +140,7 @@ hw_ostc_device_eeprom_write
 hw_ostc_device_reset
 hw_ostc_device_screenshot
 hw_ostc_extract_dives
+hw_ostc_device_fwupdate
 hw_frog_device_open
 hw_frog_device_version
 hw_frog_device_clock

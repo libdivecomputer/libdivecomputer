@@ -21,6 +21,7 @@ bin_PROGRAMS = \
 	darwin \
 	iconhd \
 	ostc \
+	ostc-fwupdate \
 	frog \
 	edy \
 	leonardo \
@@ -71,6 +72,8 @@ darwin_SOURCES = mares_darwin_test.c $(COMMON)
 iconhd_SOURCES = mares_iconhd_test.c $(COMMON)
 
 ostc_SOURCES = hw_ostc_test.c $(COMMON)
+
+ostc_fwupdate_SOURCES = hw_ostc_fwupdate.c $(COMMON)
 
 frog_SOURCES = hw_frog_test.c $(COMMON)
 
