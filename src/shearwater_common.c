@@ -266,6 +266,9 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 	if (isize > SZ_PACKET || osize > SZ_PACKET)
 		return DC_STATUS_INVALIDARGS;
 
+	if (device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
+
 	// Setup the request packet.
 	packet[0] = 0xFF;
 	packet[1] = 0x01;

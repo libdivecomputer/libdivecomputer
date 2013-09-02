@@ -122,6 +122,9 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 
 	assert (csize >= 2);
 
+	if (device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
+
 	// Send the command header to the dive computer.
 	int n = serial_write (device->port, command, 2);
 	if (n != 2) {

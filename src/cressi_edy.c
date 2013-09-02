@@ -83,6 +83,9 @@ cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[],
 
 	assert (asize >= csize);
 
+	if (device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
+
 	// Flush the serial input buffer.
 	int rc = serial_flush (device->port, SERIAL_QUEUE_INPUT);
 	if (rc == -1) {
