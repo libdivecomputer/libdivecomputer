@@ -58,6 +58,7 @@
 #define EPICB       0x4453
 #define ATOM31      0x4456
 #define A300AI      0x4457
+#define AMPHOS      0x4545
 #define PROPLUS3    0x4548
 
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
@@ -184,6 +185,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			datetime->minute = bcd2dec (p[0]);
 			break;
 		case ZENAIR:
+		case AMPHOS:
 			datetime->year   = (p[3] & 0x0F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
 			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
@@ -516,7 +518,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
-						parser->model == ATMOSAI2)
+						parser->model == ATMOSAI2 || parser->model == AMPHOS)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;
