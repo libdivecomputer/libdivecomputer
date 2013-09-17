@@ -99,6 +99,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x13},
 	{"Subgear","XP-10",         DC_FAMILY_UWATEC_SMART, 0x13},
 	{"Uwatec", "Smart Com",     DC_FAMILY_UWATEC_SMART, 0x14},
+	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x15},
 	{"Uwatec", "Smart Tec",     DC_FAMILY_UWATEC_SMART, 0x18},
 	{"Uwatec", "Galileo Trimix",DC_FAMILY_UWATEC_SMART, 0x19},
 	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C},
