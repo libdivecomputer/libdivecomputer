@@ -148,6 +148,8 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 	const unsigned char end[] = {END};
 	const unsigned char esc_end[] = {ESC, ESC_END};
 	const unsigned char esc_esc[] = {ESC, ESC_ESC};
+	unsigned char buffer[32];
+	unsigned int nbytes = 0;
 
 #if 0
 	// Send an initial END character to flush out any data that may have
@@ -179,15 +181,28 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 			break;
 		}
 
-		n = serial_write (device->port, seq, len);
-		if (n != len) {
-			return EXITCODE(n);
+		// Flush the buffer if necessary.
+		if (nbytes + len + sizeof(end) > sizeof(buffer)) {
+			n = serial_write (device->port, buffer, nbytes);
+			if (n != nbytes) {
+				return EXITCODE(n);
+			}
+
+			nbytes = 0;
 		}
+
+		// Append the escaped character.
+		memcpy(buffer + nbytes, seq, len);
+		nbytes += len;
 	}
 
-	// Send the END character to indicate the end of the packet.
-	n = serial_write (device->port, end, sizeof (end));
-	if (n != sizeof (end)) {
+	// Append the END character to indicate the end of the packet.
+	memcpy(buffer + nbytes, end, sizeof(end));
+	nbytes += sizeof(end);
+
+	// Flush the buffer.
+	n = serial_write (device->port, buffer, nbytes);
+	if (n != nbytes) {
 		return EXITCODE(n);
 	}
 
