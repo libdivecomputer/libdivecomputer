@@ -1,9 +1,9 @@
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
-AM_CFLAGS = $(LIBUSB_CFLAGS) $(HIDAPI_CFLAGS)
+AM_CFLAGS = $(LIBUSB_CFLAGS) $(HIDAPI_CFLAGS) $(BLUEZ_CFLAGS)
 
 lib_LTLIBRARIES = libdivecomputer.la
 
-libdivecomputer_la_LIBADD = $(LIBUSB_LIBS) $(HIDAPI_LIBS) -lm
+libdivecomputer_la_LIBADD = $(LIBUSB_LIBS) $(HIDAPI_LIBS) $(BLUEZ_LIBS) -lm
 libdivecomputer_la_LDFLAGS = \
 	-version-info $(DC_VERSION_LIBTOOL) \
 	-no-undefined \
@@ -77,6 +77,7 @@ endif
 
 libdivecomputer_la_SOURCES += irda.h irda.c
 libdivecomputer_la_SOURCES += usbhid.h usbhid.c
+libdivecomputer_la_SOURCES += bluetooth.h bluetooth.c
 
 if OS_WIN32
 libdivecomputer_la_SOURCES += libdivecomputer.rc

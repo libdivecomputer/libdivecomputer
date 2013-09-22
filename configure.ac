@@ -111,7 +111,27 @@ AS_IF([test "x$with_hidapi" != "xno"], [
 	])
 ])
 
+# Checks for BlueZ (bluetooth) support.
+AC_ARG_WITH([bluez],
+	[AS_HELP_STRING([--without-bluez],
+		[Build without the BlueZ library])],
+	[], [with_bluez=auto])
+AS_IF([test "x$with_bluez" != "xno"], [
+	PKG_CHECK_MODULES([BLUEZ], [bluez], [have_bluez=yes], [have_bluez=no])
+	AS_IF([test "x$have_bluez" = "xyes"], [
+		AC_DEFINE([HAVE_BLUEZ], [1], [BlueZ library])
+		DEPENDENCIES="$DEPENDENCIES bluez"
+	])
+])
+
 AC_SUBST([DEPENDENCIES])
+
+# Checks for Windows bluetooth support.
+AC_CHECK_HEADERS([winsock2.h ws2bth.h], , , [
+#if HAVE_WINSOCK2_H
+#   include <winsock2.h>
+# endif
+])
 
 # Checks for IrDA support.
 AC_CHECK_HEADERS([winsock2.h af_irda.h], , , [
