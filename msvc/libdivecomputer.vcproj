@@ -247,6 +247,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\ihex.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\irda.c"
 				>
 			</File>
@@ -423,6 +427,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\uwatec_meridian.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\uwatec_smart.c"
 				>
 			</File>
@@ -514,6 +522,10 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\hw_ostc3.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\ihex.h"
 				>
 			</File>
 			<File
@@ -662,6 +674,10 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\uwatec_memomouse.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\uwatec_meridian.h"
 				>
 			</File>
 			<File
