@@ -44,7 +44,7 @@ dc_ihex_file_open (dc_ihex_file_t **result, dc_context_t *context, const char *f
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	file = malloc (sizeof (dc_ihex_file_t));
+	file = (dc_ihex_file_t *) malloc (sizeof (dc_ihex_file_t));
 	if (file == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
