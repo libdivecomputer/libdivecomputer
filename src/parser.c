@@ -70,6 +70,7 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = uwatec_memomouse_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
 		break;
 	case DC_FAMILY_UWATEC_SMART:
+	case DC_FAMILY_UWATEC_MERIDIAN:
 		rc = uwatec_smart_parser_create (&parser, context, device->devinfo.model, device->clock.devtime, device->clock.systime);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:

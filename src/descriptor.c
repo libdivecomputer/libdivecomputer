@@ -104,6 +104,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C},
 	{"Subgear","XP Air",        DC_FAMILY_UWATEC_SMART, 0x1C},
 #endif
+	/* Scubapro/Uwatec Meridian */
+	{"Scubapro", "Meridian",    DC_FAMILY_UWATEC_MERIDIAN, 0x20},
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2},

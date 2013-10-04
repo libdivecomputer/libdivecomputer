@@ -90,6 +90,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 	case DC_FAMILY_UWATEC_SMART:
 		rc = uwatec_smart_device_open (&device, context);
 		break;
+	case DC_FAMILY_UWATEC_MERIDIAN:
+		rc = uwatec_meridian_device_open (&device, context, name);
+		break;
 	case DC_FAMILY_REEFNET_SENSUS:
 		rc = reefnet_sensus_device_open (&device, context, name);
 		break;

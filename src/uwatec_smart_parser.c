@@ -42,6 +42,7 @@
 #define SMARTTEC      0x18
 #define GALILEOTRIMIX 0x19
 #define SMARTZ        0x1C
+#define MERIDIAN      0x20
 
 typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
 
@@ -206,6 +207,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		break;
 	case GALILEO:
 	case GALILEOTRIMIX:
+	case MERIDIAN:
 		header = 152;
 		if (data[43] & 0x80) {
 			header = 0xB1;
@@ -454,6 +456,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		break;
 	case GALILEO:
 	case GALILEOTRIMIX:
+	case MERIDIAN:
 		header = 152;
 		if (data[43] & 0x80) {
 			header = 0xB1;
@@ -519,7 +522,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Process the type bits in the bitstream.
 		unsigned int id = 0;
-		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX) {
+		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX || parser->model == MERIDIAN) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {

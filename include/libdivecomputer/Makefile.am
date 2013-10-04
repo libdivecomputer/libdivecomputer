@@ -24,6 +24,7 @@ libdivecomputer_HEADERS = 	\
 	uwatec_aladin.h \
 	uwatec_memomouse.h \
 	uwatec_smart.h \
+	uwatec_meridian.h \
 	oceanic.h \
 	oceanic_atom2.h \
 	oceanic_veo250.h \

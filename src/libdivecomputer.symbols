@@ -132,6 +132,8 @@ uwatec_memomouse_device_open
 uwatec_memomouse_extract_dives
 uwatec_smart_device_open
 uwatec_smart_extract_dives
+uwatec_meridian_device_open
+uwatec_meridian_extract_dives
 hw_ostc_device_open
 hw_ostc_device_md2hash
 hw_ostc_device_clock

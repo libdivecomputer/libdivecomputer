@@ -81,6 +81,7 @@ static const backend_table_t g_backends[] = {
 	{"aladin",      DC_FAMILY_UWATEC_ALADIN},
 	{"memomouse",   DC_FAMILY_UWATEC_MEMOMOUSE},
 	{"smart",       DC_FAMILY_UWATEC_SMART},
+	{"meridian",    DC_FAMILY_UWATEC_MERIDIAN},
 	{"sensus",      DC_FAMILY_REEFNET_SENSUS},
 	{"sensuspro",   DC_FAMILY_REEFNET_SENSUSPRO},
 	{"sensusultra", DC_FAMILY_REEFNET_SENSUSULTRA},
