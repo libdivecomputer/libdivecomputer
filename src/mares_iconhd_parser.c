@@ -186,6 +186,9 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gasmix->helium = 0.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
+		case DC_FIELD_ATMOSPHERIC:
+			*((double *) value) = array_uint16_le (p + 0x26) / 8;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
