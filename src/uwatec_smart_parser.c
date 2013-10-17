@@ -31,8 +31,9 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &uwatec_smart_parser_vtable)
 
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
 #define NBITS 8
-#define NELEMENTS(x) ( sizeof(x) / sizeof((x)[0]) )
 
 #define SMARTPRO      0x10
 #define GALILEO       0x11
@@ -45,6 +46,36 @@
 #define SMARTZ        0x1C
 #define MERIDIAN      0x20
 
+typedef enum {
+	PRESSURE_DEPTH,
+	RBT,
+	TEMPERATURE,
+	PRESSURE,
+	DEPTH,
+	HEARTRATE,
+	BEARING,
+	ALARMS,
+	TIME,
+	UNKNOWN1,
+	UNKNOWN2,
+} uwatec_smart_sample_t;
+
+typedef struct uwatec_smart_header_info_t {
+	unsigned int maxdepth;
+	unsigned int divetime;
+	unsigned int gasmix;
+	unsigned int ngases;
+} uwatec_smart_header_info_t;
+
+typedef struct uwatec_smart_sample_info_t {
+	uwatec_smart_sample_t type;
+	unsigned int absolute;
+	unsigned int index;
+	unsigned int ntypebits;
+	unsigned int ignoretype;
+	unsigned int extrabytes;
+} uwatec_smart_sample_info_t;
+
 typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
 
 struct uwatec_smart_parser_t {
@@ -52,6 +83,10 @@ struct uwatec_smart_parser_t {
 	unsigned int model;
 	unsigned int devtime;
 	dc_ticks_t systime;
+	const uwatec_smart_sample_info_t *samples;
+	const uwatec_smart_header_info_t *header;
+	unsigned int headersize;
+	unsigned int nsamples;
 };
 
 static dc_status_t uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -67,6 +102,138 @@ static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 	uwatec_smart_parser_get_field, /* fields */
 	uwatec_smart_parser_samples_foreach, /* samples_foreach */
 	uwatec_smart_parser_destroy /* destroy */
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_pro_header = {
+	18,
+	20,
+	24, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_galileo_header = {
+	22,
+	26,
+	44, 3
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
+	22,
+	24,
+	30, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
+	22,
+	26,
+	32, 3
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_com_header = {
+	18,
+	20,
+	24, 1
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_tec_header = {
+	18,
+	20,
+	28, 3
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_z_header = {
+	18,
+	20,
+	28, 1
+};
+
+static const
+uwatec_smart_sample_info_t uwatec_smart_pro_samples[] = {
+	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
+	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
+	{TIME,           1, 0, 3, 0, 0}, // 110ddddd
+	{ALARMS,         1, 0, 4, 0, 0}, // 1110dddd
+	{DEPTH,          0, 0, 5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0, 6, 0, 1}, // 111110dd dddddddd
+	{DEPTH,          1, 0, 7, 1, 2}, // 1111110d dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 8, 0, 2}, // 11111110 dddddddd dddddddd
+};
+
+static const
+uwatec_smart_sample_info_t uwatec_smart_galileo_samples[] = {
+	{DEPTH,          0, 0, 1, 0, 0}, // 0ddd dddd
+	{RBT,            0, 0, 3, 0, 0}, // 100d dddd
+	{PRESSURE,       0, 0, 4, 0, 0}, // 1010 dddd
+	{TEMPERATURE,    0, 0, 4, 0, 0}, // 1011 dddd
+	{TIME,           1, 0, 4, 0, 0}, // 1100 dddd
+	{HEARTRATE,      0, 0, 4, 0, 0}, // 1101 dddd
+	{ALARMS,         1, 0, 4, 0, 0}, // 1110 dddd
+	{ALARMS,         1, 1, 8, 0, 1}, // 1111 0000 dddddddd
+	{DEPTH,          1, 0, 8, 0, 2}, // 1111 0001 dddddddd dddddddd
+	{RBT,            1, 0, 8, 0, 1}, // 1111 0010 dddddddd
+	{TEMPERATURE,    1, 0, 8, 0, 2}, // 1111 0011 dddddddd dddddddd
+	{PRESSURE,       1, 0, 8, 0, 2}, // 1111 0100 dddddddd dddddddd
+	{PRESSURE,       1, 1, 8, 0, 2}, // 1111 0101 dddddddd dddddddd
+	{PRESSURE,       1, 2, 8, 0, 2}, // 1111 0110 dddddddd dddddddd
+	{HEARTRATE,      1, 0, 8, 0, 1}, // 1111 0111 dddddddd
+	{BEARING,        1, 0, 8, 0, 2}, // 1111 1000 dddddddd dddddddd
+	{ALARMS,         1, 2, 8, 0, 1}, // 1111 1001 dddddddd
+	{UNKNOWN1,       1, 0, 8, 0, 0}, // 1111 1010 (8 bytes)
+	{UNKNOWN2,       1, 0, 8, 0, 1}, // 1111 1011 dddddddd (n-1 bytes)
+};
+
+
+static const
+uwatec_smart_sample_info_t uwatec_smart_aladin_samples[] = {
+	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
+	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
+	{TIME,           1, 0, 3, 0, 0}, // 110ddddd
+	{ALARMS,         1, 0, 4, 0, 0}, // 1110dddd
+	{DEPTH,          0, 0, 5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0, 6, 0, 1}, // 111110dd dddddddd
+	{DEPTH,          1, 0, 7, 1, 2}, // 1111110d dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 8, 0, 2}, // 11111110 dddddddd dddddddd
+	{ALARMS,         1, 1, 9, 0, 0}, // 11111111 0ddddddd
+};
+
+static const
+uwatec_smart_sample_info_t uwatec_smart_com_samples[] = {
+	{PRESSURE_DEPTH, 0, 0,  1, 0, 1}, // 0ddddddd dddddddd
+	{RBT,            0, 0,  2, 0, 0}, // 10dddddd
+	{TEMPERATURE,    0, 0,  3, 0, 0}, // 110ddddd
+	{PRESSURE,       0, 0,  4, 0, 1}, // 1110dddd dddddddd
+	{DEPTH,          0, 0,  5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0,  6, 0, 1}, // 111110dd dddddddd
+	{ALARMS,         1, 0,  7, 1, 1}, // 1111110d dddddddd
+	{TIME,           1, 0,  8, 0, 1}, // 11111110 dddddddd
+	{DEPTH,          1, 0,  9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
+	{PRESSURE,       1, 0, 10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
+	{RBT,            1, 0, 12, 1, 1}, // 11111111 1110dddd dddddddd
+};
+
+static const
+uwatec_smart_sample_info_t uwatec_smart_tec_samples[] = {
+	{PRESSURE_DEPTH, 0, 0,  1, 0, 1}, // 0ddddddd dddddddd
+	{RBT,            0, 0,  2, 0, 0}, // 10dddddd
+	{TEMPERATURE,    0, 0,  3, 0, 0}, // 110ddddd
+	{PRESSURE,       0, 0,  4, 0, 1}, // 1110dddd dddddddd
+	{DEPTH,          0, 0,  5, 0, 1}, // 11110ddd dddddddd
+	{TEMPERATURE,    0, 0,  6, 0, 1}, // 111110dd dddddddd
+	{ALARMS,         1, 0,  7, 1, 1}, // 1111110d dddddddd
+	{TIME,           1, 0,  8, 0, 1}, // 11111110 dddddddd
+	{DEPTH,          1, 0,  9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
+	{TEMPERATURE,    1, 0, 10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
+	{PRESSURE,       1, 0, 11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
+	{PRESSURE,       1, 1, 12, 1, 2}, // 11111111 1110dddd dddddddd dddddddd
+	{PRESSURE,       1, 2, 13, 1, 2}, // 11111111 11110ddd dddddddd dddddddd
+	{RBT,            1, 0, 14, 1, 1}, // 11111111 111110dd dddddddd
 };
 
 
@@ -90,6 +257,56 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->model = model;
 	parser->devtime = devtime;
 	parser->systime = systime;
+	switch (model) {
+	case SMARTPRO:
+		parser->headersize = 92;
+		parser->header = &uwatec_smart_pro_header;
+		parser->samples = uwatec_smart_pro_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_pro_samples);
+		break;
+	case GALILEO:
+	case GALILEOTRIMIX:
+	case ALADIN2G:
+	case MERIDIAN:
+		parser->headersize = 152;
+		parser->header = &uwatec_smart_galileo_header;
+		parser->samples = uwatec_smart_galileo_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_galileo_samples);
+		break;
+	case ALADINTEC:
+		parser->headersize = 108;
+		parser->header = &uwatec_smart_aladin_tec_header;
+		parser->samples = uwatec_smart_aladin_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_aladin_samples);
+		break;
+	case ALADINTEC2G:
+		parser->headersize = 116;
+		parser->header = &uwatec_smart_aladin_tec2g_header;
+		parser->samples = uwatec_smart_aladin_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_aladin_samples);
+		break;
+	case SMARTCOM:
+		parser->headersize = 100;
+		parser->header = &uwatec_smart_com_header;
+		parser->samples = uwatec_smart_com_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_com_samples);
+		break;
+	case SMARTTEC:
+		parser->headersize = 132;
+		parser->header = &uwatec_smart_tec_header;
+		parser->samples = uwatec_smart_tec_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_tec_samples);
+		break;
+	case SMARTZ:
+		parser->headersize = 132;
+		parser->header = &uwatec_smart_z_header;
+		parser->samples = uwatec_smart_tec_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_tec_samples);
+		break;
+	default:
+		free (parser);
+		return DC_STATUS_INVALIDARGS;
+	}
 
 	*out = (dc_parser_t*) parser;
 
@@ -132,61 +349,6 @@ uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 	return DC_STATUS_SUCCESS;
 }
 
-typedef struct uwatec_smart_header_info_t {
-	unsigned int maxdepth;
-	unsigned int divetime;
-	unsigned int gasmix;
-	unsigned int ngases;
-} uwatec_smart_header_info_t;
-
-static const
-uwatec_smart_header_info_t uwatec_smart_pro_header = {
-	18,
-	20,
-	24, 1
-};
-
-static const
-uwatec_smart_header_info_t uwatec_smart_aladin_header = {
-	22,
-	24,
-	30, 1
-};
-
-static const
-uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
-	22,
-	26,
-	32, 3
-};
-
-static const
-uwatec_smart_header_info_t uwatec_smart_com_header = {
-	18,
-	20,
-	24, 1
-};
-
-static const
-uwatec_smart_header_info_t uwatec_smart_tec_header = {
-	18,
-	20,
-	28, 3
-};
-
-static const
-uwatec_smart_header_info_t uwatec_smart_z_header = {
-	18,
-	20,
-	28, 1
-};
-
-static const
-uwatec_smart_header_info_t uwatec_galileo_sol_header = {
-	22,
-	26,
-	44, 3
-};
 
 static dc_status_t
 uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
@@ -196,49 +358,15 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	unsigned int header = 0;
+	const uwatec_smart_header_info_t *table = parser->header;
+	unsigned int header = parser->headersize;
 	unsigned int trimix = 0;
-	const uwatec_smart_header_info_t *table = NULL;
 
-	// Load the correct table.
-	switch (parser->model) {
-	case SMARTPRO:
-		header = 92;
-		table = &uwatec_smart_pro_header;
-		break;
-	case GALILEO:
-	case GALILEOTRIMIX:
-	case ALADIN2G:
-	case MERIDIAN:
-		header = 152;
+	if (parser->model == GALILEOTRIMIX) {
 		if (data[43] & 0x80) {
 			header = 0xB1;
 			trimix = 1;
 		}
-		table = &uwatec_galileo_sol_header;
-		break;
-	case ALADINTEC:
-		header = 108;
-		table = &uwatec_smart_aladin_header;
-		break;
-	case ALADINTEC2G:
-		header = 116;
-		table = &uwatec_smart_aladin_tec2g_header;
-		break;
-	case SMARTCOM:
-		header = 100;
-		table = &uwatec_smart_com_header;
-		break;
-	case SMARTTEC:
-		header = 132;
-		table = &uwatec_smart_tec_header;
-		break;
-	case SMARTZ:
-		header = 132;
-		table = &uwatec_smart_z_header;
-		break;
-	default:
-		return DC_STATUS_DATAFORMAT;
 	}
 
 	if (size < header)
@@ -331,111 +459,6 @@ uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
 }
 
 
-typedef enum {
-	PRESSURE_DEPTH,
-	RBT,
-	TEMPERATURE,
-	PRESSURE,
-	DEPTH,
-	HEARTRATE,
-	BEARING,
-	ALARMS,
-	TIME,
-	UNKNOWN1,
-	UNKNOWN2,
-} uwatec_smart_sample_t;
-
-typedef struct uwatec_smart_sample_info_t {
-	uwatec_smart_sample_t type;
-	unsigned int absolute;
-	unsigned int index;
-	unsigned int ntypebits;
-	unsigned int ignoretype;
-	unsigned int extrabytes;
-} uwatec_smart_sample_info_t;
-
-static const
-uwatec_smart_sample_info_t uwatec_smart_pro_table [] = {
-	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
-	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
-	{TIME,           1, 0, 3, 0, 0}, // 110ddddd
-	{ALARMS,         1, 0, 4, 0, 0}, // 1110dddd
-	{DEPTH,          0, 0, 5, 0, 1}, // 11110ddd dddddddd
-	{TEMPERATURE,    0, 0, 6, 0, 1}, // 111110dd dddddddd
-	{DEPTH,          1, 0, 7, 1, 2}, // 1111110d dddddddd dddddddd
-	{TEMPERATURE,    1, 0, 8, 0, 2}, // 11111110 dddddddd dddddddd
-};
-
-static const
-uwatec_smart_sample_info_t uwatec_smart_aladin_table [] = {
-	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
-	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
-	{TIME,           1, 0, 3, 0, 0}, // 110ddddd
-	{ALARMS,         1, 0, 4, 0, 0}, // 1110dddd
-	{DEPTH,          0, 0, 5, 0, 1}, // 11110ddd dddddddd
-	{TEMPERATURE,    0, 0, 6, 0, 1}, // 111110dd dddddddd
-	{DEPTH,          1, 0, 7, 1, 2}, // 1111110d dddddddd dddddddd
-	{TEMPERATURE,    1, 0, 8, 0, 2}, // 11111110 dddddddd dddddddd
-	{ALARMS,         1, 1, 9, 0, 0}, // 11111111 0ddddddd
-};
-
-static const
-uwatec_smart_sample_info_t uwatec_smart_com_table [] = {
-	{PRESSURE_DEPTH, 0, 0,  1, 0, 1}, // 0ddddddd dddddddd
-	{RBT,            0, 0,  2, 0, 0}, // 10dddddd
-	{TEMPERATURE,    0, 0,  3, 0, 0}, // 110ddddd
-	{PRESSURE,       0, 0,  4, 0, 1}, // 1110dddd dddddddd
-	{DEPTH,          0, 0,  5, 0, 1}, // 11110ddd dddddddd
-	{TEMPERATURE,    0, 0,  6, 0, 1}, // 111110dd dddddddd
-	{ALARMS,         1, 0,  7, 1, 1}, // 1111110d dddddddd
-	{TIME,           1, 0,  8, 0, 1}, // 11111110 dddddddd
-	{DEPTH,          1, 0,  9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
-	{PRESSURE,       1, 0, 10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
-	{TEMPERATURE,    1, 0, 11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
-	{RBT,            1, 0, 12, 1, 1}, // 11111111 1110dddd dddddddd
-};
-
-static const
-uwatec_smart_sample_info_t uwatec_smart_tec_table [] = {
-	{PRESSURE_DEPTH, 0, 0,  1, 0, 1}, // 0ddddddd dddddddd
-	{RBT,            0, 0,  2, 0, 0}, // 10dddddd
-	{TEMPERATURE,    0, 0,  3, 0, 0}, // 110ddddd
-	{PRESSURE,       0, 0,  4, 0, 1}, // 1110dddd dddddddd
-	{DEPTH,          0, 0,  5, 0, 1}, // 11110ddd dddddddd
-	{TEMPERATURE,    0, 0,  6, 0, 1}, // 111110dd dddddddd
-	{ALARMS,         1, 0,  7, 1, 1}, // 1111110d dddddddd
-	{TIME,           1, 0,  8, 0, 1}, // 11111110 dddddddd
-	{DEPTH,          1, 0,  9, 1, 2}, // 11111111 0ddddddd dddddddd dddddddd
-	{TEMPERATURE,    1, 0, 10, 1, 2}, // 11111111 10dddddd dddddddd dddddddd
-	{PRESSURE,       1, 0, 11, 1, 2}, // 11111111 110ddddd dddddddd dddddddd
-	{PRESSURE,       1, 1, 12, 1, 2}, // 11111111 1110dddd dddddddd dddddddd
-	{PRESSURE,       1, 2, 13, 1, 2}, // 11111111 11110ddd dddddddd dddddddd
-	{RBT,            1, 0, 14, 1, 1}, // 11111111 111110dd dddddddd
-};
-
-static const
-uwatec_smart_sample_info_t uwatec_galileo_sol_table [] = {
-	{DEPTH,          0, 0, 1, 0, 0}, // 0ddd dddd
-	{RBT,            0, 0, 3, 0, 0}, // 100d dddd
-	{PRESSURE,       0, 0, 4, 0, 0}, // 1010 dddd
-	{TEMPERATURE,    0, 0, 4, 0, 0}, // 1011 dddd
-	{TIME,           1, 0, 4, 0, 0}, // 1100 dddd
-	{HEARTRATE,      0, 0, 4, 0, 0}, // 1101 dddd
-	{ALARMS,         1, 0, 4, 0, 0}, // 1110 dddd
-	{ALARMS,         1, 1, 8, 0, 1}, // 1111 0000 dddddddd
-	{DEPTH,          1, 0, 8, 0, 2}, // 1111 0001 dddddddd dddddddd
-	{RBT,            1, 0, 8, 0, 1}, // 1111 0010 dddddddd
-	{TEMPERATURE,    1, 0, 8, 0, 2}, // 1111 0011 dddddddd dddddddd
-	{PRESSURE,       1, 0, 8, 0, 2}, // 1111 0100 dddddddd dddddddd
-	{PRESSURE,       1, 1, 8, 0, 2}, // 1111 0101 dddddddd dddddddd
-	{PRESSURE,       1, 2, 8, 0, 2}, // 1111 0110 dddddddd dddddddd
-	{HEARTRATE,      1, 0, 8, 0, 1}, // 1111 0111 dddddddd
-	{BEARING,        1, 0, 8, 0, 2}, // 1111 1000 dddddddd dddddddd
-	{ALARMS,         1, 2, 8, 0, 1}, // 1111 1001 dddddddd
-	{UNKNOWN1,       1, 0, 8, 0, 0}, // 1111 1010 (8 bytes)
-	{UNKNOWN2,       1, 0, 8, 0, 1}, // 1111 1011 dddddddd (n-1 bytes)
-};
-
 static dc_status_t
 uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
@@ -444,53 +467,16 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	const uwatec_smart_sample_info_t *table = NULL;
-	unsigned int entries = 0;
-	unsigned int header = 0;
+	const uwatec_smart_sample_info_t *table = parser->samples;
+	unsigned int entries = parser->nsamples;
+	unsigned int header = parser->headersize;
 	unsigned int trimix = 0;
 
-	// Load the correct table.
-	switch (parser->model) {
-	case SMARTPRO:
-		header = 92;
-		table = uwatec_smart_pro_table;
-		entries = NELEMENTS (uwatec_smart_pro_table);
-		break;
-	case GALILEO:
-	case GALILEOTRIMIX:
-	case ALADIN2G:
-	case MERIDIAN:
-		header = 152;
+	if (parser->model == GALILEOTRIMIX) {
 		if (data[43] & 0x80) {
 			header = 0xB1;
 			trimix = 1;
 		}
-		table = uwatec_galileo_sol_table;
-		entries = NELEMENTS (uwatec_galileo_sol_table);
-		break;
-	case ALADINTEC:
-		header = 108;
-		table = uwatec_smart_aladin_table;
-		entries = NELEMENTS (uwatec_smart_aladin_table);
-		break;
-	case ALADINTEC2G:
-		header = 116;
-		table = uwatec_smart_aladin_table;
-		entries = NELEMENTS (uwatec_smart_aladin_table);
-		break;
-	case SMARTCOM:
-		header = 100;
-		table = uwatec_smart_com_table;
-		entries = NELEMENTS (uwatec_smart_com_table);
-		break;
-	case SMARTTEC:
-	case SMARTZ:
-		header = 132;
-		table = uwatec_smart_tec_table;
-		entries = NELEMENTS (uwatec_smart_tec_table);
-		break;
-	default:
-		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Get the maximum number of alarm bytes.
