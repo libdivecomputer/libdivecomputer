@@ -162,7 +162,7 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		dc_sample_value_t sample = {0};
 
 		unsigned int value = array_uint16_le (data + offset);
-		unsigned int depth = value & 0x3FFF;
+		unsigned int depth = value & 0x07FF;
 
 		// Time (seconds).
 		time += interval;
