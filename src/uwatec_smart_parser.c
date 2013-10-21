@@ -147,13 +147,6 @@ uwatec_smart_header_info_t uwatec_smart_tec_header = {
 };
 
 static const
-uwatec_smart_header_info_t uwatec_smart_z_header = {
-	18,
-	20,
-	28, 1
-};
-
-static const
 uwatec_smart_sample_info_t uwatec_smart_pro_samples[] = {
 	{DEPTH,          0, 0, 1, 0, 0}, // 0ddddddd
 	{TEMPERATURE,    0, 0, 2, 0, 0}, // 10dddddd
@@ -292,14 +285,9 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_com_samples);
 		break;
 	case SMARTTEC:
-		parser->headersize = 132;
-		parser->header = &uwatec_smart_tec_header;
-		parser->samples = uwatec_smart_tec_samples;
-		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_tec_samples);
-		break;
 	case SMARTZ:
 		parser->headersize = 132;
-		parser->header = &uwatec_smart_z_header;
+		parser->header = &uwatec_smart_tec_header;
 		parser->samples = uwatec_smart_tec_samples;
 		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_tec_samples);
 		break;
