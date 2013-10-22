@@ -381,7 +381,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
-			gasmix->oxygen = array_uint16_le (data + table->gasmix + flags * 2) / 100.0;
+			gasmix->oxygen = data[table->gasmix + flags * 2] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
