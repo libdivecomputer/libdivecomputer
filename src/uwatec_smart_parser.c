@@ -129,7 +129,7 @@ static const
 uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	22,
 	26,
-	32, 3
+	34, 3
 };
 
 static const
