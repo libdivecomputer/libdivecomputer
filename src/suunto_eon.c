@@ -104,8 +104,8 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		return DC_STATUS_IO;
 	}
 
-	// Set the timeout for receiving data (1000ms).
-	if (serial_set_timeout (device->port, -1) == -1) {
+	// Set the timeout for receiving data (30s).
+	if (serial_set_timeout (device->port, 30000) == -1) {
 		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
