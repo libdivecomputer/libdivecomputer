@@ -104,8 +104,8 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		return DC_STATUS_IO;
 	}
 
-	// Set the timeout for receiving data (30s).
-	if (serial_set_timeout (device->port, 30000) == -1) {
+	// Set the timeout for receiving data (1000ms).
+	if (serial_set_timeout (device->port, 1000) == -1) {
 		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
@@ -170,16 +170,34 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Receive the answer.
+	unsigned int nbytes = 0;
 	unsigned char answer[SZ_MEMORY + 1] = {0};
-	rc = serial_read (device->port, answer, sizeof (answer));
-	if (rc != sizeof (answer)) {
-		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (rc);
-	}
+	while (nbytes < sizeof(answer)) {
+		// Set the minimum packet size.
+		unsigned int len = 64;
 
-	// Update and emit a progress event.
-	progress.current += sizeof (answer);
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+		// Increase the packet size if more data is immediately available.
+		int available = serial_get_received (device->port);
+		if (available > len)
+			len = available;
+
+		// Limit the packet size to the total size.
+		if (nbytes + len > sizeof(answer))
+			len = sizeof(answer) - nbytes;
+
+		// Read the packet.
+		int n = serial_read (device->port, answer + nbytes, len);
+		if (n != len) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return EXITCODE (n);
+		}
+
+		// Update and emit a progress event.
+		progress.current += len;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+		nbytes += len;
+	}
 
 	// Verify the checksum of the package.
 	unsigned char crc = answer[sizeof (answer) - 1];
