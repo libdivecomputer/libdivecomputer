@@ -122,10 +122,13 @@ static const oceanic_common_version_t oceanic_oci_version[] = {
 };
 
 static const oceanic_common_version_t oceanic_atom3_version[] = {
-	{"OCEANVT4 \0\0 1024"},
 	{"OCEATOM3 \0\0 1024"},
-	{"OCEAVT41 \0\0 1024"},
 	{"ATOM31  \0\0  1024"},
+};
+
+static const oceanic_common_version_t oceanic_vt4_version[] = {
+	{"OCEANVT4 \0\0 1024"},
+	{"OCEAVT41 \0\0 1024"},
 	{"AERISAIR \0\0 1024"},
 };
 
@@ -259,6 +262,19 @@ static const oceanic_common_layout_t oceanic_atom3_layout = {
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0400, /* rb_logbook_begin */
+	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
+	0x0A40, /* rb_profile_begin */
+	0x1FE00, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1 /* pt_mode_logbook */
+};
+
+static const oceanic_common_layout_t oceanic_vt4_layout = {
+	0x20000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0420, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
@@ -471,6 +487,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		device->base.layout = &oceanic_oci_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom3_version)) {
 		device->base.layout = &oceanic_atom3_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_vt4_version)) {
+		device->base.layout = &oceanic_vt4_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_veo1_version)) {
 		device->base.layout = &oceanic_veo1_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_reactpro_version)) {
