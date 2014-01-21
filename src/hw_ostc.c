@@ -327,7 +327,9 @@ hw_ostc_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 	dc_event_devinfo_t devinfo;
 	devinfo.firmware = array_uint16_be (data + 264);
 	devinfo.serial = array_uint16_le (data + 6);
-	if (devinfo.serial > 2048)
+	if (devinfo.serial > 7000)
+		devinfo.model = 3; // OSTC 2C
+	else if (devinfo.serial > 2048)
 		devinfo.model = 2; // OSTC 2N
 	else if (devinfo.serial > 300)
 		devinfo.model = 1; // OSTC Mk2
