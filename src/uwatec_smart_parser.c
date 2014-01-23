@@ -483,18 +483,29 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		}
 	}
 
+	// Get all the gas mixes.
+	unsigned int oxygen[3] = {0};
+	unsigned int ngasmix = (trimix ? 0 : parser->header->ngases);
+	for (unsigned int i = 0; i < ngasmix; ++i) {
+		oxygen[i] = data[parser->header->gasmix + i * 2];
+	}
+
 	int complete = 0;
 	int calibrated = 0;
 
 	unsigned int time = 0;
 	unsigned int rbt = 99;
 	unsigned int tank = 0;
+	unsigned int gasmix = 0;
 	double depth = 0, depth_calibration = 0;
 	double temperature = 0;
 	double pressure = 0;
 	unsigned int heartrate = 0;
 	unsigned int bearing = 0;
 	unsigned char alarms[3] = {0, 0, 0};
+
+	// Previous gas mix - initialize with impossible value
+	unsigned int gasmix_previous = 0xFFFFFFFF;
 
 	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
 		have_heartrate = 0, have_alarms = 0, have_bearing = 0;
@@ -587,6 +598,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 					pressure = value / 4.0;
 				}
 				have_pressure = 1;
+				gasmix = tank;
 			} else {
 				pressure += svalue / 4.0;
 			}
@@ -619,6 +631,13 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		case ALARMS:
 			alarms[table[id].index] = value;
 			have_alarms = 1;
+			if (table[id].index == 1) {
+				if (parser->model == ALADINTEC || parser->model == ALADINTEC2G) {
+					gasmix = (value & 0x18) >> 3;
+				} else {
+					gasmix = (value & 0x30) >> 4;
+				}
+			}
 			break;
 		case TIME:
 			complete = value;
@@ -645,6 +664,17 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		while (complete) {
 			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+			if (gasmix != gasmix_previous && !trimix) {
+				if (gasmix >= ngasmix)
+					return DC_STATUS_DATAFORMAT;
+				sample.event.type = SAMPLE_EVENT_GASCHANGE;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = oxygen[gasmix];
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				gasmix_previous = gasmix;
+			}
 
 			if (have_temperature) {
 				sample.temperature = temperature;
