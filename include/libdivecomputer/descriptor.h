@@ -33,7 +33,8 @@ typedef enum dc_transport_t {
 	DC_TRANSPORT_NONE,
 	DC_TRANSPORT_SERIAL,
 	DC_TRANSPORT_USB,
-	DC_TRANSPORT_IRDA
+	DC_TRANSPORT_IRDA,
+	DC_TRANSPORT_BLUETOOTH
 } dc_transport_t;
 
 typedef struct dc_descriptor_t dc_descriptor_t;
