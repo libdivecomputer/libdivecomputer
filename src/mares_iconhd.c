@@ -37,12 +37,6 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
-#if defined(_WIN32) || defined(__APPLE__)
-#define BAUDRATE 256000
-#else
-#define BAUDRATE 230400
-#endif
-
 #define MATRIX    0x0F
 #define ICONHD    0x14
 #define ICONHDNET 0x15
@@ -290,12 +284,8 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 		return DC_STATUS_IO;
 	}
 
-	// Set the serial communication protocol (256000 8N1).
-	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO || model == PUCK2) {
-		rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
-	} else {
-		rc = serial_configure (device->port, BAUDRATE, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	}
+	// Set the serial communication protocol (115200 8E1).
+	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
