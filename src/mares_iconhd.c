@@ -180,14 +180,6 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 }
 
 
-static dc_status_t
-mares_iconhd_version (mares_iconhd_device_t *device, unsigned char data[], unsigned int size)
-{
-	unsigned char command[] = {0xC2, 0x67};
-	return mares_iconhd_transfer (device, command, sizeof (command), data, size);
-}
-
-
 dc_status_t
 mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
@@ -255,7 +247,9 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Send the version command.
-	dc_status_t status = mares_iconhd_version (device, device->version, sizeof (device->version));
+	unsigned char command[] = {0xC2, 0x67};
+	dc_status_t status = mares_iconhd_transfer (device, command, sizeof (command),
+		device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
