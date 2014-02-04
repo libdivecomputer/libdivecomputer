@@ -30,6 +30,8 @@
 #include "serial.h"
 #include "array.h"
 
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
 #define ISINSTANCE(device) dc_device_isinstance((device), &mares_iconhd_device_vtable)
 
 #define EXITCODE(rc) \
@@ -55,12 +57,18 @@ typedef struct mares_iconhd_layout_t {
 	unsigned int rb_profile_end;
 } mares_iconhd_layout_t;
 
+typedef struct mares_iconhd_model_t {
+	unsigned char name[16 + 1];
+	unsigned int id;
+} mares_iconhd_model_t;
+
 typedef struct mares_iconhd_device_t {
 	dc_device_t base;
 	serial_t *port;
 	const mares_iconhd_layout_t *layout;
 	unsigned char fingerprint[10];
 	unsigned char version[140];
+	unsigned int model;
 } mares_iconhd_device_t;
 
 static dc_status_t mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
@@ -98,16 +106,25 @@ static const mares_iconhd_layout_t mares_matrix_layout = {
 };
 
 static unsigned int
-mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
+mares_iconhd_get_model (mares_iconhd_device_t *device)
 {
-	dc_context_t *context = (device ? ((dc_device_t *) device)->context : NULL);
+	const mares_iconhd_model_t models[] = {
+		{"Matrix",      MATRIX},
+		{"Icon HD",     ICONHD},
+		{"Icon AIR",    ICONHDNET},
+		{"Puck Pro",    PUCKPRO},
+		{"Nemo Wide 2", NEMOWIDE2},
+		{"Puck 2",      PUCK2},
+	};
 
-	// Try to correct an invalid model code using the version packet.
-	if (model == 0xFF) {
-		WARNING (context, "Invalid model code detected!");
-		const unsigned char iconhdnet[] = "Icon AIR";
-		if (device && memcmp (device->version + 0x46, iconhdnet, sizeof (iconhdnet) - 1) == 0)
-			model = ICONHDNET;
+	// Check the product name in the version packet against the list
+	// with valid names, and return the corresponding model number.
+	unsigned int model = 0;
+	for (unsigned int i = 0; i < C_ARRAY_SIZE(models); ++i) {
+		if (memcmp (device->version + 0x46, models[i].name, sizeof (models[i].name) - 1) == 0) {
+			model = models[i].id;
+			break;
+		}
 	}
 
 	return model;
@@ -198,15 +215,10 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 
 	// Set the default values.
 	device->port = NULL;
+	device->layout = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->version, 0, sizeof (device->version));
-	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO || model == PUCK2) {
-		device->layout = &mares_matrix_layout;
-	} else if (model == ICONHDNET) {
-		device->layout = &mares_iconhdnet_layout;
-	} else {
-		device->layout = &mares_iconhd_layout;
-	}
+	device->model = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -254,6 +266,26 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 		serial_close (device->port);
 		free (device);
 		return status;
+	}
+
+	// Autodetect the model using the version packet.
+	device->model = mares_iconhd_get_model (device);
+
+	// Load the correct memory layout.
+	switch (device->model) {
+	case MATRIX:
+	case PUCKPRO:
+	case NEMOWIDE2:
+	case PUCK2:
+		device->layout = &mares_matrix_layout;
+		break;
+	case ICONHDNET:
+		device->layout = &mares_iconhdnet_layout;
+		break;
+	case ICONHD:
+	default:
+		device->layout = &mares_iconhd_layout;
+		break;
 	}
 
 	*out = (dc_device_t *) device;
@@ -374,7 +406,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	dc_event_devinfo_t devinfo;
-	devinfo.model = mares_iconhd_get_model (device, data[0]);
+	devinfo.model = device->model;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint32_le (data + 0x0C);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
@@ -403,7 +435,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		return DC_STATUS_DATAFORMAT;
 
 	// Get the model code.
-	unsigned int model = mares_iconhd_get_model (device, data[0]);
+	unsigned int model = device ? device->model : data[0];
 
 	// Get the corresponding dive header size.
 	unsigned int header = 0x5C;
