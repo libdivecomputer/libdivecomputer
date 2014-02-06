@@ -200,7 +200,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Zeagle N2iTiON3 */
 	{"Zeagle",   "N2iTiON3",   DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	{"Apeks",    "Quantum X",  DC_FAMILY_ZEAGLE_N2ITION3, 0},
-	{"DiveRite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0},
+	{"Dive Rite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	/* Atomic Aquatics Cobalt */
 #ifdef HAVE_LIBUSB
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},
