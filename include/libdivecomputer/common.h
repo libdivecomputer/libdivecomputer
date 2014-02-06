@@ -80,7 +80,9 @@ typedef enum dc_family_t {
 	DC_FAMILY_ATOMICS_COBALT = (9 << 16),
 	/* Shearwater */
 	DC_FAMILY_SHEARWATER_PREDATOR = (10 << 16),
-	DC_FAMILY_SHEARWATER_PETREL
+	DC_FAMILY_SHEARWATER_PETREL,
+	/* Dive Rite */
+	DC_FAMILY_DIVERITE_NITEKQ = (11 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus
