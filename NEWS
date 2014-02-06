@@ -1,3 +1,32 @@
+Version 0.4.2 (2014-02-06)
+==========================
+
+The v0.4.2 release is a bugfix release.
+
+Bug fixes:
+
+ * [iconhd] Use only 12 bits for the temperature.
+ * [d9] Identify event 0x07 on Suunto d9-style computers as Below Floor.
+ * [iconhd] Add Mares Puck 2 dive computer
+ * [misc] Disable the cancellation callback during shutdown.
+ * [misc] Add cancellation support to several backends.
+ * [atom2] Fix the memory layout for the Atom 3.x and VT4.x.
+ * [atom2] Mark the Oceanic Veo 2.0 as a non air integrated model.
+ * [iconhd] Fix the memory layout descriptors.
+ * [atom2] Add support for the Sherwood Amphos.
+ * [atom2] Add support for the Oceanic OCi.
+ * [smart] Add support for a new Uwatec Aladin 2G variant.
+ * [shearwater] Buffer the slip packet before sending.
+ * [shearwater] Use the correct vtable for the Shearwater Petrel.
+ * [iconhd] Adds support for DC_FIELD_ATMOSPHERIC to the iconhd parser
+ * [iconhd] Fix units for atmospheric pressure for iconhd type
+ * [n2ition3] Add support for the Scubapro XTender 5.
+ * [leonardo] Use only 11 bits for the depth.
+ * [iconhd] Add iconhd gas change event
+ * [atom2] Fix the memory layout for the VT4.x.
+ * [eon] Remove the infinite timeout.
+ * [eon] Improve the progress events.
+
 Version 0.4.1 (2013-07-01)
 ==========================
 
