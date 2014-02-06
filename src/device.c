@@ -322,6 +322,10 @@ dc_device_close (dc_device_t *device)
 	if (device->vtable->close == NULL)
 		return DC_STATUS_UNSUPPORTED;
 
+	// Disable the cancellation callback.
+	device->cancel_callback = NULL;
+	device->cancel_userdata = NULL;
+
 	return device->vtable->close (device);
 }
 

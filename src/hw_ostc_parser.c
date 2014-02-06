@@ -482,6 +482,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		unsigned int nbits = 0;
 		unsigned int events = 0;
 		while (data[offset - 1] & 0x80) {
+			if (nbits && version != 0x23)
+				break;
 			if (offset + 1 > size)
 				return DC_STATUS_DATAFORMAT;
 			events |= data[offset] << nbits;
@@ -594,13 +596,27 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			}
 		}
 
-		// SetPoint Change
-		if ((events & 0x40) && (version != 0x23)) {
-			if (offset + 1 > size)
-				return DC_STATUS_DATAFORMAT;
-			sample.setpoint = data[offset] / 100.0;
-			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
-			offset++;
+		if (version != 0x23) {
+			// SetPoint Change
+			if (events & 0x40) {
+				if (offset + 1 > size)
+					return DC_STATUS_DATAFORMAT;
+				sample.setpoint = data[offset] / 100.0;
+				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+				offset++;
+			}
+
+			// Bailout Event
+			if (events & 0x80) {
+				if (offset + 2 > size)
+					return DC_STATUS_DATAFORMAT;
+				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = data[offset] | (data[offset + 1] << 16);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				offset += 2;
+			}
 		}
 	}
 

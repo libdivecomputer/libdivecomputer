@@ -99,6 +99,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x13},
 	{"Subgear","XP-10",         DC_FAMILY_UWATEC_SMART, 0x13},
 	{"Uwatec", "Smart Com",     DC_FAMILY_UWATEC_SMART, 0x14},
+	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x15},
 	{"Uwatec", "Smart Tec",     DC_FAMILY_UWATEC_SMART, 0x18},
 	{"Uwatec", "Galileo Trimix",DC_FAMILY_UWATEC_SMART, 0x19},
 	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C},
@@ -163,7 +164,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Oceanic",  "Atom 3.1",            DC_FAMILY_OCEANIC_ATOM2, 0x4456},
 	{"Aeris",    "A300 AI",             DC_FAMILY_OCEANIC_ATOM2, 0x4457},
 	{"Sherwood", "Wisdom 3",            DC_FAMILY_OCEANIC_ATOM2, 0x4458},
+	{"Sherwood", "Amphos",              DC_FAMILY_OCEANIC_ATOM2, 0x4545},
 	{"Oceanic",  "Pro Plus 3",          DC_FAMILY_OCEANIC_ATOM2, 0x4548},
+	{"Oceanic",  "OCi",                 DC_FAMILY_OCEANIC_ATOM2, 0x454B},
 	/* Mares Nemo */
 	{"Mares", "Nemo",         DC_FAMILY_MARES_NEMO, 0},
 	{"Mares", "Nemo Steel",   DC_FAMILY_MARES_NEMO, 0},
@@ -186,6 +189,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Icon HD Net Ready", DC_FAMILY_MARES_ICONHD , 0x15},
 	{"Mares", "Puck Pro",          DC_FAMILY_MARES_ICONHD , 0x18},
 	{"Mares", "Nemo Wide 2",       DC_FAMILY_MARES_ICONHD , 0x19},
+	{"Mares", "Puck 2",            DC_FAMILY_MARES_ICONHD , 0x1F},
 	/* Heinrichs Weikamp */
 	{"Heinrichs Weikamp", "OSTC",     DC_FAMILY_HW_OSTC, 0},
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1},
@@ -201,6 +205,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Zeagle",   "N2iTiON3",   DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	{"Apeks",    "Quantum X",  DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	{"Dive Rite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0},
+	{"Scubapro", "XTender 5",  DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	/* Atomic Aquatics Cobalt */
 #ifdef HAVE_LIBUSB
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},

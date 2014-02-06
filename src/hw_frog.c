@@ -111,6 +111,9 @@ hw_frog_transfer (hw_frog_device_t *device,
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
+	if (device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
+
 	// Send the command.
 	unsigned char command[1] = {cmd};
 	int n = serial_write (device->port, command, sizeof (command));

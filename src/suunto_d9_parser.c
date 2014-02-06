@@ -482,8 +482,8 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					case 0x06: // Mandatory Safety Stop Ceiling Error
 						sample.event.type = SAMPLE_EVENT_CEILING_SAFETYSTOP;
 						break;
-					case 0x07: // Unknown (Deco related)
-						sample.event.type = SAMPLE_EVENT_UNKNOWN;
+					case 0x07: // Below Deco Floor
+						sample.event.type = SAMPLE_EVENT_FLOOR;
 						break;
 					case 0x08: // Dive Time
 						sample.event.type = SAMPLE_EVENT_DIVETIME;

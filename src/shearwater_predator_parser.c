@@ -88,7 +88,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	// Initialize the base class.
 	parser->petrel = petrel;
 	if (petrel) {
-		parser_init (&parser->base, context, &shearwater_predator_parser_vtable);
+		parser_init (&parser->base, context, &shearwater_petrel_parser_vtable);
 	} else {
 		parser_init (&parser->base, context, &shearwater_predator_parser_vtable);
 	}

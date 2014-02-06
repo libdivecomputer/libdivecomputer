@@ -55,6 +55,27 @@ static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 };
 
 
+/* Find how many gas mixes are in use */
+static unsigned int
+mares_iconhd_parser_count_active_gas_mixes (const unsigned char *p, unsigned int air)
+{
+	if (air) {
+		return 1;
+	} else {
+		// Count the number of active gas mixes. The active gas
+		// mixes are always first, so we stop counting as soon
+		// as the first gas marked as disabled is found.
+		unsigned int i = 0;
+		while (i < 3) {
+			if (p[0x14 + i * 4 + 1] & 0x80)
+				break;
+			i++;
+		}
+		return i;
+	}
+}
+
+
 dc_status_t
 mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
@@ -163,20 +184,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = array_uint16_le (p + 0x04) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (air) {
-				*((unsigned int *) value) = 1;
-			} else {
-				// Count the number of active gas mixes. The active gas
-				// mixes are always first, so we stop counting as soon
-				// as the first gas marked as disabled is found.
-				unsigned int i = 0;
-				while (i < 3) {
-					if (p[0x14 + i * 4 + 1] & 0x80)
-						break;
-					i++;
-				}
-				*((unsigned int *) value) = i;
-			}
+			*((unsigned int *) value) = mares_iconhd_parser_count_active_gas_mixes (p, air);
 			break;
 		case DC_FIELD_GASMIX:
 			if (air)
@@ -185,6 +193,10 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				gasmix->oxygen = p[0x14 + flags * 4] / 100.0;
 			gasmix->helium = 0.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_ATMOSPHERIC:
+			// Pressure (1/8 millibar)
+			*((double *) value) = array_uint16_le (p + 0x26) / 8000.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -215,6 +227,10 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	if (abstract->size < length || length < header + 4)
 		return DC_STATUS_DATAFORMAT;
 
+	const unsigned char *p = abstract->data + length - header;
+
+	unsigned int air = (p[0] & 0x02) == 0;
+
 	const unsigned char *data = abstract->data;
 	unsigned int size = length - header;
 
@@ -223,6 +239,11 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	unsigned int offset = 4;
 	unsigned int nsamples = 0;
+
+	// Previous gas mix - initialize with impossible value
+	unsigned int gasmix_previous = 0xFFFFFFFF;
+	unsigned int ngasmixes = mares_iconhd_parser_count_active_gas_mixes (p, air);
+
 	while (offset + samplesize <= size) {
 		dc_sample_value_t sample = {0};
 
@@ -237,9 +258,27 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (1/10 °C).
-		unsigned int temperature = array_uint16_le (data + offset + 2);
+		unsigned int temperature = array_uint16_le (data + offset + 2) & 0x0FFF;
 		sample.temperature = temperature / 10.0;
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+		// Current gas mix
+		unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
+		if (gasmix >= ngasmixes) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		if (gasmix != gasmix_previous) {
+			unsigned int o2 = 0;
+			if (air)
+				o2 = 21;
+			else
+				o2 = p[0x14 + gasmix * 4];
+			sample.event.type = SAMPLE_EVENT_GASCHANGE;
+			sample.event.time = 0;
+			sample.event.value = o2;
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			gasmix_previous = gasmix;
+		}
 
 		offset += samplesize;
 		nsamples++;

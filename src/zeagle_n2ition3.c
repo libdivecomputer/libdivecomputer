@@ -79,6 +79,9 @@ zeagle_n2ition3_packet (zeagle_n2ition3_device_t *device, const unsigned char co
 
 	assert (asize >= csize + 5);
 
+	if (device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
+
 	// Send the command to the device.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {

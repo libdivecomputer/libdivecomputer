@@ -39,6 +39,7 @@
 #define ALADINTEC     0x12
 #define ALADINTEC2G   0x13
 #define SMARTCOM      0x14
+#define ALADIN2G      0x15
 #define SMARTTEC      0x18
 #define GALILEOTRIMIX 0x19
 #define SMARTZ        0x1C
@@ -207,6 +208,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		break;
 	case GALILEO:
 	case GALILEOTRIMIX:
+	case ALADIN2G:
 	case MERIDIAN:
 		header = 152;
 		if (data[43] & 0x80) {
@@ -456,6 +458,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		break;
 	case GALILEO:
 	case GALILEOTRIMIX:
+	case ALADIN2G:
 	case MERIDIAN:
 		header = 152;
 		if (data[43] & 0x80) {
@@ -522,7 +525,8 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Process the type bits in the bitstream.
 		unsigned int id = 0;
-		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX || parser->model == MERIDIAN) {
+		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
+			parser->model == ALADIN2G || parser->model == MERIDIAN) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {

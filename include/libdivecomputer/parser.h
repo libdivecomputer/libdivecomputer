@@ -73,7 +73,7 @@ typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_SAFETYSTOP_MANDATORY,
 	SAMPLE_EVENT_DEEPSTOP,
 	SAMPLE_EVENT_CEILING_SAFETYSTOP,
-	SAMPLE_EVENT_UNKNOWN,
+	SAMPLE_EVENT_FLOOR,
 	SAMPLE_EVENT_DIVETIME,
 	SAMPLE_EVENT_MAXDEPTH,
 	SAMPLE_EVENT_OLF,
@@ -86,6 +86,9 @@ typedef enum parser_sample_event_t {
 	                            percentages, packed as two 16bit integers in
 	                            respectively the low and high part. */
 } parser_sample_event_t;
+
+/* For backwards compatibility */
+#define SAMPLE_EVENT_UNKNOWN SAMPLE_EVENT_FLOOR
 
 typedef enum parser_sample_flags_t {
 	SAMPLE_FLAGS_NONE = 0,
