@@ -52,6 +52,21 @@ static const dc_parser_vtable_t cressi_edy_parser_vtable = {
 };
 
 
+static unsigned int
+cressi_edy_parser_count_gasmixes (const unsigned char *data)
+{
+	// Count the number of active gas mixes. The active gas
+	// mixes are always first, so we stop counting as soon
+	// as the first gas marked as disabled is found.
+	unsigned int i = 0;
+	while (i < 3) {
+		if (data[0x17 - i] == 0xF0)
+			break;
+		i++;
+	}
+	return i;
+}
+
 dc_status_t
 cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
@@ -139,7 +154,7 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			*((double *) value) = (bcd2dec (p[0x02] & 0x0F) * 100 + bcd2dec (p[0x03])) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 3;
+			*((unsigned int *) value) = cressi_edy_parser_count_gasmixes(p);
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
