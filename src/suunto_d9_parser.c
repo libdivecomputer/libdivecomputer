@@ -335,6 +335,16 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	// Initial gasmix.
+	unsigned int gasmix = 0;
+	if (parser->model == HELO2) {
+		gasmix = data[0x26];
+	}
+	if (gasmix >= parser->ngasmixes) {
+		ERROR (abstract->context, "Invalid initial gas mix.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
 	// Number of parameters in the configuration data.
 	unsigned int nparams = data[parser->config];
 	if (nparams == 0 || nparams > MAXPARAMS)
@@ -431,6 +441,23 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 
 				offset += info[i].size;
 			}
+		}
+
+		// Initial gasmix.
+		if (time == 0) {
+			unsigned int he = 0;
+			unsigned int o2 = 0;
+			if (parser->mode == AIR) {
+				he = 0;
+				o2 = 21;
+			} else {
+				he = parser->helium[gasmix];
+				o2 = parser->oxygen[gasmix];
+			}
+			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+			sample.event.time = 0;
+			sample.event.value = o2 | (he << 16);
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 		}
 
 		// Events
