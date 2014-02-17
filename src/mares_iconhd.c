@@ -49,8 +49,6 @@
 #define ACK 0xAA
 #define EOF 0xEA
 
-#define SZ_PACKET 256
-
 typedef struct mares_iconhd_layout_t {
 	unsigned int memsize;
 	unsigned int rb_profile_begin;
@@ -69,6 +67,7 @@ typedef struct mares_iconhd_device_t {
 	unsigned char fingerprint[10];
 	unsigned char version[140];
 	unsigned int model;
+	unsigned int packetsize;
 } mares_iconhd_device_t;
 
 static dc_status_t mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
@@ -219,6 +218,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->version, 0, sizeof (device->version));
 	device->model = 0;
+	device->packetsize = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -278,13 +278,16 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	case NEMOWIDE2:
 	case PUCK2:
 		device->layout = &mares_matrix_layout;
+		device->packetsize = 256;
 		break;
 	case ICONHDNET:
 		device->layout = &mares_iconhdnet_layout;
+		device->packetsize = 4096;
 		break;
 	case ICONHD:
 	default:
 		device->layout = &mares_iconhd_layout;
+		device->packetsize = 4096;
 		break;
 	}
 
@@ -339,8 +342,8 @@ mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 	while (nbytes < size) {
 		// Calculate the packet size.
 		unsigned int len = size - nbytes;
-		if (len > SZ_PACKET)
-			len = SZ_PACKET;
+		if (len > device->packetsize)
+			len = device->packetsize;
 
 		// Read the packet.
 		unsigned char command[] = {0xE7, 0x42,
@@ -384,7 +387,7 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), SZ_PACKET);
+		dc_buffer_get_size (buffer), device->packetsize);
 }
 
 
