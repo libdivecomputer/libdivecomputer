@@ -52,6 +52,21 @@ static const dc_parser_vtable_t cressi_edy_parser_vtable = {
 };
 
 
+static unsigned int
+cressi_edy_parser_count_gasmixes (const unsigned char *data)
+{
+	// Count the number of active gas mixes. The active gas
+	// mixes are always first, so we stop counting as soon
+	// as the first gas marked as disabled is found.
+	unsigned int i = 0;
+	while (i < 3) {
+		if (data[0x17 - i] == 0xF0)
+			break;
+		i++;
+	}
+	return i;
+}
+
 dc_status_t
 cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
@@ -139,7 +154,7 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			*((double *) value) = (bcd2dec (p[0x02] & 0x0F) * 100 + bcd2dec (p[0x03])) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 3;
+			*((unsigned int *) value) = cressi_edy_parser_count_gasmixes(p);
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
@@ -170,6 +185,9 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	else
 		interval = 30;
 
+	unsigned int ngasmixes = cressi_edy_parser_count_gasmixes(data);
+	unsigned int gasmix = 0xFFFFFFFF;
+
 	unsigned int offset = 32;
 	while (offset + 2 <= size) {
 		dc_sample_value_t sample = {0};
@@ -190,6 +208,21 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		unsigned int depth = bcd2dec (data[offset + 0] & 0x0F) * 100 + bcd2dec (data[offset + 1]);
 		sample.depth = depth / 10.0;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+		// Current gasmix
+		if (ngasmixes) {
+			unsigned int idx = (data[offset + 0] & 0x60) >> 5;
+			if (idx >= ngasmixes)
+				return DC_STATUS_DATAFORMAT;
+			if (idx != gasmix) {
+				sample.event.type = SAMPLE_EVENT_GASCHANGE;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = bcd2dec(data[0x17 - idx]);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				gasmix = idx;
+			}
+		}
 
 		offset += 2 + extra;
 	}
