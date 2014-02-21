@@ -374,8 +374,12 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int offset = i * RB_LOGBOOK_SIZE;
 
 		// Ignore uninitialized header entries.
-		if (array_isequal (header + offset, RB_LOGBOOK_SIZE, 0xFF))
-			break;
+		if (array_isequal (header + offset, RB_LOGBOOK_SIZE, 0xFF)) {
+			if (count)
+				break;
+			else
+				continue;
+		}
 
 		// Get the internal dive number.
 		unsigned int current = array_uint16_le (header + offset + 80);
