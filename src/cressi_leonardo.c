@@ -273,9 +273,9 @@ cressi_leonardo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 	unsigned char *data = dc_buffer_get_data (buffer);
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = data[0];
 	devinfo.firmware = 0;
-	devinfo.serial = array_uint32_le (data + 1);
+	devinfo.serial = array_uint24_le (data + 1);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = cressi_leonardo_extract_dives (abstract, dc_buffer_get_data (buffer),
