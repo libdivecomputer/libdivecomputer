@@ -30,18 +30,14 @@
 #include "serial.h"
 #include "array.h"
 
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
 #define ISINSTANCE(device) dc_device_isinstance((device), &mares_iconhd_device_vtable)
 
 #define EXITCODE(rc) \
 ( \
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
-
-#if defined(_WIN32) || defined(__APPLE__)
-#define BAUDRATE 256000
-#else
-#define BAUDRATE 230400
-#endif
 
 #define MATRIX    0x0F
 #define ICONHD    0x14
@@ -59,12 +55,18 @@ typedef struct mares_iconhd_layout_t {
 	unsigned int rb_profile_end;
 } mares_iconhd_layout_t;
 
+typedef struct mares_iconhd_model_t {
+	unsigned char name[16 + 1];
+	unsigned int id;
+} mares_iconhd_model_t;
+
 typedef struct mares_iconhd_device_t {
 	dc_device_t base;
 	serial_t *port;
 	const mares_iconhd_layout_t *layout;
 	unsigned char fingerprint[10];
 	unsigned char version[140];
+	unsigned int model;
 	unsigned int packetsize;
 } mares_iconhd_device_t;
 
@@ -103,16 +105,25 @@ static const mares_iconhd_layout_t mares_matrix_layout = {
 };
 
 static unsigned int
-mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
+mares_iconhd_get_model (mares_iconhd_device_t *device)
 {
-	dc_context_t *context = (device ? ((dc_device_t *) device)->context : NULL);
+	const mares_iconhd_model_t models[] = {
+		{"Matrix",      MATRIX},
+		{"Icon HD",     ICONHD},
+		{"Icon AIR",    ICONHDNET},
+		{"Puck Pro",    PUCKPRO},
+		{"Nemo Wide 2", NEMOWIDE2},
+		{"Puck 2",      PUCK2},
+	};
 
-	// Try to correct an invalid model code using the version packet.
-	if (model == 0xFF) {
-		WARNING (context, "Invalid model code detected!");
-		const unsigned char iconhdnet[] = "Icon AIR";
-		if (device && memcmp (device->version + 0x46, iconhdnet, sizeof (iconhdnet) - 1) == 0)
-			model = ICONHDNET;
+	// Check the product name in the version packet against the list
+	// with valid names, and return the corresponding model number.
+	unsigned int model = 0;
+	for (unsigned int i = 0; i < C_ARRAY_SIZE(models); ++i) {
+		if (memcmp (device->version + 0x46, models[i].name, sizeof (models[i].name) - 1) == 0) {
+			model = models[i].id;
+			break;
+		}
 	}
 
 	return model;
@@ -121,8 +132,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device, unsigned int model)
 static dc_status_t
 mares_iconhd_transfer (mares_iconhd_device_t *device,
 	const unsigned char command[], unsigned int csize,
-	unsigned char answer[], unsigned int asize,
-	dc_event_progress_t *progress)
+	unsigned char answer[], unsigned int asize)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
@@ -161,34 +171,11 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 		}
 	}
 
-	unsigned int nbytes = 0;
-	while (nbytes < asize) {
-		// Set the minimum packet size.
-		unsigned int len = 1024;
-
-		// Increase the packet size if more data is immediately available.
-		int available = serial_get_received (device->port);
-		if (available > len)
-			len = available;
-
-		// Limit the packet size to the total size.
-		if (nbytes + len > asize)
-			len = asize - nbytes;
-
-		// Read the packet.
-		n = serial_read (device->port, answer + nbytes, len);
-		if (n != len) {
-			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
-		}
-
-		// Update and emit a progress event.
-		if (progress) {
-			progress->current += len;
-			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
-		}
-
-		nbytes += len;
+	// Read the packet.
+	n = serial_read (device->port, answer, asize);
+	if (n != asize) {
+		ERROR (abstract->context, "Failed to receive the answer.");
+		return EXITCODE (n);
 	}
 
 	// Receive the trailer byte.
@@ -209,48 +196,6 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 }
 
 
-static dc_status_t
-mares_iconhd_version (mares_iconhd_device_t *device, unsigned char data[], unsigned int size)
-{
-	unsigned char command[] = {0xC2, 0x67};
-	return mares_iconhd_transfer (device, command, sizeof (command), data, size, NULL);
-}
-
-
-static dc_status_t
-mares_iconhd_read (mares_iconhd_device_t *device, unsigned int address, unsigned char data[], unsigned int size, dc_event_progress_t *progress)
-{
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	unsigned int nbytes = 0;
-	while (nbytes < size) {
-		// Calculate the packet size.
-		unsigned int len = size - nbytes;
-		if (device->packetsize && len > device->packetsize)
-			len = device->packetsize;
-
-		// Read the packet.
-		unsigned char command[] = {0xE7, 0x42,
-			(address      ) & 0xFF,
-			(address >>  8) & 0xFF,
-			(address >> 16) & 0xFF,
-			(address >> 24) & 0xFF,
-			(len      ) & 0xFF,
-			(len >>  8) & 0xFF,
-			(len >> 16) & 0xFF,
-			(len >> 24) & 0xFF};
-		rc = mares_iconhd_transfer (device, command, sizeof (command), data, len, progress);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
-
-		nbytes += len;
-		address += len;
-		data += len;
-	}
-
-	return rc;
-}
-
 dc_status_t
 mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
@@ -269,18 +214,11 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 
 	// Set the default values.
 	device->port = NULL;
+	device->layout = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->version, 0, sizeof (device->version));
-	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO || model == PUCK2) {
-		device->layout = &mares_matrix_layout;
-		device->packetsize = 64;
-	} else if (model == ICONHDNET) {
-		device->layout = &mares_iconhdnet_layout;
-		device->packetsize = 0;
-	} else {
-		device->layout = &mares_iconhd_layout;
-		device->packetsize = 0;
-	}
+	device->model = 0;
+	device->packetsize = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -290,12 +228,8 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 		return DC_STATUS_IO;
 	}
 
-	// Set the serial communication protocol (256000 8N1).
-	if (model == NEMOWIDE2 || model == MATRIX || model == PUCKPRO || model == PUCK2) {
-		rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
-	} else {
-		rc = serial_configure (device->port, BAUDRATE, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	}
+	// Set the serial communication protocol (115200 8E1).
+	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		serial_close (device->port);
@@ -325,11 +259,36 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	// Send the version command.
-	dc_status_t status = mares_iconhd_version (device, device->version, sizeof (device->version));
+	unsigned char command[] = {0xC2, 0x67};
+	dc_status_t status = mares_iconhd_transfer (device, command, sizeof (command),
+		device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		serial_close (device->port);
 		free (device);
 		return status;
+	}
+
+	// Autodetect the model using the version packet.
+	device->model = mares_iconhd_get_model (device);
+
+	// Load the correct memory layout.
+	switch (device->model) {
+	case MATRIX:
+	case PUCKPRO:
+	case NEMOWIDE2:
+	case PUCK2:
+		device->layout = &mares_matrix_layout;
+		device->packetsize = 256;
+		break;
+	case ICONHDNET:
+		device->layout = &mares_iconhdnet_layout;
+		device->packetsize = 4096;
+		break;
+	case ICONHD:
+	default:
+		device->layout = &mares_iconhd_layout;
+		device->packetsize = 4096;
+		break;
 	}
 
 	*out = (dc_device_t *) device;
@@ -376,9 +335,36 @@ mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char 
 static dc_status_t
 mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
-	return mares_iconhd_read (device, address, data, size, NULL);
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		// Calculate the packet size.
+		unsigned int len = size - nbytes;
+		if (len > device->packetsize)
+			len = device->packetsize;
+
+		// Read the packet.
+		unsigned char command[] = {0xE7, 0x42,
+			(address      ) & 0xFF,
+			(address >>  8) & 0xFF,
+			(address >> 16) & 0xFF,
+			(address >> 24) & 0xFF,
+			(len      ) & 0xFF,
+			(len >>  8) & 0xFF,
+			(len >> 16) & 0xFF,
+			(len >> 24) & 0xFF};
+		rc = mares_iconhd_transfer (device, command, sizeof (command), data, len);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+
+		nbytes += len;
+		address += len;
+		data += len;
+	}
+
+	return rc;
 }
 
 
@@ -394,19 +380,14 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// Enable progress notifications.
-	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = device->layout->memsize;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
 	vendor.data = device->version;
 	vendor.size = sizeof (device->version);
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
-	return mares_iconhd_read (device, 0, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), &progress);
+	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), device->packetsize);
 }
 
 
@@ -428,7 +409,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
 	dc_event_devinfo_t devinfo;
-	devinfo.model = mares_iconhd_get_model (device, data[0]);
+	devinfo.model = device->model;
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint32_le (data + 0x0C);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
@@ -457,7 +438,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		return DC_STATUS_DATAFORMAT;
 
 	// Get the model code.
-	unsigned int model = mares_iconhd_get_model (device, data[0]);
+	unsigned int model = device ? device->model : data[0];
 
 	// Get the corresponding dive header size.
 	unsigned int header = 0x5C;
