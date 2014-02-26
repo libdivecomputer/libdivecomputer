@@ -38,7 +38,7 @@ struct dc_context_t {
 	dc_logfunc_t logfunc;
 	void *userdata;
 #ifdef ENABLE_LOGGING
-	char msg[4096];
+	char msg[8192 + 32];
 #ifdef _WIN32
 	DWORD timestamp;
 #else
