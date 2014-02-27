@@ -49,6 +49,15 @@ hw_ostc3_device_display (dc_device_t *device, const char *text);
 dc_status_t
 hw_ostc3_device_customtext (dc_device_t *device, const char *text);
 
+dc_status_t
+hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigned char data[], unsigned int size);
+
+dc_status_t
+hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const unsigned char data[], unsigned int size);
+
+dc_status_t
+hw_ostc3_device_config_reset (dc_device_t *abstract);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

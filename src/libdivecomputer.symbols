@@ -154,6 +154,9 @@ hw_ostc3_device_version
 hw_ostc3_device_clock
 hw_ostc3_device_display
 hw_ostc3_device_customtext
+hw_ostc3_device_config_read
+hw_ostc3_device_config_write
+hw_ostc3_device_config_reset
 zeagle_n2ition3_device_open
 atomics_cobalt_device_open
 atomics_cobalt_device_version

@@ -42,6 +42,7 @@
 #define SZ_CUSTOMTEXT 60
 #define SZ_VERSION    (SZ_CUSTOMTEXT + 4)
 #define SZ_MEMORY     0x200000
+#define SZ_CONFIG     4
 
 #define RB_LOGBOOK_SIZE  256
 #define RB_LOGBOOK_COUNT 256
@@ -53,6 +54,9 @@
 #define DIVE       0x66
 #define IDENTITY   0x69
 #define DISPLAY    0x6E
+#define READ       0x72
+#define WRITE      0x77
+#define RESET      0x78
 #define INIT       0xBB
 #define EXIT       0xFF
 
@@ -549,6 +553,67 @@ hw_ostc3_device_customtext (dc_device_t *abstract, const char *text)
 
 	// Send the command.
 	dc_status_t rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigned char data[], unsigned int size)
+{
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	if (size > SZ_CONFIG) {
+		ERROR (abstract->context, "Invalid parameter specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Send the command.
+	unsigned char command[1] = {config};
+	dc_status_t rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const unsigned char data[], unsigned int size)
+{
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	if (size > SZ_CONFIG) {
+		ERROR (abstract->context, "Invalid parameter specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Send the command.
+	unsigned char command[SZ_CONFIG + 1] = {config};
+	memcpy(command + 1, data, size);
+	dc_status_t rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+hw_ostc3_device_config_reset (dc_device_t *abstract)
+{
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	// Send the command.
+	dc_status_t rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
