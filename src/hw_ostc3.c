@@ -374,12 +374,8 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int offset = i * RB_LOGBOOK_SIZE;
 
 		// Ignore uninitialized header entries.
-		if (array_isequal (header + offset, RB_LOGBOOK_SIZE, 0xFF)) {
-			if (count)
-				break;
-			else
-				continue;
-		}
+		if (array_isequal (header + offset, RB_LOGBOOK_SIZE, 0xFF))
+			continue;
 
 		// Get the internal dive number.
 		unsigned int current = array_uint16_le (header + offset + 80);
@@ -398,6 +394,14 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	for (unsigned int i = 0; i < count; ++i) {
 		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
 		unsigned int offset = idx * RB_LOGBOOK_SIZE;
+
+		// Uninitialized header entries should no longer be present at this
+		// stage, unless the dives are interleaved with empty entries. But
+		// that's something we don't support at all.
+		if (array_isequal (header + offset, RB_LOGBOOK_SIZE, 0xFF)) {
+			WARNING (abstract->context, "Unexpected empty header found.");
+			break;
+		}
 
 		// Get the firmware version.
 		unsigned int firmware = array_uint16_be (header + offset + 0x30);
