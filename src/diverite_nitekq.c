@@ -276,11 +276,7 @@ diverite_nitekq_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = 0;
-	devinfo.serial = 0;
-	for (unsigned int i = 0; i < 4; ++i) {
-		devinfo.serial *= 100;
-		devinfo.serial += bcd2dec (device->version[0x0A + i]);
-	}
+	devinfo.serial = array_uint32_be (device->version + 0x0A);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Send the upload request. It's not clear whether this request is
