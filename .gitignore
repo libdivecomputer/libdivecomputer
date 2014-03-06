@@ -44,6 +44,7 @@ Makefile.in
 /examples/n2ition3
 /examples/nemo
 /examples/ostc
+/examples/ostc-fwupdate
 /examples/predator
 /examples/puck
 /examples/sensus
