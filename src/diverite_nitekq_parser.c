@@ -212,8 +212,8 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			case 0x01: // Settings
 				if (offset + 27 > size)
 					return DC_STATUS_DATAFORMAT;
-				metric = (data[0x10] & 0x04) >> 2;
-				interval = data[0x11];
+				metric = (data[offset + 0x10] & 0x04) >> 2;
+				interval = data[offset + 0x11];
 				offset += 27;
 				break;
 			case 0x02: // OC Samples
