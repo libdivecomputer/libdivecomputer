@@ -34,7 +34,7 @@ static unsigned char g_lastchar = '\n';
 
 #ifdef _WIN32
 	#include <windows.h>
-	static unsigned long g_timestamp;
+	static LARGE_INTEGER g_timestamp, g_frequency;
 #else
 	#include <sys/time.h>
 	static struct timeval g_timestamp;
@@ -47,9 +47,12 @@ int message (const char* fmt, ...)
 	if (g_logfile) {
 		if (g_lastchar == '\n') {
 #ifdef _WIN32
-			unsigned long timestamp = GetTickCount () - g_timestamp;
-			unsigned long sec = timestamp / 1000L, msec = timestamp % 1000L;
-			fprintf (g_logfile, "[%li.%03li] ", sec, msec);
+			LARGE_INTEGER now, timestamp;
+			QueryPerformanceCounter(&now);
+			timestamp.QuadPart = now.QuadPart - g_timestamp.QuadPart;
+			timestamp.QuadPart *= 1000000;
+			timestamp.QuadPart /= g_frequency.QuadPart;
+			fprintf (g_logfile, "[%I64i.%06I64i] ", timestamp.QuadPart / 1000000, timestamp.QuadPart % 1000000);
 #else
 			struct timeval now, timestamp;
 			gettimeofday (&now, NULL);
@@ -89,7 +92,8 @@ void message_set_logfile (const char* filename)
 	if (g_logfile) {
 		g_lastchar = '\n';
 #ifdef _WIN32
-		g_timestamp = GetTickCount ();
+		QueryPerformanceFrequency(&g_frequency);
+		QueryPerformanceCounter(&g_timestamp);
 #else
 		gettimeofday (&g_timestamp, NULL);
 #endif
