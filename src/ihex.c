@@ -95,7 +95,7 @@ dc_ihex_file_read (dc_ihex_file_t *file, dc_ihex_entry_t *entry)
 
 		/* Ignore CR and LF characters. */
 		if (ascii[0] != '\n' && ascii[0] != '\r') {
-			ERROR (file->context, "Unexpected character (0x%02).", ascii[0]);
+			ERROR (file->context, "Unexpected character (0x%02x).", ascii[0]);
 			return DC_STATUS_DATAFORMAT;
 		}
 	}
