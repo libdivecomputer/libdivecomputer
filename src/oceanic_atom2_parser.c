@@ -324,7 +324,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		case DC_FIELD_GASMIX_COUNT:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				*((unsigned int *) value) = 1;
-			else if (parser->model == VT4 || parser->model == VT41)
+			else if (parser->model == VT4 || parser->model == VT41 || parser->model == OCI)
 				*((unsigned int *) value) = 4;
 			else
 				*((unsigned int *) value) = 3;
@@ -332,6 +332,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		case DC_FIELD_GASMIX:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK)
 				nitrox = data[header + 3];
+			else if (parser->model == OCI)
+				nitrox = data[0x28 + flags];
 			else
 				nitrox = data[header + 4 + flags];
 			gasmix->helium = 0.0;
