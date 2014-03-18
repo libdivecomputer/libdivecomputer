@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -143,7 +143,7 @@ uwatec_memomouse_device_close (dc_device_t *abstract)
 		return DC_STATUS_IO;
 	}
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return DC_STATUS_SUCCESS;
@@ -222,10 +222,10 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	while ((rc = uwatec_memomouse_read_packet (device, data, size, result)) != DC_STATUS_SUCCESS) {
-		// Automatically discard a corrupted packet, 
+		// Automatically discard a corrupted packet,
 		// and request a new one.
 		if (rc != DC_STATUS_PROTOCOL)
-			return rc;	
+			return rc;
 
 		// Flush the input buffer.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
@@ -375,13 +375,13 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 	// Without this delay, the transfer will fail most of the time.
 	serial_sleep (device->port, 50);
 
-	// Keep send the command to the device, 
+	// Keep send the command to the device,
 	// until the ACK answer is received.
 	unsigned char answer = NAK;
 	while (answer == NAK) {
 		// Flush the input buffer.
 		serial_flush (device->port, SERIAL_QUEUE_INPUT);
-		
+
 		// Send the command to the device.
 		int n = serial_write (device->port, command, sizeof (command));
 		if (n != sizeof (command)) {
@@ -501,8 +501,8 @@ uwatec_memomouse_extract_dives (dc_device_t *abstract, const unsigned char data[
 	unsigned int previous = 0;
 	unsigned int current = 5;
 	while (current + 18 <= size) {
-		// Memomouse sends all the data twice. The first time, it sends 
-		// the data starting from the oldest dive towards the newest dive. 
+		// Memomouse sends all the data twice. The first time, it sends
+		// the data starting from the oldest dive towards the newest dive.
 		// Next, it send the same data in reverse order (newest to oldest).
 		// We abort the parsing once we detect the first duplicate dive.
 		// The second data stream contains always exactly 37 dives, and not

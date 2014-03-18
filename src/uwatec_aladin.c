@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -144,7 +144,7 @@ uwatec_aladin_device_close (dc_device_t *abstract)
 		return DC_STATUS_IO;
 	}
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return DC_STATUS_SUCCESS;
@@ -313,10 +313,10 @@ uwatec_aladin_extract_dives (dc_device_t *abstract, const unsigned char* data, u
 	int profiles = 1;
 
 	// Both ring buffers are traversed backwards to retrieve the most recent
-	// dives first. This allows you to download only the new dives and avoids 
+	// dives first. This allows you to download only the new dives and avoids
 	// having to rely on the number of profiles in the ring buffer (which
-	// is buggy according to the documentation). During the traversal, the 
-	// previous pointer does always point to the end of the dive data and 
+	// is buggy according to the documentation). During the traversal, the
+	// previous pointer does always point to the end of the dive data and
 	// we move the current pointer backwards until a start marker is found.
 	unsigned int previous = eop;
 	unsigned int current = eop;
@@ -353,7 +353,7 @@ uwatec_aladin_extract_dives (dc_device_t *abstract, const unsigned char* data, u
 				}
 			} while (current != eop);
 
-			if (len >= 1) {		
+			if (len >= 1) {
 				// Skip the start marker.
 				len--;
 				unsigned int begin = RB_PROFILE_NEXT (current);

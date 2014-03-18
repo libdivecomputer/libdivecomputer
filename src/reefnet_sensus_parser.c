@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2009 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -98,7 +98,7 @@ reefnet_sensus_parser_create (dc_parser_t **out, dc_context_t *context, unsigned
 static dc_status_t
 reefnet_sensus_parser_destroy (dc_parser_t *abstract)
 {
-	// Free memory.	
+	// Free memory.
 	free (abstract);
 
 	return DC_STATUS_SUCCESS;
@@ -231,9 +231,9 @@ reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	unsigned int offset = 0;
 	while (offset + 7 <= size) {
 		if (data[offset] == 0xFF && data[offset + 6] == 0xFE) {
-			
+
 			unsigned int time = 0;
-			unsigned int interval = data[offset + 1];	
+			unsigned int interval = data[offset + 1];
 			unsigned int nsamples = 0, count = 0;
 
 			offset += 7;
@@ -262,7 +262,7 @@ reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 				// Current sample is complete.
 				nsamples++;
 
-				// The end of a dive is reached when 17 consecutive  
+				// The end of a dive is reached when 17 consecutive
 				// depth samples of less than 3 feet have been found.
 				if (depth < SAMPLE_DEPTH_ADJUST + 3) {
 					count++;

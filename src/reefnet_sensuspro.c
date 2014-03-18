@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -133,7 +133,7 @@ reefnet_sensuspro_device_close (dc_device_t *abstract)
 		return DC_STATUS_IO;
 	}
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return DC_STATUS_SUCCESS;
@@ -379,7 +379,7 @@ reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data
 		current--;
 		if (memcmp (data + current, header, sizeof (header)) == 0) {
 			// Once a start marker is found, start searching
-			// for the corresponding stop marker. The search is 
+			// for the corresponding stop marker. The search is
 			// now limited to the start of the previous dive.
 			int found = 0;
 			unsigned int offset = current + 10; // Skip non-sample data.
@@ -400,7 +400,7 @@ reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data
 			unsigned int timestamp = array_uint32_le (data + current + 6);
 			if (device && timestamp <= device->timestamp)
 				return DC_STATUS_SUCCESS;
-		
+
 			if (callback && !callback (data + current, offset + 2 - current, data + current + 6, 4, userdata))
 				return DC_STATUS_SUCCESS;
 

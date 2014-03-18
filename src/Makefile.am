@@ -76,7 +76,7 @@ if OS_WIN32
 libdivecomputer_la_SOURCES += libdivecomputer.rc
 endif
 
-libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp 
+libdivecomputer_la_DEPENDENCIES = libdivecomputer.exp
 
 libdivecomputer.exp: libdivecomputer.symbols
 	$(AM_V_GEN) sed -e '/^$$/d' $< > $@

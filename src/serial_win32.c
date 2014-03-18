@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -182,7 +182,7 @@ serial_close (serial_t *device)
 		return 0;
 
 	// Restore the initial communication settings and timeouts.
-	if (!SetCommState (device->hFile, &device->dcb) || 
+	if (!SetCommState (device->hFile, &device->dcb) ||
 		!SetCommTimeouts (device->hFile, &device->timeouts)) {
 		SYSERROR (device->context, GetLastError ());
 		CloseHandle (device->hFile);
@@ -197,7 +197,7 @@ serial_close (serial_t *device)
 		return -1;
 	}
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return 0;
@@ -232,7 +232,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	// Character size.
 	if (databits >= 5 && databits <= 8)
 		dcb.ByteSize = databits;
-	else 
+	else
 		return -1;
 
 	// Parity checking.
@@ -328,21 +328,21 @@ serial_set_timeout (serial_t *device, long timeout)
 	// Update the settings.
 	if (timeout < 0) {
 		// Blocking mode.
-		timeouts.ReadIntervalTimeout = 0; 
+		timeouts.ReadIntervalTimeout = 0;
 		timeouts.ReadTotalTimeoutMultiplier = 0;
 		timeouts.ReadTotalTimeoutConstant = 0;
 		timeouts.WriteTotalTimeoutMultiplier = 0;
 		timeouts.WriteTotalTimeoutConstant = 0;
 	} else if (timeout == 0) {
 		// Non-blocking mode.
-		timeouts.ReadIntervalTimeout = MAXDWORD; 
+		timeouts.ReadIntervalTimeout = MAXDWORD;
 		timeouts.ReadTotalTimeoutMultiplier = 0;
 		timeouts.ReadTotalTimeoutConstant = 0;
 		timeouts.WriteTotalTimeoutMultiplier = 0;
 		timeouts.WriteTotalTimeoutConstant = 0;
 	} else {
 		// Standard timeout mode.
-		timeouts.ReadIntervalTimeout = 0; 
+		timeouts.ReadIntervalTimeout = 0;
 		timeouts.ReadTotalTimeoutMultiplier = 0;
 		timeouts.ReadTotalTimeoutConstant = timeout;
 		timeouts.WriteTotalTimeoutMultiplier = 0;
@@ -470,7 +470,7 @@ serial_flush (serial_t *device, int queue)
 		serial_get_received (device),
 		serial_get_transmitted (device));
 
-	DWORD flags = 0;	
+	DWORD flags = 0;
 
 	switch (queue) {
 	case SERIAL_QUEUE_INPUT:
@@ -547,12 +547,12 @@ serial_set_dtr (serial_t *device, int level)
 	INFO (device->context, "DTR: value=%i", level);
 
 	int status = (level ? SETDTR : CLRDTR);
-	
+
 	if (!EscapeCommFunction (device->hFile, status)) {
 		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
-	
+
 	return 0;
 }
 
@@ -566,12 +566,12 @@ serial_set_rts (serial_t *device, int level)
 	INFO (device->context, "RTS: value=%i", level);
 
 	int status = (level ? SETRTS : CLRRTS);
-	
+
 	if (!EscapeCommFunction (device->hFile, status)) {
 		SYSERROR (device->context, GetLastError ());
 		return -1;
 	}
-	
+
 	return 0;
 }
 

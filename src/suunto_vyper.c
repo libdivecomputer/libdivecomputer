@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -163,7 +163,7 @@ suunto_vyper_device_close (dc_device_t *abstract)
 		return DC_STATUS_IO;
 	}
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return DC_STATUS_SUCCESS;
@@ -187,16 +187,16 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 		return EXITCODE (n);
 	}
 
-	// If the interface sends an echo back (which is the case for many clone 
-	// interfaces), this echo should be removed from the input queue before 
-	// attempting to read the real reply from the dive computer. Otherwise, 
-	// the data transfer will fail. Timing is also critical here! We have to 
-	// wait at least until the echo appears (40ms), but not until the reply 
+	// If the interface sends an echo back (which is the case for many clone
+	// interfaces), this echo should be removed from the input queue before
+	// attempting to read the real reply from the dive computer. Otherwise,
+	// the data transfer will fail. Timing is also critical here! We have to
+	// wait at least until the echo appears (40ms), but not until the reply
 	// from the dive computer appears (600ms).
-	// The original suunto interface does not have this problem, because it 
-	// does not send an echo and the RTS switching makes it impossible to 
-	// receive the reply before RTS is cleared. We have to wait some time 
-	// before clearing RTS (around 30ms). But if we wait too long (> 500ms), 
+	// The original suunto interface does not have this problem, because it
+	// does not send an echo and the RTS switching makes it impossible to
+	// receive the reply before RTS is cleared. We have to wait some time
+	// before clearing RTS (around 30ms). But if we wait too long (> 500ms),
 	// the reply disappears again.
 	serial_sleep (device->port, 200);
 	serial_flush (device->port, SERIAL_QUEUE_INPUT);
@@ -351,13 +351,13 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 		unsigned char answer[SZ_PACKET + 3] = {0};
 		int n = serial_read (device->port, answer, 2);
 		if (n != 2) {
-			// If no data is received because a timeout occured, we assume 
-			// the last package was already received and the transmission 
-			// can be finished. Unfortunately this is not 100% reliable, 
-			// because there is always a small chance that more data will 
-			// arrive later (especially with a short timeout). But it works 
+			// If no data is received because a timeout occured, we assume
+			// the last package was already received and the transmission
+			// can be finished. Unfortunately this is not 100% reliable,
+			// because there is always a small chance that more data will
+			// arrive later (especially with a short timeout). But it works
 			// good enough in practice.
-			// Only for the very first package, we can be sure there was 
+			// Only for the very first package, we can be sure there was
 			// an error, because the DC always sends at least one package.
 			if (n == 0 && npackages != 0)
 				break;
@@ -366,7 +366,7 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 		}
 
 		// Verify the header of the package.
-		if (answer[0] != command[0] || 
+		if (answer[0] != command[0] ||
 			answer[1] > SZ_PACKET) {
 			ERROR (abstract->context, "Unexpected answer start byte(s).");
 			return DC_STATUS_PROTOCOL;
@@ -388,9 +388,9 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 			return DC_STATUS_PROTOCOL;
 		}
 
-		// The DC sends a null package (a package with length zero) when it 
-		// has reached the end of its internal ring buffer. From this point on, 
-		// the current dive has been overwritten with newer data. Therefore, 
+		// The DC sends a null package (a package with length zero) when it
+		// has reached the end of its internal ring buffer. From this point on,
+		// the current dive has been overwritten with newer data. Therefore,
 		// we discard the current (incomplete) dive and end the transmission.
 		if (len == 0) {
 			dc_buffer_clear (buffer);
@@ -415,8 +415,8 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 		nbytes += len;
 
 		// If a package is smaller than $SZ_PACKET bytes,
-		// we assume it's the last packet and the transmission can be 
-		// finished early. However, this approach does not work if the 
+		// we assume it's the last packet and the transmission can be
+		// finished early. However, this approach does not work if the
 		// last packet is exactly $SZ_PACKET bytes long!
 #if 0
 		if (len != SZ_PACKET)
@@ -430,9 +430,9 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// The DC traverses its internal ring buffer backwards. The most recent 
-	// dive is send first (which allows you to download only the new dives), 
-	// but also the contents of each dive is reversed. Therefore, we reverse 
+	// The DC traverses its internal ring buffer backwards. The most recent
+	// dive is send first (which allows you to download only the new dives),
+	// but also the contents of each dive is reversed. Therefore, we reverse
 	// the bytes again before returning them to the application.
 	array_reverse_bytes (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 

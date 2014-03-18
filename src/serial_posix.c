@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -171,7 +171,7 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	}
 #endif
 
-	// Retrieve the current terminal attributes, to 
+	// Retrieve the current terminal attributes, to
 	// be able to restore them when closing the device.
 	// It is also used to check if the obtained
 	// file descriptor represents a terminal device.
@@ -212,7 +212,7 @@ serial_close (serial_t *device)
 		return -1;
 	}
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return 0;
@@ -244,9 +244,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	tty.c_lflag &= ~(ICANON | ECHO | ISIG | IEXTEN);
 
 	// Enable the receiver (CREAD) and ignore modem control lines (CLOCAL).
-	tty.c_cflag |= (CLOCAL | CREAD); 
+	tty.c_cflag |= (CLOCAL | CREAD);
 
-    // VMIN is the minimum number of characters for non-canonical read 
+    // VMIN is the minimum number of characters for non-canonical read
     // and VTIME is the timeout in deciseconds for non-canonical read.
     // Setting both of these parameters to zero implies that a read
     // will return immediately, only giving the currently available
@@ -682,7 +682,7 @@ serial_flush (serial_t *device, int queue)
 		serial_get_received (device),
 		serial_get_transmitted (device));
 
-	int flags = 0;	
+	int flags = 0;
 
 	switch (queue) {
 	case SERIAL_QUEUE_INPUT:

@@ -314,7 +314,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
-	
+
 	// The logbook ringbuffer can store at most 60 dives, even if the profile
 	// data could store more (e.g. many small dives). But it's also possible
 	// that the profile ringbuffer is filled faster than the logbook ringbuffer
@@ -332,7 +332,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 		// Get the profile length.
 		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
-		
+
 		// Check for a ringbuffer overflow.
 		if (total + length > RB_PROFILE_END - RB_PROFILE_BEGIN) {
 			count = i;
@@ -359,7 +359,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	unsigned int available = 0;
 	unsigned int remaining = total;
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-	
+
 	idx = last;
 	previous = eop;
 	unsigned int address = previous;
@@ -374,7 +374,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		while (nbytes < length) {
 			if (address == RB_PROFILE_BEGIN)
 				address = RB_PROFILE_END;
-			
+
 			unsigned int len = SZ_PACKET;
 			if (RB_PROFILE_BEGIN + len > address)
 				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.

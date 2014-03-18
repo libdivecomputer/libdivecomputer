@@ -1,18 +1,18 @@
-/* 
+/*
  * libdivecomputer
- * 
+ *
  * Copyright (C) 2008 Jef Driesen
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -99,12 +99,12 @@ irda_socket_open (irda_t **out, dc_context_t *context)
 	// Confirm that the winsock dll supports version 2.2.
 	// Note that if the dll supports versions greater than 2.2 in addition to
 	// 2.2, it will still return 2.2 since that is the version we requested.
-	if (LOBYTE (wsaData.wVersion) != 2 || 
+	if (LOBYTE (wsaData.wVersion) != 2 ||
 		HIBYTE (wsaData.wVersion) != 2) {
 		ERROR (context, "Incorrect winsock version.");
 		WSACleanup ();
 		free (device);
-		return -1; 
+		return -1;
 	}
 #endif
 
@@ -161,7 +161,7 @@ irda_socket_close (irda_t *device)
 	}
 #endif
 
-	// Free memory.	
+	// Free memory.
 	free (device);
 
 	return 0;
@@ -251,7 +251,7 @@ irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata)
 #ifdef _WIN32
 		for (unsigned int i = 0; i < list->numDevice; ++i) {
 			unsigned int address = array_uint32_le (list->Device[i].irdaDeviceID);
-			unsigned int hints = (list->Device[i].irdaDeviceHints1 << 8) + 
+			unsigned int hints = (list->Device[i].irdaDeviceHints1 << 8) +
 									list->Device[i].irdaDeviceHints2;
 
 			INFO (device->context,
@@ -261,10 +261,10 @@ irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata)
 				list->Device[i].irdaCharSet,
 				hints);
 
-			callback (address, 
+			callback (address,
 				list->Device[i].irdaDeviceName,
 				list->Device[i].irdaCharSet,
-				hints, 
+				hints,
 				userdata);
 		}
 #else
@@ -278,9 +278,9 @@ irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata)
 				list->dev[i].charset,
 				hints);
 
-			callback (list->dev[i].daddr, 
-				list->dev[i].info, 
-				list->dev[i].charset, 
+			callback (list->dev[i].daddr,
+				list->dev[i].info,
+				list->dev[i].charset,
 				hints,
 				userdata);
 		}
