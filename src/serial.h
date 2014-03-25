@@ -93,6 +93,8 @@ int serial_set_queue_size (serial_t *device, unsigned int input, unsigned int ou
 
 int serial_set_halfduplex (serial_t *device, int value);
 
+int serial_set_latency (serial_t *device, unsigned int milliseconds);
+
 int serial_read (serial_t *device, void* data, unsigned int size);
 int serial_write (serial_t *device, const void* data, unsigned int size);
 

@@ -512,6 +512,45 @@ serial_set_halfduplex (serial_t *device, int value)
 	return 0;
 }
 
+int
+serial_set_latency (serial_t *device, unsigned int milliseconds)
+{
+	if (device == NULL)
+		return -1; // EINVAL (Invalid argument)
+
+#if defined(TIOCGSERIAL) && defined(TIOCSSERIAL)
+	// Get the current settings.
+	struct serial_struct ss;
+	if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0 && NOPTY) {
+		SYSERROR (device->context, errno);
+		return -1;
+	}
+
+	// Set or clear the low latency flag.
+	if (milliseconds == 0) {
+		ss.flags |= ASYNC_LOW_LATENCY;
+	} else {
+		ss.flags &= ~ASYNC_LOW_LATENCY;
+	}
+
+	// Apply the new settings.
+	if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0 && NOPTY) {
+		SYSERROR (device->context, errno);
+		return -1;
+	}
+#elif defined(IOSSDATALAT)
+	// Set the receive latency in microseconds. Serial drivers use this
+	// value to determine how often to dequeue characters received by
+	// the hardware. A value of zero restores the default value.
+	unsigned long usec = (milliseconds == 0 ? 1 : milliseconds * 1000);
+	if (ioctl (device->fd, IOSSDATALAT, &usec) != 0 && NOPTY) {
+		SYSERROR (device->context, errno);
+		return -1;
+	}
+#endif
+
+	return 0;
+}
 
 int
 serial_read (serial_t *device, void *data, unsigned int size)

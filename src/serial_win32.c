@@ -390,6 +390,15 @@ serial_set_halfduplex (serial_t *device, int value)
 
 
 int
+serial_set_latency (serial_t *device, unsigned int milliseconds)
+{
+	if (device == NULL)
+		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+
+	return 0;
+}
+
+int
 serial_read (serial_t *device, void* data, unsigned int size)
 {
 	if (device == NULL)
