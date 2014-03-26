@@ -339,6 +339,9 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	unsigned int gasmix = 0;
 	if (parser->model == HELO2) {
 		gasmix = data[0x26];
+	} else if (parser->model == D4i || parser->model == D6i ||
+		parser->model == D9tx) {
+		gasmix = data[0x28];
 	}
 	if (gasmix >= parser->ngasmixes) {
 		ERROR (abstract->context, "Invalid initial gas mix.");
