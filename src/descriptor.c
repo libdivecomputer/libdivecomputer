@@ -210,6 +210,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Atomic Aquatics Cobalt */
 #ifdef HAVE_LIBUSB
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0},
+	{"Atomic Aquatics", "Cobalt 2", DC_FAMILY_ATOMICS_COBALT, 2},
 #endif
 	/* Shearwater Predator */
 	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2},
