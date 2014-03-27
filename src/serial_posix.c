@@ -433,7 +433,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 	// Configure a custom baudrate if necessary.
 	if (custom) {
-#if defined(TIOCGSERIAL) && defined(TIOCSSERIAL)
+#if defined(TIOCGSERIAL) && defined(TIOCSSERIAL) && !defined(__ANDROID__)
 		// Get the current settings.
 		struct serial_struct ss;
 		if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0 && NOPTY) {
@@ -518,7 +518,7 @@ serial_set_latency (serial_t *device, unsigned int milliseconds)
 	if (device == NULL)
 		return -1; // EINVAL (Invalid argument)
 
-#if defined(TIOCGSERIAL) && defined(TIOCSSERIAL)
+#if defined(TIOCGSERIAL) && defined(TIOCSSERIAL) && !defined(__ANDROID__)
 	// Get the current settings.
 	struct serial_struct ss;
 	if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0 && NOPTY) {
@@ -671,7 +671,12 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 	}
 
 	// Wait until all data has been transmitted.
+#ifdef __ANDROID__
+	/* Android is missing tcdrain, so use ioctl version instead */
+	while (ioctl (device->fd, TCSBRK, 1) != 0) {
+#else
 	while (tcdrain (device->fd) != 0) {
+#endif
 		if (errno != EINTR ) {
 			SYSERROR (device->context, errno);
 			return -1;
