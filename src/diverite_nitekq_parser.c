@@ -252,8 +252,8 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				offset += 7;
 				break;
 			default:
-				INFO (abstract->context, "Unknown type %02x", type);
-				break;
+				ERROR (abstract->context, "Unknown type %02x", type);
+				return DC_STATUS_DATAFORMAT;
 			}
 		} else if (type == 2 || type == 3) {
 			dc_sample_value_t sample = {0};
