@@ -450,8 +450,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		return DC_STATUS_IO;
 	}
 
-	// Set the timeout for receiving data (3000 ms).
-	if (serial_set_timeout (device->port, 3000) == -1) {
+	// Set the timeout for receiving data (1000 ms).
+	if (serial_set_timeout (device->port, 1000) == -1) {
 		ERROR (context, "Failed to set the timeout.");
 		serial_close (device->port);
 		free (device);
