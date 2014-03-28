@@ -35,6 +35,7 @@
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable)
 
 #define MAXRETRIES 2
+#define MAXDELAY   16
 
 #define EXITCODE(rc) \
 ( \
@@ -47,6 +48,7 @@
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
 	serial_t *port;
+	unsigned int delay;
 } oceanic_atom2_device_t;
 
 static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -318,6 +320,10 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
+	if (device->delay) {
+		serial_sleep (device->port, device->delay);
+	}
+
 	// Send the command to the dive computer.
 	int n = serial_write (device->port, command, csize);
 	if (n != csize) {
@@ -363,6 +369,10 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 		// Abort if the maximum number of retries is reached.
 		if (nretries++ >= MAXRETRIES)
 			return rc;
+
+		// Increase the inter packet delay.
+		if (device->delay < MAXDELAY)
+			device->delay++;
 
 		// Delay the next attempt.
 		serial_sleep (device->port, 100);
@@ -421,6 +431,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 	// Set the default values.
 	device->port = NULL;
+	device->delay = 0;
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
