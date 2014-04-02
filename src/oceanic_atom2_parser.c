@@ -58,6 +58,7 @@
 #define EPICB       0x4453
 #define ATOM31      0x4456
 #define A300AI      0x4457
+#define TX1         0x4542
 #define AMPHOS      0x4545
 #define PROPLUS3    0x4548
 #define OCI         0x454B
@@ -202,6 +203,13 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			datetime->minute = bcd2dec (p[12]);
 			pm = p[13] & 0x80;
 			break;
+		case TX1:
+			datetime->year   = bcd2dec (p[13]) + 2000;
+			datetime->month  = bcd2dec (p[14]);
+			datetime->day    = bcd2dec (p[15]);
+			datetime->hour   = p[11];
+			datetime->minute = p[10];
+			break;
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
@@ -274,6 +282,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
+	} else if (parser->model == TX1) {
+		headersize += 2 * PAGESIZE;
 	} else if (parser->model == ATOM1) {
 		headersize -= 2 * PAGESIZE;
 	} else if (parser->model == F10) {
@@ -327,6 +337,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((unsigned int *) value) = 1;
 			else if (parser->model == VT4 || parser->model == VT41 || parser->model == OCI)
 				*((unsigned int *) value) = 4;
+			else if (parser->model == TX1)
+				*((unsigned int *) value) = 6;
 			else
 				*((unsigned int *) value) = 3;
 			break;
@@ -335,6 +347,9 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				oxygen = data[header + 3];
 			} else if (parser->model == OCI) {
 				oxygen = data[0x28 + flags];
+			} else if (parser->model == TX1) {
+				oxygen = data[0x3E + flags];
+				helium = data[0x48 + flags];
 			} else {
 				oxygen = data[header + 4 + flags];
 			}
@@ -369,6 +384,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
+	} else if (parser->model == TX1) {
+		headersize += 2 * PAGESIZE;
 	} else if (parser->model == ATOM1) {
 		headersize -= 2 * PAGESIZE;
 	} else if (parser->model == F10) {
@@ -403,7 +420,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int samplesize = PAGESIZE / 2;
 	if (parser->model == OC1A || parser->model == OC1B ||
-		parser->model == OC1C || parser->model == OCI)
+		parser->model == OC1C || parser->model == OCI ||
+		parser->model == TX1)
 		samplesize = PAGESIZE;
 	else if (parser->model == F10)
 		samplesize = 2;
@@ -516,7 +534,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == OC1B || parser->model == OC1C ||
 					parser->model == OCI) {
 					temperature = data[offset + 3];
-				} else if (parser->model == OCS) {
+				} else if (parser->model == OCS || parser->model == TX1) {
 					temperature = data[offset + 1];
 				} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31 || parser->model == A300AI) {
 					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
@@ -549,6 +567,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == ZENAIR ||parser->model == A300AI ||
 					parser->model == DG03 || parser->model == PROPLUS3)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
+				else if (parser->model == TX1)
+					pressure = array_uint16_le (data + offset + 4);
 				else
 					pressure -= data[offset + 1];
 				sample.pressure.tank = tank;
