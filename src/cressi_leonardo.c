@@ -314,6 +314,10 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 
 		// Get the internal dive number.
 		unsigned int current = array_uint16_le (data + offset);
+		if (current == 0xFFFF) {
+			WARNING (context, "Unexpected internal dive number found.");
+			break;
+		}
 		if (current > maximum) {
 			maximum = current;
 			latest = i;
