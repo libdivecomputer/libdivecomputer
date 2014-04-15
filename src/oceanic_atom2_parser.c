@@ -58,6 +58,7 @@
 #define EPICB       0x4453
 #define ATOM31      0x4456
 #define A300AI      0x4457
+#define A300        0x445A
 #define TX1         0x4542
 #define AMPHOS      0x4545
 #define PROPLUS3    0x4548
@@ -278,7 +279,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == OCS || parser->model == PROPLUS3) {
+		parser->model == OCS || parser->model == PROPLUS3 ||
+		parser->model == A300) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -380,7 +382,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == OCS || parser->model == PROPLUS3) {
+		parser->model == OCS || parser->model == PROPLUS3 ||
+		parser->model == A300) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -428,7 +431,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int have_temperature = 1, have_pressure = 1;
 	if (parser->model == VEO30 || parser->model == OCS ||
-		parser->model == ELEMENT2 || parser->model == VEO20) {
+		parser->model == ELEMENT2 || parser->model == VEO20 ||
+		parser->model == A300) {
 		have_pressure = 0;
 	} else if (parser->model == F10) {
 		have_temperature = 0;
@@ -532,7 +536,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				} else if (parser->model == GEO20 || parser->model == VEO20 ||
 					parser->model == VEO30 || parser->model == OC1A ||
 					parser->model == OC1B || parser->model == OC1C ||
-					parser->model == OCI) {
+					parser->model == OCI || parser->model == A300) {
 					temperature = data[offset + 3];
 				} else if (parser->model == OCS || parser->model == TX1) {
 					temperature = data[offset + 1];
@@ -581,7 +585,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (parser->model == GEO20 || parser->model == VEO20 ||
 				parser->model == VEO30 || parser->model == OC1A ||
 				parser->model == OC1B || parser->model == OC1C ||
-				parser->model == OCI)
+				parser->model == OCI || parser->model == A300)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else if (parser->model == ATOM1)
 				depth = data[offset + 3] * 16;

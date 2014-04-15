@@ -97,6 +97,7 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
 	{"2M EPIC r\0\0 512K"},
 	{"EPIC1  R\0\0  512K"},
+	{"AERIA300 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_default_version[] = {
