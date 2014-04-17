@@ -305,7 +305,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
-	unsigned int nitrox = 0;
+	unsigned int oxygen = 0;
+	unsigned int helium = 0;
 
 	if (value) {
 		switch (type) {
@@ -330,14 +331,15 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((unsigned int *) value) = 3;
 			break;
 		case DC_FIELD_GASMIX:
-			if (parser->model == DATAMASK || parser->model == COMPUMASK)
-				nitrox = data[header + 3];
-			else if (parser->model == OCI)
-				nitrox = data[0x28 + flags];
-			else
-				nitrox = data[header + 4 + flags];
-			gasmix->helium = 0.0;
-			gasmix->oxygen = (nitrox ? nitrox / 100.0 : 0.21);
+			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
+				oxygen = data[header + 3];
+			} else if (parser->model == OCI) {
+				oxygen = data[0x28 + flags];
+			} else {
+				oxygen = data[header + 4 + flags];
+			}
+			gasmix->helium = helium / 100.0;
+			gasmix->oxygen = (oxygen ? oxygen / 100.0 : 0.21);
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
