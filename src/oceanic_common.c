@@ -65,7 +65,9 @@ get_profile_first (const unsigned char data[], const oceanic_common_layout_t *la
 		return array_uint16_le (data + 16);
 	}
 
-	if (layout->memsize > 0x10000)
+	if (layout->memsize > 0x20000)
+		return (value & 0x3FFF) * PAGESIZE;
+	else if (layout->memsize > 0x10000)
 		return (value & 0x1FFF) * PAGESIZE;
 	else
 		return (value & 0x0FFF) * PAGESIZE;
@@ -85,7 +87,9 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 		return array_uint16_le(data + 18);
 	}
 
-	if (layout->memsize > 0x10000)
+	if (layout->memsize > 0x20000)
+		return (value & 0x3FFF) * PAGESIZE;
+	else if (layout->memsize > 0x10000)
 		return (value & 0x1FFF) * PAGESIZE;
 	else
 		return (value & 0x0FFF) * PAGESIZE;
