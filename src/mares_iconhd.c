@@ -104,6 +104,12 @@ static const mares_iconhd_layout_t mares_matrix_layout = {
 	0x3E000, /* rb_profile_end */
 };
 
+static const mares_iconhd_layout_t mares_nemowide2_layout = {
+	0x40000, /* memsize */
+	0x0A000, /* rb_profile_begin */
+	0x40000, /* rb_profile_end */
+};
+
 static unsigned int
 mares_iconhd_get_model (mares_iconhd_device_t *device)
 {
@@ -275,9 +281,12 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	switch (device->model) {
 	case MATRIX:
 	case PUCKPRO:
-	case NEMOWIDE2:
 	case PUCK2:
 		device->layout = &mares_matrix_layout;
+		device->packetsize = 256;
+		break;
+	case NEMOWIDE2:
+		device->layout = &mares_nemowide2_layout;
 		device->packetsize = 256;
 		break;
 	case ICONHDNET:
