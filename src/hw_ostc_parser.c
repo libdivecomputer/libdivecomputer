@@ -562,16 +562,33 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			length--;
 		}
 
-		// SetPoint Change
-		if ((events & 0x40) && (version == 0x23)) {
-			if (length < 1) {
-				ERROR (abstract->context, "Buffer overflow detected!");
-				return DC_STATUS_DATAFORMAT;
+		if (version == 0x23) {
+			// SetPoint Change
+			if (events & 0x40) {
+				if (length < 1) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+				sample.setpoint = data[offset] / 100.0;
+				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+				offset++;
+				length--;
 			}
-			sample.setpoint = data[offset] / 100.0;
-			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
-			offset++;
-			length--;
+
+			// Bailout Event
+			if (events & 0x0100) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = data[offset] | (data[offset + 1] << 16);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				offset += 2;
+				length -= 2;
+			}
 		}
 
 		// Extended sample info.
