@@ -475,8 +475,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		offset += 1;
 
 		// Check for buffer overflows.
-		if (offset + length > size)
+		if (offset + length > size) {
+			ERROR (abstract->context, "Buffer overflow detected!");
 			return DC_STATUS_DATAFORMAT;
+		}
 
 		// Get the event byte(s).
 		unsigned int nbits = 0;
@@ -484,8 +486,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		while (data[offset - 1] & 0x80) {
 			if (nbits && version != 0x23)
 				break;
-			if (offset + 1 > size)
+			if (offset + 1 > size) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			events |= data[offset] << nbits;
 			nbits += 8;
 			offset++;
@@ -525,8 +529,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Manual Gas Set & Change
 		if (events & 0x10) {
-			if (offset + 2 > size)
+			if (offset + 2 > size) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
@@ -537,8 +543,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Gas Change
 		if (events & 0x20) {
-			if (offset + 1 > size)
+			if (offset + 1 > size) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			unsigned int idx = data[offset];
 			if (idx < 1 || idx > ngasmix)
 				return DC_STATUS_DATAFORMAT;
@@ -553,8 +561,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// SetPoint Change
 		if ((events & 0x40) && (version == 0x23)) {
-			if (offset + 1 > size)
+			if (offset + 1 > size) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			sample.setpoint = data[offset] / 100.0;
 			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
 			offset++;
@@ -563,8 +573,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		// Extended sample info.
 		for (unsigned int i = 0; i < nconfig; ++i) {
 			if (info[i].divisor && (nsamples % info[i].divisor) == 0) {
-				if (offset + info[i].size > size)
+				if (offset + info[i].size > size) {
+					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
+				}
 
 				unsigned int value = 0;
 				switch (info[i].type) {
@@ -602,8 +614,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		if (version != 0x23) {
 			// SetPoint Change
 			if (events & 0x40) {
-				if (offset + 1 > size)
+				if (offset + 1 > size) {
+					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
+				}
 				sample.setpoint = data[offset] / 100.0;
 				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
 				offset++;
@@ -611,8 +625,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 			// Bailout Event
 			if (events & 0x80) {
-				if (offset + 2 > size)
+				if (offset + 2 > size) {
+					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
+				}
 				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 				sample.event.time = 0;
 				sample.event.flags = 0;
@@ -623,8 +639,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		}
 	}
 
-	if (offset + 2 > size || data[offset] != 0xFD || data[offset + 1] != 0xFD)
+	if (offset + 2 > size || data[offset] != 0xFD || data[offset + 1] != 0xFD) {
+		ERROR (abstract->context, "Invalid end marker found!");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
