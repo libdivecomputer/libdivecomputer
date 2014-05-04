@@ -563,6 +563,9 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		// Extended sample info.
 		for (unsigned int i = 0; i < nconfig; ++i) {
 			if (info[i].divisor && (nsamples % info[i].divisor) == 0) {
+				if (offset + info[i].size > size)
+					return DC_STATUS_DATAFORMAT;
+
 				unsigned int value = 0;
 				switch (info[i].type) {
 				case 0: // Temperature (0.1 °C).
@@ -620,7 +623,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		}
 	}
 
-	if (data[offset] != 0xFD || data[offset + 1] != 0xFD)
+	if (offset + 2 > size || data[offset] != 0xFD || data[offset + 1] != 0xFD)
 		return DC_STATUS_DATAFORMAT;
 
 	return DC_STATUS_SUCCESS;
