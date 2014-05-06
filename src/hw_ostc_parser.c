@@ -475,8 +475,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		offset += 1;
 
 		// Check for buffer overflows.
-		if (offset + length > size)
+		if (offset + length > size) {
+			ERROR (abstract->context, "Buffer overflow detected!");
 			return DC_STATUS_DATAFORMAT;
+		}
 
 		// Get the event byte(s).
 		unsigned int nbits = 0;
@@ -484,11 +486,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		while (data[offset - 1] & 0x80) {
 			if (nbits && version != 0x23)
 				break;
-			if (offset + 1 > size)
+			if (length < 1) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			events |= data[offset] << nbits;
 			nbits += 8;
 			offset++;
+			length--;
 		}
 
 		// Alarms
@@ -525,20 +530,25 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Manual Gas Set & Change
 		if (events & 0x10) {
-			if (offset + 2 > size)
+			if (length < 2) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
 			sample.event.value = data[offset] | (data[offset + 1] << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset += 2;
+			length -= 2;
 		}
 
 		// Gas Change
 		if (events & 0x20) {
-			if (offset + 1 > size)
+			if (length < 1) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 			unsigned int idx = data[offset];
 			if (idx < 1 || idx > ngasmix)
 				return DC_STATUS_DATAFORMAT;
@@ -549,20 +559,46 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			sample.event.value = gasmix[idx].oxygen | (gasmix[idx].helium << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset++;
+			length--;
 		}
 
-		// SetPoint Change
-		if ((events & 0x40) && (version == 0x23)) {
-			if (offset + 1 > size)
-				return DC_STATUS_DATAFORMAT;
-			sample.setpoint = data[offset] / 100.0;
-			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
-			offset++;
+		if (version == 0x23) {
+			// SetPoint Change
+			if (events & 0x40) {
+				if (length < 1) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+				sample.setpoint = data[offset] / 100.0;
+				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+				offset++;
+				length--;
+			}
+
+			// Bailout Event
+			if (events & 0x0100) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = data[offset] | (data[offset + 1] << 16);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				offset += 2;
+				length -= 2;
+			}
 		}
 
 		// Extended sample info.
 		for (unsigned int i = 0; i < nconfig; ++i) {
 			if (info[i].divisor && (nsamples % info[i].divisor) == 0) {
+				if (length < info[i].size) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
 				unsigned int value = 0;
 				switch (info[i].type) {
 				case 0: // Temperature (0.1 °C).
@@ -593,35 +629,50 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				}
 
 				offset += info[i].size;
+				length -= info[i].size;
 			}
 		}
 
 		if (version != 0x23) {
 			// SetPoint Change
 			if (events & 0x40) {
-				if (offset + 1 > size)
+				if (length < 1) {
+					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
+				}
 				sample.setpoint = data[offset] / 100.0;
 				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
 				offset++;
+				length--;
 			}
 
 			// Bailout Event
 			if (events & 0x80) {
-				if (offset + 2 > size)
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
+				}
 				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = data[offset] | (data[offset + 1] << 16);
 				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 				offset += 2;
+				length -= 2;
 			}
 		}
+
+		// Skip remaining sample bytes (if any).
+		if (length) {
+			WARNING (abstract->context, "Remaining %u bytes skipped.", length);
+		}
+		offset += length;
 	}
 
-	if (data[offset] != 0xFD || data[offset + 1] != 0xFD)
+	if (offset + 2 > size || data[offset] != 0xFD || data[offset + 1] != 0xFD) {
+		ERROR (abstract->context, "Invalid end marker found!");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
