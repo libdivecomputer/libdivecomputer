@@ -163,6 +163,7 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 		unsigned int value = array_uint16_le (data + offset);
 		unsigned int depth = value & 0x07FF;
+		unsigned int ascent = (value & 0xC000) >> 14;
 
 		// Time (seconds).
 		time += interval;
@@ -172,6 +173,15 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		// Depth (1/10 m).
 		sample.depth = depth / 10.0;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+		// Ascent rate
+		if (ascent) {
+			sample.event.type = SAMPLE_EVENT_ASCENT;
+			sample.event.time = 0;
+			sample.event.flags = 0;
+			sample.event.value = ascent;
+			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+		}
 
 		offset += 2;
 	}
