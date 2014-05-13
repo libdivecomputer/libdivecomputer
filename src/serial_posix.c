@@ -426,7 +426,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		SYSERROR (device->context, errno);
 		return -1;
 	}
-	if (memcmp (&tty, &active, sizeof (struct termios) != 0)) {
+	if (memcmp (&tty, &active, sizeof (struct termios)) != 0) {
 		ERROR (device->context, "Failed to set the terminal attributes.");
 		return -1;
 	}
