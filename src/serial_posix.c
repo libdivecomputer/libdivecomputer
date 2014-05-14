@@ -233,6 +233,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 	// Retrieve the current settings.
 	struct termios tty;
+	memset (&tty, 0, sizeof (tty));
 	if (tcgetattr (device->fd, &tty) != 0) {
 		SYSERROR (device->context, errno);
 		return -1;
@@ -422,6 +423,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	// tcgetattr() to check that all changes have been performed successfully.
 
 	struct termios active;
+	memset (&active, 0, sizeof (active));
 	if (tcgetattr (device->fd, &active) != 0) {
 		SYSERROR (device->context, errno);
 		return -1;
