@@ -50,6 +50,7 @@
 #define GEO20       0x4446
 #define VT4         0x4447
 #define OC1B        0x4449
+#define VOYAGER2G   0x444B
 #define ATOM3       0x444C
 #define DG03        0x444D
 #define OCS         0x4450
@@ -190,6 +191,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			break;
 		case ZENAIR:
 		case AMPHOS:
+		case VOYAGER2G:
 			datetime->year   = (p[3] & 0x0F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
 			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
@@ -546,6 +548,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					unsigned int sign;
 					if (parser->model == DG03 || parser->model == PROPLUS3)
 						sign = (~data[offset + 5] & 0x04) >> 2;
+					else if (parser->model == VOYAGER2G)
+						sign = (data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
 						parser->model == ATMOSAI2 || parser->model == AMPHOS)
