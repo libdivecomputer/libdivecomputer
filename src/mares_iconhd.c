@@ -280,11 +280,11 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	// Load the correct memory layout.
 	switch (device->model) {
 	case MATRIX:
-	case PUCKPRO:
 	case PUCK2:
 		device->layout = &mares_matrix_layout;
 		device->packetsize = 256;
 		break;
+	case PUCKPRO:
 	case NEMOWIDE2:
 		device->layout = &mares_nemowide2_layout;
 		device->packetsize = 256;
