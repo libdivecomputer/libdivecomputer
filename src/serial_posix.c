@@ -417,22 +417,6 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		return -1;
 	}
 
-	// tcsetattr() returns success if any of the requested changes could be
-	// successfully carried out. Therefore, when making multiple changes
-	// it may be necessary to follow this call with a further call to
-	// tcgetattr() to check that all changes have been performed successfully.
-
-	struct termios active;
-	memset (&active, 0, sizeof (active));
-	if (tcgetattr (device->fd, &active) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
-	}
-	if (memcmp (&tty, &active, sizeof (struct termios)) != 0) {
-		ERROR (device->context, "Failed to set the terminal attributes.");
-		return -1;
-	}
-
 	// Configure a custom baudrate if necessary.
 	if (custom) {
 #if defined(TIOCGSERIAL) && defined(TIOCSSERIAL) && !defined(__ANDROID__)
