@@ -233,6 +233,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 	// Retrieve the current settings.
 	struct termios tty;
+	memset (&tty, 0, sizeof (tty));
 	if (tcgetattr (device->fd, &tty) != 0) {
 		SYSERROR (device->context, errno);
 		return -1;
@@ -413,21 +414,6 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	// Apply the new settings.
 	if (tcsetattr (device->fd, TCSANOW, &tty) != 0) {
 		SYSERROR (device->context, errno);
-		return -1;
-	}
-
-	// tcsetattr() returns success if any of the requested changes could be
-	// successfully carried out. Therefore, when making multiple changes
-	// it may be necessary to follow this call with a further call to
-	// tcgetattr() to check that all changes have been performed successfully.
-
-	struct termios active;
-	if (tcgetattr (device->fd, &active) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
-	}
-	if (memcmp (&tty, &active, sizeof (struct termios) != 0)) {
-		ERROR (device->context, "Failed to set the terminal attributes.");
 		return -1;
 	}
 
