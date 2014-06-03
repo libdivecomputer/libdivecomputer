@@ -479,7 +479,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		if ((nsamples + 1) == marker) {
 			while (offset < size) {
 				unsigned int event = data[offset++];
-				unsigned int seconds, type, unknown, heading, percentage;
+				unsigned int seconds, type, unknown, heading;
 				unsigned int current, next;
 				unsigned int he, o2;
 
@@ -642,11 +642,11 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
 					}
-					percentage = data[offset + 0];
+					o2 = data[offset + 0];
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
 					sample.event.time = seconds;
-					sample.event.value = percentage;
+					sample.event.value = o2;
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 2;
 					break;
