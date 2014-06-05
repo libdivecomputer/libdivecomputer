@@ -482,6 +482,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				unsigned int seconds, type, unknown, heading;
 				unsigned int current, next;
 				unsigned int he, o2;
+				unsigned int length;
 
 				sample.event.time = 0;
 				sample.event.flags = 0;
@@ -651,19 +652,27 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
-					if (offset + 4 > size) {
+					if (parser->model == DX)
+						length = 5;
+					else
+						length = 4;
+					if (offset + length > size) {
 						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
 					}
 					unknown = data[offset + 0];
 					he = data[offset + 1];
 					o2 = data[offset + 2];
-					seconds = data[offset + 3];
+					if (parser->model == DX) {
+						seconds = data[offset + 4];
+					} else {
+						seconds = data[offset + 3];
+					}
 					sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 					sample.event.time = seconds;
 					sample.event.value = o2 | (he << 16);
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-					offset += 4;
+					offset += length;
 					break;
 				default:
 					WARNING (abstract->context, "Unknown event 0x%02x.", event);
