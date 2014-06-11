@@ -174,7 +174,10 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = parser->maxdepth * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 1;
+			if (data[4] & 0x40)
+				*((unsigned int *) value) = 0; // Gauge mode
+			else
+				*((unsigned int *) value) = 1;
 			break;
 		case DC_FIELD_GASMIX:
 			gas->helium = 0.0;
