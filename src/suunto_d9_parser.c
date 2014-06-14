@@ -153,7 +153,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		parser->helium[0] = 0;
 		parser->ngasmixes = 1;
 	} else {
-		parser->ngasmixes = gasmix_count;
+		parser->ngasmixes = 0;
 		for (unsigned int i = 0; i < gasmix_count; ++i) {
 			if (parser->model == HELO2 || parser->model == D4i ||
 				parser->model == D6i || parser->model == D9tx ||
@@ -161,9 +161,13 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 				parser->oxygen[i] = data[gasmix_offset + 6 * i + 1];
 				parser->helium[i] = data[gasmix_offset + 6 * i + 2];
 			} else {
-				parser->oxygen[i] = data[gasmix_offset + i];
+				unsigned int oxygen = data[gasmix_offset + i];
+				if (oxygen == 0x00 || oxygen == 0xFF)
+					break;
+				parser->oxygen[i] = oxygen;
 				parser->helium[i] = 0;
 			}
+			parser->ngasmixes++;
 		}
 
 		// Initial gasmix.
@@ -455,7 +459,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		}
 
 		// Initial gasmix.
-		if (time == 0) {
+		if (time == 0 && parser->ngasmixes > 0) {
 			if (parser->gasmix >= parser->ngasmixes) {
 				ERROR (abstract->context, "Invalid initial gas mix.");
 				return DC_STATUS_DATAFORMAT;
