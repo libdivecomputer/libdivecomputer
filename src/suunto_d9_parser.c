@@ -350,8 +350,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 
 	// Number of parameters in the configuration data.
 	unsigned int nparams = data[parser->config];
-	if (nparams == 0 || nparams > MAXPARAMS)
+	if (nparams == 0 || nparams > MAXPARAMS) {
+		ERROR (abstract->context, "Invalid number of parameters.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Available divisor values.
 	const unsigned int divisors[] = {1, 2, 4, 5, 10, 50, 100, 1000};
@@ -372,21 +374,26 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			info[i].size = 1;
 			break;
 		default: // Unknown sample type
+			ERROR (abstract->context, "Unknown sample type 0x%02x.", info[i].type);
 			return DC_STATUS_DATAFORMAT;
 		}
 	}
 
 	// Offset to the profile data.
 	unsigned int profile = parser->config + 2 + nparams * 3;
-	if (profile + 5 > size)
+	if (profile + 5 > size) {
+		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// HelO2 dives can have an additional data block.
 	const unsigned char sequence[] = {0x01, 0x00, 0x00};
 	if (parser->model == HELO2 && memcmp (data + profile, sequence, sizeof (sequence)) != 0)
 		profile += 12;
-	if (profile + 5 > size)
+	if (profile + 5 > size) {
+		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Sample recording interval.
 	unsigned int interval_sample_offset = 0x18;
@@ -396,8 +403,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	else if (parser->model == DX)
 		interval_sample_offset = 0x22;
 	unsigned int interval_sample = data[interval_sample_offset];
-	if (interval_sample == 0)
+	if (interval_sample == 0) {
+		ERROR (abstract->context, "Invalid sample interval.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Offset to the first marker position.
 	unsigned int marker = array_uint16_le (data + profile + 3);
@@ -416,8 +425,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		// Sample data.
 		for (unsigned int i = 0; i < nparams; ++i) {
 			if (info[i].interval && (nsamples % info[i].interval) == 0) {
-				if (offset + info[i].size > size)
+				if (offset + info[i].size > size) {
+					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
+				}
 
 				unsigned int value = 0;
 				switch (info[i].type) {
@@ -439,6 +450,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 					break;
 				default: // Unknown sample type
+					ERROR (abstract->context, "Unknown sample type 0x%02x.", info[i].type);
 					return DC_STATUS_DATAFORMAT;
 				}
 
@@ -467,27 +479,34 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		if ((nsamples + 1) == marker) {
 			while (offset < size) {
 				unsigned int event = data[offset++];
-				unsigned int seconds, type, unknown, heading, percentage;
+				unsigned int seconds, type, unknown, heading;
 				unsigned int current, next;
 				unsigned int he, o2;
+				unsigned int length;
 
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
 				switch (event) {
 				case 0x01: // Next Event Marker
-					if (offset + 4 > size)
+					if (offset + 4 > size) {
+						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
+					}
 					current = array_uint16_le (data + offset + 0);
 					next    = array_uint16_le (data + offset + 2);
-					if (marker != current)
+					if (marker != current) {
+						ERROR (abstract->context, "Unexpected event marker!");
 						return DC_STATUS_DATAFORMAT;
+					}
 					marker += next;
 					offset += 4;
 					break;
 				case 0x02: // Surfaced
-					if (offset + 2 > size)
+					if (offset + 2 > size) {
+						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
+					}
 					unknown = data[offset + 0];
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_SURFACE;
@@ -496,8 +515,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 2;
 					break;
 				case 0x03: // Event
-					if (offset + 2 > size)
+					if (offset + 2 > size) {
+						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
+					}
 					type    = data[offset + 0];
 					seconds = data[offset + 1];
 					switch (type & 0x7F) {
@@ -587,7 +608,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 							in_deco |= DECOSTOP;
 						break;
 					default: // Unknown
-						WARNING (abstract->context, "Unknown event");
+						WARNING (abstract->context, "Unknown event type 0x%02x.", type);
 						break;
 					}
 					if (type & 0x80)
@@ -599,8 +620,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 2;
 					break;
 				case 0x04: // Bookmark/Heading
-					if (offset + 4 > size)
+					if (offset + 4 > size) {
+						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
+					}
 					unknown = data[offset + 0];
 					seconds = data[offset + 1];
 					heading = array_uint16_le (data + offset + 2);
@@ -616,31 +639,43 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 4;
 					break;
 				case 0x05: // Gas Change
-					if (offset + 2 > size)
+					if (offset + 2 > size) {
+						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
-					percentage = data[offset + 0];
+					}
+					o2 = data[offset + 0];
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
 					sample.event.time = seconds;
-					sample.event.value = percentage;
+					sample.event.value = o2;
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
-					if (offset + 4 > size)
+					if (parser->model == DX)
+						length = 5;
+					else
+						length = 4;
+					if (offset + length > size) {
+						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
+					}
 					unknown = data[offset + 0];
 					he = data[offset + 1];
 					o2 = data[offset + 2];
-					seconds = data[offset + 3];
+					if (parser->model == DX) {
+						seconds = data[offset + 4];
+					} else {
+						seconds = data[offset + 3];
+					}
 					sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 					sample.event.time = seconds;
 					sample.event.value = o2 | (he << 16);
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-					offset += 4;
+					offset += length;
 					break;
 				default:
-					WARNING (abstract->context, "Unknown event");
+					WARNING (abstract->context, "Unknown event 0x%02x.", event);
 					break;
 				}
 
