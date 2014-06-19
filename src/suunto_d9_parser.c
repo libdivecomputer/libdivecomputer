@@ -67,6 +67,7 @@ struct suunto_d9_parser_t {
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
+	unsigned int gasmix;
 	unsigned int config;
 };
 
@@ -146,16 +147,35 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 
 	// Cache the data for later use.
 	parser->mode = data[gasmode_offset];
-	parser->ngasmixes = gasmix_count;
-	for (unsigned int i = 0; i < gasmix_count; ++i) {
-		if (parser->model == HELO2 || parser->model == D4i ||
-			parser->model == D6i || parser->model == D9tx ||
-			parser->model == DX) {
-			parser->oxygen[i] = data[gasmix_offset + 6 * i + 1];
-			parser->helium[i] = data[gasmix_offset + 6 * i + 2];
-		} else {
-			parser->oxygen[i] = data[gasmix_offset + i];
-			parser->helium[i] = 0.0;
+	parser->gasmix = 0;
+	if (parser->mode == AIR) {
+		parser->oxygen[0] = 21;
+		parser->helium[0] = 0;
+		parser->ngasmixes = 1;
+	} else {
+		parser->ngasmixes = 0;
+		for (unsigned int i = 0; i < gasmix_count; ++i) {
+			if (parser->model == HELO2 || parser->model == D4i ||
+				parser->model == D6i || parser->model == D9tx ||
+				parser->model == DX) {
+				parser->oxygen[i] = data[gasmix_offset + 6 * i + 1];
+				parser->helium[i] = data[gasmix_offset + 6 * i + 2];
+			} else {
+				unsigned int oxygen = data[gasmix_offset + i];
+				if (oxygen == 0x00 || oxygen == 0xFF)
+					break;
+				parser->oxygen[i] = oxygen;
+				parser->helium[i] = 0;
+			}
+			parser->ngasmixes++;
+		}
+
+		// Initial gasmix.
+		if (parser->model == HELO2) {
+			parser->gasmix = data[0x26];
+		} else if (parser->model == D4i || parser->model == D6i ||
+			parser->model == D9tx) {
+			parser->gasmix = data[0x28];
 		}
 	}
 	parser->config = config;
@@ -189,6 +209,7 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->gasmix = 0;
 	parser->config = 0;
 
 	*out = (dc_parser_t*) parser;
@@ -220,6 +241,7 @@ suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, uns
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->gasmix = 0;
 	parser->config = 0;
 
 	return DC_STATUS_SUCCESS;
@@ -297,20 +319,11 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 			*((double *) value) = array_uint16_le (data + 0x09) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (parser->mode == AIR) {
-				*((unsigned int *) value) = 1;
-			} else {
-				*((unsigned int *) value) = parser->ngasmixes;
-			}
+			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			if (parser->mode == AIR) {
-				gasmix->helium = 0.0;
-				gasmix->oxygen = 0.21;
-			} else {
-				gasmix->helium = parser->helium[flags] / 100.0;
-				gasmix->oxygen = parser->oxygen[flags] / 100.0;
-			}
+			gasmix->helium = parser->helium[flags] / 100.0;
+			gasmix->oxygen = parser->oxygen[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		default:
@@ -334,19 +347,6 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	dc_status_t rc = suunto_d9_parser_cache (parser);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
-
-	// Initial gasmix.
-	unsigned int gasmix = 0;
-	if (parser->model == HELO2) {
-		gasmix = data[0x26];
-	} else if (parser->model == D4i || parser->model == D6i ||
-		parser->model == D9tx) {
-		gasmix = data[0x28];
-	}
-	if (gasmix >= parser->ngasmixes) {
-		ERROR (abstract->context, "Invalid initial gas mix.");
-		return DC_STATUS_DATAFORMAT;
-	}
 
 	// Number of parameters in the configuration data.
 	unsigned int nparams = data[parser->config];
@@ -459,16 +459,13 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		}
 
 		// Initial gasmix.
-		if (time == 0) {
-			unsigned int he = 0;
-			unsigned int o2 = 0;
-			if (parser->mode == AIR) {
-				he = 0;
-				o2 = 21;
-			} else {
-				he = parser->helium[gasmix];
-				o2 = parser->oxygen[gasmix];
+		if (time == 0 && parser->ngasmixes > 0) {
+			if (parser->gasmix >= parser->ngasmixes) {
+				ERROR (abstract->context, "Invalid initial gas mix.");
+				return DC_STATUS_DATAFORMAT;
 			}
+			unsigned int he = parser->helium[parser->gasmix];
+			unsigned int o2 = parser->oxygen[parser->gasmix];
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.value = o2 | (he << 16);
