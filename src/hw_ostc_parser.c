@@ -150,8 +150,10 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9)
+	if (size < 9) {
+		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Check the profile version
 	unsigned int version = data[parser->frog ? 8 : 2];
@@ -175,11 +177,14 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		header = 256;
 		break;
 	default:
+		ERROR(abstract->context, "Unknown data format version.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	if (size < header)
+	if (size < header) {
+		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	unsigned int divetime = 0;
 	if (version > 0x20) {
@@ -226,8 +231,10 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9)
+	if (size < 9) {
+		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Check the profile version
 	unsigned int version = data[parser->frog ? 8 : 2];
@@ -251,11 +258,14 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 		header = 256;
 		break;
 	default:
+		ERROR(abstract->context, "Unknown data format version.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	if (size < header)
+	if (size < header) {
+		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
@@ -322,8 +332,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9)
+	if (size < 9) {
+		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Check the profile version
 	unsigned int version = data[parser->frog ? 8 : 2];
@@ -347,11 +359,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		header = 256;
 		break;
 	default:
+		ERROR(abstract->context, "Unknown data format version.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	if (size < header)
+	if (size < header) {
+		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Get the sample rate.
 	unsigned int samplerate = 0;
@@ -396,8 +411,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			gasmix[i].helium = data[19 + 2 * i + 1];
 		}
 	}
-	if (initial < 1 || initial > ngasmix)
+	if (initial < 1 || initial > ngasmix) {
+		ERROR(abstract->context, "Invalid initial gas mix.");
 		return DC_STATUS_DATAFORMAT;
+	}
 	initial--; /* Convert to a zero based index. */
 
 	// Get the number of sample descriptors.
@@ -406,8 +423,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		nconfig = data[header + 4];
 	else
 		nconfig = 6;
-	if (nconfig > MAXCONFIG)
+	if (nconfig > MAXCONFIG) {
+		ERROR(abstract->context, "Too many sample descriptors.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	// Get the extended sample configuration.
 	hw_ostc_sample_info_t info[MAXCONFIG] = {{0}};
@@ -426,12 +445,16 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			switch (info[i].type) {
 			case 0: // Temperature
 			case 1: // Deco / NDL
-				if (info[i].size != 2)
+				if (info[i].size != 2) {
+					ERROR(abstract->context, "Unexpected sample size.");
 					return DC_STATUS_DATAFORMAT;
+				}
 				break;
 			case 5: // CNS
-				if (info[i].size != 1 && info[i].size != 2)
+				if (info[i].size != 1 && info[i].size != 2) {
+					ERROR(abstract->context, "Unexpected sample size.");
 					return DC_STATUS_DATAFORMAT;
+				}
 				break;
 			default: // Not yet used.
 				break;
@@ -550,8 +573,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				return DC_STATUS_DATAFORMAT;
 			}
 			unsigned int idx = data[offset];
-			if (idx < 1 || idx > ngasmix)
+			if (idx < 1 || idx > ngasmix) {
+				ERROR(abstract->context, "Invalid gas mix.");
 				return DC_STATUS_DATAFORMAT;
+			}
 			idx--; /* Convert to a zero based index. */
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
