@@ -41,6 +41,7 @@
 #define COMPUMASK   0x4348
 #define OC1A        0x434E
 #define F10         0x434D
+#define WISDOM2     0x4350
 #define ELEMENT2    0x4357
 #define VEO20       0x4359
 #define VEO30       0x435A
@@ -552,7 +553,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 						sign = (data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
-						parser->model == ATMOSAI2 || parser->model == AMPHOS)
+						parser->model == ATMOSAI2 || parser->model == AMPHOS ||
+						parser->model == WISDOM2)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;
