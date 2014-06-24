@@ -34,7 +34,7 @@
 #define ATOM1       0x4250
 #define EPICA       0x4257
 #define VT3         0x4258
-#define T3          0x4259
+#define T3A         0x4259
 #define ATOM2       0x4342
 #define GEO         0x4344
 #define MANTA       0x4345
@@ -60,6 +60,7 @@
 #define OC1C        0x4451
 #define VT41        0x4452
 #define EPICB       0x4453
+#define T3B         0x4455
 #define ATOM31      0x4456
 #define A300AI      0x4457
 #define A300        0x445A
@@ -219,7 +220,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
-			if (parser->model == T3 || parser->model == GEO20)
+			if (parser->model == T3A || parser->model == T3B || parser->model == GEO20)
 				datetime->day = p[3] & 0x3F;
 			else
 				datetime->day = bcd2dec (p[3] & 0x3F);
