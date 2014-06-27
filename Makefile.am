@@ -1,4 +1,8 @@
-SUBDIRS = include src examples
+SUBDIRS = include src
+
+if ENABLE_EXAMPLES
+SUBDIRS += examples
+endif
 
 ACLOCAL_AMFLAGS = -I m4
 
