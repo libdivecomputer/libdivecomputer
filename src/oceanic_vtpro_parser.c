@@ -281,8 +281,9 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				return DC_STATUS_DATAFORMAT;
 			}
 			if (i >= count) {
-				ERROR (abstract->context, "Unexpected number of samples with the same timestamp.");
-				return DC_STATUS_DATAFORMAT;
+				WARNING (abstract->context, "Unexpected sample with the same timestamp ignored.");
+				offset += PAGESIZE / 2;
+				continue;
 			}
 		}
 
