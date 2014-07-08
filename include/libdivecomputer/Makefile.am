@@ -51,4 +51,6 @@ libdivecomputer_HEADERS = 	\
 	diverite.h \
 	diverite_nitekq.h \
 	citizen.h \
-	citizen_aqualand.h
+	citizen_aqualand.h \
+	divesystem.h \
+	divesystem_idive.h

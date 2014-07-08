@@ -55,6 +55,7 @@ libdivecomputer_la_SOURCES = \
 	shearwater_petrel.c \
 	diverite_nitekq.c diverite_nitekq_parser.c \
 	citizen_aqualand.c citizen_aqualand_parser.c \
+	divesystem_idive.c divesystem_idive_parser.c \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \

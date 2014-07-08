@@ -35,6 +35,7 @@
 #include <libdivecomputer/shearwater.h>
 #include <libdivecomputer/diverite.h>
 #include <libdivecomputer/citizen.h>
+#include <libdivecomputer/divesystem.h>
 
 #include "device-private.h"
 #include "context-private.h"
@@ -160,6 +161,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_CITIZEN_AQUALAND:
 		rc = citizen_aqualand_device_open (&device, context, name);
+		break;
+	case DC_FAMILY_DIVESYSTEM_IDIVE:
+		rc = divesystem_idive_device_open (&device, context, name);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
