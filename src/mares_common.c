@@ -38,6 +38,14 @@
 #define FP_OFFSET 8
 #define FP_SIZE   5
 
+#define NEMO        0
+#define NEMOWIDE    1
+#define NEMOAIR     4
+#define PUCK        7
+#define NEMOEXCEL   17
+#define NEMOAPNEIST 18
+#define PUCKAIR     19
+
 void
 mares_common_device_init (mares_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
 {
@@ -205,7 +213,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 	// Get the freedive mode for this model.
 	unsigned int model = data[1];
 	unsigned int freedive = 2;
-	if (model == 1 || model == 7 || model == 19)
+	if (model == NEMOWIDE || model == PUCK || model == PUCKAIR)
 		freedive = 3;
 
 	// Get the end of the profile ring buffer.
@@ -244,7 +252,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 		unsigned int extra = 0;
 		const unsigned char marker[3] = {0xAA, 0xBB, 0xCC};
 		if (memcmp (buffer + offset - 3, marker, sizeof (marker)) == 0) {
-			if (model == 19)
+			if (model == PUCKAIR)
 				extra = 7;
 			else
 				extra = 12;
@@ -268,7 +276,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 		unsigned int header_size = 53;
 		unsigned int sample_size = 2;
 		if (extra) {
-			if (model == 19)
+			if (model == PUCKAIR)
 				sample_size = 3;
 			else
 				sample_size = 5;
