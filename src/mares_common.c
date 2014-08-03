@@ -213,7 +213,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 	// Get the freedive mode for this model.
 	unsigned int model = data[1];
 	unsigned int freedive = 2;
-	if (model == NEMOWIDE || model == PUCK || model == PUCKAIR)
+	if (model == NEMOWIDE || model == NEMOAIR || model == PUCK || model == PUCKAIR)
 		freedive = 3;
 
 	// Get the end of the profile ring buffer.
