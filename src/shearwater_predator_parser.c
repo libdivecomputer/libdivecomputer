@@ -47,6 +47,11 @@ typedef struct shearwater_predator_parser_t shearwater_predator_parser_t;
 struct shearwater_predator_parser_t {
 	dc_parser_t base;
 	unsigned int petrel;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int ngasmixes;
+	unsigned int oxygen[NGASMIXES];
+	unsigned int helium[NGASMIXES];
 };
 
 static dc_status_t shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -95,6 +100,14 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 		parser_init (&parser->base, context, &shearwater_predator_parser_vtable);
 	}
 
+	// Set the default values.
+	parser->cached = 0;
+	parser->ngasmixes = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->oxygen[i] = 0;
+		parser->helium[i] = 0;
+	}
+
 	*out = (dc_parser_t *) parser;
 
 	return DC_STATUS_SUCCESS;
@@ -128,6 +141,16 @@ shearwater_predator_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
+	shearwater_predator_parser_t *parser = (shearwater_predator_parser_t *) abstract;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->ngasmixes = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->oxygen[i] = 0;
+		parser->helium[i] = 0;
+	}
+
 	return DC_STATUS_SUCCESS;
 }
 
@@ -145,6 +168,42 @@ shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *d
 
 	if (!dc_datetime_gmtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
+{
+	const unsigned char *data = parser->base.data;
+	unsigned int size = parser->base.size;
+
+	if (parser->cached) {
+		return DC_STATUS_SUCCESS;
+	}
+
+	// Get the gas mixes.
+	unsigned int ngasmixes = 0;
+	unsigned int oxygen[NGASMIXES] = {0};
+	unsigned int helium[NGASMIXES] = {0};
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		unsigned int o2 = data[20 + i];
+		unsigned int he = data[30 + i];
+		if (o2 == 0 && he == 0)
+			continue;
+		oxygen[ngasmixes] = o2;
+		helium[ngasmixes] = he;
+		ngasmixes++;
+	}
+
+	// Cache the data for later use.
+	parser->ngasmixes = ngasmixes;
+	for (unsigned int i = 0; i < ngasmixes; ++i) {
+		parser->oxygen[i] = oxygen[i];
+		parser->helium[i] = helium[i];
+	}
+	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -173,19 +232,10 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 	// Get the unit system.
 	unsigned int units = data[8];
 
-	// Get the gas mixes.
-	unsigned int ngasmixes = 0;
-	unsigned int oxygen[NGASMIXES] = {0};
-	unsigned int helium[NGASMIXES] = {0};
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		unsigned int o2 = data[20 + i];
-		unsigned int he = data[30 + i];
-		if (o2 == 0 && he == 0)
-			continue; // Skip disabled gas mixes.
-		oxygen[ngasmixes] = o2;
-		helium[ngasmixes] = he;
-		ngasmixes++;
-	}
+	// Cache the gas mix data.
+	dc_status_t rc = shearwater_predator_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
@@ -203,11 +253,11 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 				*((double *) value) = array_uint16_be (data + footer + 4);
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = ngasmixes;
+			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			gasmix->oxygen = oxygen[flags] / 100.0;
-			gasmix->helium = helium[flags] / 100.0;
+			gasmix->oxygen = parser->oxygen[flags] / 100.0;
+			gasmix->helium = parser->helium[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_SALINITY:
