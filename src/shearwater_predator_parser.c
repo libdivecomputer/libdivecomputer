@@ -40,6 +40,8 @@
 #define METRIC   0
 #define IMPERIAL 1
 
+#define NGASMIXES 10
+
 typedef struct shearwater_predator_parser_t shearwater_predator_parser_t;
 
 struct shearwater_predator_parser_t {
@@ -171,6 +173,20 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 	// Get the unit system.
 	unsigned int units = data[8];
 
+	// Get the gas mixes.
+	unsigned int ngasmixes = 0;
+	unsigned int oxygen[NGASMIXES] = {0};
+	unsigned int helium[NGASMIXES] = {0};
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		unsigned int o2 = data[20 + i];
+		unsigned int he = data[30 + i];
+		if (o2 == 0 && he == 0)
+			continue; // Skip disabled gas mixes.
+		oxygen[ngasmixes] = o2;
+		helium[ngasmixes] = he;
+		ngasmixes++;
+	}
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 	unsigned int density = 0;
@@ -187,11 +203,11 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 				*((double *) value) = array_uint16_be (data + footer + 4);
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 10;
+			*((unsigned int *) value) = ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			gasmix->oxygen = data[20 + flags] / 100.0;
-			gasmix->helium = data[30 + flags] / 100.0;
+			gasmix->oxygen = oxygen[flags] / 100.0;
+			gasmix->helium = helium[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_SALINITY:
