@@ -32,11 +32,19 @@
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 
+#define NGASMIXES 3
+
 typedef struct mares_iconhd_parser_t mares_iconhd_parser_t;
 
 struct mares_iconhd_parser_t {
 	dc_parser_t base;
 	unsigned int model;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int footer;
+	unsigned int samplesize;
+	unsigned int ngasmixes;
+	unsigned int oxygen[NGASMIXES];
 };
 
 static dc_status_t mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -54,25 +62,63 @@ static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 	mares_iconhd_parser_destroy /* destroy */
 };
 
-
-/* Find how many gas mixes are in use */
-static unsigned int
-mares_iconhd_parser_count_active_gas_mixes (const unsigned char *p, unsigned int air)
+static dc_status_t
+mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 {
+	const unsigned char *data = parser->base.data;
+	unsigned int size = parser->base.size;
+
+	if (parser->cached) {
+		return DC_STATUS_SUCCESS;
+	}
+
+	unsigned int footersize = 0x5C;
+	unsigned int samplesize = 8;
+	if (parser->model == ICONHDNET) {
+		footersize = 0x80;
+		samplesize = 12;
+	}
+
+	if (size < 4)
+		return DC_STATUS_DATAFORMAT;
+
+	unsigned int length = array_uint32_le (data);
+
+	if (size < length || length < footersize + 4)
+		return DC_STATUS_DATAFORMAT;
+
+	const unsigned char *p = data + length - footersize;
+
+	// Gas mixes
+	unsigned int ngasmixes = 0;
+	unsigned int oxygen[NGASMIXES] = {0};
+	unsigned int air = (p[0] & 0x02) == 0;
 	if (air) {
-		return 1;
+		oxygen[0] = 21;
+		ngasmixes = 1;
 	} else {
 		// Count the number of active gas mixes. The active gas
 		// mixes are always first, so we stop counting as soon
 		// as the first gas marked as disabled is found.
-		unsigned int i = 0;
-		while (i < 3) {
-			if (p[0x14 + i * 4 + 1] & 0x80)
+		ngasmixes = 0;
+		while (ngasmixes < NGASMIXES) {
+			if (p[0x14 + ngasmixes * 4 + 1] & 0x80)
 				break;
-			i++;
+			oxygen[ngasmixes] = p[0x14 + ngasmixes * 4];
+			ngasmixes++;
 		}
-		return i;
 	}
+
+	// Cache the data for later use.
+	parser->footer = length - footersize;
+	parser->samplesize = samplesize;
+	parser->ngasmixes = ngasmixes;
+	for (unsigned int i = 0; i < ngasmixes; ++i) {
+		parser->oxygen[i] = oxygen[i];
+	}
+	parser->cached = 1;
+
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -94,6 +140,13 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 
 	// Set the default values.
 	parser->model = model;
+	parser->cached = 0;
+	parser->footer = 0;
+	parser->samplesize = 0;
+	parser->ngasmixes = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->oxygen[i] = 0;
+	}
 
 	*out = (dc_parser_t*) parser;
 
@@ -114,6 +167,17 @@ mares_iconhd_parser_destroy (dc_parser_t *abstract)
 static dc_status_t
 mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
+	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->footer = 0;
+	parser->samplesize = 0;
+	parser->ngasmixes = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->oxygen[i] = 0;
+	}
+
 	return DC_STATUS_SUCCESS;
 }
 
@@ -123,20 +187,12 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
 
-	unsigned int header = 0x5C;
-	if (parser->model == ICONHDNET) {
-		header = 0x80;
-	}
+	// Cache the parser data.
+	dc_status_t rc = mares_iconhd_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
-	if (abstract->size < 4)
-		return DC_STATUS_DATAFORMAT;
-
-	unsigned int length = array_uint32_le (abstract->data);
-
-	if (abstract->size < length || length < header + 4)
-		return DC_STATUS_DATAFORMAT;
-
-	const unsigned char *p = abstract->data + length - header + 6;
+	const unsigned char *p = abstract->data + parser->footer + 6;
 
 	if (datetime) {
 		datetime->hour   = array_uint16_le (p + 0);
@@ -156,24 +212,14 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
 
-	unsigned int header = 0x5C;
-	if (parser->model == ICONHDNET) {
-		header = 0x80;
-	}
+	// Cache the parser data.
+	dc_status_t rc = mares_iconhd_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
-	if (abstract->size < 4)
-		return DC_STATUS_DATAFORMAT;
-
-	unsigned int length = array_uint32_le (abstract->data);
-
-	if (abstract->size < length || length < header + 4)
-		return DC_STATUS_DATAFORMAT;
-
-	const unsigned char *p = abstract->data + length - header;
+	const unsigned char *p = abstract->data + parser->footer;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
-
-	unsigned int air = (p[0] & 0x02) == 0;
 
 	if (value) {
 		switch (type) {
@@ -184,13 +230,10 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = array_uint16_le (p + 0x04) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = mares_iconhd_parser_count_active_gas_mixes (p, air);
+			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			if (air)
-				gasmix->oxygen = 0.21;
-			else
-				gasmix->oxygen = p[0x14 + flags * 4] / 100.0;
+			gasmix->oxygen = parser->oxygen[flags] / 100.0;
 			gasmix->helium = 0.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
@@ -212,27 +255,12 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 {
 	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
 
-	unsigned int header = 0x5C;
-	unsigned int samplesize = 8;
-	if (parser->model == ICONHDNET) {
-		header = 0x80;
-		samplesize = 12;
-	}
-
-	if (abstract->size < 4)
-		return DC_STATUS_DATAFORMAT;
-
-	unsigned int length = array_uint32_le (abstract->data);
-
-	if (abstract->size < length || length < header + 4)
-		return DC_STATUS_DATAFORMAT;
-
-	const unsigned char *p = abstract->data + length - header;
-
-	unsigned int air = (p[0] & 0x02) == 0;
+	// Cache the parser data.
+	dc_status_t rc = mares_iconhd_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	const unsigned char *data = abstract->data;
-	unsigned int size = length - header;
 
 	unsigned int time = 0;
 	unsigned int interval = 5;
@@ -242,9 +270,8 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
-	unsigned int ngasmixes = mares_iconhd_parser_count_active_gas_mixes (p, air);
 
-	while (offset + samplesize <= size) {
+	while (offset + parser->samplesize <= parser->footer) {
 		dc_sample_value_t sample = {0};
 
 		// Time (seconds).
@@ -264,28 +291,23 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Current gas mix
 		unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
-		if (gasmix >= ngasmixes) {
+		if (gasmix >= parser->ngasmixes) {
 			return DC_STATUS_DATAFORMAT;
 		}
 		if (gasmix != gasmix_previous) {
-			unsigned int o2 = 0;
-			if (air)
-				o2 = 21;
-			else
-				o2 = p[0x14 + gasmix * 4];
 			sample.event.type = SAMPLE_EVENT_GASCHANGE;
 			sample.event.time = 0;
-			sample.event.value = o2;
+			sample.event.value = parser->oxygen[gasmix];
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			gasmix_previous = gasmix;
 		}
 
-		offset += samplesize;
+		offset += parser->samplesize;
 		nsamples++;
 
 		// Some extra data.
 		if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
-			if (offset + 8 > size)
+			if (offset + 8 > parser->footer)
 				return DC_STATUS_DATAFORMAT;
 
 			// Pressure (1/100 bar).
