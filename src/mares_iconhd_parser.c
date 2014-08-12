@@ -34,6 +34,10 @@
 
 #define NGASMIXES 3
 
+#define AIR    0
+#define GAUGE  1
+#define NITROX 2
+
 typedef struct mares_iconhd_parser_t mares_iconhd_parser_t;
 
 struct mares_iconhd_parser_t {
@@ -92,8 +96,10 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	// Gas mixes
 	unsigned int ngasmixes = 0;
 	unsigned int oxygen[NGASMIXES] = {0};
-	unsigned int air = (p[0] & 0x02) == 0;
-	if (air) {
+	unsigned int mode = p[0] & 0x03;
+	if (mode == GAUGE) {
+		ngasmixes = 0;
+	} else if (mode == AIR) {
 		oxygen[0] = 21;
 		ngasmixes = 1;
 	} else {
@@ -290,16 +296,18 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
 		// Current gas mix
-		unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
-		if (gasmix >= parser->ngasmixes) {
-			return DC_STATUS_DATAFORMAT;
-		}
-		if (gasmix != gasmix_previous) {
-			sample.event.type = SAMPLE_EVENT_GASCHANGE;
-			sample.event.time = 0;
-			sample.event.value = parser->oxygen[gasmix];
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-			gasmix_previous = gasmix;
+		if (parser->ngasmixes > 0) {
+			unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
+			if (gasmix >= parser->ngasmixes) {
+				return DC_STATUS_DATAFORMAT;
+			}
+			if (gasmix != gasmix_previous) {
+				sample.event.type = SAMPLE_EVENT_GASCHANGE;
+				sample.event.time = 0;
+				sample.event.value = parser->oxygen[gasmix];
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				gasmix_previous = gasmix;
+			}
 		}
 
 		offset += parser->samplesize;
