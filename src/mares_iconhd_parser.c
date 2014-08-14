@@ -83,13 +83,17 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		samplesize = 12;
 	}
 
-	if (size < 4)
+	if (size < 4) {
+		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	unsigned int length = array_uint32_le (data);
 
-	if (size < length || length < footersize + 4)
+	if (size < length || length < footersize + 4) {
+		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	const unsigned char *p = data + length - footersize;
 
@@ -299,6 +303,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		if (parser->ngasmixes > 0) {
 			unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
 			if (gasmix >= parser->ngasmixes) {
+				ERROR (abstract->context, "Invalid gas mix index.");
 				return DC_STATUS_DATAFORMAT;
 			}
 			if (gasmix != gasmix_previous) {
@@ -315,8 +320,10 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Some extra data.
 		if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
-			if (offset + 8 > parser->footer)
+			if (offset + 8 > parser->footer) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 
 			// Pressure (1/100 bar).
 			unsigned int pressure = array_uint16_le(data + offset);
