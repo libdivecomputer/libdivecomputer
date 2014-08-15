@@ -346,9 +346,12 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
 	devinfo.firmware = array_uint16_be (id + 2);
 	devinfo.serial = array_uint16_le (id + 0);
+	if (devinfo.serial > 10000)
+		devinfo.model = 1; // OSTC Sport
+	else
+		devinfo.model = 0; // OSTC3
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate memory.
