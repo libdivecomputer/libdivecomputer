@@ -69,6 +69,7 @@ static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 static dc_status_t
 mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 {
+	dc_parser_t *abstract = (dc_parser_t *) parser;
 	const unsigned char *data = parser->base.data;
 	unsigned int size = parser->base.size;
 
