@@ -361,6 +361,21 @@ doparse (FILE *fp, dc_device_t *device, const unsigned char data[], unsigned int
 	fprintf (fp, "<divetime>%02u:%02u</divetime>\n",
 		divetime / 60, divetime % 60);
 
+	// Parse the temperature.
+	message ("Parsing the temperature.\n");
+	double temperature = 0.0;
+	rc = dc_parser_get_field (parser, DC_FIELD_TEMPERATURE, 0, &temperature);
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the temperature.");
+		dc_parser_destroy (parser);
+		return rc;
+	}
+
+	if (rc != DC_STATUS_UNSUPPORTED) {
+		fprintf (fp, "<temperature>%.1f</temperature>\n",
+			temperature);
+	}
+
 	// Parse the maxdepth.
 	message ("Parsing the maxdepth.\n");
 	double maxdepth = 0.0;

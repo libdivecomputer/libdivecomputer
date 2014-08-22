@@ -53,7 +53,8 @@ typedef enum dc_field_type_t {
 	DC_FIELD_GASMIX_COUNT,
 	DC_FIELD_GASMIX,
 	DC_FIELD_SALINITY,
-	DC_FIELD_ATMOSPHERIC
+	DC_FIELD_ATMOSPHERIC,
+	DC_FIELD_TEMPERATURE
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
