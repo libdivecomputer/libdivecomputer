@@ -372,7 +372,7 @@ diverite_nitekq_extract_dives (dc_device_t *abstract, const unsigned char data[]
 	data += SZ_PACKET;
 
 	// Allocate memory.
-	unsigned char *buffer = (unsigned char *) malloc (RB_PROFILE_END - RB_PROFILE_BEGIN);
+	unsigned char *buffer = (unsigned char *) malloc (SZ_LOGBOOK + RB_PROFILE_END - RB_PROFILE_BEGIN);
 	if (buffer == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
