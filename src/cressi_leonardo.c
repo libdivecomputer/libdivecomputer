@@ -89,6 +89,7 @@ cressi_leonardo_device_open (dc_device_t **out, dc_context_t *context, const cha
 
 	// Set the default values.
 	device->port = NULL;
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
