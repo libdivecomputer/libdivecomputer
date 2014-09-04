@@ -49,4 +49,6 @@ libdivecomputer_HEADERS = 	\
 	shearwater_petrel.h \
 	shearwater_predator.h \
 	diverite.h \
-	diverite_nitekq.h
+	diverite_nitekq.h \
+	citizen.h \
+	citizen_aqualand.h

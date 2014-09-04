@@ -84,6 +84,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_SHEARWATER_PETREL,
 	/* Dive Rite */
 	DC_FAMILY_DIVERITE_NITEKQ = (11 << 16),
+	/* Citizen */
+	DC_FAMILY_CITIZEN_AQUALAND = (12 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

@@ -230,6 +230,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Shearwater", "Petrel",   DC_FAMILY_SHEARWATER_PETREL, 3},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0},
+	/* Citizen Hyper Aqualand */
+	{"Citizen", "Hyper Aqualand", DC_FAMILY_CITIZEN_AQUALAND, 0},
 };
 
 typedef struct dc_descriptor_iterator_t {

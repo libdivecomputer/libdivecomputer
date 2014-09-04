@@ -32,6 +32,7 @@
 #include <libdivecomputer/atomics.h>
 #include <libdivecomputer/shearwater.h>
 #include <libdivecomputer/diverite.h>
+#include <libdivecomputer/citizen.h>
 
 #include "parser-private.h"
 #include "device-private.h"
@@ -133,6 +134,9 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		break;
 	case DC_FAMILY_DIVERITE_NITEKQ:
 		rc = diverite_nitekq_parser_create (&parser, context);
+		break;
+	case DC_FAMILY_CITIZEN_AQUALAND:
+		rc = citizen_aqualand_parser_create (&parser, context);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

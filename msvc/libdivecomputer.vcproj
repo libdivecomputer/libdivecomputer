@@ -199,6 +199,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\citizen_aqualand.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\citizen_aqualand_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\context.c"
 				>
 			</File>
@@ -486,6 +494,14 @@
 			</File>
 			<File
 				RelativePath="..\src\checksum.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\citizen.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\citizen_aqualand.h"
 				>
 			</File>
 			<File
