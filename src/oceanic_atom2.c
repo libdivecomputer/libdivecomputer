@@ -73,6 +73,10 @@ static const oceanic_common_version_t aeris_f10_version[] = {
 	{"FREEWAER \0\0 512K"},
 };
 
+static const oceanic_common_version_t aeris_f11_version[] = {
+    {"AERISF11 \0\0 1024"},
+};
+
 static const oceanic_common_version_t oceanic_atom1_version[] = {
 	{"ATOM rev\0\0  256K"},
 };
@@ -168,6 +172,19 @@ static const oceanic_common_layout_t aeris_f10_layout = {
 	0x10000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	2 /* pt_mode_logbook */
+};
+
+static const oceanic_common_layout_t aeris_f11_layout = {
+	0x20000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0100, /* rb_logbook_begin */
+	0x0AC0, /* rb_logbook_end */
+	32, /* rb_logbook_entry_size */
+	0xD810, /* rb_profile_begin */
+	0x20000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	3 /* pt_mode_logbook */
 };
 
 static const oceanic_common_layout_t oceanic_default_layout = {
@@ -530,6 +547,9 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Override the base class values.
 	if (OCEANIC_COMMON_MATCH (device->base.version, aeris_f10_version)) {
 		device->base.layout = &aeris_f10_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_f11_version)) {
+		device->base.layout = &aeris_f11_layout;
+		device->bigpage = 8;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom1_version)) {
 		device->base.layout = &oceanic_atom1_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2_version)) {
