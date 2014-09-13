@@ -47,6 +47,7 @@
 #define ELEMENT2    0x4357
 #define VEO20       0x4359
 #define VEO30       0x435A
+#define ZEN         0x4441
 #define ZENAIR      0x4442
 #define ATMOSAI2    0x4443
 #define PROPLUS21   0x4444
@@ -287,7 +288,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		parser->model == VEO20 || parser->model == VEO30 ||
 		parser->model == OCS || parser->model == PROPLUS3 ||
 		parser->model == A300 || parser->model == MANTA ||
-		parser->model == INSIGHT2) {
+		parser->model == INSIGHT2 || parser->model == ZEN) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -391,7 +392,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		parser->model == VEO20 || parser->model == VEO30 ||
 		parser->model == OCS || parser->model == PROPLUS3 ||
 		parser->model == A300 || parser->model == MANTA ||
-		parser->model == INSIGHT2) {
+		parser->model == INSIGHT2 || parser->model == ZEN) {
 		headersize -= PAGESIZE;
 	} else if (parser->model == VT4 || parser->model == VT41) {
 		headersize += PAGESIZE;
@@ -440,7 +441,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int have_temperature = 1, have_pressure = 1;
 	if (parser->model == VEO30 || parser->model == OCS ||
 		parser->model == ELEMENT2 || parser->model == VEO20 ||
-		parser->model == A300) {
+		parser->model == A300 || parser->model == ZEN) {
 		have_pressure = 0;
 	} else if (parser->model == F10) {
 		have_temperature = 0;
