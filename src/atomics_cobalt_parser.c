@@ -237,12 +237,19 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		// Current gas mix
 		unsigned int gasmix = data[offset + 4];
-		if (gasmix >= ngasmixes) {
-			return DC_STATUS_DATAFORMAT;
-		}
 		if (gasmix != gasmix_previous) {
-			unsigned int o2 = data[SZ_HEADER + SZ_GASMIX * gasmix + 4];
-			unsigned int he = data[SZ_HEADER + SZ_GASMIX * gasmix + 5];
+			unsigned int idx = 0;
+			while (idx < ngasmixes) {
+				if (data[SZ_HEADER + SZ_GASMIX * idx + 0] == gasmix)
+					break;
+				idx++;
+			}
+			if (idx >= ngasmixes) {
+				ERROR (abstract->context, "Invalid gas mix index.");
+				return DC_STATUS_DATAFORMAT;
+			}
+			unsigned int o2 = data[SZ_HEADER + SZ_GASMIX * idx + 4];
+			unsigned int he = data[SZ_HEADER + SZ_GASMIX * idx + 5];
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
