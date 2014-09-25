@@ -49,6 +49,7 @@ typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
 	serial_t *port;
 	unsigned int delay;
+	unsigned int bigpage;
 } oceanic_atom2_device_t;
 
 static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -369,7 +370,7 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 
 
 static dc_status_t
-oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int crc_size)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
@@ -407,8 +408,14 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 		}
 
 		// Verify the checksum of the answer.
-		unsigned char crc = answer[asize - 1];
-		unsigned char ccrc = checksum_add_uint8 (answer, asize - 1, 0x00);
+		unsigned short crc, ccrc;
+		if (crc_size == 2) {
+			crc = array_uint16_le (answer + asize - 2);
+			ccrc = checksum_add_uint16 (answer, asize - 2, 0x0000);
+		} else {
+			crc = answer[asize - 1];
+			ccrc = checksum_add_uint8 (answer, asize - 1, 0x00);
+		}
 		if (crc != ccrc) {
 			ERROR (abstract->context, "Unexpected answer checksum.");
 			return DC_STATUS_PROTOCOL;
@@ -451,6 +458,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Set the default values.
 	device->port = NULL;
 	device->delay = 0;
+	device->bigpage = 1; // no big pages
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -567,7 +575,7 @@ oceanic_atom2_device_keepalive (dc_device_t *abstract)
 
 	// Send the command to the dive computer.
 	unsigned char command[4] = {0x91, 0x05, 0xA5, 0x00};
-	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
+	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -588,7 +596,7 @@ oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsig
 
 	unsigned char answer[PAGESIZE + 1] = {0};
 	unsigned char command[2] = {0x84, 0x00};
-	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -607,24 +615,53 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 		(size    % PAGESIZE != 0))
 		return DC_STATUS_INVALIDARGS;
 
+	// Pick the correct read command and number of checksum bytes.
+	unsigned char read_cmd = 0x00;
+	unsigned int crc_size = 0;
+	switch (device->bigpage) {
+	case 1:
+		read_cmd = 0xB1;
+		crc_size = 1;
+		break;
+	case 8:
+		read_cmd = 0xB4;
+		crc_size = 1;
+		break;
+	case 16:
+		read_cmd = 0xB8;
+		crc_size = 2;
+		break;
+	default:
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Pick the best pagesize to use.
+	unsigned int pagesize = device->bigpage * PAGESIZE;
+
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Read the package.
-		unsigned int number = address / PAGESIZE;
-		unsigned char answer[PAGESIZE + 1] = {0};
-		unsigned char command[4] = {0xB1,
+		unsigned int page = address / pagesize;
+		unsigned int number = page * device->bigpage; // This is always PAGESIZE, even in big page mode.
+		unsigned char answer[256 + 2] = {0};          // Maximum we support for the known commands.
+		unsigned char command[4] = {read_cmd,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
 				0};
-		dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer));
+		dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer,  pagesize + crc_size, crc_size);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
-		memcpy (data, answer, PAGESIZE);
+		unsigned int offset = address % pagesize;
+		unsigned int length = pagesize - offset;
+		if (nbytes + length > size)
+			length = size - nbytes;
 
-		nbytes += PAGESIZE;
-		address += PAGESIZE;
-		data += PAGESIZE;
+		memcpy (data, answer + offset, length);
+
+		nbytes += length;
+		address += length;
+		data += length;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -648,7 +685,7 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
 				0x00};
-		dc_status_t rc = oceanic_atom2_transfer (device, prepare, sizeof (prepare), NULL, 0);
+		dc_status_t rc = oceanic_atom2_transfer (device, prepare, sizeof (prepare), NULL, 0, 0);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
@@ -656,7 +693,7 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 		unsigned char command[PAGESIZE + 2] = {0};
 		memcpy (command, data, PAGESIZE);
 		command[PAGESIZE] = checksum_add_uint8 (command, PAGESIZE, 0x00);
-		rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0);
+		rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0, 0);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
