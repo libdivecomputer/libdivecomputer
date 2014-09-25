@@ -150,6 +150,10 @@ static const oceanic_common_version_t oceanic_reactpro_version[] = {
 	{"REACPRO2 \0\0 512K"},
 };
 
+static const oceanic_common_version_t aeris_a300cs_version[] = {
+	{"AER300CS \0\0 2048"},
+};
+
 static const oceanic_common_layout_t aeris_f10_layout = {
 	0x10000, /* memsize */
 	0x0000, /* cf_devinfo */
@@ -332,6 +336,19 @@ static const oceanic_common_layout_t oceanic_reactpro_layout = {
 	1 /* pt_mode_logbook */
 };
 
+static const oceanic_common_layout_t aeris_a300cs_layout = {
+	0x40000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x0900, /* rb_logbook_begin */
+	0x1000, /* rb_logbook_end */
+	16, /* rb_logbook_entry_size */
+	0x1000, /* rb_profile_begin */
+	0x3FE00, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1 /* pt_mode_logbook */
+};
+
 static dc_status_t
 oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
 {
@@ -488,6 +505,10 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Give the interface 100 ms to settle and draw power up.
 	serial_sleep (device->port, 100);
 
+	// Set the DTR/RTS lines.
+	serial_set_dtr(device->port, 1);
+	serial_set_rts(device->port, 1);
+
 	// Make sure everything is in a sane state.
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
@@ -534,6 +555,9 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		device->base.layout = &oceanic_veo1_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_reactpro_version)) {
 		device->base.layout = &oceanic_reactpro_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_a300cs_version)) {
+		device->base.layout = &aeris_a300cs_layout;
+		device->bigpage = 16;
 	} else {
 		device->base.layout = &oceanic_default_layout;
 	}
