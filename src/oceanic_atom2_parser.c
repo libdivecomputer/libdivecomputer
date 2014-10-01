@@ -333,6 +333,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	unsigned int oxygen = 0;
 	unsigned int helium = 0;
@@ -378,6 +379,18 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			gasmix->helium = helium / 100.0;
 			gasmix->oxygen = (oxygen ? oxygen / 100.0 : 0.21);
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_SALINITY:
+			if (parser->model == A300CS) {
+				if (data[0x18] & 0x80) {
+					water->type = DC_WATER_FRESH;
+				} else {
+					water->type = DC_WATER_SALT;
+				}
+				water->density = 0.0;
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
