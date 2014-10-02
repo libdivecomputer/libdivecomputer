@@ -353,15 +353,26 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (parser->model == DATAMASK || parser->model == COMPUMASK)
+			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				*((unsigned int *) value) = 1;
-			else if (parser->model == VT4 || parser->model == VT41 ||
-				parser->model == OCI || parser->model == A300CS)
+			} else if (parser->model == VT4 || parser->model == VT41 ||
+				parser->model == OCI) {
 				*((unsigned int *) value) = 4;
-			else if (parser->model == TX1)
+			} else if (parser->model == TX1) {
 				*((unsigned int *) value) = 6;
-			else
+			} else if (parser->model == A300CS) {
+				if (data[0x39] & 0x04) {
+					*((unsigned int *) value) = 1;
+				} else if (data[0x39] & 0x08) {
+					*((unsigned int *) value) = 2;
+				} else if (data[0x39] & 0x10) {
+					*((unsigned int *) value) = 3;
+				} else {
+					*((unsigned int *) value) = 4;
+				}
+			} else {
 				*((unsigned int *) value) = 3;
+			}
 			break;
 		case DC_FIELD_GASMIX:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
