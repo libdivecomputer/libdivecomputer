@@ -35,6 +35,7 @@
 #include <libdivecomputer/diverite.h>
 #include <libdivecomputer/citizen.h>
 #include <libdivecomputer/divesystem.h>
+#include <libdivecomputer/cochran.h>
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -143,6 +144,9 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
 		rc = divesystem_idive_parser_create2 (&parser, context, device->devinfo.model);
+		break;
+	case DC_FAMILY_COCHRAN_COMMANDER:
+		rc = cochran_commander_parser_create (&parser, context, device->devinfo.model);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

@@ -3,7 +3,7 @@ AM_CFLAGS = $(LIBUSB_CFLAGS) -DENABLE_DEPRECATED
 
 lib_LTLIBRARIES = libdivecomputer.la
 
-libdivecomputer_la_LIBADD = $(LIBUSB_LIBS)
+libdivecomputer_la_LIBADD = $(LIBUSB_LIBS) -lm
 libdivecomputer_la_LDFLAGS = \
 	-version-info $(DC_VERSION_LIBTOOL) \
 	-no-undefined \
@@ -64,7 +64,9 @@ libdivecomputer_la_SOURCES = \
 	ringbuffer.h ringbuffer.c \
 	checksum.h checksum.c \
 	array.h array.c \
-	buffer.c
+	buffer.c \
+	cochran_commander.h cochran_commander.c \
+	cochran_commander_parser.c
 
 if OS_WIN32
 libdivecomputer_la_SOURCES += serial.h serial_win32.c

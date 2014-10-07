@@ -71,6 +71,7 @@ diverite_nitekq_parser_create
 citizen_aqualand_parser_create
 divesystem_idive_parser_create
 divesystem_idive_parser_create2
+cochran_commander_parser_create
 
 dc_device_open
 dc_device_close
@@ -177,3 +178,4 @@ diverite_nitekq_extract_dives
 citizen_aqualand_device_open
 divesystem_idive_device_open
 divesystem_idive_device_open2
+cochran_commander_device_open

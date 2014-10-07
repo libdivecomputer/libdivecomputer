@@ -88,6 +88,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_CITIZEN_AQUALAND = (12 << 16),
 	/* DiveSystem */
 	DC_FAMILY_DIVESYSTEM_IDIVE = (13 << 16),
+	/* Cochran */
+	DC_FAMILY_COCHRAN_COMMANDER = (14 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

@@ -211,6 +211,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\cochran_commander.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cochran_commander_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\common.c"
 				>
 			</File>
@@ -522,6 +530,14 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\citizen_aqualand.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\cochran.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\cochran_commander.h"
 				>
 			</File>
 			<File

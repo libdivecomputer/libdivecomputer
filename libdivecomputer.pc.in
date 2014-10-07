@@ -8,4 +8,5 @@ Description: A library for communication with various dive computers.
 Version: @VERSION@
 Requires.private: @DEPENDENCIES@
 Libs: -L${libdir} -ldivecomputer
+Libs.private: -lm
 Cflags: -I${includedir}
