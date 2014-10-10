@@ -213,6 +213,19 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
+	// Get the primary tank.
+	unsigned int tank = 0;
+	while (tank < ngasmixes) {
+		unsigned int sensor = array_uint16_le(data + SZ_HEADER + SZ_GASMIX * tank + 12);
+		if (sensor == 1)
+			break;
+		tank++;
+	}
+	if (tank >= ngasmixes) {
+		ERROR (abstract->context, "Invalid primary tank index.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
 	unsigned int time = 0;
 	unsigned int in_deco = 0;
 	unsigned int offset = header;
@@ -231,7 +244,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		// Pressure (1 psi).
 		unsigned int pressure = array_uint16_le (data + offset + 2);
-		sample.pressure.tank = 0;
+		sample.pressure.tank = tank;
 		sample.pressure.value = pressure * PSI / BAR;
 		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 
