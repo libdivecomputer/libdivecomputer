@@ -403,6 +403,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\suunto_eonsteel.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_eonsteel_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\suunto_solution.c"
 				>
 			</File>

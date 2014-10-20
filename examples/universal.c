@@ -78,6 +78,7 @@ static const backend_table_t g_backends[] = {
 	{"vyper",       DC_FAMILY_SUUNTO_VYPER},
 	{"vyper2",      DC_FAMILY_SUUNTO_VYPER2},
 	{"d9",          DC_FAMILY_SUUNTO_D9},
+	{"eonsteel",    DC_FAMILY_SUUNTO_EONSTEEL},
 	{"aladin",      DC_FAMILY_UWATEC_ALADIN},
 	{"memomouse",   DC_FAMILY_UWATEC_MEMOMOUSE},
 	{"smart",       DC_FAMILY_UWATEC_SMART},
