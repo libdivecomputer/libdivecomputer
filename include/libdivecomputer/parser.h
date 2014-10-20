@@ -54,7 +54,9 @@ typedef enum dc_field_type_t {
 	DC_FIELD_GASMIX,
 	DC_FIELD_SALINITY,
 	DC_FIELD_ATMOSPHERIC,
-	DC_FIELD_TEMPERATURE
+	DC_FIELD_TEMPERATURE_SURFACE,
+	DC_FIELD_TEMPERATURE_MINIMUM,
+	DC_FIELD_TEMPERATURE_MAXIMUM
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {

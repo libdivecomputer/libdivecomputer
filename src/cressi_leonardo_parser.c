@@ -139,7 +139,7 @@ cressi_leonardo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			gasmix->oxygen = data[0x19] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
-		case DC_FIELD_TEMPERATURE:
+		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = data[0x22];
 			break;
 		default:
