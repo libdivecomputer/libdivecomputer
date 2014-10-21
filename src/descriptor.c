@@ -189,6 +189,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "M1",         DC_FAMILY_MARES_DARWIN , 0},
 	{"Mares", "M2",         DC_FAMILY_MARES_DARWIN , 0},
 	{"Mares", "Darwin Air", DC_FAMILY_MARES_DARWIN , 1},
+	{"Mares", "Airlab",     DC_FAMILY_MARES_DARWIN , 1},
 	/* Mares Icon HD */
 	{"Mares", "Matrix",            DC_FAMILY_MARES_ICONHD , 0x0F},
 	{"Mares", "Icon HD",           DC_FAMILY_MARES_ICONHD , 0x14},
