@@ -252,6 +252,12 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			// Pressure (1/8 millibar)
 			*((double *) value) = array_uint16_le (p + 0x26) / 8000.0;
 			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (signed short) array_uint16_le (p + 0x46) / 10.0;
+			break;
+		case DC_FIELD_TEMPERATURE_MAXIMUM:
+			*((double *) value) = (signed short) array_uint16_le (p + 0x48) / 10.0;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}

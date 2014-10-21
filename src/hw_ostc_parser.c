@@ -53,6 +53,7 @@ typedef struct hw_ostc_layout_t {
 	unsigned int atmospheric;
 	unsigned int salinity;
 	unsigned int duration;
+	unsigned int temperature;
 } hw_ostc_layout_t;
 
 typedef struct hw_ostc_gasmix_t {
@@ -82,6 +83,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	15, /* atmospheric */
 	43, /* salinity */
 	47, /* duration */
+	13, /* temperature */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_frog = {
@@ -91,6 +93,7 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	21, /* atmospheric */
 	43, /* salinity */
 	47, /* duration */
+	19, /* temperature */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
@@ -100,6 +103,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	24, /* atmospheric */
 	70, /* salinity */
 	75, /* duration */
+	22, /* temperature */
 };
 
 dc_status_t
@@ -315,6 +319,9 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			*((double *) value) = array_uint16_le (data + layout->atmospheric) / 1000.0;
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (signed short) array_uint16_le (data + layout->temperature) / 10.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

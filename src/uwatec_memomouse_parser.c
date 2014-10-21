@@ -167,6 +167,9 @@ uwatec_memomouse_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			}
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (signed char) data[15] / 4.0;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}

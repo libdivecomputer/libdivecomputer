@@ -46,6 +46,8 @@
 #define SMARTZ        0x1C
 #define MERIDIAN      0x20
 
+#define UNSUPPORTED 0xFFFFFFFF
+
 typedef enum {
 	PRESSURE_DEPTH,
 	RBT,
@@ -65,6 +67,9 @@ typedef struct uwatec_smart_header_info_t {
 	unsigned int divetime;
 	unsigned int gasmix;
 	unsigned int ngases;
+	unsigned int temp_minimum;
+	unsigned int temp_maximum;
+	unsigned int temp_surface;
 } uwatec_smart_header_info_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -108,42 +113,60 @@ static const
 uwatec_smart_header_info_t uwatec_smart_pro_header = {
 	18,
 	20,
-	24, 1
+	24, 1,
+	22, /* temp_minimum */
+	UNSUPPORTED, /* temp_maximum */
+	UNSUPPORTED, /* temp_surface */
 };
 
 static const
 uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	22,
 	26,
-	44, 3
+	44, 3,
+	30, /* temp_minimum */
+	28, /* temp_maximum */
+	32, /* temp_surface */
 };
 
 static const
 uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	22,
 	24,
-	30, 1
+	30, 1,
+	26, /* temp_minimum */
+	28, /* temp_maximum */
+	32, /* temp_surface */
 };
 
 static const
 uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	22,
 	26,
-	34, 3
+	34, 3,
+	30, /* temp_minimum */
+	28, /* temp_maximum */
+	32, /* temp_surface */
 };
 
 static const
 uwatec_smart_header_info_t uwatec_smart_com_header = {
 	18,
 	20,
-	24, 1
+	24, 1,
+	22, /* temp_minimum */
+	UNSUPPORTED, /* temp_maximum */
+	UNSUPPORTED, /* temp_surface */
 };
 
 static const
 uwatec_smart_header_info_t uwatec_smart_tec_header = {
 	18,
 	20,
-	28, 3
+	28, 3,
+	22, /* temp_minimum */
+	UNSUPPORTED, /* temp_maximum */
+	UNSUPPORTED, /* temp_surface */
 };
 
 static const
@@ -383,6 +406,19 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gasmix->helium = 0.0;
 			gasmix->oxygen = data[table->gasmix + flags * 2] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (signed short) array_uint16_le (data + table->temp_minimum) / 10.0;
+			break;
+		case DC_FIELD_TEMPERATURE_MAXIMUM:
+			if (table->temp_maximum == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			*((double *) value) = (signed short) array_uint16_le (data + table->temp_maximum) / 10.0;
+			break;
+		case DC_FIELD_TEMPERATURE_SURFACE:
+			if (table->temp_surface == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			*((double *) value) = (signed short) array_uint16_le (data + table->temp_surface) / 10.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

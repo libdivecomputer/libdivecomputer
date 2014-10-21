@@ -253,6 +253,9 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				gasmix->helium = 0.0;
 				gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 				break;
+			case DC_FIELD_TEMPERATURE_MINIMUM:
+				*((double *) value) = (signed char) p[53 - 11];
+				break;
 			default:
 				return DC_STATUS_UNSUPPORTED;
 			}
@@ -271,6 +274,9 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				break;
 			case DC_FIELD_GASMIX_COUNT:
 				*((unsigned int *) value) = 0;
+				break;
+			case DC_FIELD_TEMPERATURE_MINIMUM:
+				*((double *) value) = (signed char) p[28 - 11];
 				break;
 			default:
 				return DC_STATUS_UNSUPPORTED;
