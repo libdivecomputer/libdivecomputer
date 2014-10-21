@@ -32,6 +32,7 @@
 #define FSW         (ATM / 33.0)
 #define MSW         (BAR / 10.0)
 #define PSI         ((POUND * GRAVITY) / (INCH * INCH))
+#define CUFT        (FEET * FEET * FEET)
 
 
 #endif /* UNITS_H */

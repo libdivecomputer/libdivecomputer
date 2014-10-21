@@ -150,6 +150,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 	const unsigned char *p = abstract->data;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 
 	double atmospheric = 0.0;
 	if (parser->atmospheric)
@@ -166,6 +167,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			*((double *) value) = (array_uint16_le (p + 0x56) * BAR / 1000.0 - atmospheric) / parser->hydrostatic;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
+		case DC_FIELD_TANK_COUNT:
 			*((unsigned int *) value) = p[0x2a];
 			break;
 		case DC_FIELD_GASMIX:
@@ -175,6 +177,31 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			break;
 		case DC_FIELD_TEMPERATURE_SURFACE:
 			*((double *) value) = (p[0x1B] - 32.0) * (5.0 / 9.0);
+			break;
+		case DC_FIELD_TANK:
+			p += SZ_HEADER + SZ_GASMIX * flags;
+			switch (p[2]) {
+			case 1: // Cuft at psi
+				tank->type = DC_TANKVOLUME_IMPERIAL;
+				tank->volume = array_uint16_le(p + 8) * CUFT * 1000.0;
+				tank->workpressure = array_uint16_le(p + 10) * PSI / BAR;
+				break;
+			case 2: // Cuft at bar
+				tank->type = DC_TANKVOLUME_IMPERIAL;
+				tank->volume = array_uint16_le(p + 8) * CUFT * 1000.0;
+				tank->workpressure = array_uint16_le(p + 10);
+				break;
+			case 3: // Wet volume in 1/10 liter
+				tank->type = DC_TANKVOLUME_METRIC;
+				tank->volume = array_uint16_le(p + 8) / 10.0;
+				tank->workpressure = 0.0;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
+			tank->gasmix = flags;
+			tank->beginpressure = array_uint16_le(p + 6) * PSI / BAR;
+			tank->endpressure = array_uint16_le(p + 14) * PSI / BAR;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
