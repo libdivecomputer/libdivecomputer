@@ -426,6 +426,47 @@ doparse (FILE *fp, dc_device_t *device, const unsigned char data[], unsigned int
 			gasmix.nitrogen * 100.0);
 	}
 
+	// Parse the tanks.
+	message ("Parsing the tanks.\n");
+	unsigned int ntanks = 0;
+	rc = dc_parser_get_field (parser, DC_FIELD_TANK_COUNT, 0, &ntanks);
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the tank count.");
+		dc_parser_destroy (parser);
+		return rc;
+	}
+
+	for (unsigned int i = 0; i < ntanks; ++i) {
+		const char *names[] = {"none", "metric", "imperial"};
+
+		dc_tank_t tank = {0};
+		rc = dc_parser_get_field (parser, DC_FIELD_TANK, i, &tank);
+		if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+			WARNING ("Error parsing the tank.");
+			dc_parser_destroy (parser);
+			return rc;
+		}
+
+		fprintf (fp, "<tank>\n");
+		if (tank.gasmix != DC_GASMIX_UNKNOWN) {
+			fprintf (fp,
+				"   <gasmix>%u</gasmix>\n",
+				tank.gasmix);
+		}
+		if (tank.type != DC_TANKVOLUME_NONE) {
+			fprintf (fp,
+				"   <type>%s</type>\n"
+				"   <volume>%.1f</volume>\n"
+				"   <workpressure>%.2f</workpressure>\n",
+				names[tank.type], tank.volume, tank.workpressure);
+		}
+		fprintf (fp,
+			"   <beginpressure>%.2f</beginpressure>\n"
+			"   <endpressure>%.2f</endpressure>\n"
+			"</tank>\n",
+			tank.beginpressure, tank.endpressure);
+	}
+
 	// Parse the salinity.
 	message ("Parsing the salinity.\n");
 	dc_salinity_t salinity = {DC_WATER_FRESH, 0.0};
