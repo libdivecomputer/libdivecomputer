@@ -221,7 +221,8 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
-			if (parser->model == T3A || parser->model == T3B || parser->model == GEO20)
+			if (parser->model == T3A || parser->model == T3B ||
+				parser->model == GEO20 || parser->model == PROPLUS3)
 				datetime->day = p[3] & 0x3F;
 			else
 				datetime->day = bcd2dec (p[3] & 0x3F);
