@@ -36,6 +36,7 @@
 
 #define MAXRETRIES 2
 #define MAXDELAY   16
+#define INVALID    0xFFFFFFFF
 
 #define EXITCODE(rc) \
 ( \
@@ -50,6 +51,8 @@ typedef struct oceanic_atom2_device_t {
 	serial_t *port;
 	unsigned int delay;
 	unsigned int bigpage;
+	unsigned char cache[256];
+	unsigned int cached;
 } oceanic_atom2_device_t;
 
 static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -476,6 +479,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	device->port = NULL;
 	device->delay = 0;
 	device->bigpage = 1; // no big pages
+	device->cached = INVALID;
+	memset(device->cache, 0, sizeof(device->cache));
 
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
@@ -664,24 +669,30 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
-		// Read the package.
 		unsigned int page = address / pagesize;
-		unsigned int number = page * device->bigpage; // This is always PAGESIZE, even in big page mode.
-		unsigned char answer[256 + 2] = {0};          // Maximum we support for the known commands.
-		unsigned char command[4] = {read_cmd,
-				(number >> 8) & 0xFF, // high
-				(number     ) & 0xFF, // low
-				0};
-		dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer,  pagesize + crc_size, crc_size);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+		if (page != device->cached) {
+			// Read the package.
+			unsigned int number = page * device->bigpage; // This is always PAGESIZE, even in big page mode.
+			unsigned char answer[256 + 2] = {0};          // Maximum we support for the known commands.
+			unsigned char command[4] = {read_cmd,
+					(number >> 8) & 0xFF, // high
+					(number     ) & 0xFF, // low
+					0};
+			dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer,  pagesize + crc_size, crc_size);
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
+
+			// Cache the page.
+			memcpy (device->cache, answer, pagesize);
+			device->cached = page;
+		}
 
 		unsigned int offset = address % pagesize;
 		unsigned int length = pagesize - offset;
 		if (nbytes + length > size)
 			length = size - nbytes;
 
-		memcpy (data, answer + offset, length);
+		memcpy (data, device->cache + offset, length);
 
 		nbytes += length;
 		address += length;
@@ -700,6 +711,9 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
 		return DC_STATUS_INVALIDARGS;
+
+	// Invalidate the cache.
+	device->cached = INVALID;
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
