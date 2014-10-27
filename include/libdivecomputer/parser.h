@@ -58,7 +58,8 @@ typedef enum dc_field_type_t {
 	DC_FIELD_TEMPERATURE_MINIMUM,
 	DC_FIELD_TEMPERATURE_MAXIMUM,
 	DC_FIELD_TANK_COUNT,
-	DC_FIELD_TANK
+	DC_FIELD_TANK,
+	DC_FIELD_DIVEMODE
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
@@ -114,6 +115,13 @@ typedef enum dc_water_t {
 	DC_WATER_FRESH,
 	DC_WATER_SALT
 } dc_water_t;
+
+typedef enum dc_divemode_t {
+	DC_DIVEMODE_FREEDIVE,
+	DC_DIVEMODE_GAUGE,
+	DC_DIVEMODE_OC, /* Open circuit */
+	DC_DIVEMODE_CC  /* Closed circuit */
+} dc_divemode_t;
 
 typedef enum dc_deco_type_t {
 	DC_DECO_NDL,

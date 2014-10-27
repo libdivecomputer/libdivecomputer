@@ -467,6 +467,22 @@ doparse (FILE *fp, dc_device_t *device, const unsigned char data[], unsigned int
 			tank.beginpressure, tank.endpressure);
 	}
 
+	// Parse the dive mode.
+	message ("Parsing the dive mode.\n");
+	dc_divemode_t divemode = DC_DIVEMODE_OC;
+	rc = dc_parser_get_field (parser, DC_FIELD_DIVEMODE, 0, &divemode);
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		WARNING ("Error parsing the dive mode.");
+		dc_parser_destroy (parser);
+		return rc;
+	}
+
+	if (rc != DC_STATUS_UNSUPPORTED) {
+		const char *names[] = {"freedive", "gauge", "oc", "cc"};
+		fprintf (fp, "<divemode>%s</divemode>\n",
+			names[divemode]);
+	}
+
 	// Parse the salinity.
 	message ("Parsing the salinity.\n");
 	dc_salinity_t salinity = {DC_WATER_FRESH, 0.0};
