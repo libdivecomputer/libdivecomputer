@@ -198,6 +198,13 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = (signed char) data[parser->marker + 1];
 			break;
+		case DC_FIELD_DIVEMODE:
+			if (data[4] & 0x40) {
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+			} else {
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+			}
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}

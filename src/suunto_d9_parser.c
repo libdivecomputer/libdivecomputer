@@ -51,6 +51,7 @@
 #define GAUGE    2
 #define FREEDIVE 3
 #define MIXED    4
+#define CCR      5
 
 #define SAFETYSTOP   (1 << 0)
 #define DECOSTOP     (1 << 1)
@@ -325,6 +326,26 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 			gasmix->helium = parser->helium[flags] / 100.0;
 			gasmix->oxygen = parser->oxygen[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_DIVEMODE:
+			switch (parser->mode) {
+			case AIR:
+			case NITROX:
+			case MIXED:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case GAUGE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			case FREEDIVE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+				break;
+			case CCR:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

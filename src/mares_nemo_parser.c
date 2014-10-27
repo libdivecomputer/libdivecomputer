@@ -261,6 +261,20 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			case DC_FIELD_TEMPERATURE_MINIMUM:
 				*((double *) value) = (signed char) p[53 - 11];
 				break;
+			case DC_FIELD_DIVEMODE:
+				switch (parser->mode) {
+				case AIR:
+				case NITROX:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+					break;
+				case FREEDIVE:
+				case GAUGE:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+				break;
 			default:
 				return DC_STATUS_UNSUPPORTED;
 			}
@@ -282,6 +296,9 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				break;
 			case DC_FIELD_TEMPERATURE_MINIMUM:
 				*((double *) value) = (signed char) p[28 - 11];
+				break;
+			case DC_FIELD_DIVEMODE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
 				break;
 			default:
 				return DC_STATUS_UNSUPPORTED;

@@ -258,6 +258,19 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
 			*((double *) value) = (signed short) array_uint16_le (p + 0x48) / 10.0;
 			break;
+		case DC_FIELD_DIVEMODE:
+			switch (p[0] & 0x03) {
+			case AIR:
+			case NITROX:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case GAUGE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}

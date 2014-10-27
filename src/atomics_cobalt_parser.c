@@ -203,6 +203,18 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			tank->beginpressure = array_uint16_le(p + 6) * PSI / BAR;
 			tank->endpressure = array_uint16_le(p + 14) * PSI / BAR;
 			break;
+		case DC_FIELD_DIVEMODE:
+			switch(p[0x24]) {
+			case 0: // Open Circuit Trimix
+			case 2: // Open Circuit Nitrox
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case 1: // Closed Circuit
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
