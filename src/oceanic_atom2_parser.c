@@ -69,6 +69,7 @@
 #define AMPHOS      0x4545
 #define PROPLUS3    0x4548
 #define OCI         0x454B
+#define A300CS      0x454C
 
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
@@ -218,6 +219,13 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			datetime->hour   = p[11];
 			datetime->minute = p[10];
 			break;
+		case A300CS:
+			datetime->year   = (p[10]) + 2000;
+			datetime->month  = (p[8]);
+			datetime->day    = (p[9]);
+			datetime->hour   = bcd2dec(p[1] & 0x1F);
+			datetime->minute = bcd2dec(p[0]);
+			break;
 		default:
 			datetime->year   = bcd2dec (((p[3] & 0xC0) >> 2) + (p[4] & 0x0F)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
@@ -325,6 +333,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	unsigned int oxygen = 0;
 	unsigned int helium = 0;
@@ -344,20 +353,34 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (parser->model == DATAMASK || parser->model == COMPUMASK)
+			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				*((unsigned int *) value) = 1;
-			else if (parser->model == VT4 || parser->model == VT41 || parser->model == OCI)
+			} else if (parser->model == VT4 || parser->model == VT41 ||
+				parser->model == OCI) {
 				*((unsigned int *) value) = 4;
-			else if (parser->model == TX1)
+			} else if (parser->model == TX1) {
 				*((unsigned int *) value) = 6;
-			else
+			} else if (parser->model == A300CS) {
+				if (data[0x39] & 0x04) {
+					*((unsigned int *) value) = 1;
+				} else if (data[0x39] & 0x08) {
+					*((unsigned int *) value) = 2;
+				} else if (data[0x39] & 0x10) {
+					*((unsigned int *) value) = 3;
+				} else {
+					*((unsigned int *) value) = 4;
+				}
+			} else {
 				*((unsigned int *) value) = 3;
+			}
 			break;
 		case DC_FIELD_GASMIX:
 			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				oxygen = data[header + 3];
 			} else if (parser->model == OCI) {
 				oxygen = data[0x28 + flags];
+			} else if (parser->model == A300CS) {
+				oxygen = data[0x2A + flags];
 			} else if (parser->model == TX1) {
 				oxygen = data[0x3E + flags];
 				helium = data[0x48 + flags];
@@ -367,6 +390,18 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			gasmix->helium = helium / 100.0;
 			gasmix->oxygen = (oxygen ? oxygen / 100.0 : 0.21);
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_SALINITY:
+			if (parser->model == A300CS) {
+				if (data[0x18] & 0x80) {
+					water->type = DC_WATER_FRESH;
+				} else {
+					water->type = DC_WATER_SALT;
+				}
+				water->density = 0.0;
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -404,6 +439,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	} else if (parser->model == F10) {
 		headersize = 3 * PAGESIZE;
 		footersize = PAGESIZE / 2;
+	} else if (parser->model == A300CS) {
+		headersize = 5 * PAGESIZE;
 	}
 
 	if (size < headersize + footersize)
@@ -415,7 +452,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int time = 0;
 	unsigned int interval = 1;
 	if (parser->model != F10) {
-		switch (data[0x17] & 0x03) {
+		unsigned int idx = 0x17;
+		if (parser->model == A300CS)
+			idx = 0x1f;
+		switch (data[idx] & 0x03) {
 		case 0:
 			interval = 2;
 			break;
@@ -434,7 +474,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int samplesize = PAGESIZE / 2;
 	if (parser->model == OC1A || parser->model == OC1B ||
 		parser->model == OC1C || parser->model == OCI ||
-		parser->model == TX1)
+		parser->model == TX1 || parser->model == A300CS)
 		samplesize = PAGESIZE;
 	else if (parser->model == F10)
 		samplesize = 2;
@@ -459,7 +499,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int tank = 0;
 	unsigned int pressure = 0;
 	if (have_pressure) {
-		pressure = data[header + 2] + (data[header + 3] << 8);
+		unsigned int idx = 2;
+		if (parser->model == A300CS)
+			idx = 16;
+		pressure = data[header + idx] + (data[header + idx + 1] << 8);
 		if (pressure == 10000)
 			have_pressure = 0;
 	}
@@ -511,6 +554,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				// Tank pressure (1 psi) and number
 				tank = 0;
 				pressure = (((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF);
+			} else if (parser->model == A300CS) {
+				// Tank pressure (1 psi) and number (one based index)
+				tank = (data[offset + 1] & 0x03) - 1;
+				pressure = ((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF;
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
 				tank = (data[offset + 1] & 0x03) - 1;
@@ -552,6 +599,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					temperature = data[offset + 1];
 				} else if (parser->model == VT4 || parser->model == VT41 || parser->model == ATOM3 || parser->model == ATOM31 || parser->model == A300AI) {
 					temperature = ((data[offset + 7] & 0xF0) >> 4) | ((data[offset + 7] & 0x0C) << 2) | ((data[offset + 5] & 0x0C) << 4);
+				} else if (parser->model == A300CS) {
+					temperature = data[offset + 11];
 				} else {
 					unsigned int sign;
 					if (parser->model == DG03 || parser->model == PROPLUS3)
@@ -584,7 +633,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == ZENAIR ||parser->model == A300AI ||
 					parser->model == DG03 || parser->model == PROPLUS3)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
-				else if (parser->model == TX1)
+				else if (parser->model == TX1 || parser->model == A300CS)
 					pressure = array_uint16_le (data + offset + 4);
 				else
 					pressure -= data[offset + 1];
@@ -608,6 +657,22 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// NDL / Deco
+			// bits 6..4 of byte 15 encode deco state & depth
+			// bytes 6 & 7 encode minutes of NDL / deco
+			if (parser->model == A300CS) {
+				unsigned int deco = (data[offset + 15] & 0x70) >> 4;
+				if (deco) {
+					sample.deco.type = DC_DECO_DECOSTOP;
+					sample.deco.depth = deco * 10 * FEET;
+				} else {
+					sample.deco.type = DC_DECO_NDL;
+					sample.deco.depth = 0.0;
+				}
+				sample.deco.time = array_uint16_le(data + offset + 6) & 0x03FF;
+				if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+			}
 
 			complete = 1;
 		}
