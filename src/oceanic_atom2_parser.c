@@ -456,6 +456,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	// Get the offset to the header sample.
 	unsigned int header = headersize - PAGESIZE / 2;
+	if (parser->model == VT4 || parser->model == VT41) {
+		header = 3 * PAGESIZE;
+	}
 
 	unsigned int time = 0;
 	unsigned int interval = 1;
