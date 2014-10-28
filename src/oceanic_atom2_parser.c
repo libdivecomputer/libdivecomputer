@@ -321,7 +321,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	// Get the offset to the header and footer sample.
 	unsigned int header = headersize - PAGESIZE / 2;
 	unsigned int footer = size - footersize;
-	if (parser->model == VT4 || parser->model == VT41) {
+	if (parser->model == VT4 || parser->model == VT41 ||
+		parser->model == A300AI) {
 		header = 3 * PAGESIZE;
 	}
 
@@ -361,7 +362,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				*((unsigned int *) value) = 1;
 			} else if (parser->model == VT4 || parser->model == VT41 ||
-				parser->model == OCI) {
+				parser->model == OCI || parser->model == A300AI) {
 				*((unsigned int *) value) = 4;
 			} else if (parser->model == TX1) {
 				*((unsigned int *) value) = 6;
@@ -456,7 +457,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	// Get the offset to the header sample.
 	unsigned int header = headersize - PAGESIZE / 2;
-	if (parser->model == VT4 || parser->model == VT41) {
+	if (parser->model == VT4 || parser->model == VT41 ||
+		parser->model == A300AI) {
 		header = 3 * PAGESIZE;
 	}
 
