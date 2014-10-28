@@ -629,6 +629,103 @@ static void add_gas_he(suunto_eonsteel_parser_t *eon, unsigned char he)
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX;
 }
 
+static float get_le32_float(const unsigned char *src)
+{
+	union {
+		unsigned int val;
+		float result;
+	} u;
+
+	u.val = array_uint32_le(src);
+	return u.result;
+}
+
+// "Device" fields are all utf8:
+//   Info.BatteryAtEnd
+//   Info.BatteryAtStart
+//   Info.BSL
+//   Info.HW
+//   Info.SW
+//   Name
+//   SerialNumber
+static int traverse_device_fields(suunto_eonsteel_parser_t *eon, const char *name, const void *data, int len)
+{
+	return 0;
+}
+
+// "Header" fields are:
+//   Activity (utf8)
+//   DateTime (utf8)
+//   Depth.Avg (float32,precision=2)
+//   Depth.Max (float32,precision=2)
+//   Diving.AlgorithmAscentTime (uint32)
+//   Diving.AlgorithmBottomMixture.Helium (uint8,precision=2) (0.01*x,100*x)
+//   Diving.AlgorithmBottomMixture.Oxygen (uint8,precision=2) (0.01*x,100*x)
+//   Diving.AlgorithmBottomTime (uint32)
+//   Diving.AlgorithmTransitionDepth (uint8)
+//   Diving.Algorithm (utf8)
+//   Diving.Altitude (uint16)
+//   Diving.Conservatism (int8)
+//   Diving.DaysInSeries (uint32)
+//   Diving.DesaturationTime (uint32)
+//   Diving.DiveMode (utf8)
+//   Diving.EndTissue.CNS (float32,precision=3)
+//   Diving.EndTissue.Helium+Pressure (uint32)
+//   Diving.EndTissue.Nitrogen+Pressure (uint32)
+//   Diving.EndTissue.OLF (float32,precision=3)
+//   Diving.EndTissue.OTU (float32)
+//   Diving.EndTissue.RgbmHelium (float32,precision=3)
+//   Diving.EndTissue.RgbmNitrogen (float32,precision=3)
+//   Diving.NumberInSeries (uint32)
+//   Diving.PreviousDiveDepth (float32,precision=2)
+//   Diving.StartTissue.CNS (float32,precision=3)
+//   Diving.StartTissue.Helium+Pressure (uint32)
+//   Diving.StartTissue.Nitrogen+Pressure (uint32)
+//   Diving.StartTissue.OLF (float32,precision=3)
+//   Diving.StartTissue.OTU (float32)
+//   Diving.StartTissue.RgbmHelium (float32,precision=3)
+//   Diving.StartTissue.RgbmNitrogen (float32,precision=3)
+//   Diving.SurfacePressure (uint32)
+//   Diving.SurfaceTime (uint32)
+//   Duration (uint32)
+//   PauseDuration (uint32)
+//   SampleInterval (uint8)
+static int traverse_header_fields(suunto_eonsteel_parser_t *eon, const char *name, const void *data, int len)
+{
+	if (!strcmp(name, "Depth.Max")) {
+		double d = get_le32_float(data);
+		if (d > eon->cache.maxdepth)
+			eon->cache.maxdepth = d;
+		return 0;
+	}
+	if (!strcmp(name, "Diving.SurfacePressure")) {
+		unsigned int pressure = array_uint32_le(data); // in SI units - Pascal
+		eon->cache.surface_pressure = pressure / 100000.0; // bar
+		eon->cache.initialized |= 1 << DC_FIELD_ATMOSPHERIC;
+		return 0;
+	}
+
+	return 0;
+}
+
+static int traverse_dynamic_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc, const void *data, int len)
+{
+	const char *name = desc->desc;
+
+	if (!strncmp(name, "sml.", 4)) {
+		name += 4;
+		if (!strncmp(name, "DeviceLog.", 10)) {
+			name += 10;
+			if (!strncmp(name, "Device.", 7))
+				return traverse_device_fields(eon, name+7, data, len);
+			if (!strncmp(name, "Header.", 7)) {
+				return traverse_header_fields(eon, name+7, data, len);
+			}
+		}
+	}
+	return 0;
+}
+
 static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) user;
@@ -652,6 +749,13 @@ static int traverse_fields(unsigned short type, const struct type_desc *desc, co
 		break;
 	case 0x000f: // Helium percentage in first byte
 		add_gas_he(eon, data[0]);
+		break;
+	default:
+	// The types with the high byte set seem to be dynamic
+	// although not all of them seem to change. But let's
+	// just check the descriptor name for them.
+		if (type > 255)
+			traverse_dynamic_fields(eon, desc, data, len);
 		break;
 	}
 	return 0;
