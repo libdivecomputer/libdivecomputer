@@ -64,6 +64,7 @@
 #define T3B         0x4455
 #define ATOM31      0x4456
 #define A300AI      0x4457
+#define WISDOM3     0x4458
 #define A300        0x445A
 #define TX1         0x4542
 #define AMPHOS      0x4545
@@ -623,7 +624,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
 						parser->model == ATMOSAI2 || parser->model == AMPHOS ||
-						parser->model == WISDOM2)
+						parser->model == WISDOM2 || parser->model == WISDOM3)
 						sign = (data[offset + 0] & 0x80) >> 7;
 					else
 						sign = (~data[offset + 0] & 0x80) >> 7;
