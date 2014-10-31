@@ -43,14 +43,14 @@
 
 #include <libusb-1.0/libusb.h>
 
-struct eonsteel {
+typedef struct suunto_eonsteel_device_t {
 	dc_device_t base;
 
 	libusb_context *ctx;
 	libusb_device_handle *handle;
 	unsigned int magic;
 	unsigned short seq;
-};
+} suunto_eonsteel_device_t;
 
 // The EON Steel implements a small filesystem
 #define DIRTYPE_FILE 0x0001
@@ -80,6 +80,19 @@ struct directory_entry {
 #define DIR_LOOKUP_CMD 0x0810
 #define READDIR_CMD    0x0910
 #define DIR_CLOSE_CMD  0x0a10
+
+static dc_status_t suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t suunto_eonsteel_device_close(dc_device_t *abstract);
+
+static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
+	DC_FAMILY_SUUNTO_EONSTEEL,
+	NULL, /* set_fingerprint */
+	NULL, /* read */
+	NULL, /* write */
+	NULL, /* dump */
+	suunto_eonsteel_device_foreach, /* foreach */
+	suunto_eonsteel_device_close /* close */
+};
 
 static const char *dive_directory = "0:/dives";
 
@@ -159,7 +172,7 @@ static void debug_text(const char *name, const char *buf, int len)
 	printf("\nend of text\n");
 }
 
-static int receive_data(struct eonsteel *eon, unsigned char *buffer, int size)
+static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
 {
 	const int InEndpoint = 0x82;
 	unsigned char buf[64];
@@ -190,7 +203,7 @@ static int receive_data(struct eonsteel *eon, unsigned char *buffer, int size)
 	return ret;
 }
 
-static int send_cmd(struct eonsteel *eon,
+static int send_cmd(suunto_eonsteel_device_t *eon,
 	unsigned short cmd,
 	unsigned int len,
 	const unsigned char *buffer)
@@ -248,7 +261,7 @@ static int send_cmd(struct eonsteel *eon,
  * send_cmd() side. The offsets are the same in the actual raw
  * packet.
  */
-static int send_receive(struct eonsteel *eon,
+static int send_receive(suunto_eonsteel_device_t *eon,
 	unsigned short cmd,
 	unsigned int len_out, const unsigned char *out,
 	unsigned int len_in, unsigned char *in)
@@ -279,7 +292,7 @@ static int send_receive(struct eonsteel *eon,
 	return actual;
 }
 
-static int read_file(struct eonsteel *eon, const char *filename, dc_buffer_t *buf)
+static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 {
 	unsigned char result[2560];
 	unsigned char cmdbuf[64];
@@ -380,7 +393,7 @@ static struct directory_entry *parse_dirent(int nr, const unsigned char *p, int 
 	return old;
 }
 
-static int get_file_list(struct eonsteel *eon, struct directory_entry **res)
+static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 {
 	struct directory_entry *de = NULL;
 	unsigned char cmd[64];
@@ -428,21 +441,7 @@ static int get_file_list(struct eonsteel *eon, struct directory_entry **res)
 	return 0;
 }
 
-
-static dc_status_t eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t eonsteel_device_close(dc_device_t *abstract);
-
-static const dc_device_vtable_t eonsteel_device_vtable = {
-	DC_FAMILY_SUUNTO_EONSTEEL,
-	NULL, /* set_fingerprint */
-	NULL, /* read */
-	NULL, /* write */
-	NULL, /* dump */
-	eonsteel_device_foreach, /* foreach */
-	eonsteel_device_close /* close */
-};
-
-static int initialize_eonsteel(struct eonsteel *eon)
+static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 {
 	const int InEndpoint = 0x82;
 	unsigned char buf[64];
@@ -470,14 +469,15 @@ static int initialize_eonsteel(struct eonsteel *eon)
 	return 0;
 }
 
-dc_status_t suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+dc_status_t
+suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
-	struct eonsteel *eon;
+	suunto_eonsteel_device_t *eon;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	eon = calloc(1, sizeof(struct eonsteel));
+	eon = calloc(1, sizeof(suunto_eonsteel_device_t));
 	if (!eon)
 		return DC_STATUS_NOMEMORY;
 
@@ -486,7 +486,7 @@ dc_status_t suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context
 	eon->seq = INIT_SEQ;
 
 	// Set up the libdivecomputer interfaces
-	device_init(&eon->base, context, &eonsteel_device_vtable);
+	device_init(&eon->base, context, &suunto_eonsteel_device_vtable);
 
 	if (libusb_init(&eon->ctx)) {
 		ERROR(context, "libusb_init() failed");
@@ -524,11 +524,12 @@ static int count_dir_entries(struct directory_entry *de)
 	return count;
 }
 
-static dc_status_t eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
+static dc_status_t
+suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	int skip = 0, rc;
 	struct directory_entry *de;
-	struct eonsteel *eon = (struct eonsteel *) abstract;
+	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
 	dc_buffer_t *file;
 	char pathname[64];
 	unsigned int time;
@@ -591,9 +592,10 @@ static dc_status_t eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callba
 	return device_is_cancelled(abstract) ? DC_STATUS_CANCELLED : DC_STATUS_SUCCESS;
 }
 
-static dc_status_t eonsteel_device_close(dc_device_t *abstract)
+static dc_status_t
+suunto_eonsteel_device_close(dc_device_t *abstract)
 {
-	struct eonsteel *eon = (struct eonsteel *) abstract;
+	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
 
 	libusb_close(eon->handle);
 	libusb_exit(eon->ctx);
@@ -604,7 +606,8 @@ static dc_status_t eonsteel_device_close(dc_device_t *abstract)
 
 #else // no LIBUSB support
 
-dc_status_t suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+dc_status_t
+suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	ERROR(context, "The Suunto EON Steel backend needs libusb-1.0");
 	return DC_STATUS_UNSUPPORTED;

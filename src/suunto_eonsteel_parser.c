@@ -41,7 +41,7 @@ struct type_desc {
 #define MAXTYPE 512
 #define MAXGASES 16
 
-struct eon_parser {
+typedef struct suunto_eonsteel_parser_t {
 	dc_parser_t base;
 	struct type_desc type_desc[MAXTYPE];
 	// field cache
@@ -55,7 +55,7 @@ struct eon_parser {
 		dc_salinity_t salinity;
 		double surface_pressure;
 	} cache;
-};
+} suunto_eonsteel_parser_t;
 
 
 static int report_error(const char *fmt, ...)
@@ -110,7 +110,7 @@ static void debug_text(const char *name, const char *buf, int len)
 
 typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const void *data, int len, void *user);
 
-static int record_type(struct eon_parser *eon, unsigned short type, const char *name, int namelen)
+static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const char *name, int namelen)
 {
 	struct type_desc desc;
 	const char *next;
@@ -161,7 +161,7 @@ static int record_type(struct eon_parser *eon, unsigned short type, const char *
 	return 0;
 }
 
-static int traverse_entry(struct eon_parser *eon, const unsigned char *p, int len, eon_data_cb_t callback, void *user)
+static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p, int len, eon_data_cb_t callback, void *user)
 {
 	const unsigned char *name, *data, *end, *last, *one_past_end = p + len;
 	int textlen, type;
@@ -229,7 +229,7 @@ static int traverse_entry(struct eon_parser *eon, const unsigned char *p, int le
 	return end - p;
 }
 
-static int traverse_data(struct eon_parser *eon, eon_data_cb_t callback, void *user)
+static int traverse_data(suunto_eonsteel_parser_t *eon, eon_data_cb_t callback, void *user)
 {
 	const unsigned char *data = eon->base.data;
 	int len = eon->base.size;
@@ -254,7 +254,7 @@ static int traverse_data(struct eon_parser *eon, eon_data_cb_t callback, void *u
 }
 
 struct sample_data {
-	struct eon_parser *eon;
+	suunto_eonsteel_parser_t *eon;
 	dc_sample_callback_t callback;
 	void *userdata;
 	unsigned int time;
@@ -345,9 +345,10 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 	return 0;
 }
 
-static dc_status_t eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
+static dc_status_t
+suunto_eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
-	struct eon_parser *eon = (void *)abstract;
+	suunto_eonsteel_parser_t *eon = (void *)abstract;
 	struct sample_data data = { eon, callback, userdata, 0 };
 
 	traverse_data(eon, traverse_samples, &data);
@@ -359,9 +360,10 @@ static dc_status_t eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sam
 #define field_value(p, set) \
 	memcpy((p), &(set), sizeof(set))
 
-static dc_status_t eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsigned int flags, void *value)
+static dc_status_t
+suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsigned int flags, void *value)
 {
-	struct eon_parser *eon = (struct eon_parser *)parser;
+	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *)parser;
 
 	if (!(eon->cache.initialized >> type))
 		return DC_STATUS_UNSUPPORTED;
@@ -399,7 +401,8 @@ static dc_status_t eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_
  * and we've saved it off as the four first bytes
  * of the dive data (in little-endian format).
  */
-static dc_status_t eonsteel_parser_get_datetime(dc_parser_t *parser, dc_datetime_t *datetime)
+static dc_status_t
+suunto_eonsteel_parser_get_datetime(dc_parser_t *parser, dc_datetime_t *datetime)
 {
 	if (parser->size < 4)
 		return DC_STATUS_UNSUPPORTED;
@@ -409,13 +412,13 @@ static dc_status_t eonsteel_parser_get_datetime(dc_parser_t *parser, dc_datetime
 }
 
 // time in ms
-static void add_time_field(struct eon_parser *eon, unsigned short time_delta_ms)
+static void add_time_field(suunto_eonsteel_parser_t *eon, unsigned short time_delta_ms)
 {
 	eon->cache.divetime += time_delta_ms;
 }
 
 // depth in cm
-static void set_depth_field(struct eon_parser *eon, unsigned short d)
+static void set_depth_field(suunto_eonsteel_parser_t *eon, unsigned short d)
 {
 	if (d != 0xffff) {
 		double depth = d / 100.0;
@@ -426,7 +429,7 @@ static void set_depth_field(struct eon_parser *eon, unsigned short d)
 }
 
 // gas type: 0=Off,1=Primary,2=?,3=Diluent
-static void add_gas_type(struct eon_parser *eon, unsigned char type)
+static void add_gas_type(suunto_eonsteel_parser_t *eon, unsigned char type)
 {
 	if (eon->cache.ngases < MAXGASES)
 		eon->cache.ngases++;
@@ -434,7 +437,7 @@ static void add_gas_type(struct eon_parser *eon, unsigned char type)
 }
 
 // O2 percentage as a byte
-static void add_gas_o2(struct eon_parser *eon, unsigned char o2)
+static void add_gas_o2(suunto_eonsteel_parser_t *eon, unsigned char o2)
 {
 	int idx = eon->cache.ngases-1;
 	if (idx >= 0)
@@ -443,7 +446,7 @@ static void add_gas_o2(struct eon_parser *eon, unsigned char o2)
 }
 
 // He percentage as a byte
-static void add_gas_he(struct eon_parser *eon, unsigned char he)
+static void add_gas_he(suunto_eonsteel_parser_t *eon, unsigned char he)
 {
 	int idx = eon->cache.ngases-1;
 	if (idx >= 0)
@@ -453,7 +456,7 @@ static void add_gas_he(struct eon_parser *eon, unsigned char he)
 
 static int traverse_fields(unsigned short type, const struct type_desc *desc, const void *data, int len, void *user)
 {
-	struct eon_parser *eon = user;
+	suunto_eonsteel_parser_t *eon = user;
 
 	switch (type) {
 	case 0x0001: // group: time in first word, depth in second
@@ -480,7 +483,7 @@ static int traverse_fields(unsigned short type, const struct type_desc *desc, co
 }
 
 
-static void initialize_field_caches(struct eon_parser *eon)
+static void initialize_field_caches(suunto_eonsteel_parser_t *eon)
 {
 	memset(&eon->cache, 0, sizeof(eon->cache));
 	eon->cache.initialized = 1 << DC_FIELD_DIVETIME;
@@ -492,39 +495,42 @@ static void initialize_field_caches(struct eon_parser *eon)
 	eon->cache.divetime /= 1000;
 }
 
-static dc_status_t eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, unsigned int size)
+static dc_status_t
+suunto_eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, unsigned int size)
 {
-	struct eon_parser *eon = (void *)parser;
+	suunto_eonsteel_parser_t *eon = (void *)parser;
 	memset(eon->type_desc, 0, sizeof(eon->type_desc));
 	initialize_field_caches(eon);
 	return DC_STATUS_SUCCESS;
 }
 
-static dc_status_t eonsteel_parser_destroy(dc_parser_t *parser)
+static dc_status_t
+suunto_eonsteel_parser_destroy(dc_parser_t *parser)
 {
 	free(parser);
 	return DC_STATUS_SUCCESS;
 }
 
-static const dc_parser_vtable_t eonsteel_parser_vtable = {
+static const dc_parser_vtable_t suunto_eonsteel_parser_vtable = {
 	DC_FAMILY_SUUNTO_EONSTEEL,
-	eonsteel_parser_set_data, /* set_data */
-	eonsteel_parser_get_datetime, /* datetime */
-	eonsteel_parser_get_field, /* fields */
-	eonsteel_parser_samples_foreach, /* samples_foreach */
-	eonsteel_parser_destroy /* destroy */
+	suunto_eonsteel_parser_set_data, /* set_data */
+	suunto_eonsteel_parser_get_datetime, /* datetime */
+	suunto_eonsteel_parser_get_field, /* fields */
+	suunto_eonsteel_parser_samples_foreach, /* samples_foreach */
+	suunto_eonsteel_parser_destroy /* destroy */
 };
 
-dc_status_t suunto_eonsteel_parser_create(dc_parser_t **out, dc_context_t *context, unsigned int model)
+dc_status_t
+suunto_eonsteel_parser_create(dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
-	struct eon_parser *eon;
+	suunto_eonsteel_parser_t *eon;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	eon = calloc(1, sizeof(*eon));
 
-	parser_init(&eon->base, context, &eonsteel_parser_vtable);
+	parser_init(&eon->base, context, &suunto_eonsteel_parser_vtable);
 
 	*out = (dc_parser_t *) eon;
 

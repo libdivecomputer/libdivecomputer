@@ -19,8 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#ifndef EON_STEEL_H
-#define EON_STEEL_H
+#ifndef SUUNTO_EONSTEEL_H
+#define SUUNTO_EONSTEEL_H
 
 #include "context.h"
 #include "device.h"
@@ -36,4 +36,4 @@ dc_status_t suunto_eonsteel_parser_create(dc_parser_t **parser, dc_context_t *co
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* EON_STEEL_H */
+#endif /* SUUNTO_EONSTEEL_H */
