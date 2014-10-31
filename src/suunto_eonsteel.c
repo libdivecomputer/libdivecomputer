@@ -504,7 +504,10 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 		return DC_STATUS_IO;
 	}
 
+#if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x01000102)
 	libusb_set_auto_detach_kernel_driver(eon->handle, 1);
+#endif
+
 	libusb_claim_interface(eon->handle, 0);
 
 	if (initialize_eonsteel(eon) < 0) {
