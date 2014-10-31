@@ -41,6 +41,10 @@
 
 #ifdef HAVE_LIBUSB
 
+#ifdef _WIN32
+#define NOGDI
+#endif
+
 #include <libusb-1.0/libusb.h>
 
 typedef struct suunto_eonsteel_device_t {
