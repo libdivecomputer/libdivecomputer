@@ -205,6 +205,11 @@ serial_close (serial_t *device)
 		return -1;
 	}
 
+#ifndef ENABLE_PTY
+	// Disable exclusive access mode.
+	ioctl (device->fd, TIOCNXCL, NULL);
+#endif
+
 	// Close the device.
 	if (close (device->fd) != 0) {
 		SYSERROR (device->context, errno);
