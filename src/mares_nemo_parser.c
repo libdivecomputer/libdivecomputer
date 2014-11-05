@@ -39,6 +39,11 @@
 #define NEMOAPNEIST 18
 #define PUCKAIR     19
 
+#define AIR      0
+#define NITROX   1
+#define FREEDIVE 2
+#define GAUGE    3
+
 typedef struct mares_nemo_parser_t mares_nemo_parser_t;
 
 struct mares_nemo_parser_t {
@@ -87,14 +92,14 @@ mares_nemo_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int
 	parser_init (&parser->base, context, &mares_nemo_parser_vtable);
 
 	// Get the freedive mode for this model.
-	unsigned int freedive = 2;
+	unsigned int freedive = FREEDIVE;
 	if (model == NEMOWIDE || model == NEMOAIR || model == PUCK || model == PUCKAIR)
-		freedive = 3;
+		freedive = GAUGE;
 
 	// Set the default values.
 	parser->model = model;
 	parser->freedive = freedive;
-	parser->mode = 0;
+	parser->mode = AIR;
 	parser->length = 0;
 	parser->sample_count = 0;
 	parser->sample_size = 0;
@@ -125,7 +130,7 @@ mares_nemo_parser_set_data (dc_parser_t *abstract, const unsigned char *data, un
 	// Clear the previous state.
 	parser->base.data = NULL;
 	parser->base.size = 0;
-	parser->mode = 0;
+	parser->mode = AIR;
 	parser->length = 0;
 	parser->sample_count = 0;
 	parser->sample_size = 0;
@@ -234,17 +239,17 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				*((double *) value) = array_uint16_le (p + 53 - 10) / 10.0;
 				break;
 			case DC_FIELD_GASMIX_COUNT:
-				if (parser->mode == 0 || parser->mode == 1)
+				if (parser->mode == AIR || parser->mode == NITROX)
 					*((unsigned int *) value) = 1;
 				else
 					*((unsigned int *) value) = 0;
 				break;
 			case DC_FIELD_GASMIX:
 				switch (parser->mode) {
-				case 0: // Air
+				case AIR:
 					gasmix->oxygen = 0.21;
 					break;
-				case 1: // Nitrox
+				case NITROX:
 					gasmix->oxygen = p[53 - 43] / 100.0;
 					break;
 				default:

@@ -46,6 +46,11 @@
 #define NEMOAPNEIST 18
 #define PUCKAIR     19
 
+#define AIR      0
+#define NITROX   1
+#define FREEDIVE 2
+#define GAUGE    3
+
 void
 mares_common_device_init (mares_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
 {
@@ -212,9 +217,9 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 
 	// Get the freedive mode for this model.
 	unsigned int model = data[1];
-	unsigned int freedive = 2;
+	unsigned int freedive = FREEDIVE;
 	if (model == NEMOWIDE || model == NEMOAIR || model == PUCK || model == PUCKAIR)
-		freedive = 3;
+		freedive = GAUGE;
 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = array_uint16_le (data + 0x6B);
