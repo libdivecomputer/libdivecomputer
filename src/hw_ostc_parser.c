@@ -33,6 +33,23 @@
 #define MAXCONFIG 7
 #define MAXGASMIX 5
 
+#define OSTC_ZHL16_OC    0
+#define OSTC_GAUGE       1
+#define OSTC_ZHL16_CC    2
+#define OSTC_APNEA       3
+#define OSTC_ZHL16_OC_GF 4
+#define OSTC_ZHL16_CC_GF 5
+#define OSTC_PSCR_GF     6
+
+#define FROG_ZHL16    0
+#define FROG_ZHL16_GF 1
+#define FROG_APNEA    2
+
+#define OSTC3_OC    0
+#define OSTC3_CC    1
+#define OSTC3_GAUGE 2
+#define OSTC3_APNEA 3
+
 typedef struct hw_ostc_parser_t hw_ostc_parser_t;
 
 struct hw_ostc_parser_t {
@@ -322,6 +339,60 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = (signed short) array_uint16_le (data + layout->temperature) / 10.0;
+			break;
+		case DC_FIELD_DIVEMODE:
+			if (version == 0x21) {
+				switch (data[51]) {
+				case OSTC_APNEA:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+					break;
+				case OSTC_GAUGE:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+					break;
+				case OSTC_ZHL16_OC:
+				case OSTC_ZHL16_OC_GF:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+					break;
+				case OSTC_ZHL16_CC:
+				case OSTC_ZHL16_CC_GF:
+				case OSTC_PSCR_GF:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else if (version == 0x22) {
+				switch (data[51]) {
+				case FROG_ZHL16:
+				case FROG_ZHL16_GF:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+					break;
+				case FROG_APNEA:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else if (version == 0x23) {
+				switch (data[82]) {
+				case OSTC3_OC:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+					break;
+				case OSTC3_CC:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+					break;
+				case OSTC3_GAUGE:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+					break;
+				case OSTC3_APNEA:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
