@@ -173,6 +173,9 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			gasmix->oxygen = p[SZ_HEADER + SZ_GASMIX * flags + 4] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
+		case DC_FIELD_TEMPERATURE_SURFACE:
+			*((double *) value) = (p[0x1B] - 32.0) * (5.0 / 9.0);
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}

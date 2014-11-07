@@ -37,6 +37,7 @@ struct suunto_vyper_parser_t {
 	unsigned int cached;
 	unsigned int divetime;
 	unsigned int maxdepth;
+	unsigned int marker;
 };
 
 static dc_status_t suunto_vyper_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -75,6 +76,7 @@ suunto_vyper_parser_create (dc_parser_t **out, dc_context_t *context)
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
+	parser->marker = 0;
 
 	*out = (dc_parser_t*) parser;
 
@@ -101,6 +103,7 @@ suunto_vyper_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
+	parser->marker = 0;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -138,6 +141,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (size < 18)
 		return DC_STATUS_DATAFORMAT;
 
+
 	if (!parser->cached) {
 		unsigned int interval = data[3];
 		unsigned int nsamples = 0;
@@ -161,6 +165,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		parser->cached = 1;
 		parser->divetime = nsamples * interval;
 		parser->maxdepth = maxdepth;
+		parser->marker = marker;
 	}
 
 	dc_gasmix_t *gas = (dc_gasmix_t *) value;
@@ -186,6 +191,12 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			else
 				gas->oxygen = 0.21;
 			gas->nitrogen = 1.0 - gas->oxygen;
+			break;
+		case DC_FIELD_TEMPERATURE_SURFACE:
+			*((double *) value) = (signed char) data[8];
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (signed char) data[parser->marker + 1];
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

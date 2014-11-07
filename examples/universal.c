@@ -361,6 +361,28 @@ doparse (FILE *fp, dc_device_t *device, const unsigned char data[], unsigned int
 	fprintf (fp, "<divetime>%02u:%02u</divetime>\n",
 		divetime / 60, divetime % 60);
 
+	// Parse the temperature.
+	message ("Parsing the temperature.\n");
+	for (unsigned int i = 0; i < 3; ++i) {
+		dc_field_type_t fields[] = {DC_FIELD_TEMPERATURE_SURFACE,
+			DC_FIELD_TEMPERATURE_MINIMUM,
+			DC_FIELD_TEMPERATURE_MAXIMUM};
+		const char *names[] = {"surface", "minimum", "maximum"};
+
+		double temperature = 0.0;
+		rc = dc_parser_get_field (parser, fields[i], 0, &temperature);
+		if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+			WARNING ("Error parsing the temperature.");
+			dc_parser_destroy (parser);
+			return rc;
+		}
+
+		if (rc != DC_STATUS_UNSUPPORTED) {
+			fprintf (fp, "<temperature type=\"%s\">%.1f</temperature>\n",
+				names[i], temperature);
+		}
+	}
+
 	// Parse the maxdepth.
 	message ("Parsing the maxdepth.\n");
 	double maxdepth = 0.0;
