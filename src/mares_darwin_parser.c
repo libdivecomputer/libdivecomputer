@@ -38,6 +38,7 @@ typedef struct mares_darwin_parser_t mares_darwin_parser_t;
 
 struct mares_darwin_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 	unsigned int headersize;
 	unsigned int samplesize;
 };
@@ -73,6 +74,8 @@ mares_darwin_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 
 	// Initialize the base class.
 	parser_init (&parser->base, context, &mares_darwin_parser_vtable);
+
+	parser->model = model;
 
 	if (model == DARWINAIR) {
 		parser->headersize = 60;
@@ -139,6 +142,7 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	const unsigned char *p = abstract->data;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -158,6 +162,25 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = (signed char) p[0x0A];
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (parser->model == DARWINAIR) {
+				*((unsigned int *) value) = 1;
+			} else {
+				*((unsigned int *) value) = 0;
+			}
+			break;
+		case DC_FIELD_TANK:
+			if (parser->model == DARWINAIR) {
+				tank->type = DC_TANKVOLUME_METRIC;
+				tank->volume = p[0x13] / 10.0;
+				tank->workpressure = 0.0;
+				tank->gasmix = 0;
+				tank->beginpressure = array_uint16_be (p + 0x17);
+				tank->endpressure = array_uint16_be (p + 0x19);
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
