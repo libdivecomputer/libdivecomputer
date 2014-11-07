@@ -56,7 +56,9 @@ typedef enum dc_field_type_t {
 	DC_FIELD_ATMOSPHERIC,
 	DC_FIELD_TEMPERATURE_SURFACE,
 	DC_FIELD_TEMPERATURE_MINIMUM,
-	DC_FIELD_TEMPERATURE_MAXIMUM
+	DC_FIELD_TEMPERATURE_MAXIMUM,
+	DC_FIELD_TANK_COUNT,
+	DC_FIELD_TANK
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
@@ -130,6 +132,23 @@ typedef struct dc_gasmix_t {
 	double oxygen;
 	double nitrogen;
 } dc_gasmix_t;
+
+#define DC_GASMIX_UNKNOWN 0xFFFFFFFF
+
+typedef enum dc_tankvolume_t {
+    DC_TANKVOLUME_NONE,
+    DC_TANKVOLUME_METRIC,
+    DC_TANKVOLUME_IMPERIAL,
+} dc_tankvolume_t;
+
+typedef struct dc_tank_t {
+    unsigned int gasmix; /* Index of the gas mix, or DC_GASMIX_UNKNOWN */
+    dc_tankvolume_t type;
+    double volume; /* Wet or air volume (depending on the type) in liter */
+    double workpressure; /* Pressure in bar */
+    double beginpressure;
+    double endpressure;
+} dc_tank_t;
 
 typedef union dc_sample_value_t {
 	unsigned int time;
