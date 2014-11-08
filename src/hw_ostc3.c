@@ -21,6 +21,7 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
+#include <stdio.h>  // FILE, fopen
 
 #include <libdivecomputer/hw_ostc3.h>
 
@@ -30,6 +31,7 @@
 #include "checksum.h"
 #include "ringbuffer.h"
 #include "array.h"
+#include "aes.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc3_device_vtable)
 
@@ -43,6 +45,7 @@
 #define SZ_VERSION    (SZ_CUSTOMTEXT + 4)
 #define SZ_MEMORY     0x200000
 #define SZ_CONFIG     4
+#define SZ_FIRMWARE   0x01E000        // 120KB
 
 #define RB_LOGBOOK_SIZE  256
 #define RB_LOGBOOK_COUNT 256
@@ -65,6 +68,21 @@ typedef struct hw_ostc3_device_t {
 	serial_t *port;
 	unsigned char fingerprint[5];
 } hw_ostc3_device_t;
+
+typedef struct hw_ostc3_firmware_t {
+	unsigned char data[SZ_FIRMWARE];
+	unsigned int checksum;
+} hw_ostc3_firmware_t;
+
+// This key is used both for the Ostc3 and its cousin,
+// the Ostc Sport.
+// The Frog uses a similar protocol, and with another key.
+static const unsigned char ostc3_key[16] = {
+	0xF1, 0xE9, 0xB0, 0x30,
+	0x45, 0x6F, 0xBE, 0x55,
+	0xFF, 0xE7, 0xF8, 0x31,
+	0x13, 0x6C, 0xF2, 0xFE
+};
 
 static dc_status_t hw_ostc3_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
@@ -619,6 +637,125 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 	dc_status_t rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
+
+	return DC_STATUS_SUCCESS;
+}
+
+// This is a variant of fletcher16 with a 16 bit sum instead of an 8 bit sum,
+// and modulo 2^16 instead of 2^16-1
+static unsigned int
+hw_ostc3_firmware_checksum (hw_ostc3_firmware_t *firmware)
+{
+	unsigned short low = 0;
+	unsigned short high = 0;
+	for (unsigned int i = 0; i < SZ_FIRMWARE; i++) {
+		low  += firmware->data[i];
+		high += low;
+	}
+	return (((unsigned int)high) << 16) + low;
+}
+
+static dc_status_t
+hw_ostc3_firmware_readline (FILE *fp, unsigned int addr, unsigned char data[], unsigned int size)
+{
+	unsigned char ascii[40];
+	// 1 byte :, 6 bytes addr, X*2 bytes hex -> X bytes data.
+	const unsigned line_size = size * 2 + 1 + 6 + 1;
+	unsigned char faddr_byte[3];
+	unsigned int faddr = 0;
+	if (line_size > sizeof (ascii))
+		return DC_STATUS_INVALIDARGS;
+	if (fread (ascii, sizeof (unsigned char), line_size, fp) != line_size)
+		return DC_STATUS_IO;
+	if (ascii[0] != ':')
+		return DC_STATUS_DATAFORMAT;
+	// Is it a CRLF file?
+	// Read away that trailing LF
+	if (ascii[line_size - 1] == '\r')
+		if (fread (ascii + line_size - 1, sizeof (unsigned char), 1, fp) != 1)
+			return DC_STATUS_DATAFORMAT;
+	if (array_convert_hex2bin (ascii + 1, 6, faddr_byte, sizeof (faddr_byte)) != 0) {
+		return DC_STATUS_DATAFORMAT;
+	}
+	faddr = array_uint24_be (faddr_byte);
+	if (faddr != addr)
+		return DC_STATUS_DATAFORMAT;
+	if (array_convert_hex2bin (ascii + 1 + 6, size*2, data, size) != 0)
+		return DC_STATUS_DATAFORMAT;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context, const char *filename)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	FILE *fp = NULL;
+	unsigned char iv[16] = {0};
+	unsigned char tmpbuf[16] = {0};
+	unsigned char encrypted[16] = {0};
+	unsigned int bytes = 0, addr = 0;
+	unsigned char checksum[4];
+
+	if (firmware == NULL) {
+		ERROR (context, "Invalid arguments.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Initialize the buffers.
+	memset (firmware->data, 0xFF, sizeof (firmware->data));
+	firmware->checksum = 0;
+
+	fp = fopen (filename, "rb");
+	if (fp == NULL) {
+		ERROR (context, "Failed to open the file.");
+		return DC_STATUS_IO;
+	}
+
+	rc = hw_ostc3_firmware_readline (fp, 0, iv, sizeof (iv));
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to parse header.");
+		fclose (fp);
+		return rc;
+	}
+	bytes += 16;
+
+	// Load the iv for AES-FCB-mode
+	AES128_ECB_encrypt (iv, ostc3_key, tmpbuf);
+
+	for (addr = 0; addr < SZ_FIRMWARE; addr += 16, bytes += 16) {
+		rc = hw_ostc3_firmware_readline (fp, bytes, encrypted, sizeof (encrypted));
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to parse file data.");
+			fclose (fp);
+			return rc;
+		}
+
+		// Decrypt AES-FCB data
+		for (unsigned int i = 0; i < 16; i++)
+			firmware->data[addr + i] = encrypted[i] ^ tmpbuf[i];
+
+		// Run the next round of encryption
+		AES128_ECB_encrypt (encrypted, ostc3_key, tmpbuf);
+	}
+
+	// This file format contains a tail with the checksum in
+	rc = hw_ostc3_firmware_readline (fp, bytes, checksum, sizeof (checksum));
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to parse file tail.");
+		fclose (fp);
+		return rc;
+	}
+
+	fclose (fp);
+
+	firmware->checksum = array_uint32_le (checksum);
+
+	if (firmware->checksum != hw_ostc3_firmware_checksum (firmware)) {
+		ERROR (context, "Failed to verify file checksum.");
+		return DC_STATUS_IO;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
