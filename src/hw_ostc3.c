@@ -53,6 +53,7 @@
 #define RB_LOGBOOK_COUNT 256
 
 #define S_BLOCK_READ 0x20
+#define S_BLOCK_WRITE 0x30
 #define S_ERASE    0x42
 #define S_READY    0x4C
 #define READY      0x4D
@@ -900,4 +901,19 @@ hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsi
 	array_uint24_be_set (buffer + 3, block_size);
 
 	return hw_ostc3_transfer (device, NULL, S_BLOCK_READ, buffer, sizeof (buffer), block, block_size);
+}
+
+static dc_status_t
+hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, unsigned char block[], unsigned int block_size)
+{
+	unsigned char buffer[3 + SZ_FIRMWARE_BLOCK];
+
+	// We currenty only support writing max SZ_FIRMWARE_BLOCK sized blocks.
+	if (block_size > SZ_FIRMWARE_BLOCK)
+		return DC_STATUS_INVALIDARGS;
+
+	array_uint24_be_set (buffer, addr);
+	memcpy (buffer + 3, block, block_size);
+
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0);
 }
