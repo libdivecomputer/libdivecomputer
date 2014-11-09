@@ -52,6 +52,7 @@
 #define RB_LOGBOOK_SIZE  256
 #define RB_LOGBOOK_COUNT 256
 
+#define S_BLOCK_READ 0x20
 #define S_ERASE    0x42
 #define S_READY    0x4C
 #define READY      0x4D
@@ -889,4 +890,14 @@ hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned 
 	buffer[3] = blocks;
 
 	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0);
+}
+
+static dc_status_t
+hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsigned char block[], unsigned int block_size)
+{
+	unsigned char buffer[6];
+	array_uint24_be_set (buffer, addr);
+	array_uint24_be_set (buffer + 3, block_size);
+
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_READ, buffer, sizeof (buffer), block, block_size);
 }
