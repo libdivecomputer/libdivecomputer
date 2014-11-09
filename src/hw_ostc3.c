@@ -57,6 +57,7 @@
 #define S_ERASE    0x42
 #define S_READY    0x4C
 #define READY      0x4D
+#define S_UPGRADE  0x50
 #define HEADER     0x61
 #define CLOCK      0x62
 #define CUSTOMTEXT 0x63
@@ -73,6 +74,7 @@ typedef enum hw_ostc3_state_t {
 	OPEN,
 	DOWNLOAD,
 	SERVICE,
+	REBOOTING,
 } hw_ostc3_state_t;
 
 typedef struct hw_ostc3_device_t {
@@ -916,4 +918,32 @@ hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, uns
 	memcpy (buffer + 3, block, block_size);
 
 	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0);
+}
+
+static dc_status_t
+hw_ostc3_firmware_upgrade (dc_device_t *abstract, unsigned int checksum)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+	unsigned char buffer[5];
+	array_uint32_le_set (buffer, checksum);
+
+	// Compute a one byte checksum, so the device can validate the firmware image.
+	buffer[4] = 0x55;
+	for (unsigned int i = 0; i < 4; i++) {
+		buffer[4] ^= buffer[i];
+		buffer[4]  = (buffer[4]<<1 | buffer[4]>>7);
+	}
+
+	rc = hw_ostc3_transfer (device, NULL, S_UPGRADE, buffer, sizeof (buffer), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to send flash firmware command");
+		return rc;
+	}
+
+	// Now the device resets, and if everything is well, it reprograms.
+	device->state = REBOOTING;
+
+	return DC_STATUS_SUCCESS;
 }
