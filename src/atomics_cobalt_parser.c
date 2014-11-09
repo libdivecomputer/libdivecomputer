@@ -211,6 +211,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			default:
 				return DC_STATUS_DATAFORMAT;
 			}
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
