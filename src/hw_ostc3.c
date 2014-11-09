@@ -50,6 +50,7 @@
 #define RB_LOGBOOK_SIZE  256
 #define RB_LOGBOOK_COUNT 256
 
+#define S_READY    0x4C
 #define READY      0x4D
 #define HEADER     0x61
 #define CLOCK      0x62
@@ -66,6 +67,7 @@
 typedef enum hw_ostc3_state_t {
 	OPEN,
 	DOWNLOAD,
+	SERVICE,
 } hw_ostc3_state_t;
 
 typedef struct hw_ostc3_device_t {
@@ -205,6 +207,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	if (cmd != EXIT) {
 		// Read the ready byte.
 		unsigned char ready[1] = {0};
+		unsigned char expected = (device->state == SERVICE ? S_READY : READY);
 		n = serial_read (device->port, ready, sizeof (ready));
 		if (n != sizeof (ready)) {
 			ERROR (abstract->context, "Failed to receive the ready byte.");
@@ -212,7 +215,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 		}
 
 		// Verify the ready byte.
-		if (ready[0] != READY) {
+		if (ready[0] != expected) {
 			ERROR (abstract->context, "Unexpected ready byte.");
 			return DC_STATUS_PROTOCOL;
 		}
@@ -299,6 +302,47 @@ hw_ostc3_device_init_download (hw_ostc3_device_t *device)
 
 
 static dc_status_t
+hw_ostc3_device_init_service (hw_ostc3_device_t *device)
+{
+	dc_device_t *abstract = (dc_device_t *) device;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	unsigned char command[] = {0xAA, 0xAB, 0xCD, 0xEF};
+	unsigned char output[5];
+	int n = 0;
+
+	// We cant use hw_ostc3_transfer here, due to the different echos
+	n = serial_write (device->port, command, sizeof (command));
+	if (n != sizeof (command)) {
+		ERROR (context, "Failed to send the command.");
+		return EXITCODE (n);
+	}
+
+	// Give the device some time to enter service mode
+	serial_sleep (device->port, 100);
+
+	// Read the response
+	n = serial_read (device->port, output, sizeof (output));
+	if (n != sizeof (output)) {
+		ERROR (context, "Failed to receive the echo.");
+		return EXITCODE (n);
+	}
+
+	// Verify the response to service mode
+	if (output[0] != 0x4B || output[1] != 0xAB ||
+			output[2] != 0xCD || output[3] != 0xEF ||
+			output[4] != S_READY) {
+		ERROR (context, "Failed to verify echo.");
+		return DC_STATUS_IO;
+	}
+
+	device->state = SERVICE;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
 hw_ostc3_check_state_or_init (hw_ostc3_device_t *device)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -307,7 +351,7 @@ hw_ostc3_check_state_or_init (hw_ostc3_device_t *device)
 		rc = hw_ostc3_device_init_download (device);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
-	} else if (device->state != DOWNLOAD) {
+	} else if (device->state != DOWNLOAD && device->state != SERVICE) {
 		return DC_STATUS_INVALIDARGS;
 	}
 	return DC_STATUS_SUCCESS;
@@ -321,7 +365,7 @@ hw_ostc3_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Send the exit command
-	if (device->state == DOWNLOAD) {
+	if (device->state == DOWNLOAD || device->state == SERVICE) {
 		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
