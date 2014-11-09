@@ -46,10 +46,13 @@
 #define SZ_MEMORY     0x200000
 #define SZ_CONFIG     4
 #define SZ_FIRMWARE   0x01E000        // 120KB
+#define SZ_FIRMWARE_BLOCK    0x1000   //   4KB
+#define FIRMWARE_AREA      0x3E0000
 
 #define RB_LOGBOOK_SIZE  256
 #define RB_LOGBOOK_COUNT 256
 
+#define S_ERASE    0x42
 #define S_READY    0x4C
 #define READY      0x4D
 #define HEADER     0x61
@@ -871,4 +874,19 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 	}
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned int size)
+{
+	// Convert size to number of pages, rounded up.
+	unsigned char blocks = ((size + SZ_FIRMWARE_BLOCK - 1) / SZ_FIRMWARE_BLOCK);
+
+	// Erase just the needed pages.
+	unsigned char buffer[4];
+	array_uint24_be_set (buffer, addr);
+	buffer[3] = blocks;
+
+	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0);
 }
