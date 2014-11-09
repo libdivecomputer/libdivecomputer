@@ -58,6 +58,9 @@ hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const 
 dc_status_t
 hw_ostc3_device_config_reset (dc_device_t *abstract);
 
+dc_status_t
+hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

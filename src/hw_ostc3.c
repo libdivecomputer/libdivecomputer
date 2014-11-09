@@ -33,6 +33,10 @@
 #include "array.h"
 #include "aes.h"
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc3_device_vtable)
 
 #define EXITCODE(rc) \
@@ -945,5 +949,128 @@ hw_ostc3_firmware_upgrade (dc_device_t *abstract, unsigned int checksum)
 	// Now the device resets, and if everything is well, it reprograms.
 	device->state = REBOOTING;
 
+	return DC_STATUS_SUCCESS;
+}
+
+
+dc_status_t
+hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	// load, erase, upload FZ, verify FZ, reprogram
+	progress.maximum = 3 + SZ_FIRMWARE * 2 / SZ_FIRMWARE_BLOCK;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Allocate memory for the firmware data.
+	hw_ostc3_firmware_t *firmware = (hw_ostc3_firmware_t *) malloc (sizeof (hw_ostc3_firmware_t));
+	if (firmware == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Read the hex file.
+	rc = hw_ostc3_firmware_readfile (firmware, context, filename);
+	if (rc != DC_STATUS_SUCCESS) {
+		free (firmware);
+		return rc;
+	}
+
+	// Make sure the device is in service mode
+	if (device->state == OPEN) {
+		rc = hw_ostc3_device_init_service (device);
+		if (rc != DC_STATUS_SUCCESS) {
+			free (firmware);
+			return rc;
+		}
+	} else if (device->state != SERVICE) {
+		free (firmware);
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Device open and firmware loaded
+	progress.current++;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	hw_ostc3_device_display (abstract, " Erasing FW...");
+
+	rc = hw_ostc3_firmware_erase (device, FIRMWARE_AREA, SZ_FIRMWARE);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to erase old firmware");
+		free (firmware);
+		return rc;
+	}
+
+	// Memory erased
+	progress.current++;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	hw_ostc3_device_display (abstract, " Uploading...");
+
+	for (unsigned int len = 0; len < SZ_FIRMWARE; len += SZ_FIRMWARE_BLOCK) {
+		char status[16]; // Status message on the display
+		snprintf (status, 16, " Uploading %2d%%", (100 * len) / SZ_FIRMWARE);
+		hw_ostc3_device_display (abstract, status);
+
+		rc = hw_ostc3_firmware_block_write (device, FIRMWARE_AREA + len, firmware->data + len, SZ_FIRMWARE_BLOCK);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to write block to device");
+			free(firmware);
+			return rc;
+		}
+		// One block uploaded
+		progress.current++;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	}
+
+	hw_ostc3_device_display (abstract, " Verifying...");
+
+	for (unsigned int len = 0; len < SZ_FIRMWARE; len += SZ_FIRMWARE_BLOCK) {
+		unsigned char block[SZ_FIRMWARE_BLOCK];
+		char status[16]; // Status message on the display
+		snprintf (status, 16, " Verifying %2d%%", (100 * len) / SZ_FIRMWARE);
+		hw_ostc3_device_display (abstract, status);
+
+		rc = hw_ostc3_firmware_block_read (device, FIRMWARE_AREA + len, block, sizeof (block));
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to read block.");
+			free (firmware);
+			return rc;
+		}
+		if (memcmp (firmware->data + len, block, sizeof (block)) != 0) {
+			ERROR (context, "Failed verify.");
+			hw_ostc3_device_display (abstract, " Verify FAILED");
+			free (firmware);
+			return DC_STATUS_PROTOCOL;
+		}
+		// One block verified
+		progress.current++;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	}
+
+	hw_ostc3_device_display (abstract, " Programming...");
+
+	rc = hw_ostc3_firmware_upgrade (abstract, firmware->checksum);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to start programing");
+		free (firmware);
+		return rc;
+	}
+
+	// Programing done!
+	progress.current++;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	free (firmware);
+
+	// Finished!
 	return DC_STATUS_SUCCESS;
 }
