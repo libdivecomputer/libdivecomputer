@@ -186,9 +186,8 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 	name += 2;
 
 	if (*name != '<') {
-		fflush(NULL);
 		debug("bad", p, 16);
-		exit(1);
+		return -1;
 	}
 
 	record_type(eon, type, name, textlen-3);
