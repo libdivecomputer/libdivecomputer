@@ -19,13 +19,7 @@
  * MA 02110-1301 USA
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 
 #include <libdivecomputer/suunto_eonsteel.h>
@@ -58,54 +52,9 @@ typedef struct suunto_eonsteel_parser_t {
 } suunto_eonsteel_parser_t;
 
 
-static int report_error(const char *fmt, ...)
-{
-	char buffer[128];
-	va_list args;
-
-	va_start(args, fmt);
-	vsnprintf(buffer, sizeof(buffer)-1, fmt, args);
-	va_end(args);
-	fprintf(stderr, "%.*s\n", (int)sizeof(buffer), buffer);
-	return -1;
-}
-
 static unsigned char get_u8(const void *src)
 {
 	return *(const unsigned char *)src;
-}
-
-static void debug(const char *name, const char *buf, int len)
-{
-	int i;
-
-	fprintf(stderr, "%4d %s:", len, name);
-	for (i = 0; i < len; i++)
-		fprintf(stderr, " %02x", (unsigned char) buf[i]);
-	fprintf(stderr, "\n");
-}
-
-static void debug_text(const char *name, const char *buf, int len)
-{
-	int i;
-
-	printf("text of %s:\n", name);
-	for (i = 0; i < len; i++) {
-		unsigned char c = buf[i];
-		if (c > 31 && c < 127)
-			putchar(c);
-		else if (c == '\n') {
-			putchar('\\');
-			putchar('n');
-		} else {
-			static const char hex[16]="0123456789abcdef";
-			putchar('\\');
-			putchar('x');
-			putchar(hex[c>>4]);
-			putchar(hex[c&15]);
-		}
-	}
-	printf("\nend of text\n");
 }
 
 typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const void *data, int len, void *user);
@@ -128,11 +77,15 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 			len = strlen(name);
 		}
 
-		if (len < 5 || name[0] != '<' || name[4] != '>')
-			return report_error("Unexpected type description: %.*s", len, name);
+		if (len < 5 || name[0] != '<' || name[4] != '>') {
+			ERROR(eon->base.context, "Unexpected type description: %.*s", len, name);
+			return -1;
+		}
 		p = malloc(len-4);
-		if (!p)
-			return report_error("out of memory");
+		if (!p) {
+			ERROR(eon->base.context, "out of memory");
+			return -1;
+		}
 		memcpy(p, name+5, len-5);
 		p[len-5] = 0;
 
@@ -149,13 +102,16 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 			desc.mod = p;
 			break;
 		default:
-			return report_error("Unknown type descriptor: %.*s", len, name);
+			ERROR(eon->base.context, "Unknown type descriptor: %.*s", len, name);
+			return -1;
 		}
 	} while ((name = next) != NULL);
 
-	if (type > MAXTYPE)
-		return report_error("Type out of range (%04x: '%s' '%s' '%s')",
+	if (type > MAXTYPE) {
+		ERROR(eon->base.context, "Type out of range (%04x: '%s' '%s' '%s')",
 			     type, desc.desc, desc.format, desc.mod);
+		return -1;
+	}
 
 	eon->type_desc[type] = desc;
 	return 0;
@@ -169,8 +125,9 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 
 	// First two bytes: zero and text length
 	if (p[0]) {
-		debug("next", p, 8);
-		return report_error("Bad dive entry (%02x)", p[0]);
+		HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "next", p, 8);
+		ERROR(eon->base.context, "Bad dive entry (%02x)", p[0]);
+		return -1;
 	}
 	textlen = p[1];
 
@@ -186,7 +143,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 	name += 2;
 
 	if (*name != '<') {
-		debug("bad", p, 16);
+		HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "bad", p, 16);
 		return -1;
 	}
 
@@ -207,14 +164,14 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 		// I've never actually seen this case yet..
 		// Just assuming from the other cases.
 		if (len == 0xff) {
-			debug("len-ff", end, 8);
+			HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "len-ff", end, 8);
 			len = array_uint32_le(end);
 			end += 4;
 		}
 
 		if (type > MAXTYPE || !eon->type_desc[type].desc) {
-			debug("last", last, 16);
-			debug("this", begin, 16);
+			HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "last", last, 16);
+			HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "this", begin, 16);
 		} else {
 			rc = callback(type, eon->type_desc+type, end, len, user);
 			if (rc < 0)
