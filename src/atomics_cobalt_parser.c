@@ -182,14 +182,10 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			p += SZ_HEADER + SZ_GASMIX * flags;
 			switch (p[2]) {
 			case 1: // Cuft at psi
-				tank->type = DC_TANKVOLUME_IMPERIAL;
-				tank->volume = array_uint16_le(p + 8) * CUFT * 1000.0;
-				tank->workpressure = array_uint16_le(p + 10) * PSI / BAR;
-				break;
 			case 2: // Cuft at bar
 				tank->type = DC_TANKVOLUME_IMPERIAL;
 				tank->volume = array_uint16_le(p + 8) * CUFT * 1000.0;
-				tank->workpressure = array_uint16_le(p + 10);
+				tank->workpressure = array_uint16_le(p + 10) * PSI / BAR;
 				break;
 			case 3: // Wet volume in 1/10 liter
 				tank->type = DC_TANKVOLUME_METRIC;
