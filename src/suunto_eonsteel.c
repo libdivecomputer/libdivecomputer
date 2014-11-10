@@ -383,6 +383,10 @@ static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int n
 		p += 8 + namelen + 1;
 		len -= 8 + namelen + 1;
 		entry = alloc_dirent(type, namelen, (const char *) name);
+		if (!entry) {
+			ERROR(eon->base.context, "out of memory");
+			break;
+		}
 		entry->next = old;
 		old = entry;
 	}

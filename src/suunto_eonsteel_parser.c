@@ -479,6 +479,8 @@ suunto_eonsteel_parser_create(dc_parser_t **out, dc_context_t *context, unsigned
 		return DC_STATUS_INVALIDARGS;
 
 	eon = (suunto_eonsteel_parser_t *) calloc(1, sizeof(*eon));
+	if (!eon)
+		return DC_STATUS_NOMEMORY;
 
 	parser_init(&eon->base, context, &suunto_eonsteel_parser_vtable);
 
