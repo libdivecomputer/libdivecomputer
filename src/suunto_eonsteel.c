@@ -197,7 +197,9 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 	put_le32(len, buf+10);
 
 	// .. followed by actual data
-	memcpy(buf+14, buffer, len);
+	if (len) {
+		memcpy(buf+14, buffer, len);
+	}
 
 	rc = libusb_interrupt_transfer(eon->handle, OutEndpoint, buf, sizeof(buf), &transferred, 5000);
 	if (rc < 0) {
@@ -291,7 +293,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "lookup", result, rc);
 
 	rc = send_receive(eon, FILE_STAT_CMD,
-		0, "",
+		0, NULL,
 		sizeof(result), result);
 	if (rc < 0) {
 		ERROR(eon->base.context, "unable to stat %s", filename);
@@ -346,7 +348,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 	}
 
 	rc = send_receive(eon, FILE_CLOSE_CMD,
-		0, "",
+		0, NULL,
 		sizeof(result), result);
 	if (rc < 0) {
 		ERROR(eon->base.context, "cmd FILE_CLOSE_CMD failed");
@@ -409,7 +411,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 		unsigned int nr, last;
 
 		rc = send_receive(eon, READDIR_CMD,
-			0, "",
+			0, NULL,
 			sizeof(result), result);
 		if (rc < 0) {
 			ERROR(eon->base.context, "readdir failed");
@@ -429,7 +431,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 	}
 
 	rc = send_receive(eon, DIR_CLOSE_CMD,
-		0, "",
+		0, NULL,
 		sizeof(result), result);
 	if (rc < 0) {
 		ERROR(eon->base.context, "dir close failed");
