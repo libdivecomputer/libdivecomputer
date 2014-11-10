@@ -96,7 +96,7 @@ static struct directory_entry *alloc_dirent(int type, int len, const char *name)
 {
 	struct directory_entry *res;
 
-	res = malloc(offsetof(struct directory_entry, name) + len + 1);
+	res = (struct directory_entry *) malloc(offsetof(struct directory_entry, name) + len + 1);
 	if (res) {
 		res->next = NULL;
 		res->type = type;
@@ -378,7 +378,7 @@ static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int n
 
 		p += 8 + namelen + 1;
 		len -= 8 + namelen + 1;
-		entry = alloc_dirent(type, namelen, name);
+		entry = alloc_dirent(type, namelen, (const char *) name);
 		entry->next = old;
 		old = entry;
 	}
@@ -480,7 +480,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	eon = calloc(1, sizeof(suunto_eonsteel_device_t));
+	eon = (suunto_eonsteel_device_t *) calloc(1, sizeof(suunto_eonsteel_device_t));
 	if (!eon)
 		return DC_STATUS_NOMEMORY;
 

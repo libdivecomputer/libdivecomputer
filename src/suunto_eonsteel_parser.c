@@ -75,7 +75,7 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 			ERROR(eon->base.context, "Unexpected type description: %.*s", len, name);
 			return -1;
 		}
-		p = malloc(len-4);
+		p = (char *) malloc(len-4);
 		if (!p) {
 			ERROR(eon->base.context, "out of memory");
 			return -1;
@@ -141,7 +141,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 		return -1;
 	}
 
-	record_type(eon, type, name, textlen-3);
+	record_type(eon, type, (const char *) name, textlen-3);
 
 	end = data;
 	last = data;
@@ -273,7 +273,7 @@ static void sample_cylinder_pressure(struct sample_data *info, unsigned char idx
 
 static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
-	struct sample_data *info = user;
+	struct sample_data *info = (struct sample_data *) user;
 
 	switch (type) {
 	case 0x0001: // group: time in first word, depth in second
@@ -298,7 +298,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 static dc_status_t
 suunto_eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
-	suunto_eonsteel_parser_t *eon = (void *)abstract;
+	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) abstract;
 	struct sample_data data = { eon, callback, userdata, 0 };
 
 	traverse_data(eon, traverse_samples, &data);
@@ -406,7 +406,7 @@ static void add_gas_he(suunto_eonsteel_parser_t *eon, unsigned char he)
 
 static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
-	suunto_eonsteel_parser_t *eon = user;
+	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) user;
 
 	switch (type) {
 	case 0x0001: // group: time in first word, depth in second
@@ -448,7 +448,7 @@ static void initialize_field_caches(suunto_eonsteel_parser_t *eon)
 static dc_status_t
 suunto_eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, unsigned int size)
 {
-	suunto_eonsteel_parser_t *eon = (void *)parser;
+	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) parser;
 	memset(eon->type_desc, 0, sizeof(eon->type_desc));
 	initialize_field_caches(eon);
 	return DC_STATUS_SUCCESS;
@@ -478,7 +478,7 @@ suunto_eonsteel_parser_create(dc_parser_t **out, dc_context_t *context, unsigned
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	eon = calloc(1, sizeof(*eon));
+	eon = (suunto_eonsteel_parser_t *) calloc(1, sizeof(*eon));
 
 	parser_init(&eon->base, context, &suunto_eonsteel_parser_vtable);
 
