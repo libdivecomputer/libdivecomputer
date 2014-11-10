@@ -51,13 +51,7 @@ typedef struct suunto_eonsteel_parser_t {
 	} cache;
 } suunto_eonsteel_parser_t;
 
-
-static unsigned char get_u8(const void *src)
-{
-	return *(const unsigned char *)src;
-}
-
-typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const void *data, int len, void *user);
+typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user);
 
 static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const char *name, int namelen)
 {
@@ -277,7 +271,7 @@ static void sample_cylinder_pressure(struct sample_data *info, unsigned char idx
 	if (info->callback) info->callback(DC_SAMPLE_PRESSURE, sample, info->userdata);
 }
 
-static int traverse_samples(unsigned short type, const struct type_desc *desc, const void *data, int len, void *user)
+static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	struct sample_data *info = user;
 
@@ -295,7 +289,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 		sample_depth(info, array_uint16_le(data));
 		break;
 	case 0x000a: // cylinder idx in first byte, pressure in next word
-		sample_cylinder_pressure(info, get_u8(data), array_uint16_le(data+1));
+		sample_cylinder_pressure(info, data[0], array_uint16_le(data+1));
 		break;
 	}
 	return 0;
@@ -410,7 +404,7 @@ static void add_gas_he(suunto_eonsteel_parser_t *eon, unsigned char he)
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX;
 }
 
-static int traverse_fields(unsigned short type, const struct type_desc *desc, const void *data, int len, void *user)
+static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	suunto_eonsteel_parser_t *eon = user;
 
@@ -426,13 +420,13 @@ static int traverse_fields(unsigned short type, const struct type_desc *desc, co
 		set_depth_field(eon, array_uint16_le(data));
 		break;
 	case 0x000d: // gas state in first byte
-		add_gas_type(eon, get_u8(data));
+		add_gas_type(eon, data[0]);
 		break;
 	case 0x000e: // Oxygen percentage in first byte
-		add_gas_o2(eon, get_u8(data));
+		add_gas_o2(eon, data[0]);
 		break;
 	case 0x000f: // Helium percentage in first byte
-		add_gas_he(eon, get_u8(data));
+		add_gas_he(eon, data[0]);
 		break;
 	}
 	return 0;

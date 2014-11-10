@@ -109,16 +109,14 @@ static struct directory_entry *alloc_dirent(int type, int len, const char *name)
 	return res;
 }
 
-static void put_le16(unsigned short val, void *dst)
+static void put_le16(unsigned short val, unsigned char *p)
 {
-	unsigned char *p = (unsigned char *)dst;
 	p[0] = val;
 	p[1] = val >> 8;
 }
 
-static void put_le32(unsigned int val, void *dst)
+static void put_le32(unsigned int val, unsigned char *p)
 {
-	unsigned char *p = (unsigned char *)dst;
 	p[0] = val;
 	p[1] = val >> 8;
 	p[2] = val >> 16;
