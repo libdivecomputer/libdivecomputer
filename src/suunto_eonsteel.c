@@ -501,6 +501,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 
 	if (libusb_init(&eon->ctx)) {
 		ERROR(context, "libusb_init() failed");
+		free(eon);
 		return DC_STATUS_IO;
 	}
 
@@ -508,6 +509,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 	if (!eon->handle) {
 		ERROR(context, "unable to open device");
 		libusb_exit(eon->ctx);
+		free(eon);
 		return DC_STATUS_IO;
 	}
 
@@ -519,7 +521,9 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 
 	if (initialize_eonsteel(eon) < 0) {
 		ERROR(context, "unable to initialize device");
+		libusb_close(eon->handle);
 		libusb_exit(eon->ctx);
+		free(eon);
 		return DC_STATUS_IO;
 	}
 
