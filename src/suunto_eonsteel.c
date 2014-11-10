@@ -33,6 +33,10 @@
 #include "device-private.h"
 #include "array.h"
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 #ifdef HAVE_LIBUSB
 
 #ifdef _WIN32
