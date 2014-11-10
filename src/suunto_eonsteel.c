@@ -65,8 +65,6 @@ struct directory_entry {
 #define INIT_CMD   0x00
 #define INIT_MAGIC 0x0001
 #define INIT_SEQ   0
-#define INIT_LEN   4
-#define INIT_DATA  "\x02\x00\x2a\x00"
 
 #define READ_STRING_CMD 0x0411
 
@@ -92,7 +90,7 @@ static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
 	suunto_eonsteel_device_close /* close */
 };
 
-static const char *dive_directory = "0:/dives";
+static const char dive_directory[] = "0:/dives";
 
 static struct directory_entry *alloc_dirent(int type, int len, const char *name)
 {
@@ -397,8 +395,8 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 
 	*res = NULL;
 	put_le32(0, cmd);
-	strcpy(cmd+4, dive_directory);
-	cmdlen = 4+strlen(dive_directory)+1;
+	memcpy(cmd + 4, dive_directory, sizeof(dive_directory));
+	cmdlen = 4 + sizeof(dive_directory);
 	rc = send_receive(eon, DIR_LOOKUP_CMD,
 		cmdlen, cmd,
 		sizeof(result), result);
@@ -444,6 +442,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 {
 	const int InEndpoint = 0x82;
+	const unsigned char init[] = {0x02, 0x00, 0x2a, 0x00};
 	unsigned char buf[64];
 
 	/* Get rid of any pending stale input first */
@@ -457,7 +456,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 			break;
 	}
 
-	if (send_cmd(eon, INIT_CMD, INIT_LEN, INIT_DATA)) {
+	if (send_cmd(eon, INIT_CMD, sizeof(init), init)) {
 		ERROR(eon->base.context, "Failed to send initialization command");
 		return -1;
 	}
