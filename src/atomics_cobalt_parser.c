@@ -158,6 +158,8 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 	else
 		atmospheric = array_uint16_le (p + 0x26) * BAR / 1000.0;
 
+	unsigned int workpressure = 0;
+
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
@@ -183,9 +185,13 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			switch (p[2]) {
 			case 1: // Cuft at psi
 			case 2: // Cuft at bar
+				workpressure = array_uint16_le(p + 10);
+				if (workpressure == 0)
+					return DC_STATUS_DATAFORMAT;
 				tank->type = DC_TANKVOLUME_IMPERIAL;
 				tank->volume = array_uint16_le(p + 8) * CUFT * 1000.0;
-				tank->workpressure = array_uint16_le(p + 10) * PSI / BAR;
+				tank->volume /= workpressure * PSI / ATM;
+				tank->workpressure = workpressure * PSI / BAR;
 				break;
 			case 3: // Wet volume in 1/10 liter
 				tank->type = DC_TANKVOLUME_METRIC;

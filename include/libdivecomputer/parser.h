@@ -149,13 +149,36 @@ typedef enum dc_tankvolume_t {
     DC_TANKVOLUME_IMPERIAL,
 } dc_tankvolume_t;
 
+/*
+ * Tank volume
+ *
+ * There are two different ways to specify the volume of a tank. In the
+ * metric system, the tank volume is specified as the water capacity,
+ * while in the imperial system the tank volume is specified as the air
+ * capacity at the surface (1 ATM) when the tank is filled at its
+ * working pressure. Libdivecomputer will always convert the tank volume
+ * to the metric representation, and indicate the original tank type:
+ *
+ * DC_TANKVOLUME_NONE: Tank volume is not available. Both the volume and
+ * workpressure will be zero.
+ *
+ * DC_TANKVOLUME_METRIC: A metric tank. The workpressure is optional and
+ * may be zero.
+ *
+ * DC_TANKVOLUME_IMPERIAL: An imperial tank. Both the volume and
+ * workpressure are mandatory and always non-zero. The volume has been
+ * converted from air capacity to water capacity. To calculate the
+ * original air capacity again, multiply with the workpressure and
+ * divide by 1 ATM (Vair = Vwater * Pwork / Patm).
+ */
+
 typedef struct dc_tank_t {
-    unsigned int gasmix; /* Index of the gas mix, or DC_GASMIX_UNKNOWN */
-    dc_tankvolume_t type;
-    double volume; /* Wet or air volume (depending on the type) in liter */
-    double workpressure; /* Pressure in bar */
-    double beginpressure;
-    double endpressure;
+    unsigned int gasmix;  /* Gas mix index, or DC_GASMIX_UNKNOWN */
+    dc_tankvolume_t type; /* Tank type */
+    double volume;        /* Volume (liter) */
+    double workpressure;  /* Work pressure (bar) */
+    double beginpressure; /* Begin pressure (bar) */
+    double endpressure;   /* End pressure (bar) */
 } dc_tank_t;
 
 typedef union dc_sample_value_t {
