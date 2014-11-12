@@ -53,12 +53,22 @@ typedef struct suunto_eonsteel_parser_t {
 
 typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user);
 
+static void
+desc_free (struct type_desc desc[], unsigned int count)
+{
+	for (unsigned int i = 0; i < count; ++i) {
+		free((void *)desc[i].desc);
+		free((void *)desc[i].format);
+		free((void *)desc[i].mod);
+	}
+}
+
 static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const char *name, int namelen)
 {
 	struct type_desc desc;
 	const char *next;
 
-	desc.desc = desc.format = desc.mod = "";
+	desc.desc = desc.format = desc.mod = NULL;
 	do {
 		int len;
 		char *p;
@@ -78,6 +88,7 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 		p = (char *) malloc(len-4);
 		if (!p) {
 			ERROR(eon->base.context, "out of memory");
+			desc_free(&desc, 1);
 			return -1;
 		}
 		memcpy(p, name+5, len-5);
@@ -97,16 +108,23 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 			break;
 		default:
 			ERROR(eon->base.context, "Unknown type descriptor: %.*s", len, name);
+			desc_free(&desc, 1);
+			free(p);
 			return -1;
 		}
 	} while ((name = next) != NULL);
 
 	if (type > MAXTYPE) {
 		ERROR(eon->base.context, "Type out of range (%04x: '%s' '%s' '%s')",
-			     type, desc.desc, desc.format, desc.mod);
+			type,
+			desc.desc ? desc.desc : "",
+			desc.format ? desc.format : "",
+			desc.mod ? desc.mod : "");
+		desc_free(&desc, 1);
 		return -1;
 	}
 
+	desc_free(eon->type_desc + type, 1);
 	eon->type_desc[type] = desc;
 	return 0;
 }
@@ -449,6 +467,8 @@ static dc_status_t
 suunto_eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, unsigned int size)
 {
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) parser;
+
+	desc_free(eon->type_desc, MAXTYPE);
 	memset(eon->type_desc, 0, sizeof(eon->type_desc));
 	initialize_field_caches(eon);
 	return DC_STATUS_SUCCESS;
@@ -457,6 +477,9 @@ suunto_eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, 
 static dc_status_t
 suunto_eonsteel_parser_destroy(dc_parser_t *parser)
 {
+	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) parser;
+
+	desc_free(eon->type_desc, MAXTYPE);
 	free(parser);
 	return DC_STATUS_SUCCESS;
 }
