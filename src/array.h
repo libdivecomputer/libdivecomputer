@@ -55,8 +55,14 @@ array_uint32_be (const unsigned char data[]);
 unsigned int
 array_uint32_le (const unsigned char data[]);
 
+void
+array_uint32_le_set (unsigned char data[], const unsigned int input);
+
 unsigned int
 array_uint24_be (const unsigned char data[]);
+
+void
+array_uint24_be_set (unsigned char data[], const unsigned int input);
 
 unsigned int
 array_uint24_le (const unsigned char data[]);
