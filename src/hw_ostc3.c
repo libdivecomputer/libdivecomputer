@@ -63,10 +63,16 @@
 #define INIT       0xBB
 #define EXIT       0xFF
 
+typedef enum hw_ostc3_state_t {
+	OPEN,
+	DOWNLOAD,
+} hw_ostc3_state_t;
+
 typedef struct hw_ostc3_device_t {
 	dc_device_t base;
 	serial_t *port;
 	unsigned char fingerprint[5];
+	hw_ostc3_state_t state;
 } hw_ostc3_device_t;
 
 typedef struct hw_ostc3_firmware_t {
@@ -265,14 +271,7 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, const char *name
 	serial_sleep (device->port, 300);
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
-	// Send the init command.
-	dc_status_t status = hw_ostc3_transfer (device, NULL, INIT, NULL, 0, NULL, 0);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to send the command.");
-		serial_close (device->port);
-		free (device);
-		return status;
-	}
+	device->state = OPEN;
 
 	*out = (dc_device_t *) device;
 
@@ -281,17 +280,55 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, const char *name
 
 
 static dc_status_t
+hw_ostc3_device_init_download (hw_ostc3_device_t *device)
+{
+	dc_device_t *abstract = (dc_device_t *) device;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	// Send the init command.
+	dc_status_t status = hw_ostc3_transfer (device, NULL, INIT, NULL, 0, NULL, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to send the command.");
+		return status;
+	}
+
+	device->state = DOWNLOAD;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc3_check_state_or_init (hw_ostc3_device_t *device)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	if (device->state == OPEN) {
+		rc = hw_ostc3_device_init_download (device);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+	} else if (device->state != DOWNLOAD) {
+		return DC_STATUS_INVALIDARGS;
+	}
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
 hw_ostc3_device_close (dc_device_t *abstract)
 {
 	hw_ostc3_device_t *device = (hw_ostc3_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
-	// Send the exit command.
-	dc_status_t status = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the command.");
-		serial_close (device->port);
-		free (device);
-		return status;
+	// Send the exit command
+	if (device->state == DOWNLOAD) {
+		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the command.");
+			serial_close (device->port);
+			free (device);
+			return rc;
+		}
 	}
 
 	// Close the device.
@@ -335,8 +372,12 @@ hw_ostc3_device_version (dc_device_t *abstract, unsigned char data[], unsigned i
 	if (size != SZ_VERSION)
 		return DC_STATUS_INVALIDARGS;
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, data, size);
+	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, data, size);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -354,9 +395,13 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	progress.maximum = (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT) + SZ_MEMORY;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Download the version data.
 	unsigned char id[SZ_VERSION] = {0};
-	dc_status_t rc = hw_ostc3_device_version (abstract, id, sizeof (id));
+	rc = hw_ostc3_device_version (abstract, id, sizeof (id));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the version.");
 		return rc;
@@ -521,11 +566,15 @@ hw_ostc3_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
 	unsigned char packet[6] = {
 		datetime->hour, datetime->minute, datetime->second,
 		datetime->month, datetime->day, datetime->year - 2000};
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -548,8 +597,12 @@ hw_ostc3_device_display (dc_device_t *abstract, const char *text)
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -572,8 +625,12 @@ hw_ostc3_device_customtext (dc_device_t *abstract, const char *text)
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -593,9 +650,13 @@ hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigne
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
 	unsigned char command[1] = {config};
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size);
+	rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -615,10 +676,14 @@ hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const 
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
 	unsigned char command[SZ_CONFIG + 1] = {config};
 	memcpy(command + 1, data, size);
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -633,8 +698,12 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
+	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Send the command.
-	dc_status_t rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
