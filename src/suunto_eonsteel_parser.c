@@ -360,6 +360,8 @@ suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsi
 	case DC_FIELD_ATMOSPHERIC:
 		field_value(value, eon->cache.surface_pressure);
 		break;
+	default:
+		return DC_STATUS_UNSUPPORTED;
 	}
 	return DC_STATUS_SUCCESS;
 }
