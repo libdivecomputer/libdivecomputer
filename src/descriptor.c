@@ -77,6 +77,10 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "D6i",  DC_FAMILY_SUUNTO_D9, 0x1A},
 	{"Suunto", "D9tx", DC_FAMILY_SUUNTO_D9, 0x1B},
 	{"Suunto", "DX",   DC_FAMILY_SUUNTO_D9, 0x1C},
+	/* Suunto EON Steel */
+#ifdef HAVE_LIBUSB
+	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0},
+#endif
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C},
 	{"Uwatec", "Aladin Sport Plus",   DC_FAMILY_UWATEC_ALADIN, 0x3E},
@@ -339,6 +343,8 @@ dc_descriptor_get_transport (dc_descriptor_t *descriptor)
 		return DC_TRANSPORT_NONE;
 
 	if (descriptor->type == DC_FAMILY_ATOMICS_COBALT)
+		return DC_TRANSPORT_USB;
+	else if (descriptor->type == DC_FAMILY_SUUNTO_EONSTEEL)
 		return DC_TRANSPORT_USB;
 	else if (descriptor->type == DC_FAMILY_UWATEC_SMART)
 		return DC_TRANSPORT_IRDA;

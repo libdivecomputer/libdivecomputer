@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2008 Jef Driesen
+ * Copyright (C) 2014 Linus Torvalds
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,14 +19,21 @@
  * MA 02110-1301 USA
  */
 
-#ifndef SUUNTO_H
-#define SUUNTO_H
+#ifndef SUUNTO_EONSTEEL_H
+#define SUUNTO_EONSTEEL_H
 
-#include "suunto_solution.h"
-#include "suunto_eon.h"
-#include "suunto_vyper.h"
-#include "suunto_vyper2.h"
-#include "suunto_d9.h"
-#include "suunto_eonsteel.h"
+#include "context.h"
+#include "device.h"
+#include "parser.h"
 
-#endif /* SUUNTO_H */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+dc_status_t suunto_eonsteel_device_open(dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
+dc_status_t suunto_eonsteel_parser_create(dc_parser_t **parser, dc_context_t *context, unsigned int model);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* SUUNTO_EONSTEEL_H */

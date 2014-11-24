@@ -66,6 +66,9 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 	case DC_FAMILY_SUUNTO_D9:
 		rc = suunto_d9_parser_create (&parser, context, device->devinfo.model);
 		break;
+	case DC_FAMILY_SUUNTO_EONSTEEL:
+		rc = suunto_eonsteel_parser_create(&parser, context, device->devinfo.model);
+		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 	case DC_FAMILY_UWATEC_MEMOMOUSE:
 		rc = uwatec_memomouse_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
