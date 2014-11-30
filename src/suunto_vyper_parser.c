@@ -29,6 +29,8 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &suunto_vyper_parser_vtable)
 
+#define NGASMIXES 3
+
 typedef struct suunto_vyper_parser_t suunto_vyper_parser_t;
 
 struct suunto_vyper_parser_t {
@@ -38,6 +40,8 @@ struct suunto_vyper_parser_t {
 	unsigned int divetime;
 	unsigned int maxdepth;
 	unsigned int marker;
+	unsigned int ngasmixes;
+	unsigned int oxygen[NGASMIXES];
 };
 
 static dc_status_t suunto_vyper_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -71,6 +75,13 @@ suunto_vyper_parser_cache (suunto_vyper_parser_t *parser)
 		return DC_STATUS_DATAFORMAT;
 	}
 
+	unsigned int ngasmixes = 1;
+	unsigned int oxygen[NGASMIXES] = {0};
+	if (data[6])
+		oxygen[0] = data[6];
+	else
+		oxygen[0] = 21;
+
 	// Parse the samples.
 	unsigned int interval = data[3];
 	unsigned int nsamples = 0;
@@ -91,7 +102,26 @@ suunto_vyper_parser_cache (suunto_vyper_parser_t *parser)
 				return DC_STATUS_DATAFORMAT;
 			}
 
-			offset++;
+			// Get the new gas mix.
+			unsigned int o2 = data[offset++];
+
+			// Find the gasmix in the list.
+			unsigned int i = 0;
+			while (i < ngasmixes) {
+				if (o2 == oxygen[i])
+					break;
+				i++;
+			}
+
+			// Add it to list if not found.
+			if (i >= ngasmixes) {
+				if (i >= NGASMIXES) {
+					ERROR (abstract->context, "Maximum number of gas mixes reached.");
+					return DC_STATUS_DATAFORMAT;
+				}
+				oxygen[i] = o2;
+				ngasmixes = i + 1;
+			}
 		}
 	}
 
@@ -106,6 +136,10 @@ suunto_vyper_parser_cache (suunto_vyper_parser_t *parser)
 	parser->divetime = nsamples * interval;
 	parser->maxdepth = maxdepth;
 	parser->marker = marker;
+	parser->ngasmixes = ngasmixes;
+	for (unsigned int i = 0; i < ngasmixes; ++i) {
+		parser->oxygen[i] = oxygen[i];
+	}
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
@@ -133,6 +167,10 @@ suunto_vyper_parser_create (dc_parser_t **out, dc_context_t *context)
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->marker = 0;
+	parser->ngasmixes = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->oxygen[i] = 0;
+	}
 
 	*out = (dc_parser_t*) parser;
 
@@ -160,6 +198,10 @@ suunto_vyper_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->marker = 0;
+	parser->ngasmixes = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->oxygen[i] = 0;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -213,15 +255,12 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			if (data[4] & 0x40)
 				*((unsigned int *) value) = 0; // Gauge mode
 			else
-				*((unsigned int *) value) = 1;
+				*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
 			gas->helium = 0.0;
-			if (data[6])
-				gas->oxygen = data[6] / 100.0;
-			else
-				gas->oxygen = 0.21;
-			gas->nitrogen = 1.0 - gas->oxygen;
+			gas->oxygen = parser->oxygen[flags] / 100.0;
+			gas->nitrogen = 1.0 - gas->oxygen - gas->helium;
 			break;
 		case DC_FIELD_TEMPERATURE_SURFACE:
 			*((double *) value) = (signed char) data[8];
