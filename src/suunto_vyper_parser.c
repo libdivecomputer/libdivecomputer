@@ -56,6 +56,62 @@ static const dc_parser_vtable_t suunto_vyper_parser_vtable = {
 };
 
 
+static dc_status_t
+suunto_vyper_parser_cache (suunto_vyper_parser_t *parser)
+{
+	dc_parser_t *abstract = (dc_parser_t *) parser;
+	const unsigned char *data = parser->base.data;
+	unsigned int size = parser->base.size;
+
+	if (parser->cached) {
+		return DC_STATUS_SUCCESS;
+	}
+
+	if (size < 18) {
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Parse the samples.
+	unsigned int interval = data[3];
+	unsigned int nsamples = 0;
+	unsigned int depth = 0, maxdepth = 0;
+	unsigned int offset = 14;
+	while (offset < size && data[offset] != 0x80) {
+		unsigned char value = data[offset++];
+		if (value < 0x79 || value > 0x87) {
+			// Delta depth.
+			depth += (signed char) value;
+			if (depth > maxdepth)
+				maxdepth = depth;
+			nsamples++;
+		} else if (value == 0x87) {
+			// Gas change event.
+			if (offset + 1 > size) {
+				ERROR (abstract->context, "Buffer overflow detected!");
+				return DC_STATUS_DATAFORMAT;
+			}
+
+			offset++;
+		}
+	}
+
+	// Check the end marker.
+	unsigned int marker = offset;
+	if (marker + 4 >= size || data[marker] != 0x80) {
+		ERROR (abstract->context, "No valid end marker found!");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Cache the data for later use.
+	parser->divetime = nsamples * interval;
+	parser->maxdepth = maxdepth;
+	parser->marker = marker;
+	parser->cached = 1;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
 dc_status_t
 suunto_vyper_parser_create (dc_parser_t **out, dc_context_t *context)
 {
@@ -138,37 +194,12 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 18)
-		return DC_STATUS_DATAFORMAT;
-
-
-	if (!parser->cached) {
-		unsigned int interval = data[3];
-		unsigned int nsamples = 0;
-		unsigned int depth = 0, maxdepth = 0;
-		unsigned int offset = 14;
-		while (offset < size && data[offset] != 0x80) {
-			unsigned char value = data[offset++];
-			if (value < 0x79 || value > 0x87) {
-				depth += (signed char) value;
-				if (depth > maxdepth)
-					maxdepth = depth;
-				nsamples++;
-			}
-		}
-
-		// Store the offset to the end marker.
-		unsigned int marker = offset;
-		if (marker + 4 >= size || data[marker] != 0x80)
-			return DC_STATUS_DATAFORMAT;
-
-		parser->cached = 1;
-		parser->divetime = nsamples * interval;
-		parser->maxdepth = maxdepth;
-		parser->marker = marker;
-	}
-
 	dc_gasmix_t *gas = (dc_gasmix_t *) value;
+
+	// Cache the data.
+	dc_status_t rc = suunto_vyper_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	if (value) {
 		switch (type) {
@@ -216,37 +247,18 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 static dc_status_t
 suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
+	suunto_vyper_parser_t *parser = (suunto_vyper_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
-
-	if (size < 18)
-		return DC_STATUS_DATAFORMAT;
-
-	// Find the maximum depth.
-	unsigned int depth = 0, maxdepth = 0;
-	unsigned int offset = 14;
-	while (offset < size && data[offset] != 0x80) {
-		unsigned char value = data[offset++];
-		if (value < 0x79 || value > 0x87) {
-			depth += (signed char) value;
-			if (depth > maxdepth)
-				maxdepth = depth;
-		}
-	}
-
-	// Store the offset to the end marker.
-	unsigned int marker = offset;
-	if (marker + 4 >= size || data[marker] != 0x80)
-		return DC_STATUS_DATAFORMAT;
-
-	unsigned int time = 0;
-	unsigned int interval = data[3];
-	unsigned int complete = 1;
-
 	dc_sample_value_t sample = {0};
 
+	// Cache the data.
+	dc_status_t rc = suunto_vyper_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Time
-	sample.time = time;
+	sample.time = 0;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 	// Temperature (°C)
@@ -262,8 +274,11 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
-	depth = 0;
-	offset = 14;
+	unsigned int depth = 0;
+	unsigned int time = 0;
+	unsigned int interval = data[3];
+	unsigned int complete = 1;
+	unsigned int offset = 14;
 	while (offset < size && data[offset] != 0x80) {
 		unsigned char value = data[offset++];
 
@@ -280,8 +295,8 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			depth += (signed char) value;
 
 			// Temperature at maximum depth (°C)
-			if (depth == maxdepth) {
-				sample.temperature = (signed char) data[marker + 1];
+			if (depth == parser->maxdepth) {
+				sample.temperature = (signed char) data[parser->marker + 1];
 				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 			}
 
