@@ -29,8 +29,6 @@
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
-#include "checksum.h"
-#include "ringbuffer.h"
 #include "array.h"
 #include "aes.h"
 
