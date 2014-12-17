@@ -1,7 +1,12 @@
 #ifndef _AES_H_
 #define _AES_H_
 
+#ifdef _MSC_VER
+typedef unsigned char uint8_t;
+typedef unsigned int  uint32_t;
+#else
 #include <stdint.h>
+#endif
 
 
 // #define the macros below to 1/0 to enable/disable the mode of operation.
