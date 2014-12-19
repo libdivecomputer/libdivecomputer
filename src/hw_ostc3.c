@@ -794,32 +794,61 @@ hw_ostc3_firmware_checksum (hw_ostc3_firmware_t *firmware)
 }
 
 static dc_status_t
-hw_ostc3_firmware_readline (FILE *fp, unsigned int addr, unsigned char data[], unsigned int size)
+hw_ostc3_firmware_readline (FILE *fp, dc_context_t *context, unsigned int addr, unsigned char data[], unsigned int size)
 {
-	unsigned char ascii[40];
-	// 1 byte :, 6 bytes addr, X*2 bytes hex -> X bytes data.
-	const unsigned line_size = size * 2 + 1 + 6 + 1;
+	unsigned char ascii[39];
 	unsigned char faddr_byte[3];
 	unsigned int faddr = 0;
-	if (line_size > sizeof (ascii))
+	int n = 0;
+
+	if (size > 16) {
+		ERROR (context, "Invalid arguments.");
 		return DC_STATUS_INVALIDARGS;
-	if (fread (ascii, sizeof (unsigned char), line_size, fp) != line_size)
-		return DC_STATUS_IO;
-	if (ascii[0] != ':')
-		return DC_STATUS_DATAFORMAT;
-	// Is it a CRLF file?
-	// Read away that trailing LF
-	if (ascii[line_size - 1] == '\r')
-		if (fread (ascii + line_size - 1, sizeof (unsigned char), 1, fp) != 1)
+	}
+
+	// Read the start code.
+	while (1) {
+		n = fread (ascii, 1, 1, fp);
+		if (n != 1) {
+			ERROR (context, "Failed to read the start code.");
+			return DC_STATUS_IO;
+		}
+
+		if (ascii[0] == ':')
+			break;
+
+		// Ignore CR and LF characters.
+		if (ascii[0] != '\n' && ascii[0] != '\r') {
+			ERROR (context, "Unexpected character (0x%02x).", ascii[0]);
 			return DC_STATUS_DATAFORMAT;
-	if (array_convert_hex2bin (ascii + 1, 6, faddr_byte, sizeof (faddr_byte)) != 0) {
+		}
+	}
+
+	// Read the payload.
+	n = fread (ascii + 1, 1, 6 + size * 2, fp);
+	if (n != 6 + size * 2) {
+		ERROR (context, "Failed to read the data.");
+		return DC_STATUS_IO;
+	}
+
+	// Convert the address to binary representation.
+	if (array_convert_hex2bin(ascii + 1, 6, faddr_byte, sizeof(faddr_byte)) != 0) {
+		ERROR (context, "Invalid hexadecimal character.");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	// Get the address.
 	faddr = array_uint24_be (faddr_byte);
-	if (faddr != addr)
+	if (faddr != addr) {
+		ERROR (context, "Unexpected address (0x%06x, 0x%06x).", faddr, addr);
 		return DC_STATUS_DATAFORMAT;
-	if (array_convert_hex2bin (ascii + 1 + 6, size*2, data, size) != 0)
+	}
+
+	// Convert the payload to binary representation.
+	if (array_convert_hex2bin (ascii + 1 + 6, size * 2, data, size) != 0) {
+		ERROR (context, "Invalid hexadecimal character.");
 		return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -851,7 +880,7 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 		return DC_STATUS_IO;
 	}
 
-	rc = hw_ostc3_firmware_readline (fp, 0, iv, sizeof (iv));
+	rc = hw_ostc3_firmware_readline (fp, context, 0, iv, sizeof(iv));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to parse header.");
 		fclose (fp);
@@ -863,7 +892,7 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 	AES128_ECB_encrypt (iv, ostc3_key, tmpbuf);
 
 	for (addr = 0; addr < SZ_FIRMWARE; addr += 16, bytes += 16) {
-		rc = hw_ostc3_firmware_readline (fp, bytes, encrypted, sizeof (encrypted));
+		rc = hw_ostc3_firmware_readline (fp, context, bytes, encrypted, sizeof(encrypted));
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (context, "Failed to parse file data.");
 			fclose (fp);
@@ -879,7 +908,7 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 	}
 
 	// This file format contains a tail with the checksum in
-	rc = hw_ostc3_firmware_readline (fp, bytes, checksum, sizeof (checksum));
+	rc = hw_ostc3_firmware_readline (fp, context, bytes, checksum, sizeof(checksum));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to parse file tail.");
 		fclose (fp);
