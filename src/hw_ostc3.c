@@ -353,18 +353,33 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 
 
 static dc_status_t
-hw_ostc3_check_state_or_init (hw_ostc3_device_t *device)
+hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
-	if (device->state == OPEN) {
-		rc = hw_ostc3_device_init_download (device);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
-	} else if (device->state != DOWNLOAD && device->state != SERVICE) {
-		return DC_STATUS_INVALIDARGS;
+	if (device->state == state) {
+		// No change.
+		rc = DC_STATUS_SUCCESS;
+	} else if (device->state == OPEN) {
+		// Change to download or service mode.
+		if (state == DOWNLOAD) {
+			rc = hw_ostc3_device_init_download(device);
+		} else if (state == SERVICE) {
+			rc = hw_ostc3_device_init_service(device);
+		} else {
+			rc = DC_STATUS_INVALIDARGS;
+		}
+	} else if (device->state == SERVICE && state == DOWNLOAD) {
+		// Switching between service and download mode is not possible.
+		// But in service mode, all download commands are supported too,
+		// so there is no need to change the state.
+		rc = DC_STATUS_SUCCESS;
+	} else {
+		// Not supported.
+		rc = DC_STATUS_INVALIDARGS;
 	}
-	return DC_STATUS_SUCCESS;
+
+	return rc;
 }
 
 
@@ -426,7 +441,7 @@ hw_ostc3_device_version (dc_device_t *abstract, unsigned char data[], unsigned i
 	if (size != SZ_VERSION)
 		return DC_STATUS_INVALIDARGS;
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -449,7 +464,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	progress.maximum = (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT) + SZ_MEMORY;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -620,7 +635,7 @@ hw_ostc3_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -651,7 +666,7 @@ hw_ostc3_device_display (dc_device_t *abstract, const char *text)
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -679,7 +694,7 @@ hw_ostc3_device_customtext (dc_device_t *abstract, const char *text)
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -704,7 +719,7 @@ hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigne
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -730,7 +745,7 @@ hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const 
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -752,7 +767,7 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	dc_status_t rc = hw_ostc3_check_state_or_init (device);
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -984,15 +999,10 @@ hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
 	}
 
 	// Make sure the device is in service mode
-	if (device->state == OPEN) {
-		rc = hw_ostc3_device_init_service (device);
-		if (rc != DC_STATUS_SUCCESS) {
-			free (firmware);
-			return rc;
-		}
-	} else if (device->state != SERVICE) {
+	rc = hw_ostc3_device_init (device, SERVICE);
+	if (rc != DC_STATUS_SUCCESS) {
 		free (firmware);
-		return DC_STATUS_INVALIDARGS;
+		return rc;
 	}
 
 	// Device open and firmware loaded
