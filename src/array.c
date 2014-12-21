@@ -161,10 +161,29 @@ array_uint32_le (const unsigned char data[])
 }
 
 
+void
+array_uint32_le_set (unsigned char data[], const unsigned int input)
+{
+	data[0] = input & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
+	data[2] = (input >> 16) & 0xFF;
+	data[3] = (input >> 24) & 0xFF;
+}
+
+
 unsigned int
 array_uint24_be (const unsigned char data[])
 {
 	return (data[0] << 16) + (data[1] << 8) + data[2];
+}
+
+
+void
+array_uint24_be_set (unsigned char data[], const unsigned int input)
+{
+	data[0] = (input >> 16) & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
+	data[2] = input & 0xFF;
 }
 
 

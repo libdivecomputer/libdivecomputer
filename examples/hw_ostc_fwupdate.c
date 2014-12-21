@@ -19,10 +19,10 @@
  * MA 02110-1301 USA
  */
 
-#include <stdio.h>	// fopen, fwrite, fclose
-#include <stdlib.h>
+#include <string.h>
 
 #include <libdivecomputer/hw_ostc.h>
+#include <libdivecomputer/hw_ostc3.h>
 
 #include "utils.h"
 #include "common.h"
@@ -44,17 +44,23 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 }
 
 static dc_status_t
-fwupdate (const char *name, const char *hexfile)
+fwupdate (const char *name, const char *hexfile, int ostc3)
 {
 	dc_context_t *context = NULL;
 	dc_device_t *device = NULL;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	dc_context_new (&context);
 	dc_context_set_loglevel (context, DC_LOGLEVEL_ALL);
 	dc_context_set_logfunc (context, logfunc, NULL);
 
-	message ("hw_ostc_device_open\n");
-	dc_status_t rc = hw_ostc_device_open (&device, context, name);
+	if (ostc3) {
+		message ("hw_ostc3_device_open\n");
+		rc = hw_ostc3_device_open (&device, context, name);
+	} else {
+		message ("hw_ostc_device_open\n");
+		rc = hw_ostc_device_open (&device, context, name);
+	}
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error opening serial port.");
 		dc_context_free (context);
@@ -70,8 +76,13 @@ fwupdate (const char *name, const char *hexfile)
 		return rc;
 	}
 
-	message ("hw_ostc_device_fwupdate\n");
-	rc = hw_ostc_device_fwupdate (device, hexfile);
+	if (ostc3) {
+		message ("hw_ostc3_device_fwupdate\n");
+		rc = hw_ostc3_device_fwupdate (device, hexfile);
+	} else {
+		message ("hw_ostc_device_fwupdate\n");
+		rc = hw_ostc_device_fwupdate (device, hexfile);
+	}
 	if (rc != DC_STATUS_SUCCESS) {
 		WARNING ("Error flashing firmware.");
 		dc_device_close (device);
@@ -103,6 +114,7 @@ int main(int argc, char *argv[])
 	const char* name = "/dev/ttyUSB0";
 #endif
 	const char *hexfile = NULL;
+	int ostc3 = 0;
 
 	if (argc > 1) {
 		name = argv[1];
@@ -110,11 +122,18 @@ int main(int argc, char *argv[])
 	if (argc > 2) {
 		hexfile = argv[2];
 	}
+	if (argc > 3) {
+	   if (strcmp(argv[3], "-3") == 0) {
+		   ostc3 = 1;
+	   } else {
+		   ostc3 = 0;
+	   }
+	}
 
 	message ("DEVICE=%s\n", name);
 	message ("HEXFILE=%s\n", hexfile);
 
-	dc_status_t a = fwupdate (name, hexfile);
+	dc_status_t a = fwupdate (name, hexfile, ostc3);
 
 	message ("SUMMARY\n");
 	message ("-------\n");
