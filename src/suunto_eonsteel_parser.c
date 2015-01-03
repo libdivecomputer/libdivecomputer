@@ -289,6 +289,25 @@ static void sample_cylinder_pressure(struct sample_data *info, unsigned char idx
 	if (info->callback) info->callback(DC_SAMPLE_PRESSURE, sample, info->userdata);
 }
 
+static void sample_gas_switch_event(struct sample_data *info, unsigned short idx)
+{
+	suunto_eonsteel_parser_t *eon = info->eon;
+	dc_sample_value_t sample = {0};
+	int o2, he;
+
+	if (idx < 1 || idx > eon->cache.ngases)
+		return;
+
+	// Horrible, broken, gas change events
+	o2 = 100 * eon->cache.gasmix[idx-1].oxygen;
+	he = 100 * eon->cache.gasmix[idx-1].helium;
+
+	sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+	sample.event.value = o2 | (he << 16);
+
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
 static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	struct sample_data *info = (struct sample_data *) user;
@@ -308,6 +327,9 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 		break;
 	case 0x000a: // cylinder idx in first byte, pressure in next word
 		sample_cylinder_pressure(info, data[0], array_uint16_le(data+1));
+		break;
+	case 0x001d:
+		sample_gas_switch_event(info, array_uint16_le(data));
 		break;
 	}
 	return 0;
