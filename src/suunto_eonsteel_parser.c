@@ -226,6 +226,7 @@ struct sample_data {
 	dc_sample_callback_t callback;
 	void *userdata;
 	unsigned int time;
+	unsigned char state_type, notify_type;
 };
 
 static void sample_time(struct sample_data *info, unsigned short time_delta)
@@ -308,6 +309,82 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
+/*
+ * The EON Steel has two different sample events: "state" and "notification".
+ * Both end up having two fields: type and a boolean value.
+ *
+ * The type enumerations are available as part of the type descriptor, and we
+ * *should* probably parse them dynamically, but this hardcodes the different
+ * type values.
+ *
+ * For event states, the types are:
+ *
+ * 0=Wet Outside
+ * 1=Below Wet Activation Depth
+ * 2=Below Surface
+ * 3=Dive Active
+ * 4=Surface Calculation
+ * 5=Tank pressure available
+ */
+static void sample_event_state_type(struct sample_data *info, unsigned char type)
+{
+	info->state_type = type;
+}
+
+static void sample_event_state_value(struct sample_data *info, unsigned char value)
+{
+	/*
+	 * We could turn these into sample events, but they don't actually
+	 * match any libdivecomputer events.
+	 *
+	 *   unsigned int state = info->state_type;
+	 *   dc_sample_value_t sample = {0};
+	 *   sample.event.type = ...
+	 *   sample.event.value = value;
+	 *   if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	 */
+}
+
+static void sample_event_notify_type(struct sample_data *info, unsigned char type)
+{
+	info->notify_type = type;
+}
+
+
+static void sample_event_notify_value(struct sample_data *info, unsigned char value)
+{
+	dc_sample_value_t sample = {0};
+	static const enum parser_sample_event_t translate_notification[] = {
+		SAMPLE_EVENT_NONE,			// 0=NoFly Time
+		SAMPLE_EVENT_NONE,			// 1=Depth
+		SAMPLE_EVENT_NONE,			// 2=Surface Time
+		SAMPLE_EVENT_TISSUELEVEL,		// 3=Tissue Level
+		SAMPLE_EVENT_NONE,			// 4=Deco
+		SAMPLE_EVENT_NONE,			// 5=Deco Window
+		SAMPLE_EVENT_SAFETYSTOP_MANDATORY,	// 6=Safety Stop Ahead
+		SAMPLE_EVENT_SAFETYSTOP,		// 7=Safety Stop
+		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 8=Safety Stop Broken
+		SAMPLE_EVENT_NONE,			// 9=Deep Stop Ahead
+		SAMPLE_EVENT_DEEPSTOP,			// 10=Deep Stop
+		SAMPLE_EVENT_DIVETIME,			// 11=Dive Time
+		SAMPLE_EVENT_NONE,			// 12=Gas Available
+		SAMPLE_EVENT_NONE,			// 13=SetPoint Switch
+		SAMPLE_EVENT_NONE,			// 14=Diluent Hypoxia
+		SAMPLE_EVENT_NONE,			// 15=Tank Pressure
+	};
+
+	if (info->notify_type > 15)
+		return;
+
+	sample.event.type = translate_notification[info->notify_type];
+	if (sample.event.type == SAMPLE_EVENT_NONE)
+		return;
+
+	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
+
 static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	struct sample_data *info = (struct sample_data *) user;
@@ -327,6 +404,18 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 		break;
 	case 0x000a: // cylinder idx in first byte, pressure in next word
 		sample_cylinder_pressure(info, data[0], array_uint16_le(data+1));
+		break;
+	case 0x0013:
+		sample_event_state_type(info, data[0]);
+		break;
+	case 0x0014:
+		sample_event_state_value(info, data[0]);
+		break;
+	case 0x0015:
+		sample_event_notify_type(info, data[0]);
+		break;
+	case 0x0016:
+		sample_event_notify_value(info, data[0]);
 		break;
 	case 0x001d:
 		sample_gas_switch_event(info, array_uint16_le(data));
