@@ -227,6 +227,7 @@ struct sample_data {
 	void *userdata;
 	unsigned int time;
 	unsigned char state_type, notify_type;
+	unsigned char warning_type, alarm_type;
 };
 
 static void sample_time(struct sample_data *info, unsigned short time_delta)
@@ -290,6 +291,16 @@ static void sample_cylinder_pressure(struct sample_data *info, unsigned char idx
 	if (info->callback) info->callback(DC_SAMPLE_PRESSURE, sample, info->userdata);
 }
 
+static void sample_bookmark_event(struct sample_data *info, unsigned short idx)
+{
+	dc_sample_value_t sample = {0};
+
+	sample.event.type = SAMPLE_EVENT_BOOKMARK;
+	sample.event.value = idx;
+
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
 static void sample_gas_switch_event(struct sample_data *info, unsigned short idx)
 {
 	suunto_eonsteel_parser_t *eon = info->eon;
@@ -310,8 +321,8 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
 }
 
 /*
- * The EON Steel has two different sample events: "state" and "notification".
- * Both end up having two fields: type and a boolean value.
+ * The EON Steel has four different sample events: "state", "notification",
+ * "warning" and "alarm". All end up having two fields: type and a boolean value.
  *
  * The type enumerations are available as part of the type descriptor, and we
  * *should* probably parse them dynamically, but this hardcodes the different
@@ -361,7 +372,7 @@ static void sample_event_notify_value(struct sample_data *info, unsigned char va
 		SAMPLE_EVENT_TISSUELEVEL,		// 3=Tissue Level
 		SAMPLE_EVENT_NONE,			// 4=Deco
 		SAMPLE_EVENT_NONE,			// 5=Deco Window
-		SAMPLE_EVENT_SAFETYSTOP_MANDATORY,	// 6=Safety Stop Ahead
+		SAMPLE_EVENT_SAFETYSTOP_VOLUNTARY,	// 6=Safety Stop Ahead
 		SAMPLE_EVENT_SAFETYSTOP,		// 7=Safety Stop
 		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 8=Safety Stop Broken
 		SAMPLE_EVENT_NONE,			// 9=Deep Stop Ahead
@@ -377,6 +388,74 @@ static void sample_event_notify_value(struct sample_data *info, unsigned char va
 		return;
 
 	sample.event.type = translate_notification[info->notify_type];
+	if (sample.event.type == SAMPLE_EVENT_NONE)
+		return;
+
+	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
+
+static void sample_event_warning_type(struct sample_data *info, unsigned char type)
+{
+	info->warning_type = type;
+}
+
+
+static void sample_event_warning_value(struct sample_data *info, unsigned char value)
+{
+	dc_sample_value_t sample = {0};
+	static const enum parser_sample_event_t translate_warning[] = {
+		SAMPLE_EVENT_NONE,			// 0=ICD Penalty ("Isobaric counterdiffusion")
+		SAMPLE_EVENT_VIOLATION,			// 1=Deep Stop Penalty
+		SAMPLE_EVENT_SAFETYSTOP_MANDATORY,	// 2=Mandatory Safety Stop
+		SAMPLE_EVENT_NONE,			// 3=OTU250
+		SAMPLE_EVENT_NONE,			// 4=OTU300
+		SAMPLE_EVENT_NONE,			// 5=CNS80%
+		SAMPLE_EVENT_NONE,			// 6=CNS100%
+		SAMPLE_EVENT_AIRTIME,			// 7=Air Time
+		SAMPLE_EVENT_MAXDEPTH,			// 8=Max.Depth
+		SAMPLE_EVENT_AIRTIME,			// 9=Tank Pressure
+		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 10=Safety Stop Broken
+		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 11=Deep Stop Broken
+		SAMPLE_EVENT_CEILING,			// 12=Ceiling Broken
+		SAMPLE_EVENT_PO2,			// 13=PO2 High
+	};
+
+	if (info->warning_type > 13)
+		return;
+
+	sample.event.type = translate_warning[info->warning_type];
+	if (sample.event.type == SAMPLE_EVENT_NONE)
+		return;
+
+	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
+static void sample_event_alarm_type(struct sample_data *info, unsigned char type)
+{
+	info->alarm_type = type;
+}
+
+
+static void sample_event_alarm_value(struct sample_data *info, unsigned char value)
+{
+	dc_sample_value_t sample = {0};
+	static const enum parser_sample_event_t translate_alarm[] = {
+		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 0=Mandatory Safety Stop Broken
+		SAMPLE_EVENT_ASCENT,			// 1=Ascent Speed
+		SAMPLE_EVENT_NONE,			// 2=Diluent Hyperoxia
+		SAMPLE_EVENT_VIOLATION,			// 3=Violated Deep Stop
+		SAMPLE_EVENT_CEILING,			// 4=Ceiling Broken
+		SAMPLE_EVENT_PO2,			// 5=PO2 High
+		SAMPLE_EVENT_PO2,			// 6=PO2 Low
+	};
+
+	if (info->alarm_type > 6)
+		return;
+
+	sample.event.type = translate_alarm[info->alarm_type];
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
@@ -416,6 +495,21 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 		break;
 	case 0x0016:
 		sample_event_notify_value(info, data[0]);
+		break;
+	case 0x0017:
+		sample_event_warning_type(info, data[0]);
+		break;
+	case 0x0018:
+		sample_event_warning_value(info, data[0]);
+		break;
+	case 0x0019:
+		sample_event_alarm_type(info, data[0]);
+		break;
+	case 0x001a:
+		sample_event_alarm_value(info, data[0]);
+		break;
+	case 0x001c:
+		sample_bookmark_event(info, array_uint16_le(data));
 		break;
 	case 0x001d:
 		sample_gas_switch_event(info, array_uint16_le(data));
