@@ -510,10 +510,14 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 					return DC_STATUS_DATAFORMAT;
 				}
 				if (gasmix != gasmix_previous) {
+					sample.gasmix = gasmix;
+					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+#ifdef ENABLE_DEPRECATED
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
 					sample.event.time = 0;
 					sample.event.value = parser->oxygen[gasmix];
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+#endif
 					gasmix_previous = gasmix;
 				}
 			}

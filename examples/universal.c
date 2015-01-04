@@ -271,12 +271,8 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		fprintf (sampledata->fp, "   <temperature>%.2f</temperature>\n", value.temperature);
 		break;
 	case DC_SAMPLE_EVENT:
-		if (value.event.type == SAMPLE_EVENT_GASCHANGE2) {
-			fprintf (sampledata->fp, "   <gaschange o2=\"%u\" he=\"%u\" />\n",
-				value.event.value & 0xFFFF, (value.event.value >> 16) & 0xFFFF);
-		} else if (value.event.type == SAMPLE_EVENT_GASCHANGE) {
-			fprintf (sampledata->fp, "   <gaschange o2=\"%u\" />\n",
-				value.event.value);
+		if (value.event.type == SAMPLE_EVENT_GASCHANGE || value.event.type == SAMPLE_EVENT_GASCHANGE2) {
+			// Ignore deprecated events.
 		} else {
 			fprintf (sampledata->fp, "   <event type=\"%u\" time=\"%u\" flags=\"%u\" value=\"%u\">%s</event>\n",
 				value.event.type, value.event.time, value.event.flags, value.event.value, events[value.event.type]);
@@ -309,6 +305,9 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 	case DC_SAMPLE_DECO:
 		fprintf (sampledata->fp, "   <deco time=\"%u\" depth=\"%.2f\">%s</deco>\n",
 			value.deco.time, value.deco.depth, decostop[value.deco.type]);
+		break;
+	case DC_SAMPLE_GASMIX:
+		fprintf (sampledata->fp, "   <gasmix>%u</gasmix>\n", value.gasmix);
 		break;
 	default:
 		break;

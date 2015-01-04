@@ -59,6 +59,18 @@ static const dc_parser_vtable_t suunto_vyper_parser_vtable = {
 	suunto_vyper_parser_destroy /* destroy */
 };
 
+static unsigned int
+suunto_vyper_parser_find_gasmix (suunto_vyper_parser_t *parser, unsigned int o2)
+{
+	unsigned int i = 0;
+	while (i < parser->ngasmixes) {
+		if (o2 == parser->oxygen[i])
+			break;
+		i++;
+	}
+
+	return i;
+}
 
 static dc_status_t
 suunto_vyper_parser_cache (suunto_vyper_parser_t *parser)
@@ -353,6 +365,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			complete = 1;
 		} else {
 			// Event.
+			unsigned int o2 = 0, idx = 0;
 			sample.event.type = SAMPLE_EVENT_NONE;
 			sample.event.time = 0;
 			sample.event.flags = 0;
@@ -382,8 +395,22 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			case 0x87: // Gas Change
 				if (offset + 1 > size)
 					return DC_STATUS_DATAFORMAT;
+
+				o2 = data[offset++];
+				idx = suunto_vyper_parser_find_gasmix (parser, o2);
+				if (idx >= parser->ngasmixes) {
+					ERROR (abstract->context, "Maximum number of gas mixes reached.");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				sample.gasmix = idx;
+				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+#ifdef ENABLE_DEPRECATED
 				sample.event.type = SAMPLE_EVENT_GASCHANGE;
-				sample.event.value = data[offset++];
+				sample.event.value = o2;
+#else
+				sample.event.type = SAMPLE_EVENT_NONE;
+#endif
 				break;
 			default: // Unknown
 				WARNING (abstract->context, "Unknown event");

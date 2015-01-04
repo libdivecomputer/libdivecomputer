@@ -88,6 +88,20 @@ static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
 };
 
 
+static unsigned int
+shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned int o2, unsigned int he)
+{
+	unsigned int i = 0;
+	while (i < parser->ngasmixes) {
+		if (o2 == parser->oxygen[i] && he == parser->helium[i])
+			break;
+		i++;
+	}
+
+	return i;
+}
+
+
 dc_status_t
 shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int petrel)
 {
@@ -418,11 +432,21 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		unsigned int o2 = data[offset + 7];
 		unsigned int he = data[offset + 8];
 		if (o2 != o2_previous || he != he_previous) {
+			unsigned int idx = shearwater_predator_find_gasmix (parser, o2, he);
+			if (idx >= parser->ngasmixes) {
+				ERROR (abstract->context, "Invalid gas mix.");
+				return DC_STATUS_DATAFORMAT;
+			}
+
+			sample.gasmix = idx;
+			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+#ifdef ENABLE_DEPRECATED
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
 			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+#endif
 			o2_previous = o2;
 			he_previous = he;
 		}

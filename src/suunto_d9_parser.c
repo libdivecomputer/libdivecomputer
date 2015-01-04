@@ -94,6 +94,19 @@ static const dc_parser_vtable_t suunto_d9_parser_vtable = {
 	suunto_d9_parser_destroy /* destroy */
 };
 
+static unsigned int
+suunto_d9_parser_find_gasmix (suunto_d9_parser_t *parser, unsigned int o2, unsigned int he)
+{
+	// Find the gasmix in the list.
+	unsigned int i = 0;
+	while (i < parser->ngasmixes) {
+		if (o2 == parser->oxygen[i] && he == parser->helium[i])
+			break;
+		i++;
+	}
+
+	return i;
+}
 
 static dc_status_t
 suunto_d9_parser_cache (suunto_d9_parser_t *parser)
@@ -487,12 +500,16 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				ERROR (abstract->context, "Invalid initial gas mix.");
 				return DC_STATUS_DATAFORMAT;
 			}
+			sample.gasmix = parser->gasmix;
+			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+#ifdef ENABLE_DEPRECATED
 			unsigned int he = parser->helium[parser->gasmix];
 			unsigned int o2 = parser->oxygen[parser->gasmix];
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+#endif
 		}
 
 		// Events
@@ -501,7 +518,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				unsigned int event = data[offset++];
 				unsigned int seconds, type, unknown, heading;
 				unsigned int current, next;
-				unsigned int he, o2;
+				unsigned int he, o2, idx;
 				unsigned int length;
 
 				sample.event.type = SAMPLE_EVENT_NONE;
@@ -668,10 +685,19 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					}
 					o2 = data[offset + 0];
 					seconds = data[offset + 1];
+					idx = suunto_d9_parser_find_gasmix(parser, o2, 0);
+					if (idx >= parser->ngasmixes) {
+						ERROR (abstract->context, "Invalid gas mix.");
+						return DC_STATUS_DATAFORMAT;
+					}
+					sample.gasmix = idx;
+					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+#ifdef ENABLE_DEPRECATED
 					sample.event.type = SAMPLE_EVENT_GASCHANGE;
 					sample.event.time = seconds;
 					sample.event.value = o2;
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+#endif
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
@@ -691,10 +717,19 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					} else {
 						seconds = data[offset + 3];
 					}
+					idx = suunto_d9_parser_find_gasmix(parser, o2, he);
+					if (idx >= parser->ngasmixes) {
+						ERROR (abstract->context, "Invalid gas mix.");
+						return DC_STATUS_DATAFORMAT;
+					}
+					sample.gasmix = idx;
+					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+#ifdef ENABLE_DEPRECATED
 					sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 					sample.event.time = seconds;
 					sample.event.value = o2 | (he << 16);
 					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+#endif
 					offset += length;
 					break;
 				default:
