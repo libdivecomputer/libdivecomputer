@@ -45,6 +45,7 @@
 #define GALILEOTRIMIX 0x19
 #define SMARTZ        0x1C
 #define MERIDIAN      0x20
+#define CHROMIS       0x24
 
 #define UNSUPPORTED 0xFFFFFFFF
 
@@ -284,6 +285,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	case GALILEOTRIMIX:
 	case ALADIN2G:
 	case MERIDIAN:
+	case CHROMIS:
 		parser->headersize = 152;
 		parser->header = &uwatec_smart_galileo_header;
 		parser->samples = uwatec_smart_galileo_samples;
@@ -553,7 +555,8 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		// Process the type bits in the bitstream.
 		unsigned int id = 0;
 		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
-			parser->model == ALADIN2G || parser->model == MERIDIAN) {
+			parser->model == ALADIN2G || parser->model == MERIDIAN ||
+			parser->model == CHROMIS) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {
