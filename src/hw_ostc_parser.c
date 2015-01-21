@@ -66,6 +66,7 @@ typedef struct hw_ostc_sample_info_t {
 typedef struct hw_ostc_layout_t {
 	unsigned int datetime;
 	unsigned int maxdepth;
+	unsigned int avgdepth;
 	unsigned int divetime;
 	unsigned int atmospheric;
 	unsigned int salinity;
@@ -96,6 +97,7 @@ static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	3,  /* datetime */
 	8,  /* maxdepth */
+	45, /* avgdepth */
 	10, /* divetime */
 	15, /* atmospheric */
 	43, /* salinity */
@@ -106,6 +108,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	9,  /* datetime */
 	14, /* maxdepth */
+	45, /* avgdepth */
 	16, /* divetime */
 	21, /* atmospheric */
 	43, /* salinity */
@@ -116,6 +119,7 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	12, /* datetime */
 	17, /* maxdepth */
+	73, /* avgdepth */
 	19, /* divetime */
 	24, /* atmospheric */
 	70, /* salinity */
@@ -301,6 +305,9 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			break;
 		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = array_uint16_le (data + layout->maxdepth) / 100.0;
+			break;
+		case DC_FIELD_AVGDEPTH:
+			*((double *) value) = array_uint16_le (data + layout->avgdepth) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			if (version == 0x22) {
