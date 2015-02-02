@@ -497,7 +497,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	if (parser->model == VEO30 || parser->model == OCS ||
 		parser->model == ELEMENT2 || parser->model == VEO20 ||
 		parser->model == A300 || parser->model == ZEN ||
-		parser->model == GEO) {
+		parser->model == GEO || parser->model == GEO20) {
 		have_pressure = 0;
 	} else if (parser->model == F10 || parser->model == F11) {
 		have_temperature = 0;
