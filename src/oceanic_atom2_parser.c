@@ -666,7 +666,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else if (parser->model == ATOM1)
 				depth = data[offset + 3] * 16;
-			else if (parser->model == F10)
+			else if (parser->model == F10 || parser->model == F11)
 				depth = array_uint16_le (data + offset);
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
