@@ -73,6 +73,10 @@
 #define OCI         0x454B
 #define A300CS      0x454C
 
+#define NORMAL   0
+#define GAUGE    1
+#define FREEDIVE 2
+
 typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 
 struct oceanic_atom2_parser_t {
@@ -463,9 +467,17 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		header = 3 * PAGESIZE;
 	}
 
+	// Get the dive mode.
+	unsigned int mode = NORMAL;
+	if (parser->model == F10 || parser->model == F11) {
+		mode = FREEDIVE;
+	} else if (parser->model == T3B) {
+		mode = (data[2] & 0xC0) >> 6;
+	}
+
 	unsigned int time = 0;
 	unsigned int interval = 1;
-	if (parser->model != F10 && parser->model != F11) {
+	if (mode != FREEDIVE) {
 		unsigned int idx = 0x17;
 		if (parser->model == A300CS)
 			idx = 0x1f;
@@ -486,21 +498,26 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	}
 
 	unsigned int samplesize = PAGESIZE / 2;
-	if (parser->model == OC1A || parser->model == OC1B ||
+	if (mode == FREEDIVE) {
+		if (parser->model == F10 || parser->model == F11) {
+			samplesize = 2;
+		} else {
+			samplesize = 4;
+		}
+	} else if (parser->model == OC1A || parser->model == OC1B ||
 		parser->model == OC1C || parser->model == OCI ||
-		parser->model == TX1 || parser->model == A300CS)
+		parser->model == TX1 || parser->model == A300CS) {
 		samplesize = PAGESIZE;
-	else if (parser->model == F10 || parser->model == F11)
-		samplesize = 2;
+	}
 
 	unsigned int have_temperature = 1, have_pressure = 1;
-	if (parser->model == VEO30 || parser->model == OCS ||
+	if (mode == FREEDIVE) {
+		have_temperature = 0;
+		have_pressure = 0;
+	} else if (parser->model == VEO30 || parser->model == OCS ||
 		parser->model == ELEMENT2 || parser->model == VEO20 ||
 		parser->model == A300 || parser->model == ZEN ||
 		parser->model == GEO || parser->model == GEO20) {
-		have_pressure = 0;
-	} else if (parser->model == F10 || parser->model == F11) {
-		have_temperature = 0;
 		have_pressure = 0;
 	}
 
@@ -545,7 +562,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 		// Get the sample type.
 		unsigned int sampletype = data[offset + 0];
-		if (parser->model == F10 || parser->model == F11)
+		if (mode == FREEDIVE)
 			sampletype = 0;
 
 		// The sample size is usually fixed, but some sample types have a
@@ -659,15 +676,15 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 			// Depth (1/16 ft)
 			unsigned int depth;
-			if (parser->model == GEO20 || parser->model == VEO20 ||
+			if (mode == FREEDIVE)
+				depth = array_uint16_le (data + offset);
+			else if (parser->model == GEO20 || parser->model == VEO20 ||
 				parser->model == VEO30 || parser->model == OC1A ||
 				parser->model == OC1B || parser->model == OC1C ||
 				parser->model == OCI || parser->model == A300)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else if (parser->model == ATOM1)
 				depth = data[offset + 3] * 16;
-			else if (parser->model == F10 || parser->model == F11)
-				depth = array_uint16_le (data + offset);
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;
