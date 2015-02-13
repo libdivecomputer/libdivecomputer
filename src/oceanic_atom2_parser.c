@@ -331,6 +331,14 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		header = 3 * PAGESIZE;
 	}
 
+	// Get the dive mode.
+	unsigned int mode = NORMAL;
+	if (parser->model == F10 || parser->model == F11) {
+		mode = FREEDIVE;
+	} else if (parser->model == T3B) {
+		mode = (data[2] & 0xC0) >> 6;
+	}
+
 	if (!parser->cached) {
 		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
 		dc_status_t rc = oceanic_atom2_parser_samples_foreach (
@@ -412,6 +420,21 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				water->density = 0.0;
 			} else {
 				return DC_STATUS_UNSUPPORTED;
+			}
+			break;
+		case DC_FIELD_DIVEMODE:
+			switch (mode) {
+			case NORMAL:
+				*((unsigned int *) value) = DC_DIVEMODE_OC;
+				break;
+			case GAUGE:
+				*((unsigned int *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			case FREEDIVE:
+				*((unsigned int *) value) = DC_DIVEMODE_FREEDIVE;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
 			}
 			break;
 		default:
