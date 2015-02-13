@@ -372,7 +372,9 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((double *) value) = array_uint16_le (data + footer + 4) / 16.0 * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
+			if (mode == FREEDIVE) {
+				*((unsigned int *) value) = 0;
+			} else if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				*((unsigned int *) value) = 1;
 			} else if (parser->model == VT4 || parser->model == VT41 ||
 				parser->model == OCI || parser->model == A300AI) {
