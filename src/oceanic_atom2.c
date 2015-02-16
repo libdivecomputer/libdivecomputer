@@ -378,8 +378,9 @@ static const oceanic_common_layout_t aeris_a300cs_layout = {
 	1 /* pt_mode_logbook */
 };
 
+
 static dc_status_t
-oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack)
+oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int crc_size)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
@@ -397,6 +398,12 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 		return EXITCODE (n);
 	}
 
+	// Get the correct ACK byte.
+	unsigned int ack = ACK;
+	if (command[0] == CMD_INIT || command[0] == CMD_QUIT) {
+		ack = NAK;
+	}
+
 	// Receive the response (ACK/NAK) of the dive computer.
 	unsigned char response = 0;
 	n = serial_read (device->port, &response, 1);
@@ -409,40 +416,6 @@ oceanic_atom2_send (oceanic_atom2_device_t *device, const unsigned char command[
 	if (response != ack) {
 		ERROR (abstract->context, "Unexpected answer start byte(s).");
 		return DC_STATUS_PROTOCOL;
-	}
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int crc_size)
-{
-	dc_device_t *abstract = (dc_device_t *) device;
-
-	// Send the command to the device. If the device responds with an
-	// ACK byte, the command was received successfully and the answer
-	// (if any) follows after the ACK byte. If the device responds with
-	// a NAK byte, we try to resend the command a number of times before
-	// returning an error.
-
-	unsigned int nretries = 0;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-	while ((rc = oceanic_atom2_send (device, command, csize, ACK)) != DC_STATUS_SUCCESS) {
-		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
-			return rc;
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
-			return rc;
-
-		// Increase the inter packet delay.
-		if (device->delay < MAXDELAY)
-			device->delay++;
-
-		// Delay the next attempt.
-		serial_sleep (device->port, 100);
-		serial_flush (device->port, SERIAL_QUEUE_INPUT);
 	}
 
 	if (asize) {
@@ -473,11 +446,43 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 
 
 static dc_status_t
+oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int crc_size)
+{
+	// Send the command to the device. If the device responds with an
+	// ACK byte, the command was received successfully and the answer
+	// (if any) follows after the ACK byte. If the device responds with
+	// a NAK byte, we try to resend the command a number of times before
+	// returning an error.
+
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = oceanic_atom2_packet (device, command, csize, answer, asize, crc_size)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Increase the inter packet delay.
+		if (device->delay < MAXDELAY)
+			device->delay++;
+
+		// Delay the next attempt.
+		serial_sleep (device->port, 100);
+		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
 oceanic_atom2_quit (oceanic_atom2_device_t *device)
 {
 	// Send the command to the dive computer.
 	unsigned char command[4] = {CMD_QUIT, 0x05, 0xA5, 0x00};
-	dc_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
+	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
