@@ -43,6 +43,15 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define CMD_INIT      0xA8
+#define CMD_VERSION   0x84
+#define CMD_READ1     0xB1
+#define CMD_READ8     0xB4
+#define CMD_READ16    0xB8
+#define CMD_WRITE     0xB2
+#define CMD_KEEPALIVE 0x91
+#define CMD_QUIT      0x6A
+
 #define ACK 0x5A
 #define NAK 0xA5
 
@@ -467,7 +476,7 @@ static dc_status_t
 oceanic_atom2_quit (oceanic_atom2_device_t *device)
 {
 	// Send the command to the dive computer.
-	unsigned char command[4] = {0x6A, 0x05, 0xA5, 0x00};
+	unsigned char command[4] = {CMD_QUIT, 0x05, 0xA5, 0x00};
 	dc_status_t rc = oceanic_atom2_send (device, command, sizeof (command), NAK);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
@@ -623,7 +632,7 @@ oceanic_atom2_device_keepalive (dc_device_t *abstract)
 		return DC_STATUS_INVALIDARGS;
 
 	// Send the command to the dive computer.
-	unsigned char command[4] = {0x91, 0x05, 0xA5, 0x00};
+	unsigned char command[4] = {CMD_KEEPALIVE, 0x05, 0xA5, 0x00};
 	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
@@ -644,7 +653,7 @@ oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsig
 		return DC_STATUS_INVALIDARGS;
 
 	unsigned char answer[PAGESIZE + 1] = {0};
-	unsigned char command[2] = {0x84, 0x00};
+	unsigned char command[2] = {CMD_VERSION, 0x00};
 	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
@@ -669,15 +678,15 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 	unsigned int crc_size = 0;
 	switch (device->bigpage) {
 	case 1:
-		read_cmd = 0xB1;
+		read_cmd = CMD_READ1;
 		crc_size = 1;
 		break;
 	case 8:
-		read_cmd = 0xB4;
+		read_cmd = CMD_READ8;
 		crc_size = 1;
 		break;
 	case 16:
-		read_cmd = 0xB8;
+		read_cmd = CMD_READ16;
 		crc_size = 2;
 		break;
 	default:
@@ -739,7 +748,7 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 	while (nbytes < size) {
 		// Prepare to write the package.
 		unsigned int number = address / PAGESIZE;
-		unsigned char prepare[4] = {0xB2,
+		unsigned char prepare[4] = {CMD_WRITE,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
 				0x00};
