@@ -115,7 +115,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = oceanic_veo250_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
-		rc = oceanic_atom2_device_open (&device, context, name);
+		rc = oceanic_atom2_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_MARES_NEMO:
 		rc = mares_nemo_device_open (&device, context, name);

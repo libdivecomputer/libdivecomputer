@@ -493,6 +493,14 @@ oceanic_atom2_quit (oceanic_atom2_device_t *device)
 dc_status_t
 oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
+	return oceanic_atom2_device_open2 (out, context, name, 0);
+}
+
+
+dc_status_t
+oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+
+{
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
