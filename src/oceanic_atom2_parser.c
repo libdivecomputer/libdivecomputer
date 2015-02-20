@@ -68,6 +68,7 @@
 #define A300        0x445A
 #define TX1         0x4542
 #define AMPHOS      0x4545
+#define AMPHOSAIR   0x4546
 #define PROPLUS3    0x4548
 #define F11         0x4549
 #define OCI         0x454B
@@ -204,6 +205,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			break;
 		case ZENAIR:
 		case AMPHOS:
+		case AMPHOSAIR:
 		case VOYAGER2G:
 			datetime->year   = (p[3] & 0x0F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
@@ -671,7 +673,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					unsigned int sign;
 					if (parser->model == DG03 || parser->model == PROPLUS3)
 						sign = (~data[offset + 5] & 0x04) >> 2;
-					else if (parser->model == VOYAGER2G || parser->model == AMPHOS)
+					else if (parser->model == VOYAGER2G || parser->model == AMPHOS ||
+						parser->model == AMPHOSAIR)
 						sign = (data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
@@ -697,7 +700,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				else if (parser->model == VT4 || parser->model == VT41||
 					parser->model == ATOM3 || parser->model == ATOM31 ||
 					parser->model == ZENAIR ||parser->model == A300AI ||
-					parser->model == DG03 || parser->model == PROPLUS3)
+					parser->model == DG03 || parser->model == PROPLUS3 ||
+					parser->model == AMPHOSAIR)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else if (parser->model == TX1 || parser->model == A300CS || parser->model == VTX)
 					pressure = array_uint16_le (data + offset + 4);

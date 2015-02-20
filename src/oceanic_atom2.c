@@ -131,6 +131,7 @@ static const oceanic_common_version_t oceanic_default_version[] = {
 static const oceanic_common_version_t tusa_zenair_version[] = {
 	{"TUZENAIR \0\0 512K"},
 	{"AMPHOSSW \0\0 512K"},
+	{"AMPHOAIR \0\0 512K"},
 	{"VOYAGE2G \0\0 512K"},
 };
 
