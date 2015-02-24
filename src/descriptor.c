@@ -239,12 +239,16 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Citizen Hyper Aqualand */
 	{"Citizen", "Hyper Aqualand", DC_FAMILY_CITIZEN_AQUALAND, 0},
 	/* DiveSystem iDive */
-	{"DiveSystem", "Orca",       DC_FAMILY_DIVESYSTEM_IDIVE, 2},
-	{"DiveSystem", "iDive Pro",  DC_FAMILY_DIVESYSTEM_IDIVE, 3},
-	{"DiveSystem", "iDive DAN",  DC_FAMILY_DIVESYSTEM_IDIVE, 4},
-	{"DiveSystem", "iDive Tech", DC_FAMILY_DIVESYSTEM_IDIVE, 5},
-	{"DiveSystem", "iDive Reb",  DC_FAMILY_DIVESYSTEM_IDIVE, 6},
-	{"DiveSystem", "iDive Free", DC_FAMILY_DIVESYSTEM_IDIVE, 8},
+	{"DiveSystem", "Orca",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x02},
+	{"DiveSystem", "iDive Pro",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x03},
+	{"DiveSystem", "iDive DAN",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x04},
+	{"DiveSystem", "iDive Tech",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x05},
+	{"DiveSystem", "iDive Reb",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x06},
+	{"DiveSystem", "iDive Stealth", DC_FAMILY_DIVESYSTEM_IDIVE, 0x07},
+	{"DiveSystem", "iDive Free",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x08},
+	{"DiveSystem", "iDive Easy",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x09},
+	{"DiveSystem", "iDive X3M",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x0A},
+	{"DiveSystem", "iDive Deep",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x0B},
 };
 
 typedef struct dc_descriptor_iterator_t {
