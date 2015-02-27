@@ -199,7 +199,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
-			datetime->hour   = bcd2dec (p[1] & 0x7F);
+			datetime->hour   = bcd2dec (p[1] & 0x1F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
 		case ZENAIR:
@@ -339,6 +339,9 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		mode = FREEDIVE;
 	} else if (parser->model == T3B) {
 		mode = (data[2] & 0xC0) >> 6;
+	} else if (parser->model == VEO20 || parser->model == VEO30 ||
+		parser->model == VT3 || parser->model == DG03) {
+		mode = (data[1] & 0x60) >> 5;
 	}
 
 	if (!parser->cached) {
@@ -500,6 +503,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		mode = FREEDIVE;
 	} else if (parser->model == T3B) {
 		mode = (data[2] & 0xC0) >> 6;
+	} else if (parser->model == VEO20 || parser->model == VEO30 ||
+		parser->model == VT3 || parser->model == DG03) {
+		mode = (data[1] & 0x60) >> 5;
 	}
 
 	unsigned int time = 0;
