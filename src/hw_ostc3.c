@@ -151,6 +151,9 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
+	// Get the correct ready byte for the current state.
+	const unsigned char ready = (device->state == SERVICE ? S_READY : READY);
+
 	// Send the command.
 	unsigned char command[1] = {cmd};
 	int n = serial_write (device->port, command, sizeof (command));
@@ -169,8 +172,13 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	// Verify the echo.
 	if (memcmp (echo, command, sizeof (command)) != 0) {
-		ERROR (abstract->context, "Unexpected echo.");
-		return DC_STATUS_PROTOCOL;
+		if (echo[0] == ready) {
+			ERROR (abstract->context, "Unsupported command.");
+			return DC_STATUS_UNSUPPORTED;
+		} else {
+			ERROR (abstract->context, "Unexpected echo.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	if (input) {
@@ -216,16 +224,15 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	if (cmd != EXIT) {
 		// Read the ready byte.
-		unsigned char ready[1] = {0};
-		unsigned char expected = (device->state == SERVICE ? S_READY : READY);
-		n = serial_read (device->port, ready, sizeof (ready));
-		if (n != sizeof (ready)) {
+		unsigned char answer[1] = {0};
+		n = serial_read (device->port, answer, sizeof (answer));
+		if (n != sizeof (answer)) {
 			ERROR (abstract->context, "Failed to receive the ready byte.");
 			return EXITCODE (n);
 		}
 
 		// Verify the ready byte.
-		if (ready[0] != expected) {
+		if (answer[0] != ready) {
 			ERROR (abstract->context, "Unexpected ready byte.");
 			return DC_STATUS_PROTOCOL;
 		}
