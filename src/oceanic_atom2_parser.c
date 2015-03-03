@@ -337,10 +337,10 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	unsigned int mode = NORMAL;
 	if (parser->model == F10 || parser->model == F11) {
 		mode = FREEDIVE;
-	} else if (parser->model == T3B) {
+	} else if (parser->model == T3B || parser->model == VT3 ||
+		parser->model == DG03) {
 		mode = (data[2] & 0xC0) >> 6;
-	} else if (parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == VT3 || parser->model == DG03) {
+	} else if (parser->model == VEO20 || parser->model == VEO30) {
 		mode = (data[1] & 0x60) >> 5;
 	}
 
@@ -501,10 +501,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int mode = NORMAL;
 	if (parser->model == F10 || parser->model == F11) {
 		mode = FREEDIVE;
-	} else if (parser->model == T3B) {
+	} else if (parser->model == T3B || parser->model == VT3 ||
+		parser->model == DG03) {
 		mode = (data[2] & 0xC0) >> 6;
-	} else if (parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == VT3 || parser->model == DG03) {
+	} else if (parser->model == VEO20 || parser->model == VEO30) {
 		mode = (data[1] & 0x60) >> 5;
 	}
 
