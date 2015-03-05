@@ -387,9 +387,26 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			sample.temperature = temperature;
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
+		// Status flags.
+		unsigned int status = data[offset + 11];
+
 		// PPO2
 		sample.ppo2 = data[offset + 6] / 100.0;
 		if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+
+		if ((status & OC) == 0) {
+			// Setpoint
+			if (parser->petrel) {
+				sample.setpoint = data[offset + 18] / 100.0;
+			} else {
+				if (status & SETPOINT_HIGH) {
+					sample.setpoint = data[18] / 100.0;
+				} else {
+					sample.setpoint = data[17] / 100.0;
+				}
+			}
+			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+		}
 
 		// CNS
 		if (parser->petrel) {
