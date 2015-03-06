@@ -155,6 +155,7 @@ hw_frog_device_display
 hw_frog_device_customtext
 hw_ostc3_device_open
 hw_ostc3_device_version
+hw_ostc3_device_hardware
 hw_ostc3_device_clock
 hw_ostc3_device_display
 hw_ostc3_device_customtext

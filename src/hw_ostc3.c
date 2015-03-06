@@ -46,6 +46,7 @@
 #define SZ_DISPLAY    16
 #define SZ_CUSTOMTEXT 60
 #define SZ_VERSION    (SZ_CUSTOMTEXT + 4)
+#define SZ_HARDWARE   1
 #define SZ_MEMORY     0x200000
 #define SZ_CONFIG     4
 #define SZ_FIRMWARE   0x01E000        // 120KB
@@ -66,12 +67,17 @@
 #define CUSTOMTEXT 0x63
 #define DIVE       0x66
 #define IDENTITY   0x69
+#define HARDWARE   0x6A
 #define DISPLAY    0x6E
 #define READ       0x72
 #define WRITE      0x77
 #define RESET      0x78
 #define INIT       0xBB
 #define EXIT       0xFF
+
+#define OSTC3      0x0A
+#define SPORT      0x12
+#define CR         0x05
 
 typedef enum hw_ostc3_state_t {
 	OPEN,
@@ -151,6 +157,9 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
+	// Get the correct ready byte for the current state.
+	const unsigned char ready = (device->state == SERVICE ? S_READY : READY);
+
 	// Send the command.
 	unsigned char command[1] = {cmd};
 	int n = serial_write (device->port, command, sizeof (command));
@@ -169,8 +178,13 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	// Verify the echo.
 	if (memcmp (echo, command, sizeof (command)) != 0) {
-		ERROR (abstract->context, "Unexpected echo.");
-		return DC_STATUS_PROTOCOL;
+		if (echo[0] == ready) {
+			ERROR (abstract->context, "Unsupported command.");
+			return DC_STATUS_UNSUPPORTED;
+		} else {
+			ERROR (abstract->context, "Unexpected echo.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	if (input) {
@@ -216,16 +230,15 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	if (cmd != EXIT) {
 		// Read the ready byte.
-		unsigned char ready[1] = {0};
-		unsigned char expected = (device->state == SERVICE ? S_READY : READY);
-		n = serial_read (device->port, ready, sizeof (ready));
-		if (n != sizeof (ready)) {
+		unsigned char answer[1] = {0};
+		n = serial_read (device->port, answer, sizeof (answer));
+		if (n != sizeof (answer)) {
 			ERROR (abstract->context, "Failed to receive the ready byte.");
 			return EXITCODE (n);
 		}
 
 		// Verify the ready byte.
-		if (ready[0] != expected) {
+		if (answer[0] != ready) {
 			ERROR (abstract->context, "Unexpected ready byte.");
 			return DC_STATUS_PROTOCOL;
 		}
@@ -454,6 +467,30 @@ hw_ostc3_device_version (dc_device_t *abstract, unsigned char data[], unsigned i
 }
 
 
+dc_status_t
+hw_ostc3_device_hardware (dc_device_t *abstract, unsigned char data[], unsigned int size)
+{
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	if (size != SZ_HARDWARE)
+		return DC_STATUS_INVALIDARGS;
+
+	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Send the command.
+	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, data, size);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
 static dc_status_t
 hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
@@ -476,14 +513,26 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		return rc;
 	}
 
+	// Download the hardware descriptor.
+	unsigned char hardware[SZ_HARDWARE] = {0};
+	rc = hw_ostc3_device_hardware (abstract, hardware, sizeof (hardware));
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		ERROR (abstract->context, "Failed to read the hardware descriptor.");
+		return rc;
+	}
+
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.firmware = array_uint16_be (id + 2);
 	devinfo.serial = array_uint16_le (id + 0);
-	if (devinfo.serial > 10000)
-		devinfo.model = 1; // OSTC Sport
-	else
-		devinfo.model = 0; // OSTC3
+	devinfo.model = hardware[0];
+	if (devinfo.model == 0) {
+		// Fallback to the serial number.
+		if (devinfo.serial > 10000)
+			devinfo.model = SPORT;
+		else
+			devinfo.model = OSTC3;
+	}
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate memory.
