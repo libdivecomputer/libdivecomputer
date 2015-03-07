@@ -151,7 +151,7 @@ static const
 uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	22,
 	26,
-	34, 3,
+	34, 2,
 	30, /* temp_minimum */
 	28, /* temp_maximum */
 	32, /* temp_surface */
@@ -713,11 +713,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			alarms[table[id].index] = value;
 			have_alarms = 1;
 			if (table[id].index == 1) {
-				if (parser->model == ALADINTEC || parser->model == ALADINTEC2G) {
-					gasmix = (value & 0x18) >> 3;
-				} else {
-					gasmix = (value & 0x30) >> 4;
-				}
+				gasmix = (value & 0x30) >> 4;
 			}
 			break;
 		case TIME:
