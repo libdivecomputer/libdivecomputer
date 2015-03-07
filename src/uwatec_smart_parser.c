@@ -282,10 +282,16 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 	}
 
 	// Get the gas mixes.
+	unsigned int ngasmixes = 0;
 	unsigned int oxygen[NGASMIXES] = {0};
-	unsigned int ngasmixes = (trimix ? 0 : parser->header->ngases);
-	for (unsigned int i = 0; i < ngasmixes; ++i) {
-		oxygen[i] = data[parser->header->gasmix + i * 2];
+	if (!trimix) {
+		for (unsigned int i = 0; i < parser->header->ngases; ++i) {
+			unsigned int o2 = data[parser->header->gasmix + i * 2];
+			if (o2 == 0)
+				break; // Skip disabled gas mixes.
+			oxygen[ngasmixes] = o2;
+			ngasmixes++;
+		}
 	}
 
 	// Cache the data for later use.
