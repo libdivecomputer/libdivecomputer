@@ -375,7 +375,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	unsigned int header = parser->headersize;
 	unsigned int trimix = 0;
 
-	if (parser->model == GALILEOTRIMIX) {
+	if (parser->model == GALILEO || parser->model == GALILEOTRIMIX) {
 		if (size < 44)
 			return DC_STATUS_DATAFORMAT;
 
@@ -501,7 +501,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	unsigned int header = parser->headersize;
 	unsigned int trimix = 0;
 
-	if (parser->model == GALILEOTRIMIX) {
+	if (parser->model == GALILEO || parser->model == GALILEOTRIMIX) {
 		if (size < 44)
 			return DC_STATUS_DATAFORMAT;
 
