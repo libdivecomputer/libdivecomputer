@@ -400,11 +400,12 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			if (trimix)
-				*((unsigned int *) value) = 0;
-			else
-				*((unsigned int *) value) = table->ngases;
+				return DC_STATUS_UNSUPPORTED;
+			*((unsigned int *) value) = table->ngases;
 			break;
 		case DC_FIELD_GASMIX:
+			if (trimix)
+				return DC_STATUS_UNSUPPORTED;
 			gasmix->helium = 0.0;
 			gasmix->oxygen = data[table->gasmix + flags * 2] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -704,7 +705,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
-			if (gasmix != gasmix_previous && !trimix) {
+			if (ngasmix && gasmix != gasmix_previous) {
 				if (gasmix >= ngasmix)
 					return DC_STATUS_DATAFORMAT;
 				sample.event.type = SAMPLE_EVENT_GASCHANGE;
