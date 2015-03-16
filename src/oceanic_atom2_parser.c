@@ -84,6 +84,8 @@ typedef struct oceanic_atom2_parser_t oceanic_atom2_parser_t;
 struct oceanic_atom2_parser_t {
 	dc_parser_t base;
 	unsigned int model;
+	unsigned int headersize;
+	unsigned int footersize;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int divetime;
@@ -124,6 +126,31 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 
 	// Set the default values.
 	parser->model = model;
+	parser->headersize = 9 * PAGESIZE / 2;
+	parser->footersize = 2 * PAGESIZE / 2;
+	if (model == DATAMASK || model == COMPUMASK ||
+		model == GEO || model == GEO20 ||
+		model == VEO20 || model == VEO30 ||
+		model == OCS || model == PROPLUS3 ||
+		model == A300 || model == MANTA ||
+		model == INSIGHT2 || model == ZEN) {
+		parser->headersize -= PAGESIZE;
+	} else if (model == VT4 || model == VT41) {
+		parser->headersize += PAGESIZE;
+	} else if (model == TX1) {
+		parser->headersize += 2 * PAGESIZE;
+	} else if (model == ATOM1) {
+		parser->headersize -= 2 * PAGESIZE;
+	} else if (model == F10) {
+		parser->headersize = 3 * PAGESIZE;
+		parser->footersize = PAGESIZE / 2;
+	} else if (model == F11) {
+		parser->headersize = 5 * PAGESIZE;
+		parser->footersize = PAGESIZE / 2;
+	} else if (model == A300CS || model == VTX) {
+		parser->headersize = 5 * PAGESIZE;
+	}
+
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
@@ -301,29 +328,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	unsigned int size = abstract->size;
 
 	// Get the total amount of bytes before and after the profile data.
-	unsigned int headersize = 9 * PAGESIZE / 2;
-	unsigned int footersize = 2 * PAGESIZE / 2;
-	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
-		parser->model == GEO || parser->model == GEO20 ||
-		parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == OCS || parser->model == PROPLUS3 ||
-		parser->model == A300 || parser->model == MANTA ||
-		parser->model == INSIGHT2 || parser->model == ZEN) {
-		headersize -= PAGESIZE;
-	} else if (parser->model == VT4 || parser->model == VT41) {
-		headersize += PAGESIZE;
-	} else if (parser->model == TX1) {
-		headersize += 2 * PAGESIZE;
-	} else if (parser->model == ATOM1) {
-		headersize -= 2 * PAGESIZE;
-	} else if (parser->model == F10) {
-		headersize = 3 * PAGESIZE;
-		footersize = PAGESIZE / 2;
-	} else if (parser->model == F11) {
-		headersize = 5 * PAGESIZE;
-		footersize = PAGESIZE / 2;
-	}
-
+	unsigned int headersize = parser->headersize;
+	unsigned int footersize = parser->footersize;
 	if (size < headersize + footersize)
 		return DC_STATUS_DATAFORMAT;
 
@@ -464,31 +470,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int size = abstract->size;
 
 	// Get the total amount of bytes before and after the profile data.
-	unsigned int headersize = 9 * PAGESIZE / 2;
-	unsigned int footersize = 2 * PAGESIZE / 2;
-	if (parser->model == DATAMASK || parser->model == COMPUMASK ||
-		parser->model == GEO || parser->model == GEO20 ||
-		parser->model == VEO20 || parser->model == VEO30 ||
-		parser->model == OCS || parser->model == PROPLUS3 ||
-		parser->model == A300 || parser->model == MANTA ||
-		parser->model == INSIGHT2 || parser->model == ZEN) {
-		headersize -= PAGESIZE;
-	} else if (parser->model == VT4 || parser->model == VT41) {
-		headersize += PAGESIZE;
-	} else if (parser->model == TX1) {
-		headersize += 2 * PAGESIZE;
-	} else if (parser->model == ATOM1) {
-		headersize -= 2 * PAGESIZE;
-	} else if (parser->model == F10) {
-		headersize = 3 * PAGESIZE;
-		footersize = PAGESIZE / 2;
-	} else if (parser->model == F11) {
-		headersize = 5 * PAGESIZE;
-		footersize = PAGESIZE / 2;
-	} else if (parser->model == A300CS || parser->model == VTX) {
-		headersize = 5 * PAGESIZE;
-	}
-
+	unsigned int headersize = parser->headersize;
+	unsigned int footersize = parser->footersize;
 	if (size < headersize + footersize)
 		return DC_STATUS_DATAFORMAT;
 
