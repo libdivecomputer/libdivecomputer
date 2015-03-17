@@ -727,7 +727,9 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			alarms[table[id].index] = value;
 			have_alarms = 1;
 			if (table[id].index == 1) {
-				gasmix = (value & 0x30) >> 4;
+				if (parser->model != MERIDIAN && parser->model != CHROMIS) {
+					gasmix = (value & 0x30) >> 4;
+				}
 			}
 			break;
 		case TIME:
