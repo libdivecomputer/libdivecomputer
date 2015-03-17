@@ -39,6 +39,8 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
+#define MAXRETRIES        4
+
 #define SZ_MEMORY         0x8000
 #define SZ_PACKET         0x80
 #define SZ_PAGE           (SZ_PACKET / 4)
@@ -77,7 +79,7 @@ static const dc_device_vtable_t cressi_edy_device_vtable = {
 
 
 static dc_status_t
-cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
+cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
@@ -85,13 +87,6 @@ cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[],
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
-
-	// Flush the serial input buffer.
-	int rc = serial_flush (device->port, SERIAL_QUEUE_INPUT);
-	if (rc == -1) {
-		ERROR (abstract->context, "Failed to flush the serial input buffer.");
-		return DC_STATUS_IO;
-	}
 
 	// Send the command to the device.
 	int n = serial_write (device->port, command, csize);
@@ -122,6 +117,26 @@ cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[],
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
+{
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = cressi_edy_packet (device, command, csize, answer, asize, trailer)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Delay the next attempt.
+		serial_sleep (device->port, 300);
+		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+	}
+
+	return DC_STATUS_SUCCESS;
+}
 
 static dc_status_t
 cressi_edy_init1 (cressi_edy_device_t *device)
