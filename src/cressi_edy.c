@@ -239,6 +239,10 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		return DC_STATUS_IO;
 	}
 
+	// Make sure everything is in a sane state.
+	serial_sleep(device->port, 300);
+	serial_flush(device->port, SERIAL_QUEUE_BOTH);
+
 	// Send the init commands.
 	cressi_edy_init1 (device);
 	cressi_edy_init2 (device);
@@ -252,6 +256,10 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		free (device);
 		return DC_STATUS_IO;
 	}
+
+	// Make sure everything is in a sane state.
+	serial_sleep(device->port, 300);
+	serial_flush(device->port, SERIAL_QUEUE_BOTH);
 
 	*out = (dc_device_t*) device;
 
