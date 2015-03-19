@@ -77,6 +77,19 @@ static const dc_device_vtable_t cressi_edy_device_vtable = {
 	cressi_edy_device_close /* close */
 };
 
+static unsigned int
+ifloor (unsigned int x, unsigned int n)
+{
+	// Round down to next lower multiple.
+	return (x / n) * n;
+}
+
+static unsigned int
+iceil (unsigned int x, unsigned int n)
+{
+	// Round up to next higher multiple.
+	return ((x + n - 1) / n) * n;
+}
 
 static dc_status_t
 cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
@@ -387,10 +400,6 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		return rc;
 	}
 
-	// Update and emit a progress event.
-	progress.current += SZ_PACKET;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
 	// Get the logbook pointers.
 	unsigned int last  = config[0x7C];
 	unsigned int first = config[0x7D];
@@ -412,21 +421,80 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	// Memory buffer for the profile data.
-	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
-
-	unsigned int available = 0;
-	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-
-	unsigned int previous = eop;
-	unsigned int address = previous;
-
+	// The logbook ringbuffer can store at most 60 dives, even if the profile
+	// data could store more (e.g. many small dives). But it's also possible
+	// that the profile ringbuffer is filled faster than the logbook ringbuffer
+	// (e.g. many large dives). We detect this by checking the total length.
+	unsigned int total = 0;
 	unsigned int idx = last;
+	unsigned int previous = eop;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx) * SZ_PAGE + BASE;
 		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			return DC_STATUS_DATAFORMAT;
+		}
+
+		// Position the pointer at the start of the header.
+		if (current == RB_PROFILE_BEGIN)
+			current = RB_PROFILE_END;
+		current -= SZ_PAGE;
+
+		// Get the profile length.
+		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
+
+		// Check for a ringbuffer overflow.
+		if (total + length > RB_PROFILE_END - RB_PROFILE_BEGIN) {
+			count = i;
+			break;
+		}
+
+		total += length;
+
+		previous = current;
+
+		if (idx == RB_LOGBOOK_BEGIN)
+			idx = RB_LOGBOOK_END;
+		idx--;
+	}
+
+	// Because dives are not necessary aligned to packet boundaries, and
+	// we always do aligned reads, there can be padding bytes present on
+	// both sides of the memory buffer. These extra bytes need to be
+	// included in the total length.
+	total += (previous - ifloor(previous, SZ_PACKET)) +
+		(iceil(eop, SZ_PACKET) - eop);
+
+	// Update and emit a progress event.
+	progress.current += SZ_PACKET;
+	progress.maximum = SZ_PACKET + total;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Memory buffer for the profile data.
+	unsigned char *buffer = (unsigned char *) malloc (total);
+	if (buffer == NULL) {
+		ERROR (abstract->context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	unsigned int available = 0;
+	unsigned int offset = total;
+
+	// Align the initial memory address to the next packet boundary, and
+	// calculate the amount of padding bytes, so we can easily skip
+	// them later.
+	unsigned int address = iceil(eop, SZ_PACKET);
+	unsigned int skip = address - eop;
+
+	idx = last;
+	previous = eop;
+	for (unsigned int i = 0; i < count; ++i) {
+		// Get the pointer to the profile data.
+		unsigned int current = array_uint16_le (config + 2 * idx) * SZ_PAGE + BASE;
+		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			free(buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
 
@@ -449,6 +517,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			rc = cressi_edy_device_read (abstract, address, buffer + offset, SZ_PACKET);
 			if (rc != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to read the memory page.");
+				free(buffer);
 				return rc;
 			}
 
@@ -456,7 +525,8 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			progress.current += SZ_PACKET;
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-			nbytes += SZ_PACKET;
+			nbytes += SZ_PACKET - skip;
+			skip = 0;
 		}
 
 		available = nbytes - length;
@@ -465,15 +535,17 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		unsigned char *p = buffer + offset + available;
 
 		if (memcmp (p, device->fingerprint, sizeof (device->fingerprint)) == 0)
-			return DC_STATUS_SUCCESS;
+			break;
 
 		if (callback && !callback (p, length, p, sizeof (device->fingerprint), userdata))
-			return DC_STATUS_SUCCESS;
+			break;
 
 		if (idx == RB_LOGBOOK_BEGIN)
 			idx = RB_LOGBOOK_END;
 		idx--;
 	}
+
+	free(buffer);
 
 	return DC_STATUS_SUCCESS;
 }
