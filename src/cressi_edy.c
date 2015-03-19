@@ -83,35 +83,45 @@ cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], u
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	assert (asize >= csize);
-
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
-	// Send the command to the device.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
-		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+	for (unsigned int i = 0; i < csize; ++i) {
+		// Send the command to the device.
+		int n = serial_write (device->port, command + i, 1);
+		if (n != 1) {
+			ERROR (abstract->context, "Failed to send the command.");
+			return EXITCODE (n);
+		}
+
+		// Receive the echo.
+		unsigned char echo = 0;
+		n = serial_read (device->port, &echo, 1);
+		if (n != 1) {
+			ERROR (abstract->context, "Failed to receive the echo.");
+			return EXITCODE (n);
+		}
+
+		// Verify the echo.
+		if (command[i] != echo) {
+			ERROR (abstract->context, "Unexpected echo.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
-	// Receive the answer of the device.
-	n = serial_read (device->port, answer, asize);
-	if (n != asize) {
-		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
-	}
+	if (asize) {
+		// Receive the answer of the device.
+		int n = serial_read (device->port, answer, asize);
+		if (n != asize) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return EXITCODE (n);
+		}
 
-	// Verify the echo.
-	if (memcmp (answer, command, csize) != 0) {
-		ERROR (abstract->context, "Unexpected echo.");
-		return DC_STATUS_PROTOCOL;
-	}
-
-	// Verify the trailer of the packet.
-	if (trailer && answer[asize - 1] != 0x45) {
-		ERROR (abstract->context, "Unexpected answer trailer byte.");
-		return DC_STATUS_PROTOCOL;
+		// Verify the trailer of the packet.
+		if (trailer && answer[asize - 1] != 0x45) {
+			ERROR (abstract->context, "Unexpected answer trailer byte.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -142,7 +152,7 @@ static dc_status_t
 cressi_edy_init1 (cressi_edy_device_t *device)
 {
 	unsigned char command[3] = {0x41, 0x42, 0x43};
-	unsigned char answer[6] = {0};
+	unsigned char answer[3] = {0};
 
 	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
 }
@@ -152,13 +162,13 @@ static dc_status_t
 cressi_edy_init2 (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x44};
-	unsigned char answer[2] = {0};
+	unsigned char answer[1] = {0};
 
 	dc_status_t rc = cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	device->model = answer[1];
+	device->model = answer[0];
 
 	return DC_STATUS_SUCCESS;
 }
@@ -168,7 +178,7 @@ static dc_status_t
 cressi_edy_init3 (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x0C};
-	unsigned char answer[2] = {0};
+	unsigned char answer[1] = {0};
 
 	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
 }
@@ -178,9 +188,8 @@ static dc_status_t
 cressi_edy_quit (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x46};
-	unsigned char answer[1] = {0};
 
-	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+	return cressi_edy_transfer (device, command, sizeof (command), NULL, 0, 0);
 }
 
 
@@ -301,7 +310,7 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 	while (nbytes < size) {
 		// Read the package.
 		unsigned int number = address / SZ_PAGE;
-		unsigned char answer[3 + SZ_PACKET + 1] = {0};
+		unsigned char answer[SZ_PACKET + 1] = {0};
 		unsigned char command[3] = {0x52,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF}; // low
@@ -309,7 +318,7 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
-		memcpy (data, answer + 3, SZ_PACKET);
+		memcpy (data, answer, SZ_PACKET);
 
 		nbytes += SZ_PACKET;
 		address += SZ_PACKET;
