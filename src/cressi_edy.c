@@ -47,7 +47,7 @@
 
 #define BASE              0x4000
 
-#define RB_PROFILE_BEGIN  0x4000
+#define RB_PROFILE_BEGIN  0x3FE0
 #define RB_PROFILE_END    0x7F80
 
 #define RB_LOGBOOK_OFFSET 0x7F80
@@ -436,11 +436,6 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		// Position the pointer at the start of the header.
-		if (current == RB_PROFILE_BEGIN)
-			current = RB_PROFILE_END;
-		current -= SZ_PAGE;
-
 		// Get the profile length.
 		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
@@ -481,6 +476,13 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	unsigned int available = 0;
 	unsigned int offset = total;
 
+	// Align the ringbuffer to packet boundaries. This results in a
+	// virtual ringbuffer that is slightly larger than the actual
+	// ringbuffer. Data outside the real ringbuffer is downloaded
+	// and then immediately dropped.
+	unsigned int rb_profile_begin = ifloor(RB_PROFILE_BEGIN, SZ_PACKET);
+	unsigned int rb_profile_end = iceil(RB_PROFILE_END, SZ_PACKET);
+
 	// Align the initial memory address to the next packet boundary, and
 	// calculate the amount of padding bytes, so we can easily skip
 	// them later.
@@ -498,34 +500,47 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		// Position the pointer at the start of the header.
-		if (current == RB_PROFILE_BEGIN)
-			current = RB_PROFILE_END;
-		current -= SZ_PAGE;
-
 		// Get the profile length.
 		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
 		unsigned nbytes = available;
 		while (nbytes < length) {
-			if (address == RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;
+			if (address == rb_profile_begin)
+				address = rb_profile_end;
 			address -= SZ_PACKET;
-			offset -= SZ_PACKET;
 
 			// Read the memory page.
-			rc = cressi_edy_device_read (abstract, address, buffer + offset, SZ_PACKET);
+			unsigned char packet[SZ_PACKET];
+			rc = cressi_edy_device_read (abstract, address, packet, sizeof(packet));
 			if (rc != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to read the memory page.");
 				free(buffer);
 				return rc;
 			}
 
+			// At the head and tail of the ringbuffer, the packet can
+			// contain extra data, originating from the larger virtual
+			// ringbuffer. This data must be removed from the packet.
+			unsigned int head = 0;
+			unsigned int tail = 0;
+			unsigned int len = SZ_PACKET;
+			if (address < RB_PROFILE_BEGIN) {
+				head = RB_PROFILE_BEGIN - address;
+			}
+			if (address + SZ_PACKET > RB_PROFILE_END) {
+				tail = (address + SZ_PACKET) - RB_PROFILE_END;
+			}
+			len -= head + tail;
+			offset -= len;
+
+			// Copy the data packet to the buffer.
+			memcpy(buffer + offset, packet + head, len);
+
 			// Update and emit a progress event.
-			progress.current += SZ_PACKET;
+			progress.current += len;
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-			nbytes += SZ_PACKET - skip;
+			nbytes += len - skip;
 			skip = 0;
 		}
 
