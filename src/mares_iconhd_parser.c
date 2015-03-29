@@ -29,14 +29,16 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &mares_iconhd_parser_vtable)
 
+#define SMART     0x10
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 
 #define NGASMIXES 3
 
-#define AIR    0
-#define GAUGE  1
-#define NITROX 2
+#define AIR       0
+#define GAUGE     1
+#define NITROX    2
+#define FREEDIVE  3
 
 typedef struct mares_iconhd_parser_t mares_iconhd_parser_t;
 
@@ -45,6 +47,8 @@ struct mares_iconhd_parser_t {
 	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int mode;
+	unsigned int nsamples;
 	unsigned int footer;
 	unsigned int samplesize;
 	unsigned int ngasmixes;
@@ -77,32 +81,70 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		return DC_STATUS_SUCCESS;
 	}
 
-	unsigned int footersize = 0x5C;
-	unsigned int samplesize = 8;
-	if (parser->model == ICONHDNET) {
-		footersize = 0x80;
-		samplesize = 12;
-	}
+	unsigned int header = 0x5C;
+	if (parser->model == ICONHDNET)
+		header = 0x80;
+	else if (parser->model == SMART)
+		header = 4; // Type and number of samples only!
 
-	if (size < 4) {
+	if (size < header + 4) {
 		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	unsigned int length = array_uint32_le (data);
-
-	if (size < length || length < footersize + 4) {
+	if (length > size) {
 		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	const unsigned char *p = data + length - footersize;
+	// Get the number of samples in the profile data.
+	unsigned int type = 0, nsamples = 0;
+	if (parser->model == SMART) {
+		type     = array_uint16_le (data + length - header + 2);
+		nsamples = array_uint16_le (data + length - header + 0);
+	} else {
+		type     = array_uint16_le (data + length - header + 0);
+		nsamples = array_uint16_le (data + length - header + 2);
+	}
+
+	// Get the dive mode.
+	unsigned int mode = type & 0x03;
+
+	// Get the header and sample size.
+	unsigned int headersize = 0x5C;
+	unsigned int samplesize = 8;
+	if (parser->model == ICONHDNET) {
+		headersize = 0x80;
+		samplesize = 12;
+	} else if (parser->model == SMART) {
+		if (mode == FREEDIVE) {
+			headersize = 0x2E;
+			samplesize = 6;
+		} else {
+			headersize = 0x5C;
+			samplesize = 8;
+		}
+	}
+
+	// Calculate the total number of bytes for this dive.
+	unsigned int nbytes = 4 + headersize + nsamples * samplesize;
+	if (parser->model == ICONHDNET)
+		nbytes += (nsamples / 4) * 8;
+	if (length != nbytes) {
+		ERROR (abstract->context, "Calculated and stored size are not equal.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	const unsigned char *p = data + length - headersize;
+	if (parser->model != SMART) {
+		p += 4;
+	}
 
 	// Gas mixes
 	unsigned int ngasmixes = 0;
 	unsigned int oxygen[NGASMIXES] = {0};
-	unsigned int mode = p[0] & 0x03;
-	if (mode == GAUGE) {
+	if (mode == GAUGE || mode == FREEDIVE) {
 		ngasmixes = 0;
 	} else if (mode == AIR) {
 		oxygen[0] = 21;
@@ -113,15 +155,17 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		// as the first gas marked as disabled is found.
 		ngasmixes = 0;
 		while (ngasmixes < NGASMIXES) {
-			if (p[0x14 + ngasmixes * 4 + 1] & 0x80)
+			if (p[0x10 + ngasmixes * 4 + 1] & 0x80)
 				break;
-			oxygen[ngasmixes] = p[0x14 + ngasmixes * 4];
+			oxygen[ngasmixes] = p[0x10 + ngasmixes * 4];
 			ngasmixes++;
 		}
 	}
 
 	// Cache the data for later use.
-	parser->footer = length - footersize;
+	parser->mode = mode;
+	parser->nsamples = nsamples;
+	parser->footer = length - headersize;
 	parser->samplesize = samplesize;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
@@ -152,6 +196,8 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	// Set the default values.
 	parser->model = model;
 	parser->cached = 0;
+	parser->mode = AIR;
+	parser->nsamples = 0;
 	parser->footer = 0;
 	parser->samplesize = 0;
 	parser->ngasmixes = 0;
@@ -182,6 +228,8 @@ mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 
 	// Reset the cache.
 	parser->cached = 0;
+	parser->mode = AIR;
+	parser->nsamples = 0;
 	parser->footer = 0;
 	parser->samplesize = 0;
 	parser->ngasmixes = 0;
@@ -203,7 +251,16 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	const unsigned char *p = abstract->data + parser->footer + 6;
+	const unsigned char *p = abstract->data + parser->footer;
+	if (parser->model == SMART) {
+		if (parser->mode == FREEDIVE) {
+			p += 0x20;
+		} else {
+			p += 2;
+		}
+	} else {
+		p += 6;
+	}
 
 	if (datetime) {
 		datetime->hour   = array_uint16_le (p + 0);
@@ -229,16 +286,32 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		return rc;
 
 	const unsigned char *p = abstract->data + parser->footer;
+	if (parser->model != SMART) {
+		p += 4;
+	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			*((unsigned int *) value) = array_uint16_le (p + 0x02) * 5;
+			if (parser->mode == FREEDIVE) {
+				unsigned int divetime = 0;
+				unsigned int offset = 4;
+				for (unsigned int i = 0; i < parser->nsamples; ++i) {
+					divetime += array_uint16_le (abstract->data + offset + 2);
+					offset += parser->samplesize;
+				}
+				*((unsigned int *) value) = divetime;
+			} else {
+				*((unsigned int *) value) = parser->nsamples * 5;
+			}
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = array_uint16_le (p + 0x04) / 10.0;
+			if (parser->mode == FREEDIVE)
+				*((double *) value) = array_uint16_le (p + 0x1A) / 10.0;
+			else
+				*((double *) value) = array_uint16_le (p + 0x00) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = parser->ngasmixes;
@@ -250,22 +323,34 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			// Pressure (1/8 millibar)
-			*((double *) value) = array_uint16_le (p + 0x26) / 8000.0;
+			if (parser->mode == FREEDIVE)
+				*((double *) value) = array_uint16_le (p + 0x18) / 1000.0;
+			else
+				*((double *) value) = array_uint16_le (p + 0x22) / 8000.0;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
-			*((double *) value) = (signed short) array_uint16_le (p + 0x46) / 10.0;
+			if (parser->mode == FREEDIVE)
+				*((double *) value) = (signed short) array_uint16_le (p + 0x1C) / 10.0;
+			else
+				*((double *) value) = (signed short) array_uint16_le (p + 0x42) / 10.0;
 			break;
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
-			*((double *) value) = (signed short) array_uint16_le (p + 0x48) / 10.0;
+			if (parser->mode == FREEDIVE)
+				*((double *) value) = (signed short) array_uint16_le (p + 0x1E) / 10.0;
+			else
+				*((double *) value) = (signed short) array_uint16_le (p + 0x44) / 10.0;
 			break;
 		case DC_FIELD_DIVEMODE:
-			switch (p[0] & 0x03) {
+			switch (parser->mode) {
 			case AIR:
 			case NITROX:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 				break;
 			case GAUGE:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			case FREEDIVE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
 				break;
 			default:
 				return DC_STATUS_DATAFORMAT;
@@ -295,63 +380,84 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	unsigned int time = 0;
 	unsigned int interval = 5;
 
-	unsigned int offset = 4;
-	unsigned int nsamples = 0;
-
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
-	while (offset + parser->samplesize <= parser->footer) {
+	unsigned int offset = 4;
+	unsigned int nsamples = 0;
+	while (nsamples < parser->nsamples) {
 		dc_sample_value_t sample = {0};
 
-		// Time (seconds).
-		time += interval;
-		sample.time = time;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (parser->mode == FREEDIVE) {
+			unsigned int maxdepth = array_uint16_le (data + offset + 0);
+			unsigned int divetime = array_uint16_le (data + offset + 2);
+			unsigned int surftime = array_uint16_le (data + offset + 4);
 
-		// Depth (1/10 m).
-		unsigned int depth = array_uint16_le (data + offset + 0);
-		sample.depth = depth / 10.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			// Surface Time (seconds).
+			time += surftime;
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
-		// Temperature (1/10 °C).
-		unsigned int temperature = array_uint16_le (data + offset + 2) & 0x0FFF;
-		sample.temperature = temperature / 10.0;
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+			// Surface Depth (0 m).
+			sample.depth = 0.0;
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
-		// Current gas mix
-		if (parser->ngasmixes > 0) {
-			unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
-			if (gasmix >= parser->ngasmixes) {
-				ERROR (abstract->context, "Invalid gas mix index.");
-				return DC_STATUS_DATAFORMAT;
+			// Dive Time (seconds).
+			time += divetime;
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+			// Maximum Depth (1/10 m).
+			sample.depth = maxdepth / 10.0;
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			offset += parser->samplesize;
+			nsamples++;
+		} else {
+			// Time (seconds).
+			time += interval;
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+			// Depth (1/10 m).
+			unsigned int depth = array_uint16_le (data + offset + 0);
+			sample.depth = depth / 10.0;
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Temperature (1/10 °C).
+			unsigned int temperature = array_uint16_le (data + offset + 2) & 0x0FFF;
+			sample.temperature = temperature / 10.0;
+			if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+			// Current gas mix
+			if (parser->ngasmixes > 0) {
+				unsigned int gasmix = (data[offset + 3] & 0xF0) >> 4;
+				if (gasmix >= parser->ngasmixes) {
+					ERROR (abstract->context, "Invalid gas mix index.");
+					return DC_STATUS_DATAFORMAT;
+				}
+				if (gasmix != gasmix_previous) {
+					sample.event.type = SAMPLE_EVENT_GASCHANGE;
+					sample.event.time = 0;
+					sample.event.value = parser->oxygen[gasmix];
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					gasmix_previous = gasmix;
+				}
 			}
-			if (gasmix != gasmix_previous) {
-				sample.event.type = SAMPLE_EVENT_GASCHANGE;
-				sample.event.time = 0;
-				sample.event.value = parser->oxygen[gasmix];
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-				gasmix_previous = gasmix;
+
+			offset += parser->samplesize;
+			nsamples++;
+
+			// Some extra data.
+			if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
+				// Pressure (1/100 bar).
+				unsigned int pressure = array_uint16_le(data + offset);
+				sample.pressure.tank = 0;
+				sample.pressure.value = pressure / 100.0;
+				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+
+				offset += 8;
 			}
-		}
-
-		offset += parser->samplesize;
-		nsamples++;
-
-		// Some extra data.
-		if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
-			if (offset + 8 > parser->footer) {
-				ERROR (abstract->context, "Buffer overflow detected!");
-				return DC_STATUS_DATAFORMAT;
-			}
-
-			// Pressure (1/100 bar).
-			unsigned int pressure = array_uint16_le(data + offset);
-			sample.pressure.tank = 0;
-			sample.pressure.value = pressure / 100.0;
-			if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-
-			offset += 8;
 		}
 	}
 
