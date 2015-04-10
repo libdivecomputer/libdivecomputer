@@ -538,15 +538,10 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 
 		// Verify that the length that is stored in the profile data
 		// equals the calculated length. If both values are different,
-		// something is wrong and an error is returned.
+		// we assume we reached the last dive.
 		unsigned int length = array_uint32_le (buffer + offset);
-		if (length == 0 || length == 0xFFFFFFFF)
+		if (length != nbytes)
 			break;
-		if (length != nbytes) {
-			ERROR (context, "Calculated and stored size are not equal.");
-			free (buffer);
-			return DC_STATUS_DATAFORMAT;
-		}
 
 		unsigned char *fp = buffer + offset + length - headersize + fingerprint;
 		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
