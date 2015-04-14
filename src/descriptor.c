@@ -217,7 +217,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0x05},
 	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x12},
 	/* Cressi Edy */
-	{"Cressi", "Edy", DC_FAMILY_CRESSI_EDY, 0},
+	{"Tusa",   "IQ-700", DC_FAMILY_CRESSI_EDY, 0x05},
+	{"Cressi", "Edy",    DC_FAMILY_CRESSI_EDY, 0x08},
 	/* Cressi Leonardo */
 	{"Cressi", "Leonardo", DC_FAMILY_CRESSI_LEONARDO, 1},
 	{"Cressi", "Giotto",   DC_FAMILY_CRESSI_LEONARDO, 4},

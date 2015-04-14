@@ -146,6 +146,29 @@ array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned
 	return 0;
 }
 
+unsigned int
+array_uint_be (const unsigned char data[], unsigned int n)
+{
+	unsigned int shift = n * 8;
+	unsigned int value = 0;
+	for (unsigned int i = 0; i < n; ++i) {
+		shift -= 8;
+		value |= data[i] << shift;
+	}
+	return value;
+}
+
+unsigned int
+array_uint_le (const unsigned char data[], unsigned int n)
+{
+	unsigned int shift = 0;
+	unsigned int value = 0;
+	for (unsigned int i = 0; i < n; ++i) {
+		value |= data[i] << shift;
+		shift += 8;
+	}
+	return value;
+}
 
 unsigned int
 array_uint32_be (const unsigned char data[])

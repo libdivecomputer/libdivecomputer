@@ -44,11 +44,15 @@
 #define SZ_PACKET         0x80
 #define SZ_PAGE           (SZ_PACKET / 4)
 
+#define IQ700 0x05
+#define EDY   0x08
+
 typedef struct cressi_edy_layout_t {
 	unsigned int memsize;
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;
 	unsigned int rb_logbook_offset;
+	unsigned int rb_logbook_size;
 	unsigned int rb_logbook_begin;
 	unsigned int rb_logbook_end;
 	unsigned int config;
@@ -83,9 +87,21 @@ static const cressi_edy_layout_t cressi_edy_layout = {
 	0x3FE0, /* rb_profile_begin */
 	0x7F80, /* rb_profile_end */
 	0x7F80, /* rb_logbook_offset */
+	2,  /* rb_logbook_size */
 	0,  /* rb_logbook_begin */
 	60, /* rb_logbook_end */
 	0x7C, /* config */
+};
+
+static const cressi_edy_layout_t tusa_iq700_layout = {
+	0x2000, /* memsize */
+	0x0000, /* rb_profile_begin */
+	0x1F60, /* rb_profile_end */
+	0x1F80, /* rb_logbook_offset */
+	1,  /* rb_logbook_size */
+	0,  /* rb_logbook_begin */
+	60, /* rb_logbook_end */
+	0x3C, /* config */
 };
 
 static unsigned int
@@ -235,7 +251,7 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 
 	// Set the default values.
 	device->port = NULL;
-	device->layout = &cressi_edy_layout;
+	device->layout = NULL;
 	device->model = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
@@ -281,6 +297,12 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	cressi_edy_init1 (device);
 	cressi_edy_init2 (device);
 	cressi_edy_init3 (device);
+
+	if (device->model == IQ700) {
+		device->layout = &tusa_iq700_layout;
+	} else {
+		device->layout = &cressi_edy_layout;
+	}
 
 	// Set the serial communication protocol (4800 8N1).
 	rc = serial_configure (device->port, 4800, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
@@ -430,7 +452,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	unsigned int count = ringbuffer_distance (first, last, 0, layout->rb_logbook_begin, layout->rb_logbook_end) + 1;
 
 	// Get the profile pointer.
-	unsigned int eop = array_uint16_le (logbook + layout->config + 2) * SZ_PAGE + layout->rb_profile_begin;
+	unsigned int eop = array_uint_le (logbook + layout->config + 2, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
 		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
@@ -445,7 +467,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	unsigned int previous = eop;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
-		unsigned int current = array_uint16_le (logbook + 2 * idx) * SZ_PAGE + layout->rb_profile_begin;
+		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 			return DC_STATUS_DATAFORMAT;
@@ -508,7 +530,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	previous = eop;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
-		unsigned int current = array_uint16_le (logbook + 2 * idx) * SZ_PAGE + layout->rb_profile_begin;
+		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 			free(buffer);

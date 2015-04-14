@@ -29,6 +29,9 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &cressi_edy_parser_vtable)
 
+#define IQ700 0x05
+#define EDY   0x08
+
 typedef struct cressi_edy_parser_t cressi_edy_parser_t;
 
 struct cressi_edy_parser_t {
@@ -145,7 +148,7 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			if (parser->model == 0x08)
+			if (parser->model == EDY)
 				*((unsigned int *) value) = bcd2dec (p[0x0C] & 0x0F) * 60 + bcd2dec (p[0x0D]);
 			else
 				*((unsigned int *) value) = (bcd2dec (p[0x0C] & 0x0F) * 100 + bcd2dec (p[0x0D])) * 60;
@@ -179,11 +182,13 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	unsigned int size = abstract->size;
 
 	unsigned int time = 0;
-	unsigned int interval = 0;
-	if (parser->model == 0x08)
+	unsigned int interval = 30;
+	if (parser->model == EDY) {
 		interval = 1;
-	else
-		interval = 30;
+	} else if (parser->model == IQ700) {
+		if (data[0x07] & 0x40)
+			interval = 15;
+	}
 
 	unsigned int ngasmixes = cressi_edy_parser_count_gasmixes(data);
 	unsigned int gasmix = 0xFFFFFFFF;
