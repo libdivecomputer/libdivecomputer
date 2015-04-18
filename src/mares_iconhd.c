@@ -40,6 +40,7 @@
 )
 
 #define MATRIX    0x0F
+#define SMART     0x10
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 #define PUCKPRO   0x18
@@ -48,6 +49,11 @@
 
 #define ACK 0xAA
 #define EOF 0xEA
+
+#define AIR       0
+#define GAUGE     1
+#define NITROX    2
+#define FREEDIVE  3
 
 typedef struct mares_iconhd_layout_t {
 	unsigned int memsize;
@@ -115,6 +121,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 {
 	const mares_iconhd_model_t models[] = {
 		{"Matrix",      MATRIX},
+		{"Smart",       SMART},
 		{"Icon HD",     ICONHD},
 		{"Icon AIR",    ICONHDNET},
 		{"Puck Pro",    PUCKPRO},
@@ -286,6 +293,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	case PUCKPRO:
 	case PUCK2:
 	case NEMOWIDE2:
+	case SMART:
 		device->layout = &mares_nemowide2_layout;
 		device->packetsize = 256;
 		break;
@@ -453,6 +461,8 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	unsigned int header = 0x5C;
 	if (model == ICONHDNET)
 		header = 0x80;
+	else if (model == SMART)
+		header = 4; // Type and number of samples only!
 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = 0;
@@ -480,19 +490,46 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	unsigned int offset = layout->rb_profile_end - layout->rb_profile_begin;
 	while (offset >= header + 4) {
 		// Get the number of samples in the profile data.
-		unsigned int nsamples = array_uint16_le (buffer + offset - header + 2);
-		if (nsamples == 0xFFFF)
+		unsigned int type = 0, nsamples = 0;
+		if (model == SMART) {
+			type     = array_uint16_le (buffer + offset - header + 2);
+			nsamples = array_uint16_le (buffer + offset - header + 0);
+		} else {
+			type     = array_uint16_le (buffer + offset - header + 0);
+			nsamples = array_uint16_le (buffer + offset - header + 2);
+		}
+		if (nsamples == 0xFFFF || type == 0xFFFF)
 			break;
+
+		// Get the dive mode.
+		unsigned int mode = type & 0x03;
+
+		// Get the header/sample size and fingerprint offset.
+		unsigned int headersize = 0x5C;
+		unsigned int samplesize = 8;
+		unsigned int fingerprint = 6;
+		if (model == ICONHDNET) {
+			headersize = 0x80;
+			samplesize = 12;
+		} else if (model == SMART) {
+			if (mode == FREEDIVE) {
+				headersize = 0x2E;
+				samplesize = 6;
+				fingerprint = 0x20;
+			} else {
+				headersize = 0x5C;
+				samplesize = 8;
+				fingerprint = 2;
+			}
+		}
 
 		// Calculate the total number of bytes for this dive.
 		// If the buffer does not contain that much bytes, we reached the
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
-		unsigned int nbytes = 4 + header;
+		unsigned int nbytes = 4 + headersize + nsamples * samplesize;
 		if (model == ICONHDNET)
-			nbytes += nsamples * 12 + (nsamples / 4) * 8;
-		else
-			nbytes += nsamples * 8;
+			nbytes += (nsamples / 4) * 8;
 		if (offset < nbytes)
 			break;
 
@@ -501,17 +538,12 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 
 		// Verify that the length that is stored in the profile data
 		// equals the calculated length. If both values are different,
-		// something is wrong and an error is returned.
+		// we assume we reached the last dive.
 		unsigned int length = array_uint32_le (buffer + offset);
-		if (length == 0 || length == 0xFFFFFFFF)
+		if (length != nbytes)
 			break;
-		if (length != nbytes) {
-			ERROR (context, "Calculated and stored size are not equal.");
-			free (buffer);
-			return DC_STATUS_DATAFORMAT;
-		}
 
-		unsigned char *fp = buffer + offset + length - header + 6;
+		unsigned char *fp = buffer + offset + length - headersize + fingerprint;
 		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
 			return DC_STATUS_SUCCESS;
