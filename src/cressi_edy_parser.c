@@ -217,8 +217,12 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		// Current gasmix
 		if (ngasmixes) {
 			unsigned int idx = (data[offset + 0] & 0x60) >> 5;
-			if (idx >= ngasmixes)
+			if (parser->model == IQ700)
+				idx = 0; /* FIXME */
+			if (idx >= ngasmixes) {
+				ERROR (abstract->context, "Invalid gas mix index.");
 				return DC_STATUS_DATAFORMAT;
+			}
 			if (idx != gasmix) {
 				sample.event.type = SAMPLE_EVENT_GASCHANGE;
 				sample.event.time = 0;
