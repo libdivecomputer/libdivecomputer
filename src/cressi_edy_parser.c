@@ -164,6 +164,9 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			gasmix->oxygen = bcd2dec (p[0x17 - flags]) / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (bcd2dec (p[0x0B]) * 100 + bcd2dec (p[0x0C])) / 100.0;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
