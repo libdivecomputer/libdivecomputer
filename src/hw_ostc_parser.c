@@ -31,7 +31,7 @@
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &hw_ostc_parser_vtable)
 
 #define MAXCONFIG 7
-#define MAXGASMIX 5
+#define NGASMIXES 6
 
 #define OSTC_ZHL16_OC    0
 #define OSTC_GAUGE       1
@@ -80,6 +80,9 @@ typedef struct hw_ostc_parser_t {
 	unsigned int version;
 	unsigned int header;
 	const hw_ostc_layout_t *layout;
+	unsigned int ngasmixes;
+	unsigned int initial;
+	hw_ostc_gasmix_t gasmix[NGASMIXES];
 } hw_ostc_parser_t;
 
 static dc_status_t hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -177,10 +180,50 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		return DC_STATUS_DATAFORMAT;
 	}
 
+	// Get all the gas mixes, and the index of the inital mix.
+	unsigned int initial = 0;
+	unsigned int ngasmixes = 0;
+	hw_ostc_gasmix_t gasmix[NGASMIXES] = {{0}};
+	if (version == 0x22) {
+		ngasmixes = 3;
+		initial = data[31];
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].oxygen = data[25 + 2 * i];
+			gasmix[i].helium = 0;
+		}
+	} else if (version == 0x23) {
+		ngasmixes = 5;
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].oxygen = data[28 + 4 * i + 0];
+			gasmix[i].helium = data[28 + 4 * i + 1];
+			// Find the first gas marked as the initial gas.
+			if (!initial && data[28 + 4 * i + 3] == 1) {
+				initial = i + 1; /* One based index! */
+			}
+		}
+	} else {
+		ngasmixes = 6;
+		initial = data[31];
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].oxygen = data[19 + 2 * i + 0];
+			gasmix[i].helium = data[19 + 2 * i + 1];
+		}
+	}
+	if (initial < 1 || initial > ngasmixes) {
+		ERROR(abstract->context, "Invalid initial gas mix.");
+		return DC_STATUS_DATAFORMAT;
+	}
+	initial--; /* Convert to a zero based index. */
+
 	// Cache the data for later use.
 	parser->version = version;
 	parser->header = header;
 	parser->layout = layout;
+	parser->ngasmixes = ngasmixes;
+	parser->initial = initial;
+	for (unsigned int i = 0; i < ngasmixes; ++i) {
+		parser->gasmix[i] = gasmix[i];
+	}
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
@@ -208,6 +251,12 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int fr
 	parser->version = 0;
 	parser->header = 0;
 	parser->layout = NULL;
+	parser->ngasmixes = 0;
+	parser->initial = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
+	}
 
 	*out = (dc_parser_t *) parser;
 
@@ -235,6 +284,12 @@ hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsig
 	parser->version = 0;
 	parser->header = 0;
 	parser->layout = NULL;
+	parser->ngasmixes = 0;
+	parser->initial = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -326,25 +381,11 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			*((double *) value) = array_uint16_le (data + layout->avgdepth) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (version == 0x22) {
-				*((unsigned int *) value) = 3;
-			} else if (version == 0x23) {
-				*((unsigned int *) value) = 5;
-			} else {
-				*((unsigned int *) value) = 6;
-			}
+			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			if (version == 0x22) {
-				gasmix->oxygen = data[25 + 2 * flags] / 100.0;
-				gasmix->helium = 0.0;
-			} else if (version == 0x23) {
-				gasmix->oxygen = data[28 + 4 * flags + 0] / 100.0;
-				gasmix->helium = data[28 + 4 * flags + 1] / 100.0;
-			} else {
-				gasmix->oxygen = data[19 + 2 * flags + 0] / 100.0;
-				gasmix->helium = data[19 + 2 * flags + 1] / 100.0;
-			}
+			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
+			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_SALINITY:
@@ -457,40 +498,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		salinity = 100;
 	double hydrostatic = GRAVITY * salinity * 10.0;
 
-	// Get all the gas mixes, and the index of the inital mix.
-	unsigned int ngasmix = 0, initial = 0;
-	hw_ostc_gasmix_t gasmix[MAXGASMIX] = {{0}};
-	if (version == 0x22) {
-		ngasmix = 3;
-		initial = data[31];
-		for (unsigned int i = 0; i < ngasmix; ++i) {
-			gasmix[i].oxygen = data[25 + 2 * i];
-			gasmix[i].helium = 0;
-		}
-	} else if (version == 0x23) {
-		ngasmix = 5;
-		for (unsigned int i = 0; i < ngasmix; ++i) {
-			gasmix[i].oxygen = data[28 + 4 * i + 0];
-			gasmix[i].helium = data[28 + 4 * i + 1];
-			// Find the first gas marked as the initial gas.
-			if (!initial && data[28 + 4 * i + 3] == 1) {
-				initial = i + 1; /* One based index! */
-			}
-		}
-	} else {
-		ngasmix = 5;
-		initial = data[31];
-		for (unsigned int i = 0; i < ngasmix; ++i) {
-			gasmix[i].oxygen = data[19 + 2 * i + 0];
-			gasmix[i].helium = data[19 + 2 * i + 1];
-		}
-	}
-	if (initial < 1 || initial > ngasmix) {
-		ERROR(abstract->context, "Invalid initial gas mix.");
-		return DC_STATUS_DATAFORMAT;
-	}
-	initial--; /* Convert to a zero based index. */
-
 	// Get the number of sample descriptors.
 	unsigned int nconfig = 0;
 	if (version == 0x23)
@@ -554,10 +561,13 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Initial gas mix.
 		if (time == samplerate) {
+			unsigned int idx = parser->initial;
+			unsigned int o2 = parser->gasmix[idx].oxygen;
+			unsigned int he = parser->gasmix[idx].helium;
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = gasmix[initial].oxygen | (gasmix[initial].helium << 16);
+			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 		}
 
@@ -647,15 +657,17 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				return DC_STATUS_DATAFORMAT;
 			}
 			unsigned int idx = data[offset];
-			if (idx < 1 || idx > ngasmix) {
+			if (idx < 1 || idx > parser->ngasmixes) {
 				ERROR(abstract->context, "Invalid gas mix.");
 				return DC_STATUS_DATAFORMAT;
 			}
 			idx--; /* Convert to a zero based index. */
+			unsigned int o2 = parser->gasmix[idx].oxygen;
+			unsigned int he = parser->gasmix[idx].helium;
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = gasmix[idx].oxygen | (gasmix[idx].helium << 16);
+			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset++;
 			length--;
