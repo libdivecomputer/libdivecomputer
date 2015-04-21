@@ -50,13 +50,6 @@
 #define OSTC3_GAUGE 2
 #define OSTC3_APNEA 3
 
-typedef struct hw_ostc_parser_t hw_ostc_parser_t;
-
-struct hw_ostc_parser_t {
-	dc_parser_t base;
-	unsigned int frog;
-};
-
 typedef struct hw_ostc_sample_info_t {
 	unsigned int type;
 	unsigned int divisor;
@@ -78,6 +71,16 @@ typedef struct hw_ostc_gasmix_t {
 	unsigned int oxygen;
 	unsigned int helium;
 } hw_ostc_gasmix_t;
+
+typedef struct hw_ostc_parser_t {
+	dc_parser_t base;
+	unsigned int frog;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int version;
+	unsigned int header;
+	const hw_ostc_layout_t *layout;
+} hw_ostc_parser_t;
 
 static dc_status_t hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -127,53 +130,16 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	22, /* temperature */
 };
 
-dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
-{
-	if (out == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	// Allocate memory.
-	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) malloc (sizeof (hw_ostc_parser_t));
-	if (parser == NULL) {
-		ERROR (context, "Failed to allocate memory.");
-		return DC_STATUS_NOMEMORY;
-	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &hw_ostc_parser_vtable);
-
-	parser->frog = frog;
-
-	*out = (dc_parser_t *) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
 static dc_status_t
-hw_ostc_parser_destroy (dc_parser_t *abstract)
+hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 {
-	// Free memory.
-	free (abstract);
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
-{
-	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
+	dc_parser_t *abstract = (dc_parser_t *) parser;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
+
+	if (parser->cached) {
+		return DC_STATUS_SUCCESS;
+	}
 
 	if (size < 9) {
 		ERROR(abstract->context, "Header too small.");
@@ -210,6 +176,84 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	// Cache the data for later use.
+	parser->version = version;
+	parser->header = header;
+	parser->layout = layout;
+	parser->cached = 1;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
+{
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	// Allocate memory.
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) malloc (sizeof (hw_ostc_parser_t));
+	if (parser == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Initialize the base class.
+	parser_init (&parser->base, context, &hw_ostc_parser_vtable);
+
+	// Set the default values.
+	parser->frog = frog;
+	parser->cached = 0;
+	parser->version = 0;
+	parser->header = 0;
+	parser->layout = NULL;
+
+	*out = (dc_parser_t *) parser;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_parser_destroy (dc_parser_t *abstract)
+{
+	// Free memory.
+	free (abstract);
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
+{
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->version = 0;
+	parser->header = 0;
+	parser->layout = NULL;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
+{
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	// Cache the header data.
+	dc_status_t rc = hw_ostc_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	unsigned int version = parser->version;
+	const hw_ostc_layout_t *layout = parser->layout;
 
 	unsigned int divetime = 0;
 	if (version > 0x20) {
@@ -256,41 +300,13 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	// Cache the header data.
+	dc_status_t rc = hw_ostc_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
-	// Check the profile version
-	unsigned int version = data[parser->frog ? 8 : 2];
-	const hw_ostc_layout_t *layout = NULL;
-	unsigned int header = 0;
-	switch (version) {
-	case 0x20:
-		layout = &hw_ostc_layout_ostc;
-		header = 47;
-		break;
-	case 0x21:
-		layout = &hw_ostc_layout_ostc;
-		header = 57;
-		break;
-	case 0x22:
-		layout = &hw_ostc_layout_frog;
-		header = 256;
-		break;
-	case 0x23:
-		layout = &hw_ostc_layout_ostc3;
-		header = 256;
-		break;
-	default:
-		ERROR(abstract->context, "Unknown data format version.");
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	if (size < header) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	unsigned int version = parser->version;
+	const hw_ostc_layout_t *layout = parser->layout;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
@@ -417,41 +433,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	// Cache the parser data.
+	dc_status_t rc = hw_ostc_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
-	// Check the profile version
-	unsigned int version = data[parser->frog ? 8 : 2];
-	const hw_ostc_layout_t *layout = NULL;
-	unsigned int header = 0;
-	switch (version) {
-	case 0x20:
-		layout = &hw_ostc_layout_ostc;
-		header = 47;
-		break;
-	case 0x21:
-		layout = &hw_ostc_layout_ostc;
-		header = 57;
-		break;
-	case 0x22:
-		layout = &hw_ostc_layout_frog;
-		header = 256;
-		break;
-	case 0x23:
-		layout = &hw_ostc_layout_ostc3;
-		header = 256;
-		break;
-	default:
-		ERROR(abstract->context, "Unknown data format version.");
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	if (size < header) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	unsigned int version = parser->version;
+	unsigned int header = parser->header;
+	const hw_ostc_layout_t *layout = parser->layout;
 
 	// Get the sample rate.
 	unsigned int samplerate = 0;
