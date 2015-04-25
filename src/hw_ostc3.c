@@ -47,7 +47,7 @@
 #define SZ_CUSTOMTEXT 60
 #define SZ_VERSION    (SZ_CUSTOMTEXT + 4)
 #define SZ_HARDWARE   1
-#define SZ_MEMORY     0x200000
+#define SZ_MEMORY     0x400000
 #define SZ_CONFIG     4
 #define SZ_FIRMWARE   0x01E000        // 120KB
 #define SZ_FIRMWARE_BLOCK    0x1000   //   4KB
@@ -109,6 +109,7 @@ static const unsigned char ostc3_key[16] = {
 };
 
 static dc_status_t hw_ostc3_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t hw_ostc3_device_close (dc_device_t *abstract);
 
@@ -117,7 +118,7 @@ static const dc_device_vtable_t hw_ostc3_device_vtable = {
 	hw_ostc3_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
 	NULL, /* write */
-	NULL, /* dump */
+	hw_ostc3_device_dump, /* dump */
 	hw_ostc3_device_foreach, /* foreach */
 	hw_ostc3_device_close /* close */
 };
@@ -498,7 +499,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = (RB_LOGBOOK_SIZE * RB_LOGBOOK_COUNT) + SZ_MEMORY;
+	progress.maximum = SZ_MEMORY;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
@@ -1159,5 +1160,58 @@ hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
 	free (firmware);
 
 	// Finished!
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
+{
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	// Erase the current contents of the buffer.
+	if (!dc_buffer_clear (buffer)) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.maximum = SZ_MEMORY;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Make sure the device is in service mode
+	dc_status_t rc = hw_ostc3_device_init (device, SERVICE);
+	if (rc != DC_STATUS_SUCCESS) {
+		return rc;
+	}
+
+	// Allocate the required amount of memory.
+	if (!dc_buffer_resize (buffer, SZ_MEMORY)) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	unsigned char *data = dc_buffer_get_data (buffer);
+
+	unsigned int nbytes = 0;
+	while (nbytes < SZ_MEMORY) {
+		// packet size. Can be almost arbetary size.
+		unsigned int len = SZ_FIRMWARE_BLOCK;
+
+		// Read a block
+		rc = hw_ostc3_firmware_block_read (device, nbytes, data + nbytes, len);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read block.");
+			return rc;
+		}
+
+		// Update and emit a progress event.
+		progress.current += len;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+		nbytes += len;
+	}
+
 	return DC_STATUS_SUCCESS;
 }
