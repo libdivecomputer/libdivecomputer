@@ -29,6 +29,9 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &cressi_edy_parser_vtable)
 
+#define IQ700 0x05
+#define EDY   0x08
+
 typedef struct cressi_edy_parser_t cressi_edy_parser_t;
 
 struct cressi_edy_parser_t {
@@ -145,7 +148,7 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			if (parser->model == 0x08)
+			if (parser->model == EDY)
 				*((unsigned int *) value) = bcd2dec (p[0x0C] & 0x0F) * 60 + bcd2dec (p[0x0D]);
 			else
 				*((unsigned int *) value) = (bcd2dec (p[0x0C] & 0x0F) * 100 + bcd2dec (p[0x0D])) * 60;
@@ -160,6 +163,9 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			gasmix->helium = 0.0;
 			gasmix->oxygen = bcd2dec (p[0x17 - flags]) / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			*((double *) value) = (bcd2dec (p[0x0B]) * 100 + bcd2dec (p[0x0C])) / 100.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -179,11 +185,13 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	unsigned int size = abstract->size;
 
 	unsigned int time = 0;
-	unsigned int interval = 0;
-	if (parser->model == 0x08)
+	unsigned int interval = 30;
+	if (parser->model == EDY) {
 		interval = 1;
-	else
-		interval = 30;
+	} else if (parser->model == IQ700) {
+		if (data[0x07] & 0x40)
+			interval = 15;
+	}
 
 	unsigned int ngasmixes = cressi_edy_parser_count_gasmixes(data);
 	unsigned int gasmix = 0xFFFFFFFF;
@@ -212,8 +220,12 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		// Current gasmix
 		if (ngasmixes) {
 			unsigned int idx = (data[offset + 0] & 0x60) >> 5;
-			if (idx >= ngasmixes)
+			if (parser->model == IQ700)
+				idx = 0; /* FIXME */
+			if (idx >= ngasmixes) {
+				ERROR (abstract->context, "Invalid gas mix index.");
 				return DC_STATUS_DATAFORMAT;
+			}
 			if (idx != gasmix) {
 				sample.event.type = SAMPLE_EVENT_GASCHANGE;
 				sample.event.time = 0;

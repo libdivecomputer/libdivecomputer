@@ -50,6 +50,12 @@ int
 array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize);
 
 unsigned int
+array_uint_be (const unsigned char data[], unsigned int n);
+
+unsigned int
+array_uint_le (const unsigned char data[], unsigned int n);
+
+unsigned int
 array_uint32_be (const unsigned char data[]);
 
 unsigned int

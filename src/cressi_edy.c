@@ -39,22 +39,29 @@
 	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
 )
 
-#define SZ_MEMORY         0x8000
+#define MAXRETRIES        4
+
 #define SZ_PACKET         0x80
 #define SZ_PAGE           (SZ_PACKET / 4)
 
-#define BASE              0x4000
+#define IQ700 0x05
+#define EDY   0x08
 
-#define RB_PROFILE_BEGIN  0x4000
-#define RB_PROFILE_END    0x7F80
-
-#define RB_LOGBOOK_OFFSET 0x7F80
-#define RB_LOGBOOK_BEGIN  0
-#define RB_LOGBOOK_END    60
+typedef struct cressi_edy_layout_t {
+	unsigned int memsize;
+	unsigned int rb_profile_begin;
+	unsigned int rb_profile_end;
+	unsigned int rb_logbook_offset;
+	unsigned int rb_logbook_size;
+	unsigned int rb_logbook_begin;
+	unsigned int rb_logbook_end;
+	unsigned int config;
+} cressi_edy_layout_t;
 
 typedef struct cressi_edy_device_t {
 	dc_device_t base;
 	serial_t *port;
+	const cressi_edy_layout_t *layout;
 	unsigned char fingerprint[SZ_PAGE / 2];
 	unsigned int model;
 } cressi_edy_device_t;
@@ -75,59 +82,117 @@ static const dc_device_vtable_t cressi_edy_device_vtable = {
 	cressi_edy_device_close /* close */
 };
 
+static const cressi_edy_layout_t cressi_edy_layout = {
+	0x8000, /* memsize */
+	0x3FE0, /* rb_profile_begin */
+	0x7F80, /* rb_profile_end */
+	0x7F80, /* rb_logbook_offset */
+	2,  /* rb_logbook_size */
+	0,  /* rb_logbook_begin */
+	60, /* rb_logbook_end */
+	0x7C, /* config */
+};
+
+static const cressi_edy_layout_t tusa_iq700_layout = {
+	0x2000, /* memsize */
+	0x0000, /* rb_profile_begin */
+	0x1F60, /* rb_profile_end */
+	0x1F80, /* rb_logbook_offset */
+	1,  /* rb_logbook_size */
+	0,  /* rb_logbook_begin */
+	60, /* rb_logbook_end */
+	0x3C, /* config */
+};
+
+static unsigned int
+ifloor (unsigned int x, unsigned int n)
+{
+	// Round down to next lower multiple.
+	return (x / n) * n;
+}
+
+static unsigned int
+iceil (unsigned int x, unsigned int n)
+{
+	// Round up to next higher multiple.
+	return ((x + n - 1) / n) * n;
+}
 
 static dc_status_t
-cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
+cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
-
-	assert (asize >= csize);
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
-	// Flush the serial input buffer.
-	int rc = serial_flush (device->port, SERIAL_QUEUE_INPUT);
-	if (rc == -1) {
-		ERROR (abstract->context, "Failed to flush the serial input buffer.");
-		return DC_STATUS_IO;
+	for (unsigned int i = 0; i < csize; ++i) {
+		// Send the command to the device.
+		int n = serial_write (device->port, command + i, 1);
+		if (n != 1) {
+			ERROR (abstract->context, "Failed to send the command.");
+			return EXITCODE (n);
+		}
+
+		// Receive the echo.
+		unsigned char echo = 0;
+		n = serial_read (device->port, &echo, 1);
+		if (n != 1) {
+			ERROR (abstract->context, "Failed to receive the echo.");
+			return EXITCODE (n);
+		}
+
+		// Verify the echo.
+		if (command[i] != echo) {
+			ERROR (abstract->context, "Unexpected echo.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
-	// Send the command to the device.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
-		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
-	}
+	if (asize) {
+		// Receive the answer of the device.
+		int n = serial_read (device->port, answer, asize);
+		if (n != asize) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return EXITCODE (n);
+		}
 
-	// Receive the answer of the device.
-	n = serial_read (device->port, answer, asize);
-	if (n != asize) {
-		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
-	}
-
-	// Verify the echo.
-	if (memcmp (answer, command, csize) != 0) {
-		ERROR (abstract->context, "Unexpected echo.");
-		return DC_STATUS_PROTOCOL;
-	}
-
-	// Verify the trailer of the packet.
-	if (trailer && answer[asize - 1] != 0x45) {
-		ERROR (abstract->context, "Unexpected answer trailer byte.");
-		return DC_STATUS_PROTOCOL;
+		// Verify the trailer of the packet.
+		if (trailer && answer[asize - 1] != 0x45) {
+			ERROR (abstract->context, "Unexpected answer trailer byte.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
+{
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = cressi_edy_packet (device, command, csize, answer, asize, trailer)) != DC_STATUS_SUCCESS) {
+		if (rc != DC_STATUS_TIMEOUT && rc != DC_STATUS_PROTOCOL)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Delay the next attempt.
+		serial_sleep (device->port, 300);
+		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+	}
+
+	return DC_STATUS_SUCCESS;
+}
 
 static dc_status_t
 cressi_edy_init1 (cressi_edy_device_t *device)
 {
 	unsigned char command[3] = {0x41, 0x42, 0x43};
-	unsigned char answer[6] = {0};
+	unsigned char answer[3] = {0};
 
 	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
 }
@@ -137,13 +202,13 @@ static dc_status_t
 cressi_edy_init2 (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x44};
-	unsigned char answer[2] = {0};
+	unsigned char answer[1] = {0};
 
 	dc_status_t rc = cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	device->model = answer[1];
+	device->model = answer[0];
 
 	return DC_STATUS_SUCCESS;
 }
@@ -153,7 +218,7 @@ static dc_status_t
 cressi_edy_init3 (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x0C};
-	unsigned char answer[2] = {0};
+	unsigned char answer[1] = {0};
 
 	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
 }
@@ -163,9 +228,8 @@ static dc_status_t
 cressi_edy_quit (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x46};
-	unsigned char answer[1] = {0};
 
-	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 0);
+	return cressi_edy_transfer (device, command, sizeof (command), NULL, 0, 0);
 }
 
 
@@ -187,6 +251,7 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 
 	// Set the default values.
 	device->port = NULL;
+	device->layout = NULL;
 	device->model = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
@@ -224,10 +289,20 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		return DC_STATUS_IO;
 	}
 
+	// Make sure everything is in a sane state.
+	serial_sleep(device->port, 300);
+	serial_flush(device->port, SERIAL_QUEUE_BOTH);
+
 	// Send the init commands.
 	cressi_edy_init1 (device);
 	cressi_edy_init2 (device);
 	cressi_edy_init3 (device);
+
+	if (device->model == IQ700) {
+		device->layout = &tusa_iq700_layout;
+	} else {
+		device->layout = &cressi_edy_layout;
+	}
 
 	// Set the serial communication protocol (4800 8N1).
 	rc = serial_configure (device->port, 4800, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
@@ -237,6 +312,10 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		free (device);
 		return DC_STATUS_IO;
 	}
+
+	// Make sure everything is in a sane state.
+	serial_sleep(device->port, 300);
+	serial_flush(device->port, SERIAL_QUEUE_BOTH);
 
 	*out = (dc_device_t*) device;
 
@@ -278,7 +357,7 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 	while (nbytes < size) {
 		// Read the package.
 		unsigned int number = address / SZ_PAGE;
-		unsigned char answer[3 + SZ_PACKET + 1] = {0};
+		unsigned char answer[SZ_PACKET + 1] = {0};
 		unsigned char command[3] = {0x52,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF}; // low
@@ -286,7 +365,7 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
-		memcpy (data, answer + 3, SZ_PACKET);
+		memcpy (data, answer, SZ_PACKET);
 
 		nbytes += SZ_PACKET;
 		address += SZ_PACKET;
@@ -317,9 +396,11 @@ cressi_edy_device_set_fingerprint (dc_device_t *abstract, const unsigned char da
 static dc_status_t
 cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	cressi_edy_device_t *device = (cressi_edy_device_t *) abstract;
+
 	// Erase the current contents of the buffer and
 	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
+	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
@@ -333,11 +414,12 @@ static dc_status_t
 cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	cressi_edy_device_t *device = (cressi_edy_device_t *) abstract;
+	const cressi_edy_layout_t *layout = device->layout;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = SZ_PACKET +
-		(RB_PROFILE_END - RB_PROFILE_BEGIN);
+		(layout->rb_profile_end - layout->rb_profile_begin);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
@@ -347,23 +429,19 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	devinfo.serial = 0;
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	// Read the configuration data.
-	unsigned char config[SZ_PACKET] = {0};
-	dc_status_t rc = cressi_edy_device_read (abstract, 0x7F80, config, sizeof (config));
+	// Read the logbook data.
+	unsigned char logbook[SZ_PACKET] = {0};
+	dc_status_t rc = cressi_edy_device_read (abstract, layout->rb_logbook_offset, logbook, sizeof (logbook));
 	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the configuration data.");
+		ERROR (abstract->context, "Failed to read the logbook data.");
 		return rc;
 	}
 
-	// Update and emit a progress event.
-	progress.current += SZ_PACKET;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
 	// Get the logbook pointers.
-	unsigned int last  = config[0x7C];
-	unsigned int first = config[0x7D];
-	if (first < RB_LOGBOOK_BEGIN || first >= RB_LOGBOOK_END ||
-		last < RB_LOGBOOK_BEGIN || last >= RB_LOGBOOK_END) {
+	unsigned int last  = logbook[layout->config + 0];
+	unsigned int first = logbook[layout->config + 1];
+	if (first < layout->rb_logbook_begin || first >= layout->rb_logbook_end ||
+		last < layout->rb_logbook_begin || last >= layout->rb_logbook_end) {
 		if (last == 0xFF)
 			return DC_STATUS_SUCCESS;
 		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
@@ -371,60 +449,136 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 
 	// Get the number of logbook items.
-	unsigned int count = ringbuffer_distance (first, last, 0, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END) + 1;
+	unsigned int count = ringbuffer_distance (first, last, 0, layout->rb_logbook_begin, layout->rb_logbook_end) + 1;
 
 	// Get the profile pointer.
-	unsigned int eop = array_uint16_le (config + 0x7E) * SZ_PAGE + BASE;
-	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
+	unsigned int eop = array_uint_le (logbook + layout->config + 2, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
+	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
 		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	// Memory buffer for the profile data.
-	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
-
-	unsigned int available = 0;
-	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
-
-	unsigned int previous = eop;
-	unsigned int address = previous;
-
+	// The logbook ringbuffer can store at most 60 dives, even if the profile
+	// data could store more (e.g. many small dives). But it's also possible
+	// that the profile ringbuffer is filled faster than the logbook ringbuffer
+	// (e.g. many large dives). We detect this by checking the total length.
+	unsigned int total = 0;
 	unsigned int idx = last;
+	unsigned int previous = eop;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
-		unsigned int current = array_uint16_le (config + 2 * idx) * SZ_PAGE + BASE;
-		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
+		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
+		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		// Position the pointer at the start of the header.
-		if (current == RB_PROFILE_BEGIN)
-			current = RB_PROFILE_END;
-		current -= SZ_PAGE;
+		// Get the profile length.
+		unsigned int length = ringbuffer_distance (current, previous, 1, layout->rb_profile_begin, layout->rb_profile_end);
+
+		// Check for a ringbuffer overflow.
+		if (total + length > layout->rb_profile_end - layout->rb_profile_begin) {
+			count = i;
+			break;
+		}
+
+		total += length;
+
+		previous = current;
+
+		if (idx == layout->rb_logbook_begin)
+			idx = layout->rb_logbook_end;
+		idx--;
+	}
+
+	// Because dives are not necessary aligned to packet boundaries, and
+	// we always do aligned reads, there can be padding bytes present on
+	// both sides of the memory buffer. These extra bytes need to be
+	// included in the total length.
+	total += (previous - ifloor(previous, SZ_PACKET)) +
+		(iceil(eop, SZ_PACKET) - eop);
+
+	// Update and emit a progress event.
+	progress.current += SZ_PACKET;
+	progress.maximum = SZ_PACKET + total;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Memory buffer for the profile data.
+	unsigned char *buffer = (unsigned char *) malloc (total);
+	if (buffer == NULL) {
+		ERROR (abstract->context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	unsigned int available = 0;
+	unsigned int offset = total;
+
+	// Align the ringbuffer to packet boundaries. This results in a
+	// virtual ringbuffer that is slightly larger than the actual
+	// ringbuffer. Data outside the real ringbuffer is downloaded
+	// and then immediately dropped.
+	unsigned int rb_profile_begin = ifloor(layout->rb_profile_begin, SZ_PACKET);
+	unsigned int rb_profile_end = iceil(layout->rb_profile_end, SZ_PACKET);
+
+	// Align the initial memory address to the next packet boundary, and
+	// calculate the amount of padding bytes, so we can easily skip
+	// them later.
+	unsigned int address = iceil(eop, SZ_PACKET);
+	unsigned int skip = address - eop;
+
+	idx = last;
+	previous = eop;
+	for (unsigned int i = 0; i < count; ++i) {
+		// Get the pointer to the profile data.
+		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
+		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			free(buffer);
+			return DC_STATUS_DATAFORMAT;
+		}
 
 		// Get the profile length.
-		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
+		unsigned int length = ringbuffer_distance (current, previous, 1, layout->rb_profile_begin, layout->rb_profile_end);
 
 		unsigned nbytes = available;
 		while (nbytes < length) {
-			if (address == RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;
+			if (address == rb_profile_begin)
+				address = rb_profile_end;
 			address -= SZ_PACKET;
-			offset -= SZ_PACKET;
 
 			// Read the memory page.
-			rc = cressi_edy_device_read (abstract, address, buffer + offset, SZ_PACKET);
+			unsigned char packet[SZ_PACKET];
+			rc = cressi_edy_device_read (abstract, address, packet, sizeof(packet));
 			if (rc != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to read the memory page.");
+				free(buffer);
 				return rc;
 			}
 
+			// At the head and tail of the ringbuffer, the packet can
+			// contain extra data, originating from the larger virtual
+			// ringbuffer. This data must be removed from the packet.
+			unsigned int head = 0;
+			unsigned int tail = 0;
+			unsigned int len = SZ_PACKET;
+			if (address < layout->rb_profile_begin) {
+				head = layout->rb_profile_begin - address;
+			}
+			if (address + SZ_PACKET > layout->rb_profile_end) {
+				tail = (address + SZ_PACKET) - layout->rb_profile_end;
+			}
+			len -= head + tail;
+			offset -= len;
+
+			// Copy the data packet to the buffer.
+			memcpy(buffer + offset, packet + head, len);
+
 			// Update and emit a progress event.
-			progress.current += SZ_PACKET;
+			progress.current += len;
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-			nbytes += SZ_PACKET;
+			nbytes += len - skip;
+			skip = 0;
 		}
 
 		available = nbytes - length;
@@ -433,15 +587,17 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		unsigned char *p = buffer + offset + available;
 
 		if (memcmp (p, device->fingerprint, sizeof (device->fingerprint)) == 0)
-			return DC_STATUS_SUCCESS;
+			break;
 
 		if (callback && !callback (p, length, p, sizeof (device->fingerprint), userdata))
-			return DC_STATUS_SUCCESS;
+			break;
 
-		if (idx == RB_LOGBOOK_BEGIN)
-			idx = RB_LOGBOOK_END;
+		if (idx == layout->rb_logbook_begin)
+			idx = layout->rb_logbook_end;
 		idx--;
 	}
+
+	free(buffer);
 
 	return DC_STATUS_SUCCESS;
 }
