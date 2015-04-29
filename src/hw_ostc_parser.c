@@ -31,7 +31,14 @@
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &hw_ostc_parser_vtable)
 
 #define MAXCONFIG 7
-#define NGASMIXES 6
+#define NGASMIXES 15
+
+#define ALL    0
+#define FIXED  1
+#define MANUAL 2
+
+#define HEADER  1
+#define PROFILE 2
 
 #define OSTC_ZHL16_OC    0
 #define OSTC_GAUGE       1
@@ -81,6 +88,7 @@ typedef struct hw_ostc_parser_t {
 	unsigned int header;
 	const hw_ostc_layout_t *layout;
 	unsigned int ngasmixes;
+	unsigned int nfixed;
 	unsigned int initial;
 	hw_ostc_gasmix_t gasmix[NGASMIXES];
 } hw_ostc_parser_t;
@@ -132,6 +140,27 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	75, /* duration */
 	22, /* temperature */
 };
+
+static unsigned int
+hw_ostc_find_gasmix (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he, unsigned int type)
+{
+	unsigned int offset = 0;
+	unsigned int count = parser->ngasmixes;
+	if (type == FIXED) {
+		count = parser->nfixed;
+	} else if (type == MANUAL) {
+		offset = parser->nfixed;
+	}
+
+	unsigned int i = offset;
+	while (i < count) {
+		if (o2 == parser->gasmix[i].oxygen && he == parser->gasmix[i].helium)
+			break;
+		i++;
+	}
+
+	return i;
+}
 
 static dc_status_t
 hw_ostc_parser_cache (hw_ostc_parser_t *parser)
@@ -202,7 +231,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			}
 		}
 	} else {
-		ngasmixes = 6;
+		ngasmixes = 5;
 		initial = data[31];
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[19 + 2 * i + 0];
@@ -220,11 +249,12 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	parser->header = header;
 	parser->layout = layout;
 	parser->ngasmixes = ngasmixes;
+	parser->nfixed = ngasmixes;
 	parser->initial = initial;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->gasmix[i] = gasmix[i];
 	}
-	parser->cached = 1;
+	parser->cached = HEADER;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -252,6 +282,7 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int fr
 	parser->header = 0;
 	parser->layout = NULL;
 	parser->ngasmixes = 0;
+	parser->nfixed = 0;
 	parser->initial = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
@@ -285,6 +316,7 @@ hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsig
 	parser->header = 0;
 	parser->layout = NULL;
 	parser->ngasmixes = 0;
+	parser->nfixed = 0;
 	parser->initial = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
@@ -359,6 +391,13 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	dc_status_t rc = hw_ostc_parser_cache (parser);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
+
+	// Cache the profile data.
+	if (parser->cached < PROFILE) {
+		rc = hw_ostc_parser_samples_foreach (abstract, NULL, NULL);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+	}
 
 	unsigned int version = parser->version;
 	const hw_ostc_layout_t *layout = parser->layout;
@@ -641,10 +680,22 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
 			}
+			unsigned int o2 = data[offset];
+			unsigned int he = data[offset + 1];
+			unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+			if (idx >= parser->ngasmixes) {
+				if (idx >= NGASMIXES) {
+					ERROR (abstract->context, "Maximum number of gas mixes reached.");
+					return DC_STATUS_NOMEMORY;
+				}
+				parser->gasmix[idx].oxygen = o2;
+				parser->gasmix[idx].helium = he;
+				parser->ngasmixes = idx + 1;
+			}
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = data[offset] | (data[offset + 1] << 16);
+			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset += 2;
 			length -= 2;
@@ -784,6 +835,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		ERROR (abstract->context, "Invalid end marker found!");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	parser->cached = PROFILE;
 
 	return DC_STATUS_SUCCESS;
 }
