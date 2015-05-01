@@ -31,7 +31,14 @@
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &hw_ostc_parser_vtable)
 
 #define MAXCONFIG 7
-#define MAXGASMIX 5
+#define NGASMIXES 15
+
+#define ALL    0
+#define FIXED  1
+#define MANUAL 2
+
+#define HEADER  1
+#define PROFILE 2
 
 #define OSTC_ZHL16_OC    0
 #define OSTC_GAUGE       1
@@ -49,13 +56,6 @@
 #define OSTC3_CC    1
 #define OSTC3_GAUGE 2
 #define OSTC3_APNEA 3
-
-typedef struct hw_ostc_parser_t hw_ostc_parser_t;
-
-struct hw_ostc_parser_t {
-	dc_parser_t base;
-	unsigned int frog;
-};
 
 typedef struct hw_ostc_sample_info_t {
 	unsigned int type;
@@ -78,6 +78,20 @@ typedef struct hw_ostc_gasmix_t {
 	unsigned int oxygen;
 	unsigned int helium;
 } hw_ostc_gasmix_t;
+
+typedef struct hw_ostc_parser_t {
+	dc_parser_t base;
+	unsigned int frog;
+	// Cached fields.
+	unsigned int cached;
+	unsigned int version;
+	unsigned int header;
+	const hw_ostc_layout_t *layout;
+	unsigned int ngasmixes;
+	unsigned int nfixed;
+	unsigned int initial;
+	hw_ostc_gasmix_t gasmix[NGASMIXES];
+} hw_ostc_parser_t;
 
 static dc_status_t hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -127,53 +141,37 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	22, /* temperature */
 };
 
-dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
+static unsigned int
+hw_ostc_find_gasmix (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he, unsigned int type)
 {
-	if (out == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	// Allocate memory.
-	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) malloc (sizeof (hw_ostc_parser_t));
-	if (parser == NULL) {
-		ERROR (context, "Failed to allocate memory.");
-		return DC_STATUS_NOMEMORY;
+	unsigned int offset = 0;
+	unsigned int count = parser->ngasmixes;
+	if (type == FIXED) {
+		count = parser->nfixed;
+	} else if (type == MANUAL) {
+		offset = parser->nfixed;
 	}
 
-	// Initialize the base class.
-	parser_init (&parser->base, context, &hw_ostc_parser_vtable);
+	unsigned int i = offset;
+	while (i < count) {
+		if (o2 == parser->gasmix[i].oxygen && he == parser->gasmix[i].helium)
+			break;
+		i++;
+	}
 
-	parser->frog = frog;
-
-	*out = (dc_parser_t *) parser;
-
-	return DC_STATUS_SUCCESS;
+	return i;
 }
 
-
 static dc_status_t
-hw_ostc_parser_destroy (dc_parser_t *abstract)
+hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 {
-	// Free memory.
-	free (abstract);
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
-{
-	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
+	dc_parser_t *abstract = (dc_parser_t *) parser;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
+
+	if (parser->cached) {
+		return DC_STATUS_SUCCESS;
+	}
 
 	if (size < 9) {
 		ERROR(abstract->context, "Header too small.");
@@ -210,6 +208,139 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		ERROR(abstract->context, "Header too small.");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	// Get all the gas mixes, and the index of the inital mix.
+	unsigned int initial = 0;
+	unsigned int ngasmixes = 0;
+	hw_ostc_gasmix_t gasmix[NGASMIXES] = {{0}};
+	if (version == 0x22) {
+		ngasmixes = 3;
+		initial = data[31];
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].oxygen = data[25 + 2 * i];
+			gasmix[i].helium = 0;
+		}
+	} else if (version == 0x23) {
+		ngasmixes = 5;
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].oxygen = data[28 + 4 * i + 0];
+			gasmix[i].helium = data[28 + 4 * i + 1];
+			// Find the first gas marked as the initial gas.
+			if (!initial && data[28 + 4 * i + 3] == 1) {
+				initial = i + 1; /* One based index! */
+			}
+		}
+	} else {
+		ngasmixes = 5;
+		initial = data[31];
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].oxygen = data[19 + 2 * i + 0];
+			gasmix[i].helium = data[19 + 2 * i + 1];
+		}
+	}
+	if (initial < 1 || initial > ngasmixes) {
+		ERROR(abstract->context, "Invalid initial gas mix.");
+		return DC_STATUS_DATAFORMAT;
+	}
+	initial--; /* Convert to a zero based index. */
+
+	// Cache the data for later use.
+	parser->version = version;
+	parser->header = header;
+	parser->layout = layout;
+	parser->ngasmixes = ngasmixes;
+	parser->nfixed = ngasmixes;
+	parser->initial = initial;
+	for (unsigned int i = 0; i < ngasmixes; ++i) {
+		parser->gasmix[i] = gasmix[i];
+	}
+	parser->cached = HEADER;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
+{
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	// Allocate memory.
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) malloc (sizeof (hw_ostc_parser_t));
+	if (parser == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Initialize the base class.
+	parser_init (&parser->base, context, &hw_ostc_parser_vtable);
+
+	// Set the default values.
+	parser->frog = frog;
+	parser->cached = 0;
+	parser->version = 0;
+	parser->header = 0;
+	parser->layout = NULL;
+	parser->ngasmixes = 0;
+	parser->nfixed = 0;
+	parser->initial = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
+	}
+
+	*out = (dc_parser_t *) parser;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_parser_destroy (dc_parser_t *abstract)
+{
+	// Free memory.
+	free (abstract);
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
+{
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
+
+	// Reset the cache.
+	parser->cached = 0;
+	parser->version = 0;
+	parser->header = 0;
+	parser->layout = NULL;
+	parser->ngasmixes = 0;
+	parser->nfixed = 0;
+	parser->initial = 0;
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
+{
+	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	// Cache the header data.
+	dc_status_t rc = hw_ostc_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	unsigned int version = parser->version;
+	const hw_ostc_layout_t *layout = parser->layout;
 
 	unsigned int divetime = 0;
 	if (version > 0x20) {
@@ -256,41 +387,20 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
+	// Cache the header data.
+	dc_status_t rc = hw_ostc_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Cache the profile data.
+	if (parser->cached < PROFILE) {
+		rc = hw_ostc_parser_samples_foreach (abstract, NULL, NULL);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
 	}
 
-	// Check the profile version
-	unsigned int version = data[parser->frog ? 8 : 2];
-	const hw_ostc_layout_t *layout = NULL;
-	unsigned int header = 0;
-	switch (version) {
-	case 0x20:
-		layout = &hw_ostc_layout_ostc;
-		header = 47;
-		break;
-	case 0x21:
-		layout = &hw_ostc_layout_ostc;
-		header = 57;
-		break;
-	case 0x22:
-		layout = &hw_ostc_layout_frog;
-		header = 256;
-		break;
-	case 0x23:
-		layout = &hw_ostc_layout_ostc3;
-		header = 256;
-		break;
-	default:
-		ERROR(abstract->context, "Unknown data format version.");
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	if (size < header) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	unsigned int version = parser->version;
+	const hw_ostc_layout_t *layout = parser->layout;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
@@ -310,25 +420,11 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			*((double *) value) = array_uint16_le (data + layout->avgdepth) / 100.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (version == 0x22) {
-				*((unsigned int *) value) = 3;
-			} else if (version == 0x23) {
-				*((unsigned int *) value) = 5;
-			} else {
-				*((unsigned int *) value) = 6;
-			}
+			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			if (version == 0x22) {
-				gasmix->oxygen = data[25 + 2 * flags] / 100.0;
-				gasmix->helium = 0.0;
-			} else if (version == 0x23) {
-				gasmix->oxygen = data[28 + 4 * flags + 0] / 100.0;
-				gasmix->helium = data[28 + 4 * flags + 1] / 100.0;
-			} else {
-				gasmix->oxygen = data[19 + 2 * flags + 0] / 100.0;
-				gasmix->helium = data[19 + 2 * flags + 1] / 100.0;
-			}
+			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
+			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_SALINITY:
@@ -417,41 +513,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 9) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	// Cache the parser data.
+	dc_status_t rc = hw_ostc_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
-	// Check the profile version
-	unsigned int version = data[parser->frog ? 8 : 2];
-	const hw_ostc_layout_t *layout = NULL;
-	unsigned int header = 0;
-	switch (version) {
-	case 0x20:
-		layout = &hw_ostc_layout_ostc;
-		header = 47;
-		break;
-	case 0x21:
-		layout = &hw_ostc_layout_ostc;
-		header = 57;
-		break;
-	case 0x22:
-		layout = &hw_ostc_layout_frog;
-		header = 256;
-		break;
-	case 0x23:
-		layout = &hw_ostc_layout_ostc3;
-		header = 256;
-		break;
-	default:
-		ERROR(abstract->context, "Unknown data format version.");
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	if (size < header) {
-		ERROR(abstract->context, "Header too small.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	unsigned int version = parser->version;
+	unsigned int header = parser->header;
+	const hw_ostc_layout_t *layout = parser->layout;
 
 	// Get the sample rate.
 	unsigned int samplerate = 0;
@@ -467,40 +536,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	if (salinity < 100 || salinity > 104)
 		salinity = 100;
 	double hydrostatic = GRAVITY * salinity * 10.0;
-
-	// Get all the gas mixes, and the index of the inital mix.
-	unsigned int ngasmix = 0, initial = 0;
-	hw_ostc_gasmix_t gasmix[MAXGASMIX] = {{0}};
-	if (version == 0x22) {
-		ngasmix = 3;
-		initial = data[31];
-		for (unsigned int i = 0; i < ngasmix; ++i) {
-			gasmix[i].oxygen = data[25 + 2 * i];
-			gasmix[i].helium = 0;
-		}
-	} else if (version == 0x23) {
-		ngasmix = 5;
-		for (unsigned int i = 0; i < ngasmix; ++i) {
-			gasmix[i].oxygen = data[28 + 4 * i + 0];
-			gasmix[i].helium = data[28 + 4 * i + 1];
-			// Find the first gas marked as the initial gas.
-			if (!initial && data[28 + 4 * i + 3] == 1) {
-				initial = i + 1; /* One based index! */
-			}
-		}
-	} else {
-		ngasmix = 5;
-		initial = data[31];
-		for (unsigned int i = 0; i < ngasmix; ++i) {
-			gasmix[i].oxygen = data[19 + 2 * i + 0];
-			gasmix[i].helium = data[19 + 2 * i + 1];
-		}
-	}
-	if (initial < 1 || initial > ngasmix) {
-		ERROR(abstract->context, "Invalid initial gas mix.");
-		return DC_STATUS_DATAFORMAT;
-	}
-	initial--; /* Convert to a zero based index. */
 
 	// Get the number of sample descriptors.
 	unsigned int nconfig = 0;
@@ -565,10 +600,13 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Initial gas mix.
 		if (time == samplerate) {
+			unsigned int idx = parser->initial;
+			unsigned int o2 = parser->gasmix[idx].oxygen;
+			unsigned int he = parser->gasmix[idx].helium;
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = gasmix[initial].oxygen | (gasmix[initial].helium << 16);
+			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 		}
 
@@ -642,10 +680,22 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
 			}
+			unsigned int o2 = data[offset];
+			unsigned int he = data[offset + 1];
+			unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+			if (idx >= parser->ngasmixes) {
+				if (idx >= NGASMIXES) {
+					ERROR (abstract->context, "Maximum number of gas mixes reached.");
+					return DC_STATUS_NOMEMORY;
+				}
+				parser->gasmix[idx].oxygen = o2;
+				parser->gasmix[idx].helium = he;
+				parser->ngasmixes = idx + 1;
+			}
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = data[offset] | (data[offset + 1] << 16);
+			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset += 2;
 			length -= 2;
@@ -658,15 +708,17 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				return DC_STATUS_DATAFORMAT;
 			}
 			unsigned int idx = data[offset];
-			if (idx < 1 || idx > ngasmix) {
+			if (idx < 1 || idx > parser->ngasmixes) {
 				ERROR(abstract->context, "Invalid gas mix.");
 				return DC_STATUS_DATAFORMAT;
 			}
 			idx--; /* Convert to a zero based index. */
+			unsigned int o2 = parser->gasmix[idx].oxygen;
+			unsigned int he = parser->gasmix[idx].helium;
 			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 			sample.event.time = 0;
 			sample.event.flags = 0;
-			sample.event.value = gasmix[idx].oxygen | (gasmix[idx].helium << 16);
+			sample.event.value = o2 | (he << 16);
 			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			offset++;
 			length--;
@@ -783,6 +835,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		ERROR (abstract->context, "Invalid end marker found!");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	parser->cached = PROFILE;
 
 	return DC_STATUS_SUCCESS;
 }
