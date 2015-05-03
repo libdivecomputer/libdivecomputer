@@ -346,6 +346,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			complete = 1;
 		} else {
 			// Event.
+			sample.event.type = SAMPLE_EVENT_NONE;
 			sample.event.time = 0;
 			sample.event.flags = 0;
 			sample.event.value = 0;
@@ -382,7 +383,9 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				break;
 			}
 
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			if (sample.event.type != SAMPLE_EVENT_NONE) {
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			}
 		}
 	}
 

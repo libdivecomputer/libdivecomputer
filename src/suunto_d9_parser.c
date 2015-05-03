@@ -502,6 +502,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				unsigned int he, o2;
 				unsigned int length;
 
+				sample.event.type = SAMPLE_EVENT_NONE;
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
@@ -634,7 +635,9 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					else
 						sample.event.flags = SAMPLE_FLAGS_BEGIN;
 					sample.event.time = seconds;
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					if (sample.event.type != SAMPLE_EVENT_NONE) {
+						if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					}
 					offset += 2;
 					break;
 				case 0x04: // Bookmark/Heading
