@@ -208,6 +208,17 @@ suunto_eon_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 		return rc;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
+
+	unsigned int oxygen = 21;
+	unsigned int beginpressure = 0;
+	unsigned int endpressure = 0;
+	if (parser->nitrox) {
+		oxygen = data[0x05];
+	} else {
+		beginpressure = data[5] * 2;
+		endpressure   = data[parser->marker + 2] * 2;
+	}
 
 	if (value) {
 		switch (type) {
@@ -222,11 +233,28 @@ suunto_eon_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
-			if (parser->nitrox)
-				gasmix->oxygen = data[0x05] / 100.0;
-			else
-				gasmix->oxygen = 0.21;
+			gasmix->oxygen = oxygen / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (beginpressure == 0 && endpressure == 0)
+				*((unsigned int *) value) = 0;
+			else
+				*((unsigned int *) value) = 1;
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			tank->gasmix = 0;
+			tank->beginpressure = beginpressure;
+			tank->endpressure = endpressure;
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			if (parser->spyder)
+				*((double *) value) = (signed char) data[parser->marker + 1];
+			else
+				*((double *) value) = data[parser->marker + 1] - 40;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

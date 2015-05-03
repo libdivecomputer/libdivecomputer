@@ -237,6 +237,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	unsigned int size = abstract->size;
 
 	dc_gasmix_t *gas = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 
 	// Cache the data.
 	dc_status_t rc = suunto_vyper_parser_cache (parser);
@@ -244,6 +245,8 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		return rc;
 
 	unsigned int gauge = data[4] & 0x40;
+	unsigned int beginpressure = data[5] * 2;
+	unsigned int endpressure   = data[parser->marker + 3] * 2;
 
 	if (value) {
 		switch (type) {
@@ -263,6 +266,23 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gas->helium = 0.0;
 			gas->oxygen = parser->oxygen[flags] / 100.0;
 			gas->nitrogen = 1.0 - gas->oxygen - gas->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (beginpressure == 0 && endpressure == 0)
+				*((unsigned int *) value) = 0;
+			else
+				*((unsigned int *) value) = 1;
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			if (gauge)
+				tank->gasmix = DC_GASMIX_UNKNOWN;
+			else
+				tank->gasmix = 0;
+			tank->beginpressure = beginpressure;
+			tank->endpressure = endpressure;
 			break;
 		case DC_FIELD_TEMPERATURE_SURFACE:
 			*((double *) value) = (signed char) data[8];
