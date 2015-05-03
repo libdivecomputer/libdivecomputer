@@ -243,6 +243,8 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	unsigned int gauge = data[4] & 0x40;
+
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
@@ -252,8 +254,8 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = parser->maxdepth * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (data[4] & 0x40)
-				*((unsigned int *) value) = 0; // Gauge mode
+			if (gauge)
+				*((unsigned int *) value) = 0;
 			else
 				*((unsigned int *) value) = parser->ngasmixes;
 			break;
@@ -269,7 +271,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = (signed char) data[parser->marker + 1];
 			break;
 		case DC_FIELD_DIVEMODE:
-			if (data[4] & 0x40) {
+			if (gauge) {
 				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
 			} else {
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
