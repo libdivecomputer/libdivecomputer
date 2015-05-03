@@ -282,13 +282,6 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	sample.time = 0;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
-	// Tank Pressure (2 bar)
-	if (!parser->nitrox) {
-		sample.pressure.tank = 0;
-		sample.pressure.value = data[5] * 2;
-		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-	}
-
 	// Depth (0 ft)
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
@@ -312,15 +305,6 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		if (value < 0x7d || value > 0x82) {
 			// Delta depth.
 			depth += (signed char) value;
-
-			// Temperature at maximum depth (°C)
-			if (depth == parser->maxdepth) {
-				if (parser->spyder)
-					sample.temperature = (signed char) data[parser->marker + 1];
-				else
-					sample.temperature = data[parser->marker + 1] - 40;
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-			}
 
 			// Depth (ft).
 			sample.depth = depth * FEET;
@@ -362,13 +346,6 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		time += interval;
 		sample.time = time;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
-	}
-
-	// Tank Pressure (2 bar)
-	if (!parser->nitrox) {
-		sample.pressure.tank = 0;
-		sample.pressure.value = data[offset + 2] * 2;
-		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 	}
 
 	// Depth (0 ft)

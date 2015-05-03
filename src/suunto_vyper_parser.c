@@ -322,15 +322,6 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	sample.time = 0;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
-	// Temperature (°C)
-	sample.temperature = (signed char) data[8];
-	if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-
-	// Tank Pressure (2 bar)
-	sample.pressure.tank = 0;
-	sample.pressure.value = data[5] * 2;
-	if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-
 	// Depth (0 ft)
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
@@ -354,12 +345,6 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		if (value < 0x79 || value > 0x87) {
 			// Delta depth.
 			depth += (signed char) value;
-
-			// Temperature at maximum depth (°C)
-			if (depth == parser->maxdepth) {
-				sample.temperature = (signed char) data[parser->marker + 1];
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-			}
 
 			// Depth (ft).
 			sample.depth = depth * FEET;
@@ -417,15 +402,6 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		sample.time = time;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 	}
-
-	// Temperature (°C)
-	sample.temperature = (signed char) data[offset + 2];
-	if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-
-	// Tank Pressure (2 bar)
-	sample.pressure.tank = 0;
-	sample.pressure.value = data[offset + 3] * 2;
-	if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 
 	// Depth (0 ft)
 	sample.depth = 0;
