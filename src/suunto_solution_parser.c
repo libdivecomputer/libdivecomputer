@@ -206,6 +206,7 @@ suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 		} else {
 			// Event.
+			sample.event.type = SAMPLE_EVENT_NONE;
 			sample.event.time = 0;
 			sample.event.flags = 0;
 			sample.event.value = 0;
@@ -224,7 +225,9 @@ suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				break;
 			}
 
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			if (sample.event.type != SAMPLE_EVENT_NONE) {
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			}
 		}
 	}
 
