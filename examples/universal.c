@@ -304,7 +304,7 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		fprintf (sampledata->fp, "   <ppo2>%.2f</ppo2>\n", value.ppo2);
 		break;
 	case DC_SAMPLE_CNS:
-		fprintf (sampledata->fp, "   <cns>%.2f</cns>\n", value.cns);
+		fprintf (sampledata->fp, "   <cns>%.1f</cns>\n", value.cns * 100.0);
 		break;
 	case DC_SAMPLE_DECO:
 		fprintf (sampledata->fp, "   <deco time=\"%u\" depth=\"%.2f\">%s</deco>\n",
