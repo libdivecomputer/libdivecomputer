@@ -39,6 +39,8 @@ struct suunto_eon_parser_t {
 	unsigned int cached;
 	unsigned int divetime;
 	unsigned int maxdepth;
+	unsigned int marker;
+	unsigned int nitrox;
 };
 
 static dc_status_t suunto_eon_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -56,6 +58,55 @@ static const dc_parser_vtable_t suunto_eon_parser_vtable = {
 	suunto_eon_parser_destroy /* destroy */
 };
 
+static dc_status_t
+suunto_eon_parser_cache (suunto_eon_parser_t *parser)
+{
+	dc_parser_t *abstract = (dc_parser_t *) parser;
+	const unsigned char *data = parser->base.data;
+	unsigned int size = parser->base.size;
+
+	if (parser->cached) {
+		return DC_STATUS_SUCCESS;
+	}
+
+	if (size < 13) {
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// The Solution Nitrox/Vario stores nitrox data, not tank pressure.
+	unsigned int nitrox = !parser->spyder && (data[4] & 0x80);
+
+	// Parse the samples.
+	unsigned int interval = data[3];
+	unsigned int nsamples = 0;
+	unsigned int depth = 0, maxdepth = 0;
+	unsigned int offset = 11;
+	while (offset < size && data[offset] != 0x80) {
+		unsigned char value = data[offset++];
+		if (value < 0x7d || value > 0x82) {
+			depth += (signed char) value;
+			if (depth > maxdepth)
+				maxdepth = depth;
+			nsamples++;
+		}
+	}
+
+	// Check the end marker.
+	unsigned int marker = offset;
+	if (marker + 2 >= size || data[marker] != 0x80) {
+		ERROR (abstract->context, "No valid end marker found!");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Cache the data for later use.
+	parser->divetime = nsamples * interval;
+	parser->maxdepth = maxdepth;
+	parser->marker = marker;
+	parser->nitrox = nitrox;
+	parser->cached = 1;
+
+	return DC_STATUS_SUCCESS;
+}
 
 dc_status_t
 suunto_eon_parser_create (dc_parser_t **out, dc_context_t *context, int spyder)
@@ -78,6 +129,8 @@ suunto_eon_parser_create (dc_parser_t **out, dc_context_t *context, int spyder)
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
+	parser->marker = 0;
+	parser->nitrox = 0;
 
 	*out = (dc_parser_t*) parser;
 
@@ -104,6 +157,8 @@ suunto_eon_parser_set_data (dc_parser_t *abstract, const unsigned char *data, un
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
+	parser->marker = 0;
+	parser->nitrox = 0;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -146,37 +201,24 @@ suunto_eon_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 	suunto_eon_parser_t *parser = (suunto_eon_parser_t *) abstract;
 
 	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
 
-	if (size < 13)
-		return DC_STATUS_DATAFORMAT;
-
-	if (!parser->cached) {
-		unsigned int interval = data[3];
-		unsigned int nsamples = 0;
-		unsigned int depth = 0, maxdepth = 0;
-		unsigned int offset = 11;
-		while (offset < size && data[offset] != 0x80) {
-			unsigned char value = data[offset++];
-			if (value < 0x7d || value > 0x82) {
-				depth += (signed char) value;
-				if (depth > maxdepth)
-					maxdepth = depth;
-				nsamples++;
-			}
-		}
-
-		// Store the offset to the end marker.
-		unsigned int marker = offset;
-		if (marker + 2 >= size || data[marker] != 0x80)
-			return DC_STATUS_DATAFORMAT;
-
-		parser->cached = 1;
-		parser->divetime = nsamples * interval;
-		parser->maxdepth = maxdepth;
-	}
+	// Cache the data.
+	dc_status_t rc = suunto_eon_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
+
+	unsigned int oxygen = 21;
+	unsigned int beginpressure = 0;
+	unsigned int endpressure = 0;
+	if (parser->nitrox) {
+		oxygen = data[0x05];
+	} else {
+		beginpressure = data[5] * 2;
+		endpressure   = data[parser->marker + 2] * 2;
+	}
 
 	if (value) {
 		switch (type) {
@@ -191,11 +233,28 @@ suunto_eon_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
-			if ((data[4] & 0x80) && !parser->spyder)
-				gasmix->oxygen = data[0x05] / 100.0;
-			else
-				gasmix->oxygen = 0.21;
+			gasmix->oxygen = oxygen / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (beginpressure == 0 && endpressure == 0)
+				*((unsigned int *) value) = 0;
+			else
+				*((unsigned int *) value) = 1;
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			tank->gasmix = 0;
+			tank->beginpressure = beginpressure;
+			tank->endpressure = endpressure;
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			if (parser->spyder)
+				*((double *) value) = (signed char) data[parser->marker + 1];
+			else
+				*((double *) value) = data[parser->marker + 1] - 40;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -210,58 +269,29 @@ static dc_status_t
 suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	suunto_eon_parser_t *parser = (suunto_eon_parser_t *) abstract;
-
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
-
-	if (size < 13)
-		return DC_STATUS_DATAFORMAT;
-
-	// Find the maximum depth.
-	unsigned int depth = 0, maxdepth = 0;
-	unsigned int offset = 11;
-	while (offset < size && data[offset] != 0x80) {
-		unsigned char value = data[offset++];
-		if (value < 0x7d || value > 0x82) {
-			depth += (signed char) value;
-			if (depth > maxdepth)
-				maxdepth = depth;
-		}
-	}
-
-	// Store the offset to the end marker.
-	unsigned int marker = offset;
-	if (marker + 2 >= size || data[marker] != 0x80)
-		return DC_STATUS_DATAFORMAT;
-
-	// The Solution Nitrox/Vario stores nitrox data, not tank pressure.
-	unsigned int nitrox = !parser->spyder && (data[4] & 0x80);
-
-	unsigned int time = 0;
-	unsigned int interval = data[3];
-	unsigned int complete = 1;
-
 	dc_sample_value_t sample = {0};
 
-	// Time
-	sample.time = time;
-	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+	// Cache the data.
+	dc_status_t rc = suunto_eon_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
-	// Tank Pressure (2 bar)
-	if (!nitrox) {
-		sample.pressure.tank = 0;
-		sample.pressure.value = data[5] * 2;
-		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-	}
+	// Time
+	sample.time = 0;
+	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 	// Depth (0 ft)
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
-	depth = 0;
-	offset = 11;
+	unsigned int depth = 0;
+	unsigned int time = 0;
+	unsigned int interval = data[3];
+	unsigned int complete = 1;
+	unsigned int offset = 11;
 	while (offset < size && data[offset] != 0x80) {
-		dc_sample_value_t sample = {0};
 		unsigned char value = data[offset++];
 
 		if (complete) {
@@ -275,15 +305,6 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		if (value < 0x7d || value > 0x82) {
 			// Delta depth.
 			depth += (signed char) value;
-
-			// Temperature at maximum depth (°C)
-			if (depth == maxdepth) {
-				if (parser->spyder)
-					sample.temperature = (signed char) data[marker + 1];
-				else
-					sample.temperature = data[marker + 1] - 40;
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-			}
 
 			// Depth (ft).
 			sample.depth = depth * FEET;
@@ -325,13 +346,6 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		time += interval;
 		sample.time = time;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
-	}
-
-	// Tank Pressure (2 bar)
-	if (!nitrox) {
-		sample.pressure.tank = 0;
-		sample.pressure.value = data[offset + 2] * 2;
-		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 	}
 
 	// Depth (0 ft)

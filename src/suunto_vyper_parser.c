@@ -237,11 +237,16 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	unsigned int size = abstract->size;
 
 	dc_gasmix_t *gas = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 
 	// Cache the data.
 	dc_status_t rc = suunto_vyper_parser_cache (parser);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
+
+	unsigned int gauge = data[4] & 0x40;
+	unsigned int beginpressure = data[5] * 2;
+	unsigned int endpressure   = data[parser->marker + 3] * 2;
 
 	if (value) {
 		switch (type) {
@@ -252,8 +257,8 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = parser->maxdepth * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			if (data[4] & 0x40)
-				*((unsigned int *) value) = 0; // Gauge mode
+			if (gauge)
+				*((unsigned int *) value) = 0;
 			else
 				*((unsigned int *) value) = parser->ngasmixes;
 			break;
@@ -262,6 +267,23 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gas->oxygen = parser->oxygen[flags] / 100.0;
 			gas->nitrogen = 1.0 - gas->oxygen - gas->helium;
 			break;
+		case DC_FIELD_TANK_COUNT:
+			if (beginpressure == 0 && endpressure == 0)
+				*((unsigned int *) value) = 0;
+			else
+				*((unsigned int *) value) = 1;
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			if (gauge)
+				tank->gasmix = DC_GASMIX_UNKNOWN;
+			else
+				tank->gasmix = 0;
+			tank->beginpressure = beginpressure;
+			tank->endpressure = endpressure;
+			break;
 		case DC_FIELD_TEMPERATURE_SURFACE:
 			*((double *) value) = (signed char) data[8];
 			break;
@@ -269,7 +291,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = (signed char) data[parser->marker + 1];
 			break;
 		case DC_FIELD_DIVEMODE:
-			if (data[4] & 0x40) {
+			if (gauge) {
 				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
 			} else {
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
@@ -300,15 +322,6 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	sample.time = 0;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
-	// Temperature (°C)
-	sample.temperature = (signed char) data[8];
-	if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-
-	// Tank Pressure (2 bar)
-	sample.pressure.tank = 0;
-	sample.pressure.value = data[5] * 2;
-	if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-
 	// Depth (0 ft)
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
@@ -332,12 +345,6 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		if (value < 0x79 || value > 0x87) {
 			// Delta depth.
 			depth += (signed char) value;
-
-			// Temperature at maximum depth (°C)
-			if (depth == parser->maxdepth) {
-				sample.temperature = (signed char) data[parser->marker + 1];
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-			}
 
 			// Depth (ft).
 			sample.depth = depth * FEET;
@@ -395,15 +402,6 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		sample.time = time;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 	}
-
-	// Temperature (°C)
-	sample.temperature = (signed char) data[offset + 2];
-	if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
-
-	// Tank Pressure (2 bar)
-	sample.pressure.tank = 0;
-	sample.pressure.value = data[offset + 3] * 2;
-	if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 
 	// Depth (0 ft)
 	sample.depth = 0;
