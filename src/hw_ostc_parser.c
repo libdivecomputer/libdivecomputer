@@ -570,6 +570,12 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					return DC_STATUS_DATAFORMAT;
 				}
 				break;
+			case 3: // ppO2
+				if (info[i].size != 3 && info[i].size != 9) {
+					ERROR(abstract->context, "Unexpected sample size.");
+					return DC_STATUS_DATAFORMAT;
+				}
+				break;
 			case 5: // CNS
 				if (info[i].size != 1 && info[i].size != 2) {
 					ERROR(abstract->context, "Unexpected sample size.");
@@ -778,6 +784,17 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					}
 					sample.deco.time = data[offset + 1] * 60;
 					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+					break;
+				case 3: // ppO2 (0.01 bar).
+					for (unsigned int j = 0; j < 3; ++j) {
+						if (info[i].size == 3) {
+							value = data[offset + j];
+						} else {
+							value = data[offset + j * 3];
+						}
+						sample.ppo2 = value / 100.0;
+						if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+					}
 					break;
 				case 5: // CNS
 					if (info[i].size == 2)
