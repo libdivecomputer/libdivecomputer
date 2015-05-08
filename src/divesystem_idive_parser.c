@@ -276,7 +276,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 		// CNS
 		unsigned int cns = array_uint16_le (data + offset + 29);
-		sample.cns = cns;
+		sample.cns = cns / 100.0;
 		if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 
 		offset += SZ_SAMPLE;
