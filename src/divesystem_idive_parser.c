@@ -29,7 +29,7 @@
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &divesystem_idive_parser_vtable)
 
-#define SZ_HEADER 0x33
+#define SZ_HEADER 0x32
 #define SZ_SAMPLE 0x2A
 
 #define NGASMIXES 8

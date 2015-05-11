@@ -52,7 +52,7 @@
 
 #define SZ_ID     0x0A
 #define SZ_RANGE  0x04
-#define SZ_HEADER 0x33
+#define SZ_HEADER 0x32
 #define SZ_SAMPLE 0x2A
 
 #define NSTEPS    1000
