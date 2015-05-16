@@ -522,6 +522,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
+	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -581,6 +582,12 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 			else
 				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+			break;
+		case DC_FIELD_SALINITY:
+			if (table->salinity == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			water->type = parser->watertype;
+			water->density = salinity * 1000.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
