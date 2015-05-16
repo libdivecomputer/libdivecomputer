@@ -51,6 +51,9 @@
 
 #define NGASMIXES 3
 
+#define FRESH 1.000
+#define SALT  1.025
+
 typedef enum {
 	PRESSURE_DEPTH,
 	RBT,
@@ -74,6 +77,7 @@ typedef struct uwatec_smart_header_info_t {
 	unsigned int temp_maximum;
 	unsigned int temp_surface;
 	unsigned int tankpressure;
+	unsigned int salinity;
 } uwatec_smart_header_info_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -108,6 +112,7 @@ struct uwatec_smart_parser_t {
 	unsigned int oxygen[NGASMIXES];
 	unsigned int ntanks;
 	uwatec_smart_tank_t tank[NGASMIXES];
+	dc_water_t watertype;
 };
 
 static dc_status_t uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -134,6 +139,7 @@ uwatec_smart_header_info_t uwatec_smart_pro_header = {
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
+	UNSUPPORTED, /* salinity */
 };
 
 static const
@@ -145,6 +151,7 @@ uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	50, /* tankpressure */
+	94, /* salinity */
 };
 
 static const
@@ -156,6 +163,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
+	UNSUPPORTED, /* salinity */
 };
 
 static const
@@ -167,6 +175,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
+	UNSUPPORTED, /* salinity */
 };
 
 static const
@@ -178,6 +187,7 @@ uwatec_smart_header_info_t uwatec_smart_com_header = {
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
 	30, /* tankpressure */
+	UNSUPPORTED, /* salinity */
 };
 
 static const
@@ -189,6 +199,7 @@ uwatec_smart_header_info_t uwatec_smart_tec_header = {
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
 	34, /* tankpressure */
+	UNSUPPORTED, /* salinity */
 };
 
 static const
@@ -335,6 +346,14 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 		}
 	}
 
+	// Get the water type.
+	dc_water_t watertype = DC_WATER_FRESH;
+	if (header->salinity != UNSUPPORTED) {
+		if (data[header->salinity] & 0x10) {
+			watertype = DC_WATER_SALT;
+		}
+	}
+
 	// Cache the data for later use.
 	parser->trimix = trimix;
 	parser->ngasmixes = ngasmixes;
@@ -345,6 +364,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 	for (unsigned int i = 0; i < ntanks; ++i) {
 		parser->tank[i] = tank[i];
 	}
+	parser->watertype = watertype;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
@@ -427,6 +447,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
 	}
+	parser->watertype = DC_WATER_FRESH;
 
 	*out = (dc_parser_t*) parser;
 
@@ -459,6 +480,7 @@ uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
 	}
+	parser->watertype = DC_WATER_FRESH;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -496,6 +518,8 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 
@@ -505,7 +529,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = array_uint16_le (data + table->divetime) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0;
+			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0 * salinity;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			if (parser->trimix)
@@ -670,6 +694,8 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
+
+	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
 	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
 		have_heartrate = 0, have_alarms = 0, have_bearing = 0;
@@ -878,7 +904,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			}
 
 			if (have_depth) {
-				sample.depth = depth - depth_calibration;
+				sample.depth = (depth - depth_calibration) * salinity;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 
