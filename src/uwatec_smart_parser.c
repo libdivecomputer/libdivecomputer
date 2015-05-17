@@ -78,6 +78,7 @@ typedef struct uwatec_smart_header_info_t {
 	unsigned int temp_surface;
 	unsigned int tankpressure;
 	unsigned int salinity;
+	unsigned int timezone;
 } uwatec_smart_header_info_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -140,6 +141,7 @@ uwatec_smart_header_info_t uwatec_smart_pro_header = {
 	UNSUPPORTED, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
 	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -152,6 +154,7 @@ uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	32, /* temp_surface */
 	50, /* tankpressure */
 	94, /* salinity */
+	16, /* timezone */
 };
 
 static const
@@ -164,6 +167,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
 	UNSUPPORTED, /* salinity */
+	16, /* timezone */
 };
 
 static const
@@ -176,6 +180,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
 	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -188,6 +193,7 @@ uwatec_smart_header_info_t uwatec_smart_com_header = {
 	UNSUPPORTED, /* temp_surface */
 	30, /* tankpressure */
 	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -200,6 +206,7 @@ uwatec_smart_header_info_t uwatec_smart_tec_header = {
 	UNSUPPORTED, /* temp_surface */
 	34, /* tankpressure */
 	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -490,16 +497,32 @@ static dc_status_t
 uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
+	const uwatec_smart_header_info_t *table = parser->header;
+	const unsigned char *data = abstract->data;
 
-	if (abstract->size < 8 + 4)
+	if (abstract->size < parser->headersize)
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 8);
 
 	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp) / 2;
 
-	if (!dc_datetime_localtime (datetime, ticks))
-		return DC_STATUS_DATAFORMAT;
+	if (table->timezone != UNSUPPORTED) {
+		// For devices with timezone support, the UTC offset of the
+		// device is used. The UTC offset is stored in units of 15
+		// minutes (or 900 seconds).
+		int utc_offset = (signed char) data[table->timezone];
+
+		ticks += utc_offset * 900;
+
+		if (!dc_datetime_gmtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	} else {
+		// For devices without timezone support, the current timezone of
+		// the host system is used.
+		if (!dc_datetime_localtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
