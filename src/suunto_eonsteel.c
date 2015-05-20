@@ -131,7 +131,7 @@ static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, in
 	unsigned char buf[64];
 	int ret = 0;
 
-	for (;;) {
+	while (size > 0) {
 		int rc, transferred,  len;
 
 		rc = libusb_interrupt_transfer(eon->handle, InEndpoint, buf, sizeof(buf), &transferred, 5000);
@@ -233,12 +233,15 @@ static int send_receive(suunto_eonsteel_device_t *eon,
 	unsigned int len_out, const unsigned char *out,
 	unsigned int len_in, unsigned char *in)
 {
-	int len, actual;
+	int len, actual, max;
 	unsigned char buf[2048];
 
 	if (send_cmd(eon, cmd, len_out, out) < 0)
 		return -1;
-	len = receive_data(eon, buf, sizeof(buf));
+	max = len_in + 12;
+	if (max > sizeof(buf))
+		max = sizeof(buf);
+	len = receive_data(eon, buf, max);
 	if (len < 10) {
 		ERROR(eon->base.context, "short command reply (%d)", len);
 		return -1;
@@ -316,7 +319,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 		put_le32(ask, cmdbuf+4);	// Size of read
 		rc = send_receive(eon, FILE_READ_CMD,
 			8, cmdbuf,
-			sizeof(result), result);
+			ask+8, result);
 		if (rc < 0) {
 			ERROR(eon->base.context, "unable to read %s", filename);
 			return -1;
