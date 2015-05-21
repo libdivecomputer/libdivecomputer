@@ -51,6 +51,9 @@
 
 #define NGASMIXES 3
 
+#define FRESH 1.000
+#define SALT  1.025
+
 typedef enum {
 	PRESSURE_DEPTH,
 	RBT,
@@ -73,6 +76,9 @@ typedef struct uwatec_smart_header_info_t {
 	unsigned int temp_minimum;
 	unsigned int temp_maximum;
 	unsigned int temp_surface;
+	unsigned int tankpressure;
+	unsigned int salinity;
+	unsigned int timezone;
 } uwatec_smart_header_info_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -83,6 +89,11 @@ typedef struct uwatec_smart_sample_info_t {
 	unsigned int ignoretype;
 	unsigned int extrabytes;
 } uwatec_smart_sample_info_t;
+
+typedef struct uwatec_smart_tank_t {
+	unsigned int beginpressure;
+	unsigned int endpressure;
+} uwatec_smart_tank_t;
 
 typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
 
@@ -100,6 +111,9 @@ struct uwatec_smart_parser_t {
 	unsigned int trimix;
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
+	unsigned int ntanks;
+	uwatec_smart_tank_t tank[NGASMIXES];
+	dc_water_t watertype;
 };
 
 static dc_status_t uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -125,6 +139,9 @@ uwatec_smart_header_info_t uwatec_smart_pro_header = {
 	22, /* temp_minimum */
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
+	UNSUPPORTED, /* tankpressure */
+	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -135,6 +152,9 @@ uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	30, /* temp_minimum */
 	28, /* temp_maximum */
 	32, /* temp_surface */
+	50, /* tankpressure */
+	94, /* salinity */
+	16, /* timezone */
 };
 
 static const
@@ -145,6 +165,9 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	26, /* temp_minimum */
 	28, /* temp_maximum */
 	32, /* temp_surface */
+	UNSUPPORTED, /* tankpressure */
+	UNSUPPORTED, /* salinity */
+	16, /* timezone */
 };
 
 static const
@@ -155,6 +178,9 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	30, /* temp_minimum */
 	28, /* temp_maximum */
 	32, /* temp_surface */
+	UNSUPPORTED, /* tankpressure */
+	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -165,6 +191,9 @@ uwatec_smart_header_info_t uwatec_smart_com_header = {
 	22, /* temp_minimum */
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
+	30, /* tankpressure */
+	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -175,6 +204,9 @@ uwatec_smart_header_info_t uwatec_smart_tec_header = {
 	22, /* temp_minimum */
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
+	34, /* tankpressure */
+	UNSUPPORTED, /* salinity */
+	UNSUPPORTED, /* timezone */
 };
 
 static const
@@ -266,6 +298,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 {
 	const unsigned char *data = parser->base.data;
 	unsigned int size = parser->base.size;
+	const uwatec_smart_header_info_t *header = parser->header;
 
 	if (parser->cached) {
 		return DC_STATUS_SUCCESS;
@@ -294,12 +327,51 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 		}
 	}
 
+	// Get the tanks.
+	unsigned int ntanks = 0;
+	uwatec_smart_tank_t tank[NGASMIXES] = {{0}};
+	if (!trimix && header->tankpressure != UNSUPPORTED) {
+		for (unsigned int i = 0; i < header->ngases; ++i) {
+			unsigned int beginpressure = 0;
+			unsigned int endpressure = 0;
+			if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
+				parser->model == ALADIN2G || parser->model == MERIDIAN ||
+				parser->model == CHROMIS) {
+				unsigned int idx = header->tankpressure + 2 * i;
+				endpressure   = array_uint16_le(data + idx);
+				beginpressure = array_uint16_le(data + idx + 2 * header->ngases);
+			} else {
+				unsigned int idx = header->tankpressure + 4 * i;
+				beginpressure = array_uint16_le(data + idx);
+				endpressure   = array_uint16_le(data + idx + 2);
+			}
+			if (beginpressure == 0 && endpressure == 0)
+				break; // Skip unused tanks.
+			tank[ntanks].beginpressure = beginpressure;
+			tank[ntanks].endpressure = endpressure;
+			ntanks++;
+		}
+	}
+
+	// Get the water type.
+	dc_water_t watertype = DC_WATER_FRESH;
+	if (header->salinity != UNSUPPORTED) {
+		if (data[header->salinity] & 0x10) {
+			watertype = DC_WATER_SALT;
+		}
+	}
+
 	// Cache the data for later use.
 	parser->trimix = trimix;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->oxygen[i] = oxygen[i];
 	}
+	parser->ntanks = ntanks;
+	for (unsigned int i = 0; i < ntanks; ++i) {
+		parser->tank[i] = tank[i];
+	}
+	parser->watertype = watertype;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
@@ -376,9 +448,13 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->cached = 0;
 	parser->trimix = 0;
 	parser->ngasmixes = 0;
+	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
+		parser->tank[i].beginpressure = 0;
+		parser->tank[i].endpressure = 0;
 	}
+	parser->watertype = DC_WATER_FRESH;
 
 	*out = (dc_parser_t*) parser;
 
@@ -405,9 +481,13 @@ uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->cached = 0;
 	parser->trimix = 0;
 	parser->ngasmixes = 0;
+	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
+		parser->tank[i].beginpressure = 0;
+		parser->tank[i].endpressure = 0;
 	}
+	parser->watertype = DC_WATER_FRESH;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -417,16 +497,32 @@ static dc_status_t
 uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
+	const uwatec_smart_header_info_t *table = parser->header;
+	const unsigned char *data = abstract->data;
 
-	if (abstract->size < 8 + 4)
+	if (abstract->size < parser->headersize)
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 8);
 
 	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp) / 2;
 
-	if (!dc_datetime_localtime (datetime, ticks))
-		return DC_STATUS_DATAFORMAT;
+	if (table->timezone != UNSUPPORTED) {
+		// For devices with timezone support, the UTC offset of the
+		// device is used. The UTC offset is stored in units of 15
+		// minutes (or 900 seconds).
+		int utc_offset = (signed char) data[table->timezone];
+
+		ticks += utc_offset * 900;
+
+		if (!dc_datetime_gmtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	} else {
+		// For devices without timezone support, the current timezone of
+		// the host system is used.
+		if (!dc_datetime_localtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -445,7 +541,11 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
+	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -453,7 +553,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = array_uint16_le (data + table->divetime) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0;
+			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0 * salinity;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			if (parser->trimix)
@@ -466,6 +566,24 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gasmix->helium = 0.0;
 			gasmix->oxygen = parser->oxygen[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (parser->trimix || table->tankpressure == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			*((unsigned int *) value) = parser->ntanks;
+			break;
+		case DC_FIELD_TANK:
+			if (parser->trimix || table->tankpressure == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			if (flags < parser->ngasmixes)
+				tank->gasmix = flags;
+			else
+				tank->gasmix = DC_GASMIX_UNKNOWN;
+			tank->beginpressure = parser->tank[flags].beginpressure / 128.0;
+			tank->endpressure   = parser->tank[flags].endpressure   / 128.0;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = (signed short) array_uint16_le (data + table->temp_minimum) / 10.0;
@@ -487,6 +605,12 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 			else
 				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+			break;
+		case DC_FIELD_SALINITY:
+			if (table->salinity == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			water->type = parser->watertype;
+			water->density = salinity * 1000.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -600,6 +724,8 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
+
+	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
 	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
 		have_heartrate = 0, have_alarms = 0, have_bearing = 0;
@@ -808,7 +934,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			}
 
 			if (have_depth) {
-				sample.depth = depth - depth_calibration;
+				sample.depth = (depth - depth_calibration) * salinity;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 
