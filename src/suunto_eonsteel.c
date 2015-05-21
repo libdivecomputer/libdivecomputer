@@ -125,43 +125,45 @@ static void put_le32(unsigned int val, unsigned char *p)
 	p[3] = val >> 24;
 }
 
-static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
+/*
+ * Get a single 64-byte packet from the dive computer. This handles packet
+ * logging and any obvious packet-level errors, and returns the payload of
+ * packet.
+ *
+ * The two first bytes of the packet are packet-level metadata: the report
+ * type (always 0x3f), and then the size of the valid data in the packet.
+ *
+ * The maximum payload is 62 bytes.
+ */
+#define PACKET_SIZE 64
+static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
 {
-	const int InEndpoint = 0x82;
 	unsigned char buf[64];
-	int ret = 0;
+	const int InEndpoint = 0x82;
+	int rc, transferred,  len;
 
-	while (size > 0) {
-		int rc, transferred,  len;
-
-		rc = libusb_interrupt_transfer(eon->handle, InEndpoint, buf, sizeof(buf), &transferred, 5000);
-		if (rc || transferred != sizeof(buf)) {
-			ERROR(eon->base.context, "incomplete read interrupt transfer");
-			return -1;
-		}
-		// dump every incoming packet?
-		HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf, transferred);
-		if (buf[0] != 0x3f) {
-			ERROR(eon->base.context, "read interrupt transfer returns wrong report type");
-			return -1;
-		}
-		len = buf[1];
-		if (len > sizeof(buf)-2) {
-			ERROR(eon->base.context, "read interrupt transfer reports short length");
-			return -1;
-		}
-		if (len > size) {
-			ERROR(eon->base.context, "read interrupt transfer reports excessive length");
-			return -1;
-		}
-		memcpy(buffer+ret, buf+2, len);
-		size -= len;
-		ret += len;
-		if (len < sizeof(buf)-2)
-			break;
+	/* 5000 = 5s timeout */
+	rc = libusb_interrupt_transfer(eon->handle, InEndpoint, buf, PACKET_SIZE, &transferred, 5000);
+	if (rc || transferred != PACKET_SIZE) {
+		ERROR(eon->base.context, "incomplete read interrupt transfer");
+		return -1;
 	}
-
-	return ret;
+	if (buf[0] != 0x3f) {
+		ERROR(eon->base.context, "read interrupt transfer returns wrong report type (%d)", buf[0]);
+		return -1;
+	}
+	len = buf[1];
+	if (len > PACKET_SIZE-2) {
+		ERROR(eon->base.context, "read interrupt transfer reports bad length (%d)", len);
+		return -1;
+	}
+	if (len > size) {
+		ERROR(eon->base.context, "receive_packet result buffer too small - truncating");
+		len = size;
+	}
+	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf+2, len);
+	memcpy(buffer, buf+2, len);
+	return len;
 }
 
 static int send_cmd(suunto_eonsteel_device_t *eon,
@@ -210,8 +212,65 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 	}
 
 	// dump every outgoing packet?
-	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "cmd", buf, sizeof(buf));
+	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "cmd", buf+2, len+12);
 	return 0;
+}
+
+struct eon_hdr {
+	unsigned short cmd;
+	unsigned int magic;
+	unsigned short seq;
+	unsigned int len;
+};
+
+static int receive_header(suunto_eonsteel_device_t *eon, struct eon_hdr *hdr, unsigned char *buffer, int size)
+{
+	int ret;
+	unsigned char header[64];
+
+	ret = receive_packet(eon, header, sizeof(header));
+	if (ret < 0)
+		return -1;
+	if (ret < 12) {
+		ERROR(eon->base.context, "short reply packet (%d)", ret);
+		return -1;
+	}
+
+	/* Unpack the 12-byte header */
+	hdr->cmd = array_uint16_le(header);
+	hdr->magic = array_uint32_le(header+2);
+	hdr->seq = array_uint16_le(header+6);
+	hdr->len = array_uint32_le(header+8);
+
+	ret -= 12;
+	if (ret > size) {
+		ERROR(eon->base.context, "receive_header result data buffer too small (%d vs %d)", ret, size);
+		return -1;
+	}
+	memcpy(buffer, header+12, ret);
+	return ret;
+}
+
+static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
+{
+	int ret = 0;
+
+	while (size > 0) {
+		int len;
+
+		len = receive_packet(eon, buffer + ret, size);
+		if (len < 0)
+			return -1;
+
+		size -= len;
+		ret += len;
+
+		/* Was it not a full packet of data? We're done, regardless of expectations */
+		if (len < PACKET_SIZE-2)
+			break;
+	}
+
+	return ret;
 }
 
 /*
@@ -235,43 +294,49 @@ static int send_receive(suunto_eonsteel_device_t *eon,
 {
 	int len, actual, max;
 	unsigned char buf[2048];
+	struct eon_hdr hdr;
 
 	if (send_cmd(eon, cmd, len_out, out) < 0)
 		return -1;
-	max = len_in + 12;
-	if (max > sizeof(buf))
-		max = sizeof(buf);
-	len = receive_data(eon, buf, max);
-	if (len < 10) {
-		ERROR(eon->base.context, "short command reply (%d)", len);
+
+	/* Get the header and the first part of the data */
+	len = receive_header(eon, &hdr, in, len_in);
+	if (len < 0)
 		return -1;
-	}
-	if (array_uint16_le(buf) != cmd) {
+
+	/* Verify the header data */
+	if (hdr.cmd != cmd) {
 		ERROR(eon->base.context, "command reply doesn't match command");
 		return -1;
 	}
-	if (array_uint32_le(buf+2) != eon->magic + 5) {
-		ERROR(eon->base.context, "command reply doesn't match magic (got %08x, expected %08x)", array_uint32_le(buf+2), eon->magic + 5);
+	if (hdr.magic != eon->magic + 5) {
+		ERROR(eon->base.context, "command reply doesn't match magic (got %08x, expected %08x)", hdr.magic, eon->magic + 5);
 		return -1;
 	}
-	if (array_uint16_le(buf+6) != eon->seq) {
+	if (hdr.seq != eon->seq) {
 		ERROR(eon->base.context, "command reply doesn't match sequence number");
 		return -1;
 	}
-	actual = array_uint32_le(buf+8);
-	if (actual + 12 != len) {
-		ERROR(eon->base.context, "command reply length mismatch (got %d, claimed %d)", len-12, actual);
+	actual = hdr.len;
+	if (actual < len) {
+		ERROR(eon->base.context, "command reply length mismatch (got %d, claimed %d)", len, actual);
 		return -1;
 	}
-	if (len_in < actual) {
-		ERROR(eon->base.context, "command reply returned too much data (got %d, had %d)", actual, len_in);
+	if (actual > len_in) {
+		ERROR(eon->base.context, "command reply too big for result buffer - truncating");
+		actual = len_in;
+	}
+
+	/* Get the rest of the data */
+	len += receive_data(eon, in + len, actual - len);
+	if (len != actual) {
+		ERROR(eon->base.context, "command reply returned unexpected amoutn of data (got %d, expected %d)", len, actual);
 		return -1;
 	}
 
 	// Successful command - increment sequence number
 	eon->seq++;
-	memcpy(in, buf+12, actual);
-	return actual;
+	return len;
 }
 
 static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
@@ -455,6 +520,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 	const int InEndpoint = 0x82;
 	const unsigned char init[] = {0x02, 0x00, 0x2a, 0x00};
 	unsigned char buf[64];
+	struct eon_hdr hdr;
 
 	/* Get rid of any pending stale input first */
 	for (;;) {
@@ -471,13 +537,13 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 		ERROR(eon->base.context, "Failed to send initialization command");
 		return -1;
 	}
-	if (receive_data(eon, buf, sizeof(buf)) < 0) {
+	if (receive_header(eon, &hdr, buf, sizeof(buf)) < 0) {
 		ERROR(eon->base.context, "Failed to receive initial reply");
 		return -1;
 	}
 
 	// Don't ask
-	eon->magic = 0x00000005 | (buf[4] << 16) | (buf[5] << 24);
+	eon->magic = (hdr.magic & 0xffff0000) | 0x0005;
 	// Increment the sequence number for every command sent
 	eon->seq++;
 	return 0;
