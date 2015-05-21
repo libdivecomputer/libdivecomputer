@@ -144,8 +144,12 @@ static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, 
 
 	/* 5000 = 5s timeout */
 	rc = libusb_interrupt_transfer(eon->handle, InEndpoint, buf, PACKET_SIZE, &transferred, 5000);
-	if (rc || transferred != PACKET_SIZE) {
-		ERROR(eon->base.context, "incomplete read interrupt transfer");
+	if (rc) {
+		ERROR(eon->base.context, "read interrupt transfer failed (%s)", libusb_error_name(rc));
+		return -1;
+	}
+	if (transferred != PACKET_SIZE) {
+		ERROR(eon->base.context, "incomplete read interrupt transfer (got %d, expected %d)", transferred, PACKET_SIZE);
 		return -1;
 	}
 	if (buf[0] != 0x3f) {
@@ -384,7 +388,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 		put_le32(ask, cmdbuf+4);	// Size of read
 		rc = send_receive(eon, FILE_READ_CMD,
 			8, cmdbuf,
-			ask+8, result);
+			sizeof(result), result);
 		if (rc < 0) {
 			ERROR(eon->base.context, "unable to read %s", filename);
 			return -1;
