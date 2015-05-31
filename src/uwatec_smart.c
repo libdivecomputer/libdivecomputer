@@ -258,35 +258,24 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
-	// Command template.
-	unsigned char command[9] = {0x00,
-			(device->timestamp      ) & 0xFF,
-			(device->timestamp >> 8 ) & 0xFF,
-			(device->timestamp >> 16) & 0xFF,
-			(device->timestamp >> 24) & 0xFF,
-			0x10,
-			0x27,
-			0,
-			0};
-
 	// Read the model number.
-	command[0] = 0x10;
+	unsigned char cmd_model[1] = {0x10};
 	unsigned char model[1] = {0};
-	rc = uwatec_smart_transfer (device, command, 1, model, sizeof (model));
+	rc = uwatec_smart_transfer (device, cmd_model, sizeof (cmd_model), model, sizeof (model));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Read the serial number.
-	command[0] = 0x14;
+	unsigned char cmd_serial[1] = {0x14};
 	unsigned char serial[4] = {0};
-	rc = uwatec_smart_transfer (device, command, 1, serial, sizeof (serial));
+	rc = uwatec_smart_transfer (device, cmd_serial, sizeof (cmd_serial), serial, sizeof (serial));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Read the device clock.
-	command[0] = 0x1A;
+	unsigned char cmd_devtime[1] = {0x1A};
 	unsigned char devtime[4] = {0};
-	rc = uwatec_smart_transfer (device, command, 1, devtime, sizeof (devtime));
+	rc = uwatec_smart_transfer (device, cmd_devtime, sizeof (cmd_devtime), devtime, sizeof (devtime));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -310,6 +299,17 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	devinfo.firmware = 0;
 	devinfo.serial = array_uint32_le (serial);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
+
+	// Command template.
+	unsigned char command[9] = {0x00,
+			(device->timestamp      ) & 0xFF,
+			(device->timestamp >> 8 ) & 0xFF,
+			(device->timestamp >> 16) & 0xFF,
+			(device->timestamp >> 24) & 0xFF,
+			0x10,
+			0x27,
+			0,
+			0};
 
 	// Data Length.
 	command[0] = 0xC6;
