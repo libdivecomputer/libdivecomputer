@@ -342,12 +342,17 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 	uwatec_smart_gasmix_t gasmix[NGASMIXES] = {{0}};
 	if (!trimix) {
 		for (unsigned int i = 0; i < header->ngases; ++i) {
+			unsigned int id = i;
+			if (id > 0 && header->ngases == 2) {
+				id++; // Remap the id of the deco mix.
+			}
+
 			unsigned int idx = DC_GASMIX_UNKNOWN;
 
 			unsigned int o2 = data[header->gasmix + i * 2];
 			if (o2 != 0) {
 				idx = ngasmixes;
-				gasmix[ngasmixes].id = i;
+				gasmix[ngasmixes].id = id;
 				gasmix[ngasmixes].oxygen = o2;
 				ngasmixes++;
 			}
@@ -368,7 +373,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 				}
 			}
 			if (beginpressure != 0 || endpressure != 0) {
-				tank[ntanks].id = i;
+				tank[ntanks].id = id;
 				tank[ntanks].beginpressure = beginpressure;
 				tank[ntanks].endpressure = endpressure;
 				tank[ntanks].gasmix = idx;
@@ -881,7 +886,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			have_alarms = 1;
 			if (table[id].index == 1) {
 				if (parser->model == ALADINTEC || parser->model == ALADINTEC2G) {
-					gasmix = (value & 0x30) >> 4;
+					gasmix = (value & 0x18) >> 3;
 				} else {
 					gasmix = (value & 0x60) >> 5;
 				}
