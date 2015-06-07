@@ -79,6 +79,8 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 			next++;
 		} else {
 			len = strlen(name);
+			if (!len)
+				break;
 		}
 
 		if (len < 5 || name[0] != '<' || name[4] != '>') {
