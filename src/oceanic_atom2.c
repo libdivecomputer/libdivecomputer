@@ -181,7 +181,7 @@ static const oceanic_common_layout_t aeris_f10_layout = {
 	0x0100, /* rb_logbook_begin */
 	0x0D80, /* rb_logbook_end */
 	32, /* rb_logbook_entry_size */
-	0x0D90, /* rb_profile_begin */
+	0x0D80, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	2 /* pt_mode_logbook */
