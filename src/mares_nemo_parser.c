@@ -362,6 +362,13 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	unsigned int size = abstract->size;
 
 	if (parser->mode != parser->freedive) {
+		// Initial tank pressure.
+		unsigned int pressure = 0;
+		if (parser->extra == 12) {
+			const unsigned char *p = data + 2 + parser->sample_count * parser->sample_size;
+			pressure = array_uint16_le(p + parser->header + 4);
+		}
+
 		unsigned int time = 0;
 		for (unsigned int i = 0; i < parser->sample_count; ++i) {
 			dc_sample_value_t sample = {0};
@@ -414,6 +421,14 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				sample.pressure.tank = 0;
 				sample.pressure.value = data[idx + 2];
 				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+			} else if (parser->sample_size == 5) {
+				unsigned int type = (time / 20) % 3;
+				if (type == 0) {
+					pressure -= data[idx + 2] * 100;
+					sample.pressure.tank = 0;
+					sample.pressure.value = pressure / 100.0;
+					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				}
 			}
 		}
 	} else {
