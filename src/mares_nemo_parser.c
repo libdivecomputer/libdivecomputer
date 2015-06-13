@@ -231,6 +231,7 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 	if (value) {
 		if (parser->mode != parser->freedive) {
 			dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+			dc_tank_t *tank = (dc_tank_t *) value;
 			switch (type) {
 			case DC_FIELD_DIVETIME:
 				*((unsigned int *) value) = parser->sample_count * 20;
@@ -257,6 +258,45 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				}
 				gasmix->helium = 0.0;
 				gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+				break;
+			case DC_FIELD_TANK_COUNT:
+				if (parser->extra)
+					*((unsigned int *) value) = 1;
+				else
+					*((unsigned int *) value) = 0;
+				break;
+			case DC_FIELD_TANK:
+				if (parser->extra == 12) {
+					unsigned int volume = array_uint16_le(p + parser->header + 0);
+					unsigned int workpressure = array_uint16_le(p + parser->header + 2);
+					if (workpressure == 0xFFFF) {
+						tank->type = DC_TANKVOLUME_METRIC;
+						tank->volume = volume / 10.0;
+						tank->workpressure = 0.0;
+					} else {
+						if (workpressure == 0)
+							return DC_STATUS_DATAFORMAT;
+						tank->type = DC_TANKVOLUME_IMPERIAL;
+						tank->volume = volume * CUFT * 1000.0;
+						tank->volume /= workpressure * PSI / ATM;
+						tank->workpressure = workpressure * PSI / BAR;
+					}
+					tank->beginpressure = array_uint16_le(p + parser->header + 4) / 100.0;
+					tank->endpressure = array_uint16_le(p + parser->header + 6) / 100.0;
+				} else if (parser->extra == 7) {
+					tank->type = DC_TANKVOLUME_NONE;
+					tank->volume = 0.0;
+					tank->workpressure = 0.0;
+					tank->beginpressure = array_uint16_le(p + parser->header + 0);
+					tank->endpressure = array_uint16_le(p + parser->header + 2);
+				} else {
+					return DC_STATUS_UNSUPPORTED;
+				}
+				if (parser->mode == AIR || parser->mode == NITROX) {
+					tank->gasmix = 0;
+				} else {
+					tank->gasmix = DC_GASMIX_UNKNOWN;
+				}
 				break;
 			case DC_FIELD_TEMPERATURE_MINIMUM:
 				*((double *) value) = (signed char) p[53 - 11];
