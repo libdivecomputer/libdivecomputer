@@ -42,6 +42,8 @@ enum eon_sample {
 	ES_tts,		// uint16,nillable=65535 (time to surface)
 	ES_heading,	// uint16,precision=4,nillable=65535 (heading in degrees)
 	ES_abspressure,	// uint16,precision=0,nillable=65535 (abs presure in centibar)
+	ES_gastime,	// int16,nillable=-1 (remaining gas time in minutes)
+	ES_ventilation,	// uint16,precision=6,nillable=65535 ("x/6000000,x"? No idea)
 	ES_gasnr,	// uint8
 	ES_pressure,	// uint16,nillable=65535 (cylinder pressure in centibar)
 	ES_state,
@@ -96,8 +98,8 @@ static const struct {
 	{ "TimeToSurface",			ES_tts },
 	{ "Heading",				ES_heading },
 	{ "DeviceInternalAbsPressure",		ES_abspressure },
-	{ "GasTime",				ES_none },
-	{ "Ventilation",			ES_none },
+	{ "GasTime",				ES_gastime },
+	{ "Ventilation",			ES_ventilation },
 	{ "Cylinders+Cylinder.GasNumber",	ES_gasnr },
 	{ "Cylinders.Cylinder.Pressure",	ES_pressure },
 	{ "Events+State.Type",			ES_state },
@@ -215,10 +217,11 @@ static int fill_in_group_details(suunto_eonsteel_parser_t *eon, struct type_desc
 			grp = end+1;
 			continue;
 		default:
-			ERROR(eon->base.context, "Group type descriptor '%s' has undescribed index %d", desc->desc, index);
+			ERROR(eon->base.context, "Group type descriptor '%s' has unparseable index %d", desc->desc, index);
 			return -1;
 		}
 	}
+	return -1;
 }
 
 /*
@@ -502,6 +505,29 @@ static void sample_abspressure(struct sample_data *info, unsigned short pressure
 {
 }
 
+static void sample_gastime(struct sample_data *info, short gastime)
+{
+	dc_sample_value_t sample = {0};
+
+	if (gastime < 0)
+		return;
+
+	sample.event.type = SAMPLE_EVENT_AIRTIME;
+	sample.event.value = gastime;
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
+/*
+ * Per-sample "ventilation" data.
+ *
+ * It's described as:
+ *   - "uint16,precision=6,nillable=65535"
+ *   - "x/6000000,x"
+ */
+static void sample_ventilation(struct sample_data *info, unsigned short unk)
+{
+}
+
 static void sample_gasnr(struct sample_data *info, unsigned char idx)
 {
 	info->gasnr = idx;
@@ -730,6 +756,14 @@ static int handle_sample_type(struct sample_data *info, enum eon_sample type, co
 		sample_abspressure(info, array_uint16_le(data));
 		return 2;
 
+	case ES_gastime:
+		sample_gastime(info, array_uint16_le(data));
+		return 2;
+
+	case ES_ventilation:
+		sample_ventilation(info, array_uint16_le(data));
+		return 2;
+
 	case ES_gasnr:
 		sample_gasnr(info, *data);
 		return 1;
@@ -822,7 +856,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 
 	// Warn if there are left-over bytes for something we did use part of
 	if (used && len)
-		ERROR(eon->base.context, "Entry for '%s' had %d bytes, only used %d", len+used, used);
+		ERROR(eon->base.context, "Entry for '%s' had %d bytes, only used %d", desc->desc, len+used, used);
 	return 0;
 }
 
