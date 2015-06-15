@@ -251,6 +251,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\divesystem_idive.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\divesystem_idive_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\hw_frog.c"
 				>
 			</File>
@@ -554,6 +562,14 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\diverite_nitekq.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\divesystem.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\libdivecomputer\divesystem_idive.h"
 				>
 			</File>
 			<File
