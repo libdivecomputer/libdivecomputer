@@ -69,6 +69,7 @@ shearwater_predator_parser_create
 shearwater_petrel_parser_create
 diverite_nitekq_parser_create
 citizen_aqualand_parser_create
+divesystem_idive_parser_create
 
 dc_device_open
 dc_device_close
@@ -173,3 +174,4 @@ shearwater_petrel_device_open
 diverite_nitekq_device_open
 diverite_nitekq_extract_dives
 citizen_aqualand_device_open
+divesystem_idive_device_open
