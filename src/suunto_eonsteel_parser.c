@@ -512,9 +512,7 @@ static void sample_gastime(struct sample_data *info, short gastime)
 	if (gastime < 0)
 		return;
 
-	sample.event.type = SAMPLE_EVENT_AIRTIME;
-	sample.event.value = gastime;
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	// Hmm. We have no good way to report airtime remaining
 }
 
 /*
