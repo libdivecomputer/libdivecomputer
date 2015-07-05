@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <libdivecomputer/suunto_eonsteel.h>
 
@@ -28,8 +29,41 @@
 #include "parser-private.h"
 #include "array.h"
 
+
+#define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
+enum eon_sample {
+	ES_none = 0,
+	ES_dtime,	// duint16,precision=3 (time delta in ms)
+	ES_depth,	// uint16,precision=2,nillable=65535 (depth in cm)
+	ES_temp,	// int16,precision=2,nillable=-3000 (temp in deci-Celsius)
+	ES_ndl,		// int16,nillable=-1 (ndl in minutes)
+	ES_ceiling,	// uint16,precision=2,nillable=65535 (ceiling in cm)
+	ES_tts,		// uint16,nillable=65535 (time to surface)
+	ES_heading,	// uint16,precision=4,nillable=65535 (heading in degrees)
+	ES_abspressure,	// uint16,precision=0,nillable=65535 (abs presure in centibar)
+	ES_gastime,	// int16,nillable=-1 (remaining gas time in minutes)
+	ES_ventilation,	// uint16,precision=6,nillable=65535 ("x/6000000,x"? No idea)
+	ES_gasnr,	// uint8
+	ES_pressure,	// uint16,nillable=65535 (cylinder pressure in centibar)
+	ES_state,
+	ES_state_active,
+	ES_notify,
+	ES_notify_active,
+	ES_warning,
+	ES_warning_active,
+	ES_alarm,
+	ES_alarm_active,
+	ES_gasswitch,	// uint16
+	ES_bookmark,
+};
+
+#define EON_MAX_GROUP 16
+
 struct type_desc {
 	const char *desc, *format, *mod;
+	unsigned int size;
+	enum eon_sample type[EON_MAX_GROUP];
 };
 
 #define MAXTYPE 512
@@ -53,6 +87,166 @@ typedef struct suunto_eonsteel_parser_t {
 
 typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user);
 
+static const struct {
+	const char *name;
+	enum eon_sample type;
+} type_translation[] = {
+	{ "Depth",				ES_depth },
+	{ "Temperature",			ES_temp },
+	{ "NoDecTime",				ES_ndl },
+	{ "Ceiling",				ES_ceiling },
+	{ "TimeToSurface",			ES_tts },
+	{ "Heading",				ES_heading },
+	{ "DeviceInternalAbsPressure",		ES_abspressure },
+	{ "GasTime",				ES_gastime },
+	{ "Ventilation",			ES_ventilation },
+	{ "Cylinders+Cylinder.GasNumber",	ES_gasnr },
+	{ "Cylinders.Cylinder.Pressure",	ES_pressure },
+	{ "Events+State.Type",			ES_state },
+	{ "Events.State.Active",		ES_state_active },
+	{ "Events+Notify.Type",			ES_notify },
+	{ "Events.Notify.Active",		ES_notify_active },
+	{ "Events+Warning.Type",		ES_warning },
+	{ "Events.Warning.Active",		ES_warning_active },
+	{ "Events+Alarm.Type",			ES_alarm },
+	{ "Events.Alarm.Active",		ES_alarm_active },
+	{ "Events.Bookmark.Name",		ES_bookmark },
+	{ "Events.GasSwitch.GasNumber",		ES_gasswitch },
+	{ "Events.DiveTimer.Active",		ES_none },
+	{ "Events.DiveTimer.Time",		ES_none },
+};
+
+static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
+{
+	int i;
+	const char *name = desc->desc;
+
+	// Not a sample type? Skip it
+	if (strncmp(name, "sml.DeviceLog.Samples", 21))
+		return ES_none;
+
+	// Skip the common base
+	name += 21;
+
+	// We have a "+Sample.Time", which starts a new
+	// sample and contains the time delta
+	if (!strcmp(name, "+Sample.Time"))
+		return ES_dtime;
+
+	// .. the rest should start with ".Sample."
+	if (strncmp(name, ".Sample.", 8))
+		return ES_none;
+
+	// Skip the ".Sample."
+	name += 8;
+
+	// .. and look it up in the table of sample type strings
+	for (i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
+		if (!strcmp(name, type_translation[i].name))
+			return type_translation[i].type;
+	}
+	return ES_none;
+}
+
+static int lookup_descriptor_size(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
+{
+	const char *format = desc->format;
+	unsigned char c;
+
+	if (!format)
+		return 0;
+
+	if (!strncmp(format, "bool", 4))
+		return 1;
+	if (!strncmp(format, "enum", 4))
+		return 1;
+	if (!strncmp(format, "utf8", 4))
+		return 0;
+
+	// find the byte size (eg "float32" -> 4 bytes)
+	while ((c = *format) != 0) {
+		if (isdigit(c))
+			return atoi(format)/8;
+		format++;
+	}
+	return 0;
+}
+
+static int fill_in_group_details(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
+{
+	int subtype = 0;
+	const char *grp = desc->desc;
+
+	for (;;) {
+		struct type_desc *base;
+		char *end;
+		long index;
+
+		index = strtol(grp, &end, 10);
+		if (index < 0 || index > MAXTYPE || end == grp) {
+			ERROR(eon->base.context, "Group type descriptor '%s' does not parse", desc->desc);
+			break;
+		}
+		base = eon->type_desc + index;
+		if (!base->desc) {
+			ERROR(eon->base.context, "Group type descriptor '%s' has undescribed index %d", desc->desc, index);
+			break;
+		}
+		if (!base->size) {
+			ERROR(eon->base.context, "Group type descriptor '%s' uses unsized sub-entry '%s'", desc->desc, base->desc);
+			break;
+		}
+		if (!base->type[0]) {
+			ERROR(eon->base.context, "Group type descriptor '%s' has non-enumerated sub-entry '%s'", desc->desc, base->desc);
+			break;
+		}
+		if (base->type[1]) {
+			ERROR(eon->base.context, "Group type descriptor '%s' has a recursive group sub-entry '%s'", desc->desc, base->desc);
+			break;
+		}
+		if (subtype >= EON_MAX_GROUP-1) {
+			ERROR(eon->base.context, "Group type descriptor '%s' has too many sub-entries", desc->desc);
+			break;
+		}
+		desc->size += base->size;
+		desc->type[subtype++] = base->type[0];
+		switch (*end) {
+		case 0:
+			return 0;
+		case ',':
+			grp = end+1;
+			continue;
+		default:
+			ERROR(eon->base.context, "Group type descriptor '%s' has unparseable index %d", desc->desc, index);
+			return -1;
+		}
+	}
+	return -1;
+}
+
+/*
+ * Here we cache descriptor data so that we don't have
+ * to re-parse the string all the time. That way we can
+ * do it just once per type.
+ *
+ * Right now we only bother with the sample descriptors,
+ * which all start with "sml.DeviceLog.Samples" (for the
+ * base types) or are "GRP" types that are a group of said
+ * types and are a set of numbers.
+ */
+static int fill_in_desc_details(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
+{
+	if (!desc->desc)
+		return 0;
+
+	if (isdigit(desc->desc[0]))
+		return fill_in_group_details(eon, desc);
+
+	desc->size = lookup_descriptor_size(eon, desc);
+	desc->type[0] = lookup_descriptor_type(eon, desc);
+	return 0;
+}
+
 static void
 desc_free (struct type_desc desc[], unsigned int count)
 {
@@ -68,7 +262,7 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 	struct type_desc desc;
 	const char *next;
 
-	desc.desc = desc.format = desc.mod = NULL;
+	memset(&desc, 0, sizeof(desc));
 	do {
 		int len;
 		char *p;
@@ -79,6 +273,8 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 			next++;
 		} else {
 			len = strlen(name);
+			if (!len)
+				break;
 		}
 
 		if (len < 5 || name[0] != '<' || name[4] != '>') {
@@ -123,6 +319,8 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 		desc_free(&desc, 1);
 		return -1;
 	}
+
+	fill_in_desc_details(eon, &desc);
 
 	desc_free(eon->type_desc + type, 1);
 	eon->type_desc[type] = desc;
@@ -228,6 +426,11 @@ struct sample_data {
 	unsigned int time;
 	unsigned char state_type, notify_type;
 	unsigned char warning_type, alarm_type;
+
+	/* We gather up deco and cylinder pressure information */
+	int gasnr;
+	int tts, ndl;
+	double ceiling;
 };
 
 static void sample_time(struct sample_data *info, unsigned short time_delta)
@@ -261,32 +464,81 @@ static void sample_temp(struct sample_data *info, short temp)
 	if (info->callback) info->callback(DC_SAMPLE_TEMPERATURE, sample, info->userdata);
 }
 
-static void sample_deco(struct sample_data *info, short ndl, unsigned short tts, unsigned ceiling)
+static void sample_ndl(struct sample_data *info, short ndl)
 {
 	dc_sample_value_t sample = {0};
 
-	/* Are we in deco? */
-	if (ndl < 0) {
-		sample.deco.type = DC_DECO_DECOSTOP;
-		if (tts != 0xffff)
-			sample.deco.time = tts;
-		if (ceiling != 0xffff)
-			sample.deco.depth = ceiling / 100.0;
-	} else {
-		sample.deco.type = DC_DECO_NDL;
-		sample.deco.time = ndl;
-	}
+	info->ndl = ndl;
+	if (ndl < 0)
+		return;
+
+	sample.deco.type = DC_DECO_NDL;
+	sample.deco.time = ndl;
 	if (info->callback) info->callback(DC_SAMPLE_DECO, sample, info->userdata);
 }
 
-static void sample_cylinder_pressure(struct sample_data *info, unsigned char idx, unsigned short pressure)
+static void sample_tts(struct sample_data *info, unsigned short tts)
+{
+	if (tts != 0xffff)
+		info->tts = tts;
+}
+
+static void sample_ceiling(struct sample_data *info, unsigned short ceiling)
+{
+	if (ceiling != 0xffff)
+		info->ceiling = ceiling / 100.0;
+}
+
+static void sample_heading(struct sample_data *info, unsigned short heading)
+{
+	dc_sample_value_t sample = {0};
+
+	if (heading == 0xffff)
+		return;
+
+	sample.event.type = SAMPLE_EVENT_HEADING;
+	sample.event.value = heading;
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+}
+
+static void sample_abspressure(struct sample_data *info, unsigned short pressure)
+{
+}
+
+static void sample_gastime(struct sample_data *info, short gastime)
+{
+	dc_sample_value_t sample = {0};
+
+	if (gastime < 0)
+		return;
+
+	// Hmm. We have no good way to report airtime remaining
+}
+
+/*
+ * Per-sample "ventilation" data.
+ *
+ * It's described as:
+ *   - "uint16,precision=6,nillable=65535"
+ *   - "x/6000000,x"
+ */
+static void sample_ventilation(struct sample_data *info, unsigned short unk)
+{
+}
+
+static void sample_gasnr(struct sample_data *info, unsigned char idx)
+{
+	info->gasnr = idx;
+}
+
+static void sample_pressure(struct sample_data *info, unsigned short pressure)
 {
 	dc_sample_value_t sample = {0};
 
 	if (pressure == 0xffff)
 		return;
 
-	sample.pressure.tank = idx-1;
+	sample.pressure.tank = info->gasnr-1;
 	sample.pressure.value = pressure / 100.0;
 	if (info->callback) info->callback(DC_SAMPLE_PRESSURE, sample, info->userdata);
 }
@@ -336,6 +588,8 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
  * 3=Dive Active
  * 4=Surface Calculation
  * 5=Tank pressure available
+ *
+ * FIXME! This needs to parse the actual type descriptor enum
  */
 static void sample_event_state_type(struct sample_data *info, unsigned char type)
 {
@@ -362,6 +616,7 @@ static void sample_event_notify_type(struct sample_data *info, unsigned char typ
 }
 
 
+// FIXME! This needs to parse the actual type descriptor enum
 static void sample_event_notify_value(struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
@@ -439,6 +694,7 @@ static void sample_event_alarm_type(struct sample_data *info, unsigned char type
 }
 
 
+// FIXME! This needs to parse the actual type descriptor enum
 static void sample_event_alarm_value(struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
@@ -463,58 +719,142 @@ static void sample_event_alarm_value(struct sample_data *info, unsigned char val
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
+static int handle_sample_type(struct sample_data *info, enum eon_sample type, const unsigned char *data)
+{
+	switch (type) {
+	case ES_dtime:
+		sample_time(info, array_uint16_le(data));
+		return 2;
+
+	case ES_depth:
+		sample_depth(info, array_uint16_le(data));
+		return 2;
+
+	case ES_temp:
+		sample_temp(info, array_uint16_le(data));
+		return 2;
+
+	case ES_ndl:
+		sample_ndl(info, array_uint16_le(data));
+		return 2;
+
+	case ES_ceiling:
+		sample_ceiling(info, array_uint16_le(data));
+		return 2;
+
+	case ES_tts:
+		sample_tts(info, array_uint16_le(data));
+		return 2;
+
+	case ES_heading:
+		sample_heading(info, array_uint16_le(data));
+		return 2;
+
+	case ES_abspressure:
+		sample_abspressure(info, array_uint16_le(data));
+		return 2;
+
+	case ES_gastime:
+		sample_gastime(info, array_uint16_le(data));
+		return 2;
+
+	case ES_ventilation:
+		sample_ventilation(info, array_uint16_le(data));
+		return 2;
+
+	case ES_gasnr:
+		sample_gasnr(info, *data);
+		return 1;
+
+	case ES_pressure:
+		sample_pressure(info, array_uint16_le(data));
+		return 2;
+
+	case ES_state:
+		sample_event_state_type(info, data[0]);
+		return 1;
+
+	case ES_state_active:
+		sample_event_state_value(info, data[0]);
+		return 1;
+
+	case ES_notify:
+		sample_event_notify_type(info, data[0]);
+		return 1;
+
+	case ES_notify_active:
+		sample_event_notify_value(info, data[0]);
+		return 1;
+
+	case ES_warning:
+		sample_event_warning_type(info, data[0]);
+		return 1;
+
+	case ES_warning_active:
+		sample_event_warning_value(info, data[0]);
+		return 1;
+
+	case ES_alarm:
+		sample_event_alarm_type(info, data[0]);
+		return 1;
+
+	case ES_alarm_active:
+		sample_event_alarm_value(info, data[0]);
+		return 1;
+
+	case ES_bookmark:
+		sample_bookmark_event(info, array_uint16_le(data));
+		return 2;
+
+	case ES_gasswitch:
+		sample_gas_switch_event(info, array_uint16_le(data));
+		return 2;
+
+	default:
+		return 0;
+	}
+}
 
 static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	struct sample_data *info = (struct sample_data *) user;
+	suunto_eonsteel_parser_t *eon = info->eon;
+	int i, used = 0;
 
-	switch (type) {
-	case 0x0001: // group: time in first word, depth in second
-		sample_time(info, array_uint16_le(data));
-		sample_depth(info, array_uint16_le(data+2));
-		sample_temp(info, array_uint16_le(data+4));
-		sample_deco(info, array_uint16_le(data+8), array_uint16_le(data+10), array_uint16_le(data+12));
-		break;
-	case 0x0002: // time in first word
-		sample_time(info, array_uint16_le(data));
-		break;
-	case 0x0003: // depth in first word
-		sample_depth(info, array_uint16_le(data));
-		break;
-	case 0x000a: // cylinder idx in first byte, pressure in next word
-		sample_cylinder_pressure(info, data[0], array_uint16_le(data+1));
-		break;
-	case 0x0013:
-		sample_event_state_type(info, data[0]);
-		break;
-	case 0x0014:
-		sample_event_state_value(info, data[0]);
-		break;
-	case 0x0015:
-		sample_event_notify_type(info, data[0]);
-		break;
-	case 0x0016:
-		sample_event_notify_value(info, data[0]);
-		break;
-	case 0x0017:
-		sample_event_warning_type(info, data[0]);
-		break;
-	case 0x0018:
-		sample_event_warning_value(info, data[0]);
-		break;
-	case 0x0019:
-		sample_event_alarm_type(info, data[0]);
-		break;
-	case 0x001a:
-		sample_event_alarm_value(info, data[0]);
-		break;
-	case 0x001c:
-		sample_bookmark_event(info, array_uint16_le(data));
-		break;
-	case 0x001d:
-		sample_gas_switch_event(info, array_uint16_le(data));
-		break;
+	if (desc->size > len)
+		ERROR(eon->base.context, "Got %d bytes of data for '%s' that wants %d bytes", len, desc->desc, desc->size);
+
+	info->ndl = -1;
+	info->tts = 0;
+	info->ceiling = 0.0;
+
+	for (i = 0; i < EON_MAX_GROUP; i++) {
+		enum eon_sample type = desc->type[i];
+		int bytes = handle_sample_type(info, type, data);
+
+		if (!bytes)
+			break;
+		if (bytes > len) {
+			ERROR(eon->base.context, "Wanted %d bytes of data, only had %d bytes ('%s' idx %d)", bytes, len, desc->desc, i);
+			break;
+		}
+		data += bytes;
+		len -= bytes;
+		used += bytes;
 	}
+
+	if (info->ndl < 0 && (info->tts || info->ceiling)) {
+		dc_sample_value_t sample = {0};
+
+		sample.deco.type = DC_DECO_DECOSTOP;
+		sample.deco.time = info->tts;
+		sample.deco.depth = info->ceiling;
+		if (info->callback) info->callback(DC_SAMPLE_DECO, sample, info->userdata);
+	}
+
+	// Warn if there are left-over bytes for something we did use part of
+	if (used && len)
+		ERROR(eon->base.context, "Entry for '%s' had %d bytes, only used %d", desc->desc, len+used, used);
 	return 0;
 }
 
@@ -603,57 +943,218 @@ static void set_depth_field(suunto_eonsteel_parser_t *eon, unsigned short d)
 	}
 }
 
-// gas type: 0=Off,1=Primary,2=?,3=Diluent
-static void add_gas_type(suunto_eonsteel_parser_t *eon, unsigned char type)
+// new gas:
+//  "sml.DeviceLog.Header.Diving.Gases+Gas.State"
+//
+// We eventually need to parse the descriptor for that 'enum type'.
+// Two versions so far:
+//   "enum:0=Off,1=Primary,2=?,3=Diluent"
+//   "enum:0=Off,1=Primary,3=Diluent,4=Oxygen"
+static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *desc, unsigned char type)
 {
 	if (eon->cache.ngases < MAXGASES)
 		eon->cache.ngases++;
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX_COUNT;
+	return 0;
 }
 
+// "sml.DeviceLog.Header.Diving.Gases.Gas.Oxygen"
 // O2 percentage as a byte
-static void add_gas_o2(suunto_eonsteel_parser_t *eon, unsigned char o2)
+static int add_gas_o2(suunto_eonsteel_parser_t *eon, unsigned char o2)
 {
 	int idx = eon->cache.ngases-1;
 	if (idx >= 0)
 		eon->cache.gasmix[idx].oxygen = o2 / 100.0;
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX;
+	return 0;
 }
 
+// "sml.DeviceLog.Header.Diving.Gases.Gas.Helium"
 // He percentage as a byte
-static void add_gas_he(suunto_eonsteel_parser_t *eon, unsigned char he)
+static int add_gas_he(suunto_eonsteel_parser_t *eon, unsigned char he)
 {
 	int idx = eon->cache.ngases-1;
 	if (idx >= 0)
 		eon->cache.gasmix[idx].helium = he / 100.0;
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX;
+	return 0;
+}
+
+static float get_le32_float(const unsigned char *src)
+{
+	union {
+		unsigned int val;
+		float result;
+	} u;
+
+	u.val = array_uint32_le(src);
+	return u.result;
+}
+
+// "Device" fields are all utf8:
+//   Info.BatteryAtEnd
+//   Info.BatteryAtStart
+//   Info.BSL
+//   Info.HW
+//   Info.SW
+//   Name
+//   SerialNumber
+static int traverse_device_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc,
+                                  const unsigned char *data, int len)
+{
+	const char *name = desc->desc + strlen("sml.DeviceLog.Device.");
+
+	return 0;
+}
+
+// "sml.DeviceLog.Header.Diving."
+//
+//   Gases+Gas.State (enum:0=Off,1=Primary,3=Diluent,4=Oxygen)
+//   Gases.Gas.Oxygen (uint8,precision=2)
+//   Gases.Gas.Helium (uint8,precision=2)
+//   Gases.Gas.PO2 (uint32)
+//   Gases.Gas.TransmitterID (utf8)
+//   Gases.Gas.TankSize (float32,precision=5)
+//   Gases.Gas.TankFillPressure (float32,precision=0)
+//   Gases.Gas.StartPressure (float32,precision=0)
+//   Gases.Gas.EndPressure (float32,precision=0)
+//   Gases.Gas.TransmitterStartBatteryCharge (int8,precision=2)
+//   Gases.Gas.TransmitterEndBatteryCharge (int8,precision=2)
+//   SurfaceTime (uint32)
+//   NumberInSeries (uint32)
+//   Algorithm (utf8)
+//   SurfacePressure (uint32)
+//   Conservatism (int8)
+//   Altitude (uint16)
+//   AlgorithmTransitionDepth (uint8)
+//   DaysInSeries (uint32)
+//   PreviousDiveDepth (float32,precision=2)
+//   StartTissue.CNS (float32,precision=3)
+//   StartTissue.OTU (float32)
+//   StartTissue.OLF (float32,precision=3)
+//   StartTissue.Nitrogen+Pressure (uint32)
+//   StartTissue.Helium+Pressure (uint32)
+//   StartTissue.RgbmNitrogen (float32,precision=3)
+//   StartTissue.RgbmHelium (float32,precision=3)
+//   DiveMode (utf8)
+//   AlgorithmBottomTime (uint32)
+//   AlgorithmAscentTime (uint32)
+//   AlgorithmBottomMixture.Oxygen (uint8,precision=2)
+//   AlgorithmBottomMixture.Helium (uint8,precision=2)
+//   DesaturationTime (uint32)
+//   EndTissue.CNS (float32,precision=3)
+//   EndTissue.OTU (float32)
+//   EndTissue.OLF (float32,precision=3)
+//   EndTissue.Nitrogen+Pressure (uint32)
+//   EndTissue.Helium+Pressure (uint32)
+//   EndTissue.RgbmNitrogen (float32,precision=3)
+//   EndTissue.RgbmHelium (float32,precision=3)
+static int traverse_diving_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc,
+                                  const unsigned char *data, int len)
+{
+	const char *name = desc->desc + strlen("sml.DeviceLog.Header.Diving.");
+
+	if (!strcmp(name, "Gases+Gas.State"))
+		return add_gas_type(eon, desc, data[0]);
+
+	if (!strcmp(name, "Gases.Gas.Oxygen"))
+		return add_gas_o2(eon, data[0]);
+
+	if (!strcmp(name, "Gases.Gas.Helium"))
+		return add_gas_he(eon, data[0]);
+
+	if (!strcmp(name, "SurfacePressure")) {
+		unsigned int pressure = array_uint32_le(data); // in SI units - Pascal
+		eon->cache.surface_pressure = pressure / 100000.0; // bar
+		eon->cache.initialized |= 1 << DC_FIELD_ATMOSPHERIC;
+		return 0;
+	}
+
+	return 0;
+}
+
+// "Header" fields are:
+//   Activity (utf8)
+//   DateTime (utf8)
+//   Depth.Avg (float32,precision=2)
+//   Depth.Max (float32,precision=2)
+//   Diving.*
+//   Duration (uint32)
+//   PauseDuration (uint32)
+//   SampleInterval (uint8)
+static int traverse_header_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc,
+                                  const unsigned char *data, int len)
+{
+	const char *name = desc->desc + strlen("sml.DeviceLog.Header.");
+
+	if (!strncmp(name, "Diving.", 7))
+		return traverse_diving_fields(eon, desc, data, len);
+
+	if (!strcmp(name, "Depth.Max")) {
+		double d = get_le32_float(data);
+		if (d > eon->cache.maxdepth)
+			eon->cache.maxdepth = d;
+		return 0;
+	}
+
+	return 0;
+}
+
+static int traverse_dynamic_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc, const unsigned char *data, int len)
+{
+	const char *name = desc->desc;
+
+	if (!strncmp(name, "sml.", 4)) {
+		name += 4;
+		if (!strncmp(name, "DeviceLog.", 10)) {
+			name += 10;
+			if (!strncmp(name, "Device.", 7))
+				return traverse_device_fields(eon, desc, data, len);
+			if (!strncmp(name, "Header.", 7)) {
+				return traverse_header_fields(eon, desc, data, len);
+			}
+		}
+	}
+	return 0;
+}
+
+/*
+ * This is a simplified sample parser that only parses the depth and time
+ * samples. It also depends on the GRP entries always starting with time/depth,
+ * and just stops on anything else.
+ */
+static int traverse_sample_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc, const unsigned char *data, int len)
+{
+	int i;
+
+	for (i = 0; i < EON_MAX_GROUP; i++) {
+		enum eon_sample type = desc->type[i];
+
+		switch (type) {
+		case ES_dtime:
+			add_time_field(eon, array_uint16_le(data));
+			data += 2;
+			continue;
+		case ES_depth:
+			set_depth_field(eon, array_uint16_le(data));
+			data += 2;
+			continue;
+		}
+		break;
+	}
+	return 0;
 }
 
 static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
 {
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) user;
 
-	switch (type) {
-	case 0x0001: // group: time in first word, depth in second
-		add_time_field(eon, array_uint16_le(data));
-		set_depth_field(eon, array_uint16_le(data+2));
-		break;
-	case 0x0002: // time in first word
-		add_time_field(eon, array_uint16_le(data));
-		break;
-	case 0x0003: // depth in first word
-		set_depth_field(eon, array_uint16_le(data));
-		break;
-	case 0x000d: // gas state in first byte
-		add_gas_type(eon, data[0]);
-		break;
-	case 0x000e: // Oxygen percentage in first byte
-		add_gas_o2(eon, data[0]);
-		break;
-	case 0x000f: // Helium percentage in first byte
-		add_gas_he(eon, data[0]);
-		break;
-	}
+	// Sample type? Do basic maxdepth and time parsing
+	if (desc->type[0])
+		traverse_sample_fields(eon, desc, data, len);
+	else
+		traverse_dynamic_fields(eon, desc, data, len);
+
 	return 0;
 }
 
