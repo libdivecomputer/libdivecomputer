@@ -640,7 +640,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			// Temperature (°F)
 			if (have_temperature) {
 				if (parser->model == GEO || parser->model == ATOM1 ||
-					parser->model == ELEMENT2) {
+					parser->model == ELEMENT2 || parser->model == MANTA) {
 					temperature = data[offset + 6];
 				} else if (parser->model == GEO20 || parser->model == VEO20 ||
 					parser->model == VEO30 || parser->model == OC1A ||
