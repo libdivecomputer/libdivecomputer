@@ -866,7 +866,6 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	double pressure = 0;
 	unsigned int heartrate = 0;
 	unsigned int bearing = 0;
-	unsigned char alarms[3] = {0, 0, 0};
 	unsigned int bookmark = 0;
 
 	// Previous gas mix - initialize with impossible value
@@ -875,7 +874,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
 	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
-		have_heartrate = 0, have_alarms = 0, have_bearing = 0;
+		have_heartrate = 0, have_bearing = 0;
 
 	unsigned int offset = header;
 	while (offset < size) {
@@ -1001,8 +1000,6 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			have_bearing = 1;
 			break;
 		case ALARMS:
-			alarms[table[id].index] = value;
-			have_alarms = 1;
 			idx = table[id].index;
 			if (idx >= NEVENTS || parser->events[idx] == NULL) {
 				ERROR (abstract->context, "Unexpected event index.");
@@ -1125,15 +1122,6 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.event.flags = 0;
 				sample.event.value = 0;
 				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-			}
-
-			if (have_alarms) {
-				sample.vendor.type = SAMPLE_VENDOR_UWATEC_SMART;
-				sample.vendor.size = nalarms;
-				sample.vendor.data = alarms;
-				if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
-				memset (alarms, 0, sizeof (alarms));
-				have_alarms = 0;
 			}
 
 			if (have_rbt || have_pressure) {
