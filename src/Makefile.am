@@ -6,9 +6,12 @@ lib_LTLIBRARIES = libdivecomputer.la
 libdivecomputer_la_LIBADD = $(LIBUSB_LIBS)
 libdivecomputer_la_LDFLAGS = \
 	-version-info $(DC_VERSION_LIBTOOL) \
-	-Wc,-static-libgcc \
 	-no-undefined \
 	-export-symbols libdivecomputer.exp
+
+if OS_WIN32
+libdivecomputer_la_LDFLAGS += -Wc,-static-libgcc
+endif
 
 libdivecomputer_la_SOURCES = \
 	version.c \
