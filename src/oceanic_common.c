@@ -205,6 +205,9 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	progress.maximum = 2 * PAGESIZE +
 		(layout->rb_profile_end - layout->rb_profile_begin) +
 		(layout->rb_logbook_end - layout->rb_logbook_begin);
+	if (layout->rb_logbook_begin == layout->rb_logbook_end) {
+		progress.maximum -= PAGESIZE;
+	}
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a vendor event.
@@ -234,6 +237,13 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	else
 		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	// For devices without a logbook ringbuffer, downloading dives isn't
+	// possible. This is not considered a fatal error, but handled as if there
+	// are no dives present.
+	if (layout->rb_logbook_begin == layout->rb_logbook_end) {
+		return DC_STATUS_SUCCESS;
+	}
 
 	// Read the pointer data.
 	unsigned char pointers[PAGESIZE] = {0};
