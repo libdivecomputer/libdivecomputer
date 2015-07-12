@@ -315,6 +315,11 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		rb_logbook_page_size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Exit if there are no dives.
+	if (rb_logbook_page_size == 0) {
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Memory buffer for the logbook entries.
 	unsigned char *logbooks = (unsigned char *) malloc (rb_logbook_page_size);
 	if (logbooks == NULL)
