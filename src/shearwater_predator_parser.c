@@ -47,8 +47,11 @@ typedef struct shearwater_predator_parser_t shearwater_predator_parser_t;
 struct shearwater_predator_parser_t {
 	dc_parser_t base;
 	unsigned int petrel;
+	unsigned int samplesize;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int headersize;
+	unsigned int footersize;
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
@@ -96,12 +99,16 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	parser->petrel = petrel;
 	if (petrel) {
 		parser_init (&parser->base, context, &shearwater_petrel_parser_vtable);
+		parser->samplesize = SZ_SAMPLE_PETREL;
 	} else {
 		parser_init (&parser->base, context, &shearwater_predator_parser_vtable);
+		parser->samplesize = SZ_SAMPLE_PREDATOR;
 	}
 
 	// Set the default values.
 	parser->cached = 0;
+	parser->headersize = 0;
+	parser->footersize = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
@@ -145,6 +152,8 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 
 	// Reset the cache.
 	parser->cached = 0;
+	parser->headersize = 0;
+	parser->footersize = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
@@ -176,11 +185,28 @@ shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *d
 static dc_status_t
 shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 {
+	dc_parser_t *abstract = (dc_parser_t *) parser;
 	const unsigned char *data = parser->base.data;
 	unsigned int size = parser->base.size;
 
 	if (parser->cached) {
 		return DC_STATUS_SUCCESS;
+	}
+
+	unsigned int headersize = SZ_BLOCK;
+	unsigned int footersize = SZ_BLOCK;
+	if (size < headersize + footersize) {
+		ERROR (abstract->context, "Invalid data length.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Adjust the footersize for the final block.
+	if (parser->petrel || array_uint16_be (data + size - footersize) == 0xFFFD) {
+		footersize += SZ_BLOCK;
+		if (size < headersize + footersize) {
+			ERROR (abstract->context, "Invalid data length.");
+			return DC_STATUS_DATAFORMAT;
+		}
 	}
 
 	// Get the gas mixes.
@@ -198,6 +224,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	}
 
 	// Cache the data for later use.
+	parser->headersize = headersize;
+	parser->footersize = footersize;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->oxygen[i] = oxygen[i];
@@ -217,25 +245,16 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 2 * SZ_BLOCK)
-		return DC_STATUS_DATAFORMAT;
-
-	// Get the offset to the footer record.
-	unsigned int footer = size - SZ_BLOCK;
-	if (parser->petrel || array_uint16_be (data + footer) == 0xFFFD) {
-		if (size < 3 * SZ_BLOCK)
-			return DC_STATUS_DATAFORMAT;
-
-		footer -= SZ_BLOCK;
-	}
-
-	// Get the unit system.
-	unsigned int units = data[8];
-
-	// Cache the gas mix data.
+	// Cache the parser data.
 	dc_status_t rc = shearwater_predator_parser_cache (parser);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
+
+	// Get the offset to the footer record.
+	unsigned int footer = size - parser->footersize;
+
+	// Get the unit system.
+	unsigned int units = data[8];
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
@@ -288,23 +307,10 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 2 * SZ_BLOCK)
-		return DC_STATUS_DATAFORMAT;
-
-	// Get the offset to the footer record.
-	unsigned int footer = size - SZ_BLOCK;
-	if (parser->petrel || array_uint16_be (data + footer) == 0xFFFD) {
-		if (size < 3 * SZ_BLOCK)
-			return DC_STATUS_DATAFORMAT;
-
-		footer -= SZ_BLOCK;
-	}
-
-	// Get the sample size.
-	unsigned int samplesize = SZ_SAMPLE_PREDATOR;
-	if (parser->petrel) {
-		samplesize = SZ_SAMPLE_PETREL;
-	}
+	// Cache the parser data.
+	dc_status_t rc = shearwater_predator_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	// Get the unit system.
 	unsigned int units = data[8];
@@ -313,13 +319,14 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 	unsigned int o2_previous = 0, he_previous = 0;
 
 	unsigned int time = 0;
-	unsigned int offset = SZ_BLOCK;
-	while (offset < footer) {
+	unsigned int offset = parser->headersize;
+	unsigned int length = size - parser->footersize;
+	while (offset < length) {
 		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, samplesize, 0x00)) {
-			offset += samplesize;
+		if (array_isequal (data + offset, parser->samplesize, 0x00)) {
+			offset += parser->samplesize;
 			continue;
 		}
 
@@ -382,7 +389,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		sample.deco.time = data[offset + 9] * 60;
 		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 
-		offset += samplesize;
+		offset += parser->samplesize;
 	}
 
 	return DC_STATUS_SUCCESS;
