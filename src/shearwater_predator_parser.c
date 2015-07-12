@@ -37,6 +37,12 @@
 #define SZ_SAMPLE_PREDATOR  0x10
 #define SZ_SAMPLE_PETREL    0x20
 
+#define GASSWITCH     0x01
+#define PPO2_EXTERNAL 0x02
+#define SETPOINT_HIGH 0x04
+#define SC            0x08
+#define OC            0x10
+
 #define METRIC   0
 #define IMPERIAL 1
 
@@ -236,6 +242,33 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_divemode_t
+shearwater_predator_parser_get_divemode (shearwater_predator_parser_t *parser)
+{
+	dc_parser_t *abstract = (dc_parser_t *) parser;
+	const unsigned char *data = abstract->data;
+	unsigned int size = abstract->size;
+
+	unsigned int offset = parser->headersize;
+	unsigned int length = size - parser->footersize;
+	while (offset < length) {
+		// Ignore empty samples.
+		if (array_isequal (data + offset, parser->samplesize, 0x00)) {
+			offset += parser->samplesize;
+			continue;
+		}
+
+		// Status flags.
+		unsigned int status = data[offset + 11];
+		if ((status & OC) == 0) {
+			return DC_DIVEMODE_CC;
+		}
+
+		offset += parser->samplesize;
+	}
+
+	return DC_DIVEMODE_OC;
+}
 
 static dc_status_t
 shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
@@ -289,6 +322,9 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			*((double *) value) = array_uint16_be (data + 47) / 1000.0;
+			break;
+		case DC_FIELD_DIVEMODE:
+			*((dc_divemode_t *) value) = shearwater_predator_parser_get_divemode (parser);
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
