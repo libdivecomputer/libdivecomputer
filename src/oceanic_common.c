@@ -205,6 +205,9 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	progress.maximum = 2 * PAGESIZE +
 		(layout->rb_profile_end - layout->rb_profile_begin) +
 		(layout->rb_logbook_end - layout->rb_logbook_begin);
+	if (layout->rb_logbook_begin == layout->rb_logbook_end) {
+		progress.maximum -= PAGESIZE;
+	}
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a vendor event.
@@ -235,6 +238,13 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
+	// For devices without a logbook ringbuffer, downloading dives isn't
+	// possible. This is not considered a fatal error, but handled as if there
+	// are no dives present.
+	if (layout->rb_logbook_begin == layout->rb_logbook_end) {
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Read the pointer data.
 	unsigned char pointers[PAGESIZE] = {0};
 	rc = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
@@ -246,39 +256,33 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	// Get the logbook pointers.
 	unsigned int rb_logbook_first = array_uint16_le (pointers + 4);
 	unsigned int rb_logbook_last  = array_uint16_le (pointers + 6);
-
-	// Convert the first/last pointers to begin/end/count pointers.
-	unsigned int rb_logbook_entry_begin, rb_logbook_entry_end,
-		rb_logbook_entry_size;
 	if (rb_logbook_first < layout->rb_logbook_begin ||
 		rb_logbook_first >= layout->rb_logbook_end ||
 		rb_logbook_last < layout->rb_logbook_begin ||
 		rb_logbook_last >= layout->rb_logbook_end)
 	{
-		// One of the pointers is outside the valid ringbuffer area.
-		// Because some devices use invalid pointers to indicate an
-		// empty ringbuffer, we silently ignore the error and always
-		// consider the ringbuffer empty.
-		rb_logbook_entry_begin = layout->rb_logbook_begin;
-		rb_logbook_entry_end   = layout->rb_logbook_begin;
-		rb_logbook_entry_size  = 0;
+		ERROR (abstract->context, "Invalid logbook pointer detected.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Convert the first/last pointers to begin/end/count pointers.
+	unsigned int rb_logbook_entry_begin, rb_logbook_entry_end,
+		rb_logbook_entry_size;
+	if (layout->pt_mode_global == 0) {
+		rb_logbook_entry_begin = rb_logbook_first;
+		rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, layout->rb_logbook_entry_size, layout);
+		rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout) + layout->rb_logbook_entry_size;
 	} else {
-		if (layout->pt_mode_global == 0) {
-			rb_logbook_entry_begin = rb_logbook_first;
-			rb_logbook_entry_end   = RB_LOGBOOK_INCR (rb_logbook_last, layout->rb_logbook_entry_size, layout);
-			rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout) + layout->rb_logbook_entry_size;
-		} else {
-			rb_logbook_entry_begin = rb_logbook_first;
-			rb_logbook_entry_end   = rb_logbook_last;
-			rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout);
-			// In a typical ringbuffer implementation with only two begin/end
-			// pointers, there is no distinction possible between an empty and
-			// a full ringbuffer. We always consider the ringbuffer full in
-			// that case, because an empty ringbuffer can be detected by
-			// inspecting the logbook entries once they are downloaded.
-			if (rb_logbook_first == rb_logbook_last)
-				rb_logbook_entry_size = layout->rb_logbook_end - layout->rb_logbook_begin;
-		}
+		rb_logbook_entry_begin = rb_logbook_first;
+		rb_logbook_entry_end   = rb_logbook_last;
+		rb_logbook_entry_size  = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout);
+		// In a typical ringbuffer implementation with only two begin/end
+		// pointers, there is no distinction possible between an empty and
+		// a full ringbuffer. We always consider the ringbuffer full in
+		// that case, because an empty ringbuffer can be detected by
+		// inspecting the logbook entries once they are downloaded.
+		if (rb_logbook_first == rb_logbook_last)
+			rb_logbook_entry_size = layout->rb_logbook_end - layout->rb_logbook_begin;
 	}
 
 	// Check whether the ringbuffer is full.
@@ -310,6 +314,11 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		(layout->rb_profile_end - layout->rb_profile_begin) +
 		rb_logbook_page_size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Exit if there are no dives.
+	if (rb_logbook_page_size == 0) {
+		return DC_STATUS_SUCCESS;
+	}
 
 	// Memory buffer for the logbook entries.
 	unsigned char *logbooks = (unsigned char *) malloc (rb_logbook_page_size);
