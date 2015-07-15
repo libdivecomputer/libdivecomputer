@@ -21,6 +21,7 @@
 
 #include <string.h> // memcpy
 #include <stdlib.h> // malloc, free
+#include <assert.h>
 
 #include <libdivecomputer/oceanic_vtpro.h>
 
@@ -30,6 +31,7 @@
 #include "serial.h"
 #include "ringbuffer.h"
 #include "checksum.h"
+#include "array.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_vtpro_device_vtable.base)
 
@@ -39,6 +41,8 @@
 #define ACK 0x5A
 #define NAK 0xA5
 #define END 0x51
+
+#define AERIS500AI 0x4151
 
 typedef enum oceanic_vtpro_protocol_t {
 	MOD,
@@ -52,6 +56,7 @@ typedef struct oceanic_vtpro_device_t {
 	oceanic_vtpro_protocol_t protocol;
 } oceanic_vtpro_device_t;
 
+static dc_status_t oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook);
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_vtpro_device_close (dc_device_t *abstract);
 
@@ -66,7 +71,7 @@ static const oceanic_common_device_vtable_t oceanic_vtpro_device_vtable = {
 		oceanic_common_device_foreach, /* foreach */
 		oceanic_vtpro_device_close /* close */
 	},
-	oceanic_common_device_logbook,
+	oceanic_vtpro_device_logbook,
 	oceanic_common_device_profile,
 };
 
@@ -109,6 +114,18 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 	0 /* pt_mode_logbook */
 };
 
+static const oceanic_common_layout_t aeris_500ai_layout = {
+	0x20000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0110, /* cf_pointers */
+	0x0200, /* rb_logbook_begin */
+	0x0200, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
+	0x00200, /* rb_profile_begin */
+	0x20000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1 /* pt_mode_logbook */
+};
 
 static dc_status_t
 oceanic_vtpro_send (oceanic_vtpro_device_t *device, const unsigned char command[], unsigned int csize)
@@ -167,11 +184,13 @@ oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char comm
 			return rc;
 	}
 
-	// Receive the answer of the dive computer.
-	status = dc_serial_read (device->port, answer, asize, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the answer.");
-		return status;
+	if (asize) {
+		// Receive the answer of the dive computer.
+		status = dc_serial_read (device->port, answer, asize, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
+		}
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -262,6 +281,105 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->base.layout != NULL);
+	assert (device->base.layout->rb_logbook_entry_size == PAGESIZE / 2);
+	assert (device->base.layout->rb_logbook_begin == device->base.layout->rb_logbook_end);
+	assert (progress != NULL);
+
+	const oceanic_common_layout_t *layout = device->base.layout;
+
+	// Erase the buffer.
+	if (!dc_buffer_clear (logbook))
+		return DC_STATUS_NOMEMORY;
+
+	// Read the pointer data.
+	unsigned char pointers[PAGESIZE] = {0};
+	rc = oceanic_vtpro_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return rc;
+	}
+
+	// Get the logbook pointers.
+	unsigned int last = pointers[0x03];
+
+	// Update and emit a progress event.
+	progress->current += PAGESIZE;
+	progress->maximum += PAGESIZE + (last + 1) * PAGESIZE / 2;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+
+	// Allocate memory for the logbook entries.
+	if (!dc_buffer_reserve (logbook, (last + 1) * PAGESIZE / 2))
+		return DC_STATUS_NOMEMORY;
+
+	// Send the logbook index command.
+	unsigned char command[] = {0x52,
+			(last >> 8) & 0xFF, // high
+			(last     ) & 0xFF, // low
+			0x00};
+	rc = oceanic_vtpro_transfer (device, command, sizeof (command), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to send the logbook index command.");
+		return rc;
+	}
+
+	// Read the logbook index.
+	for (unsigned int i = 0; i < last + 1; ++i) {
+		// Receive the answer of the dive computer.
+		unsigned char answer[PAGESIZE / 2 + 1] = {0};
+		rc = dc_serial_read (device->port, answer, sizeof(answer), NULL);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return rc;
+		}
+
+		// Verify the checksum of the answer.
+		unsigned char crc = answer[PAGESIZE / 2];
+		unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
+		if (crc != ccrc) {
+			ERROR (abstract->context, "Unexpected answer checksum.");
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Update and emit a progress event.
+		progress->current += PAGESIZE / 2;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+
+		// Ignore uninitialized entries.
+		if (array_isequal (answer, PAGESIZE / 2, 0xFF)) {
+			WARNING (abstract->context, "Uninitialized logbook entries detected!");
+			continue;
+		}
+
+		// Compare the fingerprint to identify previously downloaded entries.
+		if (memcmp (answer, device->base.fingerprint, PAGESIZE / 2) == 0) {
+			dc_buffer_clear (logbook);
+		} else {
+			dc_buffer_append (logbook, answer, PAGESIZE / 2);
+		}
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+{
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
+
+	if (device->model == AERIS500AI) {
+		return oceanic_aeris500ai_device_logbook (abstract, progress, logbook);
+	} else {
+		return oceanic_common_device_logbook (abstract, progress, logbook);
+	}
+}
 
 dc_status_t
 oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char *name)
@@ -295,7 +413,11 @@ oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char
 	// Set the default values.
 	device->port = NULL;
 	device->model = model;
-	device->protocol = MOD;
+	if (model == AERIS500AI) {
+		device->protocol = INTR;
+	} else {
+		device->protocol = MOD;
+	}
 
 	// Open the device.
 	status = dc_serial_open (&device->port, context, name);
@@ -361,7 +483,9 @@ oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char
 	}
 
 	// Override the base class values.
-	if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_wisdom_version)) {
+	if (model == AERIS500AI) {
+		device->base.layout = &aeris_500ai_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_wisdom_version)) {
 		device->base.layout = &oceanic_wisdom_layout;
 	} else {
 		device->base.layout = &oceanic_vtpro_layout;
