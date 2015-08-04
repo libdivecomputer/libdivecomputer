@@ -164,7 +164,11 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 
 	unsigned int footer = size - PAGESIZE;
 
+	unsigned int beginpressure = array_uint16_le(data + 0x26) & 0x0FFF;
+	unsigned int endpressure = array_uint16_le(data + footer + 0x05) & 0x0FFF;
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -184,6 +188,20 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			else
 				gasmix->oxygen = 0.21;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (beginpressure == 0 && endpressure == 0)
+				*((unsigned int *) value) = 0;
+			else
+				*((unsigned int *) value) = 1;
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			tank->gasmix = flags;
+			tank->beginpressure = beginpressure * 2 * PSI / BAR;
+			tank->endpressure = endpressure * 2 * PSI / BAR;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
