@@ -149,7 +149,9 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 	// Cache the data for later use.
 	parser->mode = data[gasmode_offset];
 	parser->gasmix = 0;
-	if (parser->mode == AIR) {
+	if (parser->mode == GAUGE || parser->mode == FREEDIVE) {
+		parser->ngasmixes = 0;
+	} else if (parser->mode == AIR) {
 		parser->oxygen[0] = 21;
 		parser->helium[0] = 0;
 		parser->ngasmixes = 1;
