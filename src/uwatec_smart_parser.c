@@ -962,7 +962,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		case PRESSURE:
 			if (table[id].absolute) {
 				if (parser->trimix) {
-					tank = (value & 0xF000) >> 24;
+					tank = (value & 0xF000) >> 12;
 					pressure = (value & 0x0FFF) / 4.0;
 				} else {
 					tank = table[id].index;
