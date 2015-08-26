@@ -459,7 +459,8 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 					endpressure   = array_uint16_le(data + offset + 2);
 				}
 			}
-			if (beginpressure != 0 || endpressure != 0) {
+			if ((beginpressure != 0 || endpressure != 0) &&
+				(beginpressure != 0xFFFF) && (endpressure != 0xFFFF)) {
 				tank[ntanks].id = id;
 				tank[ntanks].beginpressure = beginpressure;
 				tank[ntanks].endpressure = endpressure;
@@ -1068,7 +1069,8 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 					mixidx = idx;
 				}
 
-				if (beginpressure != 0 || endpressure != 0) {
+				if ((beginpressure != 0 || endpressure != 0) &&
+					(beginpressure != 0xFFFF) && (endpressure != 0xFFFF)) {
 					idx = uwatec_smart_find_tank (parser, mixid);
 					if (idx >= parser->ntanks) {
 						if (idx >= NGASMIXES) {
