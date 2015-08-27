@@ -111,7 +111,6 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 	{"ELEMENT2 \0\0 512K"},
 	{"OCEVEO20 \0\0 512K"},
 	{"TUSAZEN \0\0  512K"},
-	{"PROPLUS3 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
@@ -127,6 +126,10 @@ static const oceanic_common_version_t oceanic_default_version[] = {
 	{"DATAMASK \0\0 512K"},
 	{"COMPMASK \0\0 512K"},
 	{"HOLLDG03 \0\0 512K"},
+};
+
+static const oceanic_common_version_t oceanic_proplus3_version[] = {
+	{"PROPLUS3 \0\0 512K"},
 };
 
 static const oceanic_common_version_t tusa_zenair_version[] = {
@@ -262,6 +265,19 @@ static const oceanic_common_layout_t oceanic_atom2c_layout = {
 	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0xFFF0, /* rb_profile_end */
+	0, /* pt_mode_global */
+	0 /* pt_mode_logbook */
+};
+
+static const oceanic_common_layout_t oceanic_proplus3_layout = {
+	0x10000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x03E0, /* rb_logbook_begin */
+	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
+	0x0A40, /* rb_profile_begin */
+	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
 	0 /* pt_mode_logbook */
 };
@@ -597,6 +613,8 @@ oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char
 		device->base.layout = &oceanic_atom2b_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2c_version)) {
 		device->base.layout = &oceanic_atom2c_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_proplus3_version)) {
+		device->base.layout = &oceanic_proplus3_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, tusa_zenair_version)) {
 		device->base.layout = &tusa_zenair_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_oc1_version)) {
