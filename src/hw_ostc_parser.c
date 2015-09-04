@@ -767,6 +767,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					return DC_STATUS_DATAFORMAT;
 				}
 
+				unsigned int ppo2[3] = {0};
+				unsigned int count = 0;
 				unsigned int value = 0;
 				switch (info[i].type) {
 				case 0: // Temperature (0.1 °C).
@@ -788,12 +790,18 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				case 3: // ppO2 (0.01 bar).
 					for (unsigned int j = 0; j < 3; ++j) {
 						if (info[i].size == 3) {
-							value = data[offset + j];
+							ppo2[j] = data[offset + j];
 						} else {
-							value = data[offset + j * 3];
+							ppo2[j] = data[offset + j * 3];
 						}
-						sample.ppo2 = value / 100.0;
-						if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+						if (ppo2[j] != 0)
+							count++;
+					}
+					if (count) {
+						for (unsigned int j = 0; j < 3; ++j) {
+							sample.ppo2 = ppo2[j] / 100.0;
+							if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+						}
 					}
 					break;
 				case 5: // CNS
