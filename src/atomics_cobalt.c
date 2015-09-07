@@ -215,6 +215,8 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 		return EXITCODE(rc);
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Write", &bRequest, 1);
+
 	// Receive the answer from the dive computer.
 	int length = 0;
 	unsigned char packet[SZ_VERSION + 2] = {0};
@@ -224,6 +226,8 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return EXITCODE(rc);
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Read", packet, length);
 
 	// Verify the checksum of the packet.
 	unsigned short crc = array_uint16_le (packet + SZ_VERSION);
@@ -271,6 +275,8 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 		return EXITCODE(rc);
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Write", &bRequest, 1);
+
 	unsigned int nbytes = 0;
 	while (1) {
 		// Receive the answer from the dive computer.
@@ -282,6 +288,8 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE(rc);
 		}
+
+		HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Read", packet, length);
 
 		// Update and emit a progress event.
 		if (progress) {
