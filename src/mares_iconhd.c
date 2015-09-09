@@ -40,7 +40,8 @@
 )
 
 #define MATRIX    0x0F
-#define SMART     0x10
+#define SMART      0x000010
+#define SMARTAPNEA 0x010010
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 #define PUCKPRO   0x18
@@ -122,6 +123,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 	const mares_iconhd_model_t models[] = {
 		{"Matrix",      MATRIX},
 		{"Smart",       SMART},
+		{"Smart Apnea", SMARTAPNEA},
 		{"Icon HD",     ICONHD},
 		{"Icon AIR",    ICONHDNET},
 		{"Puck Pro",    PUCKPRO},
@@ -463,6 +465,8 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		header = 0x80;
 	else if (model == SMART)
 		header = 4; // Type and number of samples only!
+	else if (model == SMARTAPNEA)
+		header = 6; // Type and number of samples only!
 
 	// Get the end of the profile ring buffer.
 	unsigned int eop = 0;
@@ -491,7 +495,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	while (offset >= header + 4) {
 		// Get the number of samples in the profile data.
 		unsigned int type = 0, nsamples = 0;
-		if (model == SMART) {
+		if (model == SMART || model == SMARTAPNEA) {
 			type     = array_uint16_le (buffer + offset - header + 2);
 			nsamples = array_uint16_le (buffer + offset - header + 0);
 		} else {
@@ -521,6 +525,10 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 				samplesize = 8;
 				fingerprint = 2;
 			}
+		} else if (model == SMARTAPNEA) {
+			headersize = 0x50;
+			samplesize = 14;
+			fingerprint = 0x40;
 		}
 
 		// Calculate the total number of bytes for this dive.
@@ -528,8 +536,18 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
 		unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-		if (model == ICONHDNET)
+		if (model == ICONHDNET) {
 			nbytes += (nsamples / 4) * 8;
+		} else if (model == SMARTAPNEA) {
+			if (offset < headersize)
+				break;
+
+			unsigned int settings = array_uint16_le (buffer + offset - headersize + 0x1C);
+			unsigned int divetime = array_uint32_le (buffer + offset - headersize + 0x24);
+			unsigned int samplerate = 1 << ((settings >> 9) & 0x03);
+
+			nbytes += divetime * samplerate * 2;
+		}
 		if (offset < nbytes)
 			break;
 

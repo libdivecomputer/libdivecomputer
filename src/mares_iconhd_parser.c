@@ -29,7 +29,8 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &mares_iconhd_parser_vtable)
 
-#define SMART     0x10
+#define SMART      0x000010
+#define SMARTAPNEA 0x010010
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 
@@ -86,6 +87,8 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		header = 0x80;
 	else if (parser->model == SMART)
 		header = 4; // Type and number of samples only!
+	else if (parser->model == SMARTAPNEA)
+		header = 6; // Type and number of samples only!
 
 	if (size < header + 4) {
 		ERROR (abstract->context, "Buffer overflow detected!");
@@ -100,7 +103,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Get the number of samples in the profile data.
 	unsigned int type = 0, nsamples = 0;
-	if (parser->model == SMART) {
+	if (parser->model == SMART || parser->model == SMARTAPNEA) {
 		type     = array_uint16_le (data + length - header + 2);
 		nsamples = array_uint16_le (data + length - header + 0);
 	} else {
@@ -125,19 +128,34 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 			headersize = 0x5C;
 			samplesize = 8;
 		}
+	} else if (parser->model == SMARTAPNEA) {
+		headersize = 0x50;
+		samplesize = 14;
 	}
 
 	// Calculate the total number of bytes for this dive.
 	unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-	if (parser->model == ICONHDNET)
+	if (parser->model == ICONHDNET) {
 		nbytes += (nsamples / 4) * 8;
+	} else if (parser->model == SMARTAPNEA) {
+		if (length < headersize) {
+			ERROR (abstract->context, "Buffer overflow detected!");
+			return DC_STATUS_DATAFORMAT;
+		}
+
+		unsigned int settings = array_uint16_le (data + length - headersize + 0x1C);
+		unsigned int divetime = array_uint32_le (data + length - headersize + 0x24);
+		unsigned int samplerate = 1 << ((settings >> 9) & 0x03);
+
+		nbytes += divetime * samplerate * 2;
+	}
 	if (length != nbytes) {
 		ERROR (abstract->context, "Calculated and stored size are not equal.");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	const unsigned char *p = data + length - headersize;
-	if (parser->model != SMART) {
+	if (parser->model != SMART && parser->model != SMARTAPNEA) {
 		p += 4;
 	}
 
@@ -258,6 +276,8 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 		} else {
 			p += 2;
 		}
+	} else if (parser->model == SMARTAPNEA) {
+		p += 0x40;
 	} else {
 		p += 6;
 	}
@@ -286,7 +306,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		return rc;
 
 	const unsigned char *p = abstract->data + parser->footer;
-	if (parser->model != SMART) {
+	if (parser->model != SMART && parser->model != SMARTAPNEA) {
 		p += 4;
 	}
 
@@ -295,7 +315,9 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			if (parser->mode == FREEDIVE) {
+			if (parser->model == SMARTAPNEA) {
+				*((unsigned int *) value) = array_uint16_le (p + 0x24);
+			} else if (parser->mode == FREEDIVE) {
 				unsigned int divetime = 0;
 				unsigned int offset = 4;
 				for (unsigned int i = 0; i < parser->nsamples; ++i) {
@@ -308,7 +330,9 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			}
 			break;
 		case DC_FIELD_MAXDEPTH:
-			if (parser->mode == FREEDIVE)
+			if (parser->model == SMARTAPNEA)
+				*((double *) value) = array_uint16_le (p + 0x3A) / 10.0;
+			else if (parser->mode == FREEDIVE)
 				*((double *) value) = array_uint16_le (p + 0x1A) / 10.0;
 			else
 				*((double *) value) = array_uint16_le (p + 0x00) / 10.0;
@@ -323,19 +347,25 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			// Pressure (1/8 millibar)
-			if (parser->mode == FREEDIVE)
+			if (parser->model == SMARTAPNEA)
+				*((double *) value) = array_uint16_le (p + 0x38) / 1000.0;
+			else if (parser->mode == FREEDIVE)
 				*((double *) value) = array_uint16_le (p + 0x18) / 1000.0;
 			else
 				*((double *) value) = array_uint16_le (p + 0x22) / 8000.0;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
-			if (parser->mode == FREEDIVE)
+			if (parser->model == SMARTAPNEA)
+				*((double *) value) = (signed short) array_uint16_le (p + 0x3C) / 10.0;
+			else if (parser->mode == FREEDIVE)
 				*((double *) value) = (signed short) array_uint16_le (p + 0x1C) / 10.0;
 			else
 				*((double *) value) = (signed short) array_uint16_le (p + 0x42) / 10.0;
 			break;
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
-			if (parser->mode == FREEDIVE)
+			if (parser->model == SMARTAPNEA)
+				*((double *) value) = (signed short) array_uint16_le (p + 0x3E) / 10.0;
+			else if (parser->mode == FREEDIVE)
 				*((double *) value) = (signed short) array_uint16_le (p + 0x1E) / 10.0;
 			else
 				*((double *) value) = (signed short) array_uint16_le (p + 0x44) / 10.0;
@@ -379,6 +409,19 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	unsigned int time = 0;
 	unsigned int interval = 5;
+	unsigned int samplerate = 1;
+	if (parser->model == SMARTAPNEA) {
+		unsigned int settings = array_uint16_le (data + parser->footer + 0x1C);
+		samplerate = 1 << ((settings >> 9) & 0x03);
+		if (samplerate > 1) {
+			// The Smart Apnea supports multiple samples per second
+			// (e.g. 2, 4 or 8). Since our smallest unit of time is one
+			// second, we can't represent this, and the extra samples
+			// will get dropped.
+			WARNING(abstract->context, "Multiple samples per second are not supported!");
+		}
+		interval = 1;
+	}
 
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
@@ -388,7 +431,37 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	while (nsamples < parser->nsamples) {
 		dc_sample_value_t sample = {0};
 
-		if (parser->mode == FREEDIVE) {
+		if (parser->model == SMARTAPNEA) {
+			unsigned int maxdepth = array_uint16_le (data + offset + 0);
+			unsigned int divetime = array_uint16_le (data + offset + 2);
+			unsigned int surftime = array_uint16_le (data + offset + 4);
+
+			// Surface Time (seconds).
+			time += surftime;
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+			// Surface Depth (0 m).
+			sample.depth = 0.0;
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			offset += parser->samplesize;
+			nsamples++;
+
+			for (unsigned int i = 0; i < divetime; ++i) {
+				// Time (seconds).
+				time += interval;
+				sample.time = time;
+				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+				// Depth (1/10 m).
+				unsigned int depth = array_uint16_le (data + offset);
+				sample.depth = depth / 10.0;
+				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+				offset += 2 * samplerate;
+			}
+		} else if (parser->mode == FREEDIVE) {
 			unsigned int maxdepth = array_uint16_le (data + offset + 0);
 			unsigned int divetime = array_uint16_le (data + offset + 2);
 			unsigned int surftime = array_uint16_le (data + offset + 4);
