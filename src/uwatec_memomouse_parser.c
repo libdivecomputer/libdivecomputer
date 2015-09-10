@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/uwatec_memomouse.h>
+#include <libdivecomputer/units.h>
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -141,6 +142,7 @@ uwatec_memomouse_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 		header += 3;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -166,6 +168,25 @@ uwatec_memomouse_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 				gasmix->oxygen = 0.21;
 			}
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (data[10]) {
+				*((unsigned int *) value) = 1;
+			} else {
+				*((unsigned int *) value) = 0;
+			}
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			if (model == 0x1C) {
+				tank->beginpressure = data[10] * 20.0 * PSI / BAR;
+			} else {
+				tank->beginpressure = data[10];
+			}
+			tank->endpressure = 0.0;
+			tank->gasmix = 0;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = (signed char) data[15] / 4.0;
