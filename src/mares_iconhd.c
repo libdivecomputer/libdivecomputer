@@ -34,11 +34,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &mares_iconhd_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define MATRIX    0x0F
 #define SMART      0x000010
 #define SMARTAPNEA 0x010010
@@ -69,7 +64,7 @@ typedef struct mares_iconhd_model_t {
 
 typedef struct mares_iconhd_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	const mares_iconhd_layout_t *layout;
 	unsigned char fingerprint[10];
 	unsigned char version[140];
@@ -150,6 +145,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	const unsigned char command[], unsigned int csize,
 	unsigned char answer[], unsigned int asize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	assert (csize >= 2);
@@ -158,18 +154,18 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 		return DC_STATUS_CANCELLED;
 
 	// Send the command header to the dive computer.
-	int n = serial_write (device->port, command, 2);
-	if (n != 2) {
+	status = dc_serial_write (device->port, command, 2, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Receive the header byte.
 	unsigned char header[1] = {0};
-	n = serial_read (device->port, header, sizeof (header));
-	if (n != sizeof (header)) {
+	status = dc_serial_read (device->port, header, sizeof (header), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the header byte.
@@ -180,26 +176,26 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 
 	// Send the command payload to the dive computer.
 	if (csize > 2) {
-		n = serial_write (device->port, command + 2, csize - 2);
-		if (n != csize - 2) {
+		status = dc_serial_write (device->port, command + 2, csize - 2, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
-			return EXITCODE (n);
+			return status;
 		}
 	}
 
 	// Read the packet.
-	n = serial_read (device->port, answer, asize);
-	if (n != asize) {
+	status = dc_serial_read (device->port, answer, asize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Receive the trailer byte.
 	unsigned char trailer[1] = {0};
-	n = serial_read (device->port, trailer, sizeof (trailer));
-	if (n != sizeof (trailer)) {
+	status = dc_serial_read (device->port, trailer, sizeof (trailer), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the trailer byte.
@@ -237,39 +233,42 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	device->packetsize = 0;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (115200 8E1).
-	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_EVEN, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_EVEN, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Set the DTR/RTS lines.
-	if (serial_set_dtr (device->port, 0) == -1 ||
-		serial_set_rts (device->port, 0) == -1)
-	{
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Clear the DTR line.
+	status = dc_serial_set_dtr (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the DTR line.");
+		goto error_close;
+	}
+
+	// Clear the RTS line.
+	status = dc_serial_set_rts (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the RTS line.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	// Send the version command.
 	unsigned char command[] = {0xC2, 0x67};
@@ -312,7 +311,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -324,10 +323,12 @@ mares_iconhd_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = (mares_iconhd_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;

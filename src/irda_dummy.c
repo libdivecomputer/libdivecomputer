@@ -23,65 +23,56 @@
 
 #include "irda.h"
 
-
-int
-irda_socket_open (irda_t **out, dc_context_t *context)
+dc_status_t
+dc_irda_open (dc_irda_t **out, dc_context_t *context)
 {
-    return -1;
+    return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_close (irda_t *device)
+dc_status_t
+dc_irda_close (dc_irda_t *device)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_set_timeout (irda_t *device, long timeout)
+dc_status_t
+dc_irda_set_timeout (dc_irda_t *device, int timeout)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_discover (irda_t *device, irda_callback_t callback, void *userdata)
+dc_status_t
+dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_connect_name (irda_t *device, unsigned int address, const char *name)
+dc_status_t
+dc_irda_connect_name (dc_irda_t *device, unsigned int address, const char *name)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_connect_lsap (irda_t *device, unsigned int address, unsigned int lsap)
+dc_status_t
+dc_irda_connect_lsap (dc_irda_t *device, unsigned int address, unsigned int lsap)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_available (irda_t *device)
+dc_status_t
+dc_irda_get_available (dc_irda_t *device, size_t *value)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_read (irda_t *device, void *data, unsigned int size)
+dc_status_t
+dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }
 
-
-int
-irda_socket_write (irda_t *device, const void *data, unsigned int size)
+dc_status_t
+dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 {
-	return -1;
+	return DC_STATUS_UNSUPPORTED;
 }

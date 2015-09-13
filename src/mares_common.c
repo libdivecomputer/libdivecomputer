@@ -28,11 +28,6 @@
 #include "checksum.h"
 #include "array.h"
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define MAXRETRIES 4
 
 #define FP_OFFSET 8
@@ -86,29 +81,30 @@ mares_common_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned
 static dc_status_t
 mares_common_packet (mares_common_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
 	if (device->delay) {
-		serial_sleep (device->port, device->delay);
+		dc_serial_sleep (device->port, device->delay);
 	}
 
 	// Send the command to the device.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
+	status = dc_serial_write (device->port, command, csize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	if (device->echo) {
 		// Receive the echo of the command.
 		unsigned char echo[PACKETSIZE] = {0};
-		n = serial_read (device->port, echo, csize);
-		if (n != csize) {
+		status = dc_serial_read (device->port, echo, csize, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the echo.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Verify the echo.
@@ -118,10 +114,10 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	}
 
 	// Receive the answer of the device.
-	n = serial_read (device->port, answer, asize);
-	if (n != asize) {
+	status = dc_serial_read (device->port, answer, asize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the header and trailer of the packet.
@@ -159,8 +155,8 @@ mares_common_transfer (mares_common_device_t *device, const unsigned char comman
 			return rc;
 
 		// Discard any garbage bytes.
-		serial_sleep (device->port, 100);
-		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+		dc_serial_sleep (device->port, 100);
+		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
 	}
 
 	return rc;

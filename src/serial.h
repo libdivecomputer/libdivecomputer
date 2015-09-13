@@ -19,101 +19,303 @@
  * MA 02110-1301 USA
  */
 
-#ifndef SERIAL_H
-#define SERIAL_H
+#ifndef DC_SERIAL_H
+#define DC_SERIAL_H
 
+#include <libdivecomputer/common.h>
 #include <libdivecomputer/context.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct serial_t serial_t;
+/**
+ * Opaque object representing a serial connection.
+ */
+typedef struct dc_serial_t dc_serial_t;
 
-typedef enum serial_parity_t {
-	SERIAL_PARITY_NONE,
-	SERIAL_PARITY_EVEN,
-	SERIAL_PARITY_ODD
-} serial_parity_t;
+/**
+ * The parity checking scheme.
+ */
+typedef enum dc_parity_t {
+	DC_PARITY_NONE, /**< No parity */
+	DC_PARITY_ODD,  /**< Odd parity */
+	DC_PARITY_EVEN, /**< Even parity */
+	DC_PARITY_MARK, /**< Mark parity (always 1) */
+	DC_PARITY_SPACE /**< Space parity (alwasy 0) */
+} dc_parity_t;
 
-typedef enum serial_flowcontrol_t {
-	SERIAL_FLOWCONTROL_NONE,
-	SERIAL_FLOWCONTROL_HARDWARE,
-	SERIAL_FLOWCONTROL_SOFTWARE
-} serial_flowcontrol_t;
+/**
+ * The number of stop bits.
+ */
+typedef enum dc_stopbits_t {
+	DC_STOPBITS_ONE,          /**< 1 stop bit */
+	DC_STOPBITS_ONEPOINTFIVE, /**< 1.5 stop bits*/
+	DC_STOPBITS_TWO           /**< 2 stop bits */
+} dc_stopbits_t;
 
-typedef enum serial_queue_t {
-	SERIAL_QUEUE_INPUT = 0x01,
-	SERIAL_QUEUE_OUTPUT = 0x02,
-	SERIAL_QUEUE_BOTH = SERIAL_QUEUE_INPUT | SERIAL_QUEUE_OUTPUT
-} serial_queue_t;
+/**
+ * The flow control.
+ */
+typedef enum dc_flowcontrol_t {
+	DC_FLOWCONTROL_NONE,     /**< No flow control */
+	DC_FLOWCONTROL_HARDWARE, /**< Hardware (RTS/CTS) flow control */
+	DC_FLOWCONTROL_SOFTWARE  /**< Software (XON/XOFF) flow control */
+} dc_flowcontrol_t;
 
-typedef enum serial_line_t {
-	SERIAL_LINE_DCD, // Data carrier detect
-	SERIAL_LINE_CTS, // Clear to send
-	SERIAL_LINE_DSR, // Data set ready
-	SERIAL_LINE_RNG, // Ring indicator
-} serial_line_t;
+/**
+ * The direction of the data transmission.
+ */
+typedef enum dc_direction_t {
+	DC_DIRECTION_INPUT = 0x01,  /**< Input direction */
+	DC_DIRECTION_OUTPUT = 0x02, /**< Output direction */
+	DC_DIRECTION_ALL = DC_DIRECTION_INPUT | DC_DIRECTION_OUTPUT /**< All directions */
+} dc_direction_t;
 
-typedef void (*serial_callback_t) (const char *name, void *userdata);
+/**
+ * The serial line signals.
+ */
+typedef enum dc_line_t {
+	DC_LINE_DCD = 0x01, /**< Data carrier detect */
+	DC_LINE_CTS = 0x02, /**< Clear to send */
+	DC_LINE_DSR = 0x04, /**< Data set ready */
+	DC_LINE_RNG = 0x08, /**< Ring indicator */
+} dc_line_t;
 
-int serial_enumerate (serial_callback_t callback, void *userdata);
+/**
+ * Serial enumeration callback.
+ *
+ * @param[in]  name      The name of the device node.
+ * @param[in]  userdata  The user data pointer.
+ */
+typedef void (*dc_serial_callback_t) (const char *name, void *userdata);
 
-int serial_open (serial_t **device, dc_context_t *context, const char* name);
+/**
+ * Enumerate the serial ports.
+ *
+ * @param[in]  callback  The callback function to call.
+ * @param[in]  userdata  User data to pass to the callback function.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_enumerate (dc_serial_callback_t callback, void *userdata);
 
-int serial_close (serial_t *device);
+/**
+ * Open a serial connection.
+ *
+ * @param[out]  serial   A location to store the serial connection.
+ * @param[in]   context  A valid context object.
+ * @param[in]   name     The name of the device node.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_open (dc_serial_t **serial, dc_context_t *context, const char *name);
 
-int serial_configure (serial_t *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol);
+/**
+ * Close the serial connection and free all resources.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_close (dc_serial_t *serial);
 
-//
-// Available read modes:
-//
-// * Blocking (timeout < 0):
-//
-// The read function is blocked until all the requested bytes have
-// been received. If the requested number of bytes does not arrive,
-// the function will block forever.
-//
-// * Non-blocking (timeout == 0):
-//
-// The read function returns immediately with the bytes that have already
-// been received, even if no bytes have been received.
-//
-// * Timeout (timeout > 0):
-//
-// The read function is blocked until all the requested bytes have
-// been received. If the requested number of bytes does not arrive
-// within the specified amount of time, the function will return
-// with the bytes that have already been received.
-//
+/**
+ * Configure the serial line settings of the connection.
+ *
+ * @param[in]  serial       A valid serial connection.
+ * @param[in]  baudrate     The baud rate setting.
+ * @param[in]  databits     The number of data bits.
+ * @param[in]  parity       The parity setting.
+ * @param[in]  stopbits     The number of stop bits.
+ * @param[in]  flowcontrol  The flow control setting.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_configure (dc_serial_t *serial, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol);
 
-int serial_set_timeout (serial_t *device, long timeout /* milliseconds */);
+/**
+ * Set the read timeout.
+ *
+ * There are three distinct modes available:
+ *
+ *  1. Blocking (timeout < 0):
+ *
+ *     The read operation is blocked until all the requested bytes have
+ *     been received. If the requested number of bytes does not arrive,
+ *     the operation will block forever.
+ *
+ *  2. Non-blocking (timeout == 0):
+ *
+ *     The read operation returns immediately with the bytes that have
+ *     already been received, even if no bytes have been received.
+ *
+ *  3. Timeout (timeout > 0):
+ *
+ *     The read operation is blocked until all the requested bytes have
+ *     been received. If the requested number of bytes does not arrive
+ *     within the specified amount of time, the operation will return
+ *     with the bytes that have already been received.
+ *
+ * @param[in]  serial   A valid serial connection.
+ * @param[in]  timeout  The timeout in milliseconds.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_set_timeout (dc_serial_t *serial, int timeout);
 
-int serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output);
+/**
+ * Set the state of the half duplex emulation.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[in]  value   The half duplex state.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_set_halfduplex (dc_serial_t *serial, unsigned int value);
 
-int serial_set_halfduplex (serial_t *device, int value);
+/**
+ * Set the receive latency.
+ *
+ * The effect of this setting is highly platform and driver specific. On
+ * Windows it does nothing at all, on Linux it controls the low latency
+ * flag (e.g. only zero vs non-zero latency), and on Mac OS X it sets
+ * the receive latency as requested.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[in]  value   The latency in milliseconds.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_set_latency (dc_serial_t *serial, unsigned int value);
 
-int serial_set_latency (serial_t *device, unsigned int milliseconds);
+/**
+ * Read data from the serial connection.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[out] data    The memory buffer to read the data into.
+ * @param[in]  size    The number of bytes to read.
+ * @param[out] actual  An (optional) location to store the actual
+ *                     number of bytes transferred.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_read (dc_serial_t *serial, void *data, size_t size, size_t *actual);
 
-int serial_read (serial_t *device, void* data, unsigned int size);
-int serial_write (serial_t *device, const void* data, unsigned int size);
+/**
+ * Write data to the serial connection.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[in]  data    The memory buffer to write the data from.
+ * @param[in]  size    The number of bytes to write.
+ * @param[out] actual  An (optional) location to store the actual
+ *                     number of bytes transferred.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_write (dc_serial_t *serial, const void *data, size_t size, size_t *actual);
 
-int serial_flush (serial_t *device, int queue);
+/**
+ * Flush the internal output buffer and wait until the data has been
+ * transmitted.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_flush (dc_serial_t *serial);
 
-int serial_send_break (serial_t *device);
+/**
+ * Discards all data from the internal buffers.
+ *
+ * @param[in]  serial     A valid serial connection.
+ * @param[in]  direction  The direction of the buffer(s).
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_purge (dc_serial_t *serial, dc_direction_t direction);
 
-int serial_set_break (serial_t *device, int level);
-int serial_set_dtr (serial_t *device, int level);
-int serial_set_rts (serial_t *device, int level);
+/**
+ * Set the state of the break condition.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[in]  value   The break condition state.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_set_break (dc_serial_t *serial, unsigned int value);
 
-int serial_get_received (serial_t *device);
-int serial_get_transmitted (serial_t *device);
+/**
+ * Set the state of the DTR line.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[in]  value   The DTR line state.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_set_dtr (dc_serial_t *serial, unsigned int value);
 
-int serial_get_line (serial_t *device, int line);
+/**
+ * Set the state of the RTS line.
+ *
+ * @param[in]  serial  A valid serial connection.
+ * @param[in]  value   The RTS line state.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_set_rts (dc_serial_t *serial, unsigned int value);
 
-int serial_sleep (serial_t *device, unsigned long timeout /* milliseconds */);
+/**
+ * Query the number of available bytes in the input buffer.
+ *
+ * @param[in]   serial  A valid serial connection.
+ * @param[out]  value   A location to store the number of bytes in the
+ *                      input buffer.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_get_available (dc_serial_t *serial, size_t *value);
+
+/**
+ * Query the state of the line signals.
+ *
+ * @param[in]   serial  A valid serial connection.
+ * @param[out]  value   A location to store the bitmap with the state of
+ *                      the line signals.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_get_lines (dc_serial_t *serial, unsigned int *value);
+
+/**
+ * Suspend execution of the current thread for the specified amount of
+ * time.
+ *
+ * @param[in]  serial        A valid serial connection.
+ * @param[in]  milliseconds  The number of milliseconds to sleep.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_serial_sleep (dc_serial_t *serial, unsigned int milliseconds);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* SERIAL_H */
+#endif /* DC_SERIAL_H */

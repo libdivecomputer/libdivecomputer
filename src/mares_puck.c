@@ -110,38 +110,42 @@ mares_puck_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	int rc = serial_open (&device->base.port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->base.port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (38400 8N1).
-	rc = serial_configure (device->base.port, 38400, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->base.port, 38400, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->base.port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->base.port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Clear the DTR/RTS lines.
-	if (serial_set_dtr (device->base.port, 0) == -1 ||
-		serial_set_rts (device->base.port, 0) == -1) {
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Clear the DTR line.
+	status = dc_serial_set_dtr (device->base.port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the DTR line.");
+		goto error_close;
+	}
+
+	// Clear the RTS line.
+	status = dc_serial_set_rts (device->base.port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the RTS line.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->base.port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->base.port, DC_DIRECTION_ALL);
 
 	// Identify the model number.
 	unsigned char header[PACKETSIZE] = {0};
@@ -172,7 +176,7 @@ mares_puck_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->base.port);
+	dc_serial_close (device->base.port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -184,10 +188,12 @@ mares_puck_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->base.port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->base.port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;

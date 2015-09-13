@@ -33,11 +33,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_memomouse_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define PACKETSIZE 126
 
 #define ACK 0x60
@@ -45,7 +40,7 @@
 
 typedef struct uwatec_memomouse_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -91,45 +86,49 @@ uwatec_memomouse_device_open (dc_device_t **out, dc_context_t *context, const ch
 	device->devtime = 0;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
-	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Clear the RTS and DTR lines.
-	if (serial_set_rts (device->port, 0) == -1 ||
-		serial_set_dtr (device->port, 0) == -1) {
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Clear the DTR line.
+	status = dc_serial_set_dtr (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the DTR line.");
+		goto error_close;
+	}
+
+	// Clear the RTS line.
+	status = dc_serial_set_rts (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the RTS line.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -141,10 +140,12 @@ uwatec_memomouse_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -171,15 +172,16 @@ uwatec_memomouse_device_set_fingerprint (dc_device_t *abstract, const unsigned c
 static dc_status_t
 uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	assert (result != NULL);
 
 	// Receive the header of the package.
-	int rc = serial_read (device->port, data, 1);
-	if (rc != 1) {
+	status = dc_serial_read (device->port, data, 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Reverse the bits.
@@ -193,10 +195,10 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 	}
 
 	// Receive the remaining part of the package.
-	rc = serial_read (device->port, data + 1, len + 1);
-	if (rc != len + 1) {
+	status = dc_serial_read (device->port, data + 1, len + 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Reverse the bits.
@@ -219,6 +221,7 @@ uwatec_memomouse_read_packet (uwatec_memomouse_device_t *device, unsigned char d
 static dc_status_t
 uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned char data[], unsigned int size, unsigned int *result)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -229,14 +232,14 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 			return rc;
 
 		// Flush the input buffer.
-		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
 
 		// Reject the packet.
 		unsigned char value = NAK;
-		int n = serial_write (device->port, &value, 1);
-		if (n != 1) {
+		status = dc_serial_write (device->port, &value, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to reject the packet.");
-			return EXITCODE (n);
+			return status;
 		}
 	}
 
@@ -247,6 +250,7 @@ uwatec_memomouse_read_packet_outer (uwatec_memomouse_device_t *device, unsigned 
 static dc_status_t
 uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer_t *buffer, dc_event_progress_t *progress)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Erase the current contents of the buffer.
@@ -271,10 +275,10 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 
 		// Accept the packet.
 		unsigned char value = ACK;
-		int n = serial_write (device->port, &value, 1);
-		if (n != 1) {
+		status = dc_serial_write (device->port, &value, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to accept the packet.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		if (nbytes == 0) {
@@ -329,29 +333,31 @@ uwatec_memomouse_read_packet_inner (uwatec_memomouse_device_t *device, dc_buffer
 static dc_status_t
 uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+	size_t available = 0;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	// Waiting for greeting message.
-	while (serial_get_received (device->port) == 0) {
+	while (dc_serial_get_available (device->port, &available) == DC_STATUS_SUCCESS && available == 0) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
 		// Flush the input buffer.
-		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
 
 		// Reject the packet.
 		unsigned char value = NAK;
-		int n = serial_write (device->port, &value, 1);
-		if (n != 1) {
+		status = dc_serial_write (device->port, &value, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to reject the packet.");
-			return EXITCODE (n);
+			return status;
 		}
 
-		serial_sleep (device->port, 300);
+		dc_serial_sleep (device->port, 300);
 	}
 
 	// Read the ID string.
@@ -374,27 +380,27 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 
 	// Wait a small amount of time before sending the command.
 	// Without this delay, the transfer will fail most of the time.
-	serial_sleep (device->port, 50);
+	dc_serial_sleep (device->port, 50);
 
 	// Keep send the command to the device,
 	// until the ACK answer is received.
 	unsigned char answer = NAK;
 	while (answer == NAK) {
 		// Flush the input buffer.
-		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
 
 		// Send the command to the device.
-		int n = serial_write (device->port, command, sizeof (command));
-		if (n != sizeof (command)) {
+		status = dc_serial_write (device->port, command, sizeof (command), NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Wait for the answer (ACK).
-		n = serial_read (device->port, &answer, 1);
-		if (n != 1) {
+		status = dc_serial_read (device->port, &answer, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 	}
 
@@ -405,12 +411,12 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 	}
 
 	// Wait for the data packet.
-	while (serial_get_received (device->port) == 0) {
+	while (dc_serial_get_available (device->port, &available) == DC_STATUS_SUCCESS && available == 0) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
 		device_event_emit (&device->base, DC_EVENT_WAITING, NULL);
-		serial_sleep (device->port, 100);
+		dc_serial_sleep (device->port, 100);
 	}
 
 	// Fetch the current system time.
@@ -438,7 +444,9 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 static dc_status_t
 uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
@@ -448,24 +456,26 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Give the interface some time to notice the DTR
 	// line change from a previous transfer (if any).
-	serial_sleep (device->port, 500);
+	dc_serial_sleep (device->port, 500);
 
 	// Set the DTR line.
-	if (serial_set_dtr (device->port, 1) == -1) {
+	rc = dc_serial_set_dtr (device->port, 1);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to set the RTS line.");
-		return DC_STATUS_IO;
+		return rc;
 	}
 
 	// Start the transfer.
-	dc_status_t rc = uwatec_memomouse_dump_internal (device, buffer);
+	status = uwatec_memomouse_dump_internal (device, buffer);
 
 	// Clear the DTR line again.
-	if (serial_set_dtr (device->port, 0) == -1) {
+	rc = dc_serial_set_dtr (device->port, 0);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to set the RTS line.");
-		return DC_STATUS_IO;
+		return rc;
 	}
 
-	return rc;
+	return status;
 }
 
 

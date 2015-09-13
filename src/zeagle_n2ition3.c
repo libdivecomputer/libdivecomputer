@@ -34,11 +34,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &zeagle_n2ition3_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define SZ_MEMORY 0x8000
 #define SZ_PACKET 64
 
@@ -51,7 +46,7 @@
 
 typedef struct zeagle_n2ition3_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned char fingerprint[16];
 } zeagle_n2ition3_device_t;
 
@@ -76,6 +71,7 @@ static const dc_device_vtable_t zeagle_n2ition3_device_vtable = {
 static dc_status_t
 zeagle_n2ition3_packet (zeagle_n2ition3_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	assert (asize >= csize + 5);
@@ -84,17 +80,17 @@ zeagle_n2ition3_packet (zeagle_n2ition3_device_t *device, const unsigned char co
 		return DC_STATUS_CANCELLED;
 
 	// Send the command to the device.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
+	status = dc_serial_write (device->port, command, csize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Receive the answer of the device.
-	n = serial_read (device->port, answer, asize);
-	if (n != asize) {
+	status = dc_serial_read (device->port, answer, asize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the echo.
@@ -156,30 +152,28 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (4800 8N1).
-	rc = serial_configure (device->port, 4800, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	// Send the init commands.
 	zeagle_n2ition3_init (device);
@@ -189,7 +183,7 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -201,10 +195,12 @@ zeagle_n2ition3_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	zeagle_n2ition3_device_t *device = (zeagle_n2ition3_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;

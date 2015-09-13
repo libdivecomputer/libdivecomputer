@@ -32,11 +32,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &divesystem_idive_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define IX3M_EASY 0x22
 #define IX3M_DEEP 0x23
 #define IX3M_TEC  0x24
@@ -67,7 +62,7 @@ typedef struct divesystem_idive_commands_t {
 
 typedef struct divesystem_idive_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned char fingerprint[4];
 	unsigned int model;
 } divesystem_idive_device_t;
@@ -130,38 +125,36 @@ divesystem_idive_device_open2 (dc_device_t **out, dc_context_t *context, const c
 	device->model = model;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
-	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep (device->port, 300);
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_sleep (device->port, 300);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -173,10 +166,12 @@ divesystem_idive_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	divesystem_idive_device_t *device = (divesystem_idive_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -203,6 +198,7 @@ divesystem_idive_device_set_fingerprint (dc_device_t *abstract, const unsigned c
 static dc_status_t
 divesystem_idive_send (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[MAXPACKET + 4];
 	unsigned short crc = 0;
@@ -222,10 +218,10 @@ divesystem_idive_send (divesystem_idive_device_t *device, const unsigned char co
 	packet[csize + 3] = (crc     ) & 0xFF;
 
 	// Send the data packet.
-	int n = serial_write (device->port, packet, csize + 4);
-	if (n != csize + 4) {
+	status = dc_serial_write (device->port, packet, csize + 4, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -235,9 +231,9 @@ divesystem_idive_send (divesystem_idive_device_t *device, const unsigned char co
 static dc_status_t
 divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answer[], unsigned int *asize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[MAXPACKET + 4];
-	int n = 0;
 
 	if (asize == NULL || *asize < MAXPACKET) {
 		ERROR (abstract->context, "Invalid arguments.");
@@ -246,10 +242,10 @@ divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answe
 
 	// Read the packet start byte.
 	while (1) {
-		n = serial_read (device->port, packet + 0, 1);
-		if (n != 1) {
+		status = dc_serial_read (device->port, packet + 0, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the packet start byte.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		if (packet[0] == START)
@@ -257,10 +253,10 @@ divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answe
 	}
 
 	// Read the packet length.
-	n = serial_read (device->port, packet + 1, 1);
-	if (n != 1) {
+	status = dc_serial_read (device->port, packet + 1, 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the packet length.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	unsigned int len = packet[1];
@@ -270,10 +266,10 @@ divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answe
 	}
 
 	// Read the packet payload and checksum.
-	n = serial_read (device->port, packet + 2, len + 2);
-	if (n != len + 2) {
+	status = dc_serial_read (device->port, packet + 2, len + 2, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the packet payload and checksum.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the checksum.
@@ -346,7 +342,7 @@ divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned cha
 			return DC_STATUS_PROTOCOL;
 
 		// Delay the next attempt.
-		serial_sleep(device->port, 100);
+		dc_serial_sleep(device->port, 100);
 	}
 
 	// Verify the length of the packet.

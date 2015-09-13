@@ -33,14 +33,9 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &citizen_aqualand_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 typedef struct citizen_aqualand_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned char fingerprint[8];
 } citizen_aqualand_device_t;
 
@@ -82,38 +77,36 @@ citizen_aqualand_device_open (dc_device_t **out, dc_context_t *context, const ch
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (4800 8N1).
-	rc = serial_configure (device->port, 4800, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep (device->port, 300);
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_sleep (device->port, 300);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -125,10 +118,12 @@ citizen_aqualand_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	citizen_aqualand_device_t *device = (citizen_aqualand_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -154,6 +149,7 @@ citizen_aqualand_device_set_fingerprint (dc_device_t *abstract, const unsigned c
 static dc_status_t
 citizen_aqualand_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	citizen_aqualand_device_t *device = (citizen_aqualand_device_t *) abstract;
 
 	// Erase the current contents of the buffer and
@@ -163,49 +159,49 @@ citizen_aqualand_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	serial_set_dtr (device->port, 1);
+	dc_serial_set_dtr (device->port, 1);
 
 	// Send the init byte.
 	const unsigned char init[] = {0x7F};
-	int n = serial_write (device->port, init, sizeof (init));
-	if (n != sizeof (init)) {
+	status = dc_serial_write (device->port, init, sizeof (init), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
-	serial_sleep(device->port, 1200);
+	dc_serial_sleep(device->port, 1200);
 
 	// Send the command.
 	const unsigned char command[] = {0xFF};
-	n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	while (1) {
 		// Receive the response packet.
 		unsigned char answer[32] = {0};
-		n = serial_read (device->port, answer, sizeof (answer));
-		if (n != sizeof (answer)) {
+		status = dc_serial_read (device->port, answer, sizeof (answer), NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		dc_buffer_append(buffer, answer, sizeof (answer));
 
 		// Send the command.
-		n = serial_write (device->port, command, sizeof (command));
-		if (n != sizeof (command)) {
+		status = dc_serial_write (device->port, command, sizeof (command), NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		if (answer[sizeof(answer) - 1] == 0xFF)
 			break;
 	}
 
-	serial_set_dtr (device->port, 0);
+	dc_serial_set_dtr (device->port, 0);
 
 	return DC_STATUS_SUCCESS;
 }

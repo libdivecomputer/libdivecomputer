@@ -33,11 +33,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 #define MAXRETRIES 9
@@ -64,7 +59,7 @@
 
 typedef struct hw_ostc_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned char fingerprint[5];
 } hw_ostc_device_t;
 
@@ -93,23 +88,24 @@ static const dc_device_vtable_t hw_ostc_device_vtable = {
 static dc_status_t
 hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the command.
 	unsigned char command[1] = {cmd};
-	int n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	if (echo) {
 		// Read the echo.
 		unsigned char answer[1] = {0};
-		n = serial_read (device->port, answer, sizeof (answer));
-		if (n != sizeof (answer)) {
+		status = dc_serial_read (device->port, answer, sizeof (answer), NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the echo.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Verify the echo.
@@ -144,38 +140,36 @@ hw_ostc_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
-	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data.
-	if (serial_set_timeout (device->port, 4000) == -1) {
+	status = dc_serial_set_timeout (device->port, 4000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep (device->port, 100);
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_sleep (device->port, 100);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -187,10 +181,12 @@ hw_ostc_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -217,6 +213,7 @@ hw_ostc_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[
 static dc_status_t
 hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
 
 	// Erase the current contents of the buffer.
@@ -232,18 +229,18 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Send the command.
 	unsigned char command[1] = {'a'};
-	int rc = serial_write (device->port, command, sizeof (command));
-	if (rc != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Read the header.
 	unsigned char header[SZ_HEADER] = {0};
-	int n = serial_read (device->port, header, sizeof (header));
-	if (n != sizeof (header)) {
+	status = dc_serial_read (device->port, header, sizeof (header), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the header.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the header.
@@ -285,8 +282,9 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		unsigned int len = 1024;
 
 		// Increase the packet size if more data is immediately available.
-		int available = serial_get_received (device->port);
-		if (available > len)
+		size_t available = 0;
+		status = dc_serial_get_available (device->port, &available);
+		if (status == DC_STATUS_SUCCESS && available > len)
 			len = available;
 
 		// Limit the packet size to the total size.
@@ -294,10 +292,10 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			len = size - nbytes;
 
 		// Read the packet.
-		int n = serial_read (device->port, data + nbytes, len);
-		if (n != len) {
+		status = dc_serial_read (device->port, data + nbytes, len, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Update and emit a progress event.
@@ -351,6 +349,7 @@ hw_ostc_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 dc_status_t
 hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -367,10 +366,10 @@ hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned in
 		return rc;
 
 	// Read the answer.
-	int n = serial_read (device->port, data, SZ_MD2HASH);
-	if (n != SZ_MD2HASH) {
+	status = dc_serial_read (device->port, data, SZ_MD2HASH, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -380,6 +379,7 @@ hw_ostc_device_md2hash (dc_device_t *abstract, unsigned char data[], unsigned in
 dc_status_t
 hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -399,10 +399,10 @@ hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 	unsigned char packet[6] = {
 		datetime->hour, datetime->minute, datetime->second,
 		datetime->month, datetime->day, datetime->year - 2000};
-	int n = serial_write (device->port, packet, sizeof (packet));
-	if (n != sizeof (packet)) {
+	status = dc_serial_write (device->port, packet, sizeof (packet), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the data packet.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -412,6 +412,7 @@ hw_ostc_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 dc_status_t
 hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned char data[], unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -434,10 +435,10 @@ hw_ostc_device_eeprom_read (dc_device_t *abstract, unsigned int bank, unsigned c
 		return rc;
 
 	// Read the answer.
-	int n = serial_read (device->port, data, SZ_EEPROM);
-	if (n != SZ_EEPROM) {
+	status = dc_serial_read (device->port, data, SZ_EEPROM, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -499,6 +500,7 @@ hw_ostc_device_reset (dc_device_t *abstract)
 dc_status_t
 hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_format_t format)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -554,13 +556,13 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 	unsigned int npixels = 0;
 	while (npixels < WIDTH * HEIGHT) {
 		unsigned char raw[3] = {0};
-		int n = serial_read (device->port, raw, 1);
-		if (n != 1) {
+		status = dc_serial_read (device->port, raw, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the packet.");
-			return EXITCODE (n);
+			return status;
 		}
 
-		unsigned int nbytes = n;
+		unsigned int nbytes = 1;
 		unsigned int count = raw[0];
 		if ((count & 0x80) == 0x00) {
 			// Black pixel.
@@ -572,13 +574,13 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 			count &= 0x3F;
 		} else {
 			// Color pixel.
-			n = serial_read (device->port, raw + 1, 2);
-			if (n != 2) {
+			status = dc_serial_read (device->port, raw + 1, 2, NULL);
+			if (status != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to receive the packet.");
-				return EXITCODE (n);
+				return status;
 			}
 
-			nbytes += n;
+			nbytes += 2;
 			count &= 0x3F;
 		}
 		count++;
@@ -767,22 +769,23 @@ hw_ostc_firmware_readfile (hw_ostc_firmware_t *firmware, dc_context_t *context, 
 static dc_status_t
 hw_ostc_firmware_setup_internal (hw_ostc_device_t *device)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the command.
 	unsigned char command[1] = {0xC1};
-	int n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Read the response.
 	unsigned char answer[2] = {0};
-	n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
+	status = dc_serial_read (device->port, answer, sizeof (answer), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the response.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the response.
@@ -818,21 +821,22 @@ hw_ostc_firmware_setup (hw_ostc_device_t *device, unsigned int maxretries)
 static dc_status_t
 hw_ostc_firmware_write_internal (hw_ostc_device_t *device, unsigned char *data, unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the packet.
-	int n = serial_write (device->port, data, size);
-	if (n != size) {
+	status = dc_serial_write (device->port, data, size, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the packet.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Read the response.
 	unsigned char answer[1] = {0};
-	n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
+	status = dc_serial_read (device->port, answer, sizeof (answer), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the response.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the response.
@@ -901,16 +905,17 @@ hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
 	// bootloader needs to be send repeatedly, until the response packet is
 	// received. Thus the time between each two attempts is directly controlled
 	// by the timeout value.
-	serial_set_timeout (device->port, 300);
+	dc_serial_set_timeout (device->port, 300);
 
 	// Setup the bootloader.
 	const unsigned int baudrates[] = {19200, 115200};
 	for (unsigned int i = 0; i < C_ARRAY_SIZE(baudrates); ++i) {
 		// Adjust the baudrate.
-		if (serial_configure (device->port, baudrates[i], 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE) == -1) {
+		rc = dc_serial_configure (device->port, baudrates[i], 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to set the terminal attributes.");
 			free (firmware);
-			return DC_STATUS_IO;
+			return rc;
 		}
 
 		// Try to setup the bootloader.
@@ -926,7 +931,7 @@ hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
 	}
 
 	// Increase the timeout again.
-	serial_set_timeout (device->port, 1000);
+	dc_serial_set_timeout (device->port, 1000);
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;

@@ -33,16 +33,11 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &suunto_eon_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define SZ_MEMORY 0x900
 
 typedef struct suunto_eon_device_t {
 	suunto_common_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 } suunto_eon_device_t;
 
 static dc_status_t suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
@@ -92,32 +87,30 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	device->port = NULL;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (1200 8N2).
-	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Clear the RTS line.
-	if (serial_set_rts (device->port, 0)) {
+	status = dc_serial_set_rts (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
@@ -126,7 +119,7 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -138,10 +131,12 @@ suunto_eon_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -151,6 +146,7 @@ suunto_eon_device_close (dc_device_t *abstract)
 static dc_status_t
 suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
 	// Erase the current contents of the buffer and
@@ -167,10 +163,10 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Send the command.
 	unsigned char command[1] = {'P'};
-	int rc = serial_write (device->port, command, sizeof (command));
-	if (rc != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Receive the answer.
@@ -181,8 +177,9 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		unsigned int len = 64;
 
 		// Increase the packet size if more data is immediately available.
-		int available = serial_get_received (device->port);
-		if (available > len)
+		size_t available = 0;
+		status = dc_serial_get_available (device->port, &available);
+		if (status == DC_STATUS_SUCCESS && available > len)
 			len = available;
 
 		// Limit the packet size to the total size.
@@ -190,10 +187,10 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			len = sizeof(answer) - nbytes;
 
 		// Read the packet.
-		int n = serial_read (device->port, answer + nbytes, len);
-		if (n != len) {
+		status = dc_serial_read (device->port, answer + nbytes, len, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Update and emit a progress event.
@@ -254,6 +251,7 @@ suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 dc_status_t
 suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -265,10 +263,10 @@ suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsig
 	// Send the command.
 	unsigned char command[21] = {'N'};
 	memcpy (command + 1, data, size);
-	int rc = serial_write (device->port, command, sizeof (command));
-	if (rc != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -278,6 +276,7 @@ suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsig
 dc_status_t
 suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eon_device_t *device = (suunto_eon_device_t*) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -285,10 +284,10 @@ suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 
 	// Send the command.
 	unsigned char command[2] = {'T', interval};
-	int rc = serial_write (device->port, command, sizeof (command));
-	if (rc != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;

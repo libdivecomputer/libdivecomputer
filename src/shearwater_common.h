@@ -34,7 +34,7 @@ extern "C" {
 
 typedef struct shearwater_common_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 } shearwater_common_device_t;
 
 dc_status_t

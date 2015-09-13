@@ -32,11 +32,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &suunto_solution_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define SZ_MEMORY 256
 
 #define RB_PROFILE_BEGIN			0x020
@@ -44,7 +39,7 @@
 
 typedef struct suunto_solution_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 } suunto_solution_device_t;
 
 static dc_status_t suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
@@ -83,32 +78,30 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 	device->port = NULL;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (1200 8N2).
-	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Clear the RTS line.
-	if (serial_set_rts (device->port, 0)) {
+	status = dc_serial_set_rts (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
@@ -117,7 +110,7 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -129,10 +122,12 @@ suunto_solution_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -142,6 +137,7 @@ suunto_solution_device_close (dc_device_t *abstract)
 static dc_status_t
 suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
 
 	// Erase the current contents of the buffer and
@@ -158,20 +154,20 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	progress.maximum = SZ_MEMORY - 1 + 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	int n = 0;
 	unsigned char command[3] = {0};
 	unsigned char answer[3] = {0};
 
 	// Assert DTR
-	serial_set_dtr (device->port, 1);
+	dc_serial_set_dtr (device->port, 1);
 
 	// Send: 0xFF
 	command[0] = 0xFF;
-	serial_write (device->port, command, 1);
+	dc_serial_write (device->port, command, 1, NULL);
 
 	// Receive: 0x3F
-	n = serial_read (device->port, answer, 1);
-	if (n != 1) return EXITCODE (n);
+	status = dc_serial_read (device->port, answer, 1, NULL);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
 	if (answer[0] != 0x3F)
 		WARNING (abstract->context, "Unexpected answer byte.");
 
@@ -179,7 +175,7 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	command[0] = 0x4D;
 	command[1] = 0x01;
 	command[2] = 0x01;
-	serial_write (device->port, command, 3);
+	dc_serial_write (device->port, command, 3, NULL);
 
 	// Update and emit a progress event.
 	progress.current += 1;
@@ -188,24 +184,26 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	data[0] = 0x00;
 	for (unsigned int i = 1; i < SZ_MEMORY; ++i) {
 		// Receive: 0x01, i, data[i]
-		n = serial_read (device->port, answer, 3);
-		if (n != 3) return EXITCODE (n);
+		status = dc_serial_read (device->port, answer, 3, NULL);
+		if (status != DC_STATUS_SUCCESS)
+			return status;
 		if (answer[0] != 0x01 || answer[1] != i)
 			WARNING (abstract->context, "Unexpected answer byte.");
 
 		// Send: i
 		command[0] = i;
-		serial_write (device->port, command, 1);
+		dc_serial_write (device->port, command, 1, NULL);
 
 		// Receive: data[i]
-		n = serial_read (device->port, data + i, 1);
-		if (n != 1) return EXITCODE (n);
+		status = dc_serial_read (device->port, data + i, 1, NULL);
+		if (status != DC_STATUS_SUCCESS)
+			return status;
 		if (data[i] != answer[2])
 			WARNING (abstract->context, "Unexpected answer byte.");
 
 		// Send: 0x0D
 		command[0] = 0x0D;
-		serial_write (device->port, command, 1);
+		dc_serial_write (device->port, command, 1, NULL);
 
 		// Update and emit a progress event.
 		progress.current += 1;
@@ -213,28 +211,31 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Receive: 0x02, 0x00, 0x80
-	n = serial_read (device->port, answer, 3);
-	if (n != 3) return EXITCODE (n);
+	status = dc_serial_read (device->port, answer, 3, NULL);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
 	if (answer[0] != 0x02 || answer[1] != 0x00 || answer[2] != 0x80)
 		WARNING (abstract->context, "Unexpected answer byte.");
 
 	// Send: 0x80
 	command[0] = 0x80;
-	serial_write (device->port, command, 1);
+	dc_serial_write (device->port, command, 1, NULL);
 
 	// Receive: 0x80
-	n = serial_read (device->port, answer, 1);
-	if (n != 1) return EXITCODE (n);
+	status = dc_serial_read (device->port, answer, 1, NULL);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
 	if (answer[0] != 0x80)
 		WARNING (abstract->context, "Unexpected answer byte.");
 
 	// Send: 0x20
 	command[0] = 0x20;
-	serial_write (device->port, command, 1);
+	dc_serial_write (device->port, command, 1, NULL);
 
 	// Receive: 0x3F
-	n = serial_read (device->port, answer, 1);
-	if (n != 1) return EXITCODE (n);
+	status = dc_serial_read (device->port, answer, 1, NULL);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
 	if (answer[0] != 0x3F)
 		WARNING (abstract->context, "Unexpected answer byte.");
 

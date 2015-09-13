@@ -32,11 +32,6 @@
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define COCHRAN_MODEL_COMMANDER_AIR_NITROX 0
 #define COCHRAN_MODEL_EMC_14 1
 #define COCHRAN_MODEL_EMC_16 2
@@ -92,7 +87,7 @@ typedef struct cochran_device_layout_t {
 
 typedef struct cochran_commander_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	const cochran_device_layout_t *layout;
 	unsigned char id[67];
 	unsigned char fingerprint[6];
@@ -226,33 +221,36 @@ cochran_commander_get_model (cochran_commander_device_t *device)
 static dc_status_t
 cochran_commander_serial_setup (cochran_commander_device_t *device)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	// Set the serial communication protocol (9600 8N2, no FC).
-	int rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to set the terminal attributes.");
-		return DC_STATUS_IO;
+		return status;
 	}
 
 	// Set the timeout for receiving data (5000 ms).
-	if (serial_set_timeout (device->port, 5000) == -1) {
+	status = dc_serial_set_timeout (device->port, 5000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to set the timeout.");
-		return DC_STATUS_IO;
+		return status;
 	}
 
 	// Wake up DC and trigger heartbeat
-	serial_set_break(device->port, 1);
-	serial_sleep(device->port, 16);
-	serial_set_break(device->port, 0);
+	dc_serial_set_break(device->port, 1);
+	dc_serial_sleep(device->port, 16);
+	dc_serial_set_break(device->port, 0);
 
 	// Clear old heartbeats
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	// Wait for heartbeat byte before send
 	unsigned char answer = 0;
-	int n = serial_read(device->port, &answer, 1);
-	if (n != 1) {
+	status = dc_serial_read(device->port, &answer, 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to receive device heartbeat.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	if (answer != 0xAA) {
@@ -270,6 +268,7 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 	unsigned char answer[], unsigned int asize, int high_speed)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
+	dc_status_t status = DC_STATUS_SUCCESS;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -279,24 +278,24 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 	// has no buffering.
 	for (unsigned int i = 0; i < csize; i++) {
 		// Give the DC time to read the character.
-		if (i) serial_sleep(device->port, 16); // 16 ms
+		if (i) dc_serial_sleep(device->port, 16); // 16 ms
 
-		unsigned int n = serial_write(device->port, command + i, 1);
-		if (n != 1) {
+		status = dc_serial_write(device->port, command + i, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
-			return EXITCODE (n);
+			return status;
 		}
 	}
 
 	if (high_speed) {
 		// Give the DC time to process the command.
-		serial_sleep(device->port, 45);
+		dc_serial_sleep(device->port, 45);
 
 		// Rates are odd, like 806400 for the EMC, 115200 for commander
-		int rc = serial_configure(device->port, device->layout->baudrate, 8, SERIAL_PARITY_NONE, 2, SERIAL_FLOWCONTROL_NONE);
-		if (rc == -1) {
+		status = dc_serial_configure(device->port, device->layout->baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to set the high baud rate.");
-			return DC_STATUS_IO;
+			return status;
 		}
 	}
 
@@ -308,17 +307,16 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 		if (len > 1024)
 			len = 1024;
 
-		int n = serial_read (device->port, answer + nbytes, len);
-		if (n != len) {
-			ERROR (abstract->context, "Failed to receive data, expected %u,"
-					"read %u.",len, n);
-			return EXITCODE (n);
+		status = dc_serial_read (device->port, answer + nbytes, len, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive data.");
+			return status;
 		}
 
-		nbytes += n;
+		nbytes += len;
 
 		if (progress) {
-			progress->current += n;
+			progress->current += len;
 			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
 	}
@@ -417,7 +415,7 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 		return DC_STATUS_UNSUPPORTED;
 	}
 
-	serial_sleep(device->port, 800);
+	dc_serial_sleep(device->port, 800);
 
 	// set back to 9600 baud
 	rc = cochran_commander_serial_setup(device);
@@ -630,10 +628,9 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 	cochran_commander_device_set_fingerprint((dc_device_t *) device, NULL, 0);
 
 	// Open the device.
-	int rc = serial_open (&device->port, device->base.context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, device->base.context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
@@ -674,7 +671,7 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -685,10 +682,12 @@ cochran_commander_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;

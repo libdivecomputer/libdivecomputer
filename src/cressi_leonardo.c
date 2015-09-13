@@ -34,11 +34,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &cressi_leonardo_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define SZ_MEMORY 32000
 
 #define RB_LOGBOOK_BEGIN 0x0100
@@ -52,7 +47,7 @@
 
 typedef struct cressi_leonardo_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned char fingerprint[5];
 } cressi_leonardo_device_t;
 
@@ -93,45 +88,49 @@ cressi_leonardo_device_open (dc_device_t **out, dc_context_t *context, const cha
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
-	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Clear the DTR and set the RTS line.
-	if (serial_set_dtr (device->port, 0) == -1 ||
-		serial_set_rts (device->port, 1) == -1) {
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Clear the DTR line.
+	status = dc_serial_set_dtr (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the DTR line.");
 		goto error_close;
 	}
 
-	serial_sleep (device->port, 100);
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	// Set the RTS line.
+	status = dc_serial_set_rts (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the RTS line.");
+		goto error_close;
+	}
+
+	dc_serial_sleep (device->port, 100);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -142,10 +141,12 @@ cressi_leonardo_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -170,6 +171,7 @@ cressi_leonardo_device_set_fingerprint (dc_device_t *abstract, const unsigned ch
 static dc_status_t
 cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;
 
 	// Erase the current contents of the buffer and
@@ -186,18 +188,18 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Send the command header to the dive computer.
 	const unsigned char command[] = {0x7B, 0x31, 0x32, 0x33, 0x44, 0x42, 0x41, 0x7d};
-	int n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Receive the header packet.
 	unsigned char header[7] = {0};
-	n = serial_read (device->port, header, sizeof (header));
-	if (n != sizeof (header)) {
+	status = dc_serial_read (device->port, header, sizeof (header), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the header packet.
@@ -215,8 +217,9 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		unsigned int len = 1024;
 
 		// Increase the packet size if more data is immediately available.
-		int available = serial_get_received (device->port);
-		if (available > len)
+		size_t available = 0;
+		status = dc_serial_get_available (device->port, &available);
+		if (status == DC_STATUS_SUCCESS && available > len)
 			len = available;
 
 		// Limit the packet size to the total size.
@@ -224,10 +227,10 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			len = SZ_MEMORY - nbytes;
 
 		// Read the packet.
-		n = serial_read (device->port, data + nbytes, len);
-		if (n != len) {
+		status = dc_serial_read (device->port, data + nbytes, len, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Update and emit a progress event.
@@ -239,10 +242,10 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Receive the trailer packet.
 	unsigned char trailer[4] = {0};
-	n = serial_read (device->port, trailer, sizeof (trailer));
-	if (n != sizeof (trailer)) {
+	status = dc_serial_read (device->port, trailer, sizeof (trailer), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Convert to a binary checksum.
