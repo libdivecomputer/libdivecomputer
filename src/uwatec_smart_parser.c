@@ -374,6 +374,12 @@ uwatec_smart_event_info_t uwatec_smart_galileo_events_2[] = {
 	{EV_UNKNOWN,          0xFF, 0},
 };
 
+static const
+uwatec_smart_event_info_t uwatec_smart_trimix_events_2[] = {
+	{EV_UNKNOWN,          0x0F, 0},
+	{EV_GASMIX,           0xF0, 4},
+};
+
 static unsigned int
 uwatec_smart_find_gasmix (uwatec_smart_parser_t *parser, unsigned int id)
 {
@@ -418,6 +424,14 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 
 		if (data[43] & 0x80) {
 			trimix = 1;
+		}
+
+		if (trimix) {
+			parser->events[2] = uwatec_smart_trimix_events_2;
+			parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_trimix_events_2);
+		} else {
+			parser->events[2] = uwatec_smart_galileo_events_2;
+			parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_galileo_events_2);
 		}
 	}
 
