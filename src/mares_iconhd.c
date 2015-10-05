@@ -296,6 +296,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	case PUCK2:
 	case NEMOWIDE2:
 	case SMART:
+	case SMARTAPNEA:
 		device->layout = &mares_nemowide2_layout;
 		device->packetsize = 256;
 		break;
