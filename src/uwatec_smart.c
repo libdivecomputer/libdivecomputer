@@ -216,18 +216,18 @@ error_free:
 static dc_status_t
 uwatec_smart_device_close (dc_device_t *abstract)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
 
 	// Close the device.
 	if (irda_socket_close (device->socket) == -1) {
-		free (device);
-		return DC_STATUS_IO;
+		dc_status_set_error(&status, DC_STATUS_IO);
 	}
 
 	// Free memory.
 	free (device);
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 

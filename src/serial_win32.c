@@ -181,6 +181,8 @@ error_free:
 int
 serial_close (serial_t *device)
 {
+	int errcode = 0;
+
 	if (device == NULL)
 		return 0;
 
@@ -188,22 +190,19 @@ serial_close (serial_t *device)
 	if (!SetCommState (device->hFile, &device->dcb) ||
 		!SetCommTimeouts (device->hFile, &device->timeouts)) {
 		SYSERROR (device->context, GetLastError ());
-		CloseHandle (device->hFile);
-		free (device);
-		return -1;
+		errcode = -1;
 	}
 
 	// Close the device.
 	if (!CloseHandle (device->hFile)) {
 		SYSERROR (device->context, GetLastError ());
-		free (device);
-		return -1;
+		errcode = -1;
 	}
 
 	// Free memory.
 	free (device);
 
-	return 0;
+	return errcode;
 }
 
 //

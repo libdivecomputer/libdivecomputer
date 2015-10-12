@@ -125,18 +125,18 @@ error_free:
 static dc_status_t
 citizen_aqualand_device_close (dc_device_t *abstract)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	citizen_aqualand_device_t *device = (citizen_aqualand_device_t*) abstract;
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
-		free (device);
-		return DC_STATUS_IO;
+		dc_status_set_error(&status, DC_STATUS_IO);
 	}
 
 	// Free memory.
 	free (device);
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 

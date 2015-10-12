@@ -430,6 +430,7 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 static dc_status_t
 hw_ostc3_device_close (dc_device_t *abstract)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc3_device_t *device = (hw_ostc3_device_t*) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
@@ -438,22 +439,19 @@ hw_ostc3_device_close (dc_device_t *abstract)
 		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
-			serial_close (device->port);
-			free (device);
-			return rc;
+			dc_status_set_error(&status, rc);
 		}
 	}
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
-		free (device);
-		return DC_STATUS_IO;
+		dc_status_set_error(&status, DC_STATUS_IO);
 	}
 
 	// Free memory.
 	free (device);
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 

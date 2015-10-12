@@ -17,6 +17,7 @@ libdivecomputer_la_SOURCES = \
 	version.c \
 	descriptor.c \
 	iterator-private.h iterator.c \
+	common-private.h common.c \
 	context-private.h context.c \
 	device-private.h device.c \
 	parser-private.h parser.c \

@@ -195,15 +195,15 @@ error_free:
 int
 serial_close (serial_t *device)
 {
+	int errcode = 0;
+
 	if (device == NULL)
 		return 0;
 
 	// Restore the initial terminal attributes.
 	if (tcsetattr (device->fd, TCSANOW, &device->tty) != 0) {
 		SYSERROR (device->context, errno);
-		close (device->fd);
-		free (device);
-		return -1;
+		errcode = -1;
 	}
 
 #ifndef ENABLE_PTY
@@ -214,14 +214,13 @@ serial_close (serial_t *device)
 	// Close the device.
 	if (close (device->fd) != 0) {
 		SYSERROR (device->context, errno);
-		free (device);
-		return -1;
+		errcode = -1;
 	}
 
 	// Free memory.
 	free (device);
 
-	return 0;
+	return errcode;
 }
 
 //

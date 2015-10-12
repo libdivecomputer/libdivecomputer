@@ -173,18 +173,18 @@ error_free:
 static dc_status_t
 mares_darwin_device_close (dc_device_t *abstract)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 
 	// Close the device.
 	if (serial_close (device->base.port) == -1) {
-		free (device);
-		return DC_STATUS_IO;
+		dc_status_set_error(&status, DC_STATUS_IO);
 	}
 
 	// Free memory.
 	free (device);
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 

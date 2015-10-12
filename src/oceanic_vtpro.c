@@ -357,6 +357,7 @@ error_free:
 static dc_status_t
 oceanic_vtpro_device_close (dc_device_t *abstract)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
 
 	// Switch the device back to surface mode.
@@ -364,14 +365,13 @@ oceanic_vtpro_device_close (dc_device_t *abstract)
 
 	// Close the device.
 	if (serial_close (device->port) == -1) {
-		free (device);
-		return DC_STATUS_IO;
+		dc_status_set_error(&status, DC_STATUS_IO);
 	}
 
 	// Free memory.
 	free (device);
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 

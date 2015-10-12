@@ -27,6 +27,8 @@
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/device.h>
 
+#include "common-private.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

@@ -133,6 +133,8 @@ error_free:
 int
 irda_socket_close (irda_t *device)
 {
+	int errcode = 0;
+
 	if (device == NULL)
 		return -1;
 
@@ -146,26 +148,21 @@ irda_socket_close (irda_t *device)
 	if (close (device->fd) != 0) {
 #endif
 		SYSERROR (device->context, ERRNO);
-#ifdef _WIN32
-		WSACleanup ();
-#endif
-		free (device);
-		return -1;
+		errcode = -1;
 	}
 
 #ifdef _WIN32
 	// Terminate the winsock dll.
 	if (WSACleanup () != 0) {
 		SYSERROR (device->context, ERRNO);
-		free (device);
-		return -1;
+		errcode = -1;
 	}
 #endif
 
 	// Free memory.
 	free (device);
 
-	return 0;
+	return errcode;
 }
 
 

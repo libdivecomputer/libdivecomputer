@@ -211,6 +211,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\common.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\context.c"
 				>
 			</File>
@@ -518,6 +522,10 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\citizen_aqualand.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\common-private.h"
 				>
 			</File>
 			<File
