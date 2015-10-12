@@ -150,8 +150,7 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 			NULL);
 	if (device->hFile == INVALID_HANDLE_VALUE) {
 		SYSERROR (context, GetLastError ());
-		free (device);
-		return -1;
+		goto error_free;
 	}
 
 	// Retrieve the current communication settings and timeouts,
@@ -161,14 +160,18 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	if (!GetCommState (device->hFile, &device->dcb) ||
 		!GetCommTimeouts (device->hFile, &device->timeouts)) {
 		SYSERROR (context, GetLastError ());
-		CloseHandle (device->hFile);
-		free (device);
-		return -1;
+		goto error_close;
 	}
 
 	*out = device;
 
 	return 0;
+
+error_close:
+	CloseHandle (device->hFile);
+error_free:
+	free (device);
+	return -1;
 }
 
 //

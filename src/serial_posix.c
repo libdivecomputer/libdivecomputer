@@ -157,17 +157,14 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	device->fd = open (name, O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (device->fd == -1) {
 		SYSERROR (context, errno);
-		free (device);
-		return -1; // Error during open call.
+		goto error_free;
 	}
 
 #ifndef ENABLE_PTY
 	// Enable exclusive access mode.
 	if (ioctl (device->fd, TIOCEXCL, NULL) != 0) {
 		SYSERROR (context, errno);
-		close (device->fd);
-		free (device);
-		return -1;
+		goto error_close;
 	}
 #endif
 
@@ -177,14 +174,18 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	// file descriptor represents a terminal device.
 	if (tcgetattr (device->fd, &device->tty) != 0) {
 		SYSERROR (context, errno);
-		close (device->fd);
-		free (device);
-		return -1;
+		goto error_close;
 	}
 
 	*out = device;
 
 	return 0;
+
+error_close:
+	close (device->fd);
+error_free:
+	free (device);
+	return -1;
 }
 
 //

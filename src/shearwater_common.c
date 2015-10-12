@@ -40,6 +40,8 @@
 dc_status_t
 shearwater_common_open (shearwater_common_device_t *device, dc_context_t *context, const char *name)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	// Open the device.
 	int rc = serial_open (&device->port, context, name);
 	if (rc == -1) {
@@ -51,15 +53,15 @@ shearwater_common_open (shearwater_common_device_t *device, dc_context_t *contex
 	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
 	if (rc == -1) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		serial_close (device->port);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_close;
 	}
 
 	// Set the timeout for receiving data (3000ms).
 	if (serial_set_timeout (device->port, 3000) == -1) {
 		ERROR (context, "Failed to set the timeout.");
-		serial_close (device->port);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
@@ -67,6 +69,10 @@ shearwater_common_open (shearwater_common_device_t *device, dc_context_t *contex
 	serial_flush (device->port, SERIAL_QUEUE_BOTH);
 
 	return DC_STATUS_SUCCESS;
+
+error_close:
+	serial_close (device->port);
+	return status;
 }
 
 

@@ -512,11 +512,14 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 dc_status_t
 uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model, unsigned int devtime, dc_ticks_t systime)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+	uwatec_smart_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) malloc (sizeof (uwatec_smart_parser_t));
+	parser = (uwatec_smart_parser_t *) malloc (sizeof (uwatec_smart_parser_t));
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -594,8 +597,8 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->nevents[0] = C_ARRAY_SIZE (uwatec_smart_tec_events_0);
 		break;
 	default:
-		free (parser);
-		return DC_STATUS_INVALIDARGS;
+		status = DC_STATUS_INVALIDARGS;
+		goto error_free;
 	}
 
 	parser->cached = 0;
@@ -616,6 +619,10 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
+
+error_free:
+	free (parser);
+	return status;
 }
 
 

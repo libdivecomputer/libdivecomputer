@@ -92,8 +92,7 @@ irda_socket_open (irda_t **out, dc_context_t *context)
 	WORD wVersionRequested = MAKEWORD (2, 2);
 	if (WSAStartup (wVersionRequested, &wsaData) != 0) {
 		SYSERROR (context, ERRNO);
-		free (device);
-		return -1;
+		goto error_free;
 	}
 
 	// Confirm that the winsock dll supports version 2.2.
@@ -102,9 +101,7 @@ irda_socket_open (irda_t **out, dc_context_t *context)
 	if (LOBYTE (wsaData.wVersion) != 2 ||
 		HIBYTE (wsaData.wVersion) != 2) {
 		ERROR (context, "Incorrect winsock version.");
-		WSACleanup ();
-		free (device);
-		return -1;
+		goto error_wsacleanup;
 	}
 #endif
 
@@ -116,16 +113,20 @@ irda_socket_open (irda_t **out, dc_context_t *context)
 	if (device->fd == -1) {
 #endif
 		SYSERROR (context, ERRNO);
-#ifdef _WIN32
-		WSACleanup ();
-#endif
-		free (device);
-		return -1;
+		goto error_wsacleanup;
 	}
 
 	*out = device;
 
     return 0;
+
+error_wsacleanup:
+#ifdef _WIN32
+	WSACleanup ();
+error_free:
+#endif
+	free (device);
+	return -1;
 }
 
 

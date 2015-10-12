@@ -556,6 +556,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 dc_status_t
 suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eonsteel_device_t *eon;
 
 	if (out == NULL)
@@ -574,16 +575,15 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 
 	if (libusb_init(&eon->ctx)) {
 		ERROR(context, "libusb_init() failed");
-		free(eon);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_free;
 	}
 
 	eon->handle = libusb_open_device_with_vid_pid(eon->ctx, 0x1493, 0x0030);
 	if (!eon->handle) {
 		ERROR(context, "unable to open device");
-		libusb_exit(eon->ctx);
-		free(eon);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_usb_exit;
 	}
 
 #if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x01000102)
@@ -594,15 +594,21 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 
 	if (initialize_eonsteel(eon) < 0) {
 		ERROR(context, "unable to initialize device");
-		libusb_close(eon->handle);
-		libusb_exit(eon->ctx);
-		free(eon);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_usb_close;
 	}
 
 	*out = (dc_device_t *) eon;
 
 	return DC_STATUS_SUCCESS;
+
+error_usb_close:
+	libusb_close(eon->handle);
+error_usb_exit:
+	libusb_exit(eon->ctx);
+error_free:
+	free(eon);
+	return status;
 }
 
 static int count_dir_entries(struct directory_entry *de)

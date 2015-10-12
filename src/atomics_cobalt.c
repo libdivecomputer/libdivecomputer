@@ -82,12 +82,17 @@ static const dc_device_vtable_t atomics_cobalt_device_vtable = {
 dc_status_t
 atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
 {
+#ifdef HAVE_LIBUSB
+	dc_status_t status = DC_STATUS_SUCCESS;
+	atomics_cobalt_device_t *device = NULL;
+#endif
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 #ifdef HAVE_LIBUSB
 	// Allocate memory.
-	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) malloc (sizeof (atomics_cobalt_device_t));
+	device = (atomics_cobalt_device_t *) malloc (sizeof (atomics_cobalt_device_t));
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -105,39 +110,41 @@ atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
 	int rc = libusb_init (&device->context);
 	if (rc < 0) {
 		ERROR (context, "Failed to initialize usb support.");
-		free (device);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_free;
 	}
 
 	device->handle = libusb_open_device_with_vid_pid (device->context, VID, PID);
 	if (device->handle == NULL) {
 		ERROR (context, "Failed to open the usb device.");
-		libusb_exit (device->context);
-		free (device);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_usb_exit;
 	}
 
 	rc = libusb_claim_interface (device->handle, 0);
 	if (rc < 0) {
 		ERROR (context, "Failed to claim the usb interface.");
-		libusb_close (device->handle);
-		libusb_exit (device->context);
-		free (device);
-		return DC_STATUS_IO;
+		status = DC_STATUS_IO;
+		goto error_usb_close;
 	}
 
-	dc_status_t status = atomics_cobalt_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
+	status = atomics_cobalt_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to identify the dive computer.");
-		libusb_close (device->handle);
-		libusb_exit (device->context);
-		free (device);
-		return status;
+		goto error_usb_close;
 	}
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
+
+error_usb_close:
+	libusb_close (device->handle);
+error_usb_exit:
+	libusb_exit (device->context);
+error_free:
+	free (device);
+	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif
