@@ -284,7 +284,7 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 		unsigned char packet[8 * 1024] = {0};
 		rc = libusb_bulk_transfer (device->handle, 0x82,
 			packet, sizeof (packet), &length, TIMEOUT);
-		if (rc != LIBUSB_SUCCESS) {
+		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT) {
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return EXITCODE(rc);
 		}
