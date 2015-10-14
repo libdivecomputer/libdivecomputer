@@ -61,6 +61,7 @@ struct shearwater_predator_parser_t {
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
+	unsigned int calibration[3];
 	dc_divemode_t mode;
 };
 
@@ -281,6 +282,18 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		offset += parser->samplesize;
 	}
 
+	// Cache sensor calibration for later use
+	parser->calibration[0] = array_uint16_be(data + 87);
+	parser->calibration[1] = array_uint16_be(data + 89);
+	parser->calibration[2] = array_uint16_be(data + 91);
+	// The Predator expects the mV output of the cells to be within 30mV
+	// to 70mV in 100% O2 at 1 atmosphere.
+	// If we add 1024 (1000?) to the calibration value, then the sensors
+	// lines up and matches the average.
+	parser->calibration[0] += 1024;
+	parser->calibration[1] += 1024;
+	parser->calibration[2] += 1024;
+
 	// Cache the data for later use.
 	parser->headersize = headersize;
 	parser->footersize = footersize;
@@ -424,8 +437,19 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 		if ((status & OC) == 0) {
 			// PPO2
+#ifdef SENSOR_AVERAGE
 			sample.ppo2 = data[offset + 6] / 100.0;
 			if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+#else
+			sample.ppo2 = data[offset + 12] * parser->calibration[0] / 100000.0;
+			if (callback && (data[86] & 0x01)) callback (DC_SAMPLE_PPO2, sample, userdata);
+
+			sample.ppo2 = data[offset + 14] * parser->calibration[1] / 100000.0;
+			if (callback && (data[86] & 0x02)) callback (DC_SAMPLE_PPO2, sample, userdata);
+
+			sample.ppo2 = data[offset + 15] * parser->calibration[2] / 100000.0;
+			if (callback && (data[86] & 0x04)) callback (DC_SAMPLE_PPO2, sample, userdata);
+#endif
 
 			// Setpoint
 			if (parser->petrel) {
