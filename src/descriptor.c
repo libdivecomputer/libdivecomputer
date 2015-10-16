@@ -238,6 +238,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Shearwater Petrel */
 	{"Shearwater", "Petrel",   DC_FAMILY_SHEARWATER_PETREL, 3},
 	{"Shearwater", "Petrel 2", DC_FAMILY_SHEARWATER_PETREL, 3},
+	{"Shearwater", "Nerd",     DC_FAMILY_SHEARWATER_PETREL, 3},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0},
 	/* Citizen Hyper Aqualand */
