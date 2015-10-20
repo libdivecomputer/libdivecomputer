@@ -1146,9 +1146,12 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			}
 
 			if (have_pressure) {
-				sample.pressure.tank = tank;
-				sample.pressure.value = pressure;
-				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				idx = uwatec_smart_find_tank(parser, tank);
+				if (idx < parser->ntanks) {
+					sample.pressure.tank = idx;
+					sample.pressure.value = pressure;
+					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				}
 			}
 
 			if (have_heartrate) {
