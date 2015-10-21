@@ -763,14 +763,21 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 			// NDL / Deco
-			// bits 6..4 of byte 15 encode deco state & depth
-			// bytes 6 & 7 encode minutes of NDL / deco
+			unsigned int have_deco = 0;
+			unsigned int decostop = 0, decotime = 0;
 			if (parser->model == A300CS || parser->model == VTX) {
-				unsigned int deco = (data[offset + 15] & 0x70) >> 4;
-				unsigned int decotime = array_uint16_le(data + offset + 6) & 0x03FF;
-				if (deco) {
+				decostop = (data[offset + 15] & 0x70) >> 4;
+				decotime = array_uint16_le(data + offset + 6) & 0x03FF;
+				have_deco = 1;
+			} else if (parser->model == ZEN) {
+				decostop = (data[offset + 5] & 0xF0) >> 4;
+				decotime = array_uint16_le(data + offset + 4) & 0x0FFF;
+				have_deco = 1;
+			}
+			if (have_deco) {
+				if (decostop) {
 					sample.deco.type = DC_DECO_DECOSTOP;
-					sample.deco.depth = deco * 10 * FEET;
+					sample.deco.depth = decostop * 10 * FEET;
 				} else {
 					sample.deco.type = DC_DECO_NDL;
 					sample.deco.depth = 0.0;
