@@ -608,6 +608,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			have_pressure = 0;
 	}
 
+	// Initial gas mix.
+	unsigned int gasmix_previous = 0xFFFFFFFF;
+
 	unsigned int complete = 1;
 	unsigned int offset = parser->headersize;
 	while (offset + samplesize <= size - parser->footersize) {
@@ -761,6 +764,28 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Gas mix
+			unsigned int have_gasmix = 0;
+			unsigned int gasmix = 0;
+			if (parser->model == TX1) {
+				gasmix = data[offset] & 0x07;
+				have_gasmix = 1;
+			}
+			if (have_gasmix && gasmix != gasmix_previous) {
+				if (gasmix < 1 || gasmix > parser->ngasmixes) {
+					ERROR (abstract->context, "Invalid gas mix index (%u).", gasmix);
+					return DC_STATUS_DATAFORMAT;
+				}
+				unsigned int o2 = parser->oxygen[gasmix - 1];
+				unsigned int he = parser->helium[gasmix - 1];
+				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = o2 | (he << 16);
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				gasmix_previous = gasmix;
+			}
 
 			// NDL / Deco
 			unsigned int have_deco = 0;
