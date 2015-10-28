@@ -196,6 +196,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		header = 256;
 		break;
 	case 0x23:
+	case 0x24:
 		layout = &hw_ostc_layout_ostc3;
 		header = 256;
 		break;
@@ -220,7 +221,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].oxygen = data[25 + 2 * i];
 			gasmix[i].helium = 0;
 		}
-	} else if (version == 0x23) {
+	} else if (version == 0x23 || version == 0x24) {
 		ngasmixes = 5;
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[28 + 4 * i + 0];
@@ -355,7 +356,7 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	const unsigned char *p = data + layout->datetime;
 
 	dc_datetime_t dt;
-	if (version == 0x23) {
+	if (version == 0x23 || version == 0x24) {
 		dt.year   = p[0] + 2000;
 		dt.month  = p[1];
 		dt.day    = p[2];
@@ -368,14 +369,19 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	dt.minute = p[4];
 	dt.second = 0;
 
-	dc_ticks_t ticks = dc_datetime_mktime (&dt);
-	if (ticks == (dc_ticks_t) -1)
-		return DC_STATUS_DATAFORMAT;
+	if (version == 0x24) {
+		if (datetime)
+			*datetime = dt;
+	} else {
+		dc_ticks_t ticks = dc_datetime_mktime (&dt);
+		if (ticks == (dc_ticks_t) -1)
+			return DC_STATUS_DATAFORMAT;
 
-	ticks -= divetime;
+		ticks -= divetime;
 
-	if (!dc_datetime_localtime (datetime, ticks))
-		return DC_STATUS_DATAFORMAT;
+		if (!dc_datetime_localtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -405,7 +411,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 	unsigned int salinity = data[layout->salinity];
-	if (version == 0x23)
+	if (version == 0x23 || version == 0x24)
 		salinity += 100;
 
 	if (value) {
@@ -476,7 +482,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 				default:
 					return DC_STATUS_DATAFORMAT;
 				}
-			} else if (version == 0x23) {
+			} else if (version == 0x23 || version == 0x24) {
 				switch (data[82]) {
 				case OSTC3_OC:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
@@ -524,14 +530,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 	// Get the sample rate.
 	unsigned int samplerate = 0;
-	if (version == 0x23)
+	if (version == 0x23 || version == 0x24)
 		samplerate = data[header + 3];
 	else
 		samplerate = data[36];
 
 	// Get the salinity factor.
 	unsigned int salinity = data[layout->salinity];
-	if (version == 0x23)
+	if (version == 0x23 || version == 0x24)
 		salinity += 100;
 	if (salinity < 100 || salinity > 104)
 		salinity = 100;
@@ -539,7 +545,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 	// Get the number of sample descriptors.
 	unsigned int nconfig = 0;
-	if (version == 0x23)
+	if (version == 0x23 || version == 0x24)
 		nconfig = data[header + 4];
 	else
 		nconfig = 6;
@@ -551,7 +557,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	// Get the extended sample configuration.
 	hw_ostc_sample_info_t info[MAXCONFIG] = {{0}};
 	for (unsigned int i = 0; i < nconfig; ++i) {
-		if (version == 0x23) {
+		if (version == 0x23 || version == 0x24) {
 			info[i].type    = data[header + 5 + 3 * i + 0];
 			info[i].size    = data[header + 5 + 3 * i + 1];
 			info[i].divisor = data[header + 5 + 3 * i + 2];
@@ -592,7 +598,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	unsigned int nsamples = 0;
 
 	unsigned int offset = header;
-	if (version == 0x23)
+	if (version == 0x23 || version == 0x24)
 		offset += 5 + 3 * nconfig;
 	while (offset + 3 <= size) {
 		dc_sample_value_t sample = {0};
@@ -636,7 +642,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		unsigned int nbits = 0;
 		unsigned int events = 0;
 		while (data[offset - 1] & 0x80) {
-			if (nbits && version != 0x23)
+			if (nbits && version != 0x23 && version != 0x24)
 				break;
 			if (length < 1) {
 				ERROR (abstract->context, "Buffer overflow detected!");
@@ -730,7 +736,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			length--;
 		}
 
-		if (version == 0x23) {
+		if (version == 0x23 || version == 0x24) {
 			// SetPoint Change
 			if (events & 0x40) {
 				if (length < 1) {
@@ -820,7 +826,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			}
 		}
 
-		if (version != 0x23) {
+		if (version != 0x23 && version != 0x24) {
 			// SetPoint Change
 			if (events & 0x40) {
 				if (length < 1) {
