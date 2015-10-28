@@ -760,8 +760,6 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = (signed short) array_uint16_le (data + table->temp_surface) / 10.0;
 			break;
 		case DC_FIELD_DIVEMODE:
-			if (parser->trimix)
-				return DC_STATUS_UNSUPPORTED;
 			if (parser->ngasmixes)
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 			else
