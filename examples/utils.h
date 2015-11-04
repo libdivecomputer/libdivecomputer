@@ -26,9 +26,15 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#if defined(__GNUC__)
+#define ATTR_FORMAT_PRINTF(a,b) __attribute__((format(printf, a, b)))
+#else
+#define ATTR_FORMAT_PRINTF(a,b)
+#endif
+
 #define WARNING(expr) message ("%s:%d: %s\n", __FILE__, __LINE__, expr)
 
-int message (const char* fmt, ...);
+int message (const char* fmt, ...) ATTR_FORMAT_PRINTF(1, 2);
 
 void message_set_logfile (const char* filename);
 

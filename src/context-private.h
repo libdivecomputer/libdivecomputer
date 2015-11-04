@@ -40,6 +40,12 @@ extern "C" {
 #define FUNCTION __FUNCTION__
 #endif
 
+#if defined(__GNUC__)
+#define ATTR_FORMAT_PRINTF(a,b) __attribute__((format(printf, a, b)))
+#else
+#define ATTR_FORMAT_PRINTF(a,b)
+#endif
+
 #ifdef ENABLE_LOGGING
 #define HEXDUMP(context, loglevel, prefix, data, size) dc_context_hexdump (context, loglevel, __FILE__, __LINE__, FUNCTION, prefix, data, size)
 #define SYSERROR(context, errcode) dc_context_syserror (context, DC_LOGLEVEL_ERROR, __FILE__, __LINE__, FUNCTION, errcode)
@@ -57,7 +63,7 @@ extern "C" {
 #endif
 
 dc_status_t
-dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...);
+dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...) ATTR_FORMAT_PRINTF(6, 7);
 
 dc_status_t
 dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, int errcode);
