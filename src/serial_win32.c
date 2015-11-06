@@ -244,6 +244,14 @@ dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int da
 		dcb.Parity = ODDPARITY;
 		dcb.fParity = TRUE;
 		break;
+	case DC_PARITY_MARK:
+		dcb.Parity = MARKPARITY;
+		dcb.fParity = TRUE;
+		break;
+	case DC_PARITY_SPACE:
+		dcb.Parity = SPACEPARITY;
+		dcb.fParity = TRUE;
+		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
 	}

@@ -353,7 +353,11 @@ dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int da
 	}
 
 	// Set the parity type.
+#ifdef CMSPAR
+	tty.c_cflag &= ~(PARENB | PARODD | CMSPAR);
+#else
 	tty.c_cflag &= ~(PARENB | PARODD);
+#endif
 	tty.c_iflag &= ~(IGNPAR | PARMRK | INPCK);
 	switch (parity) {
 	case DC_PARITY_NONE:
@@ -367,6 +371,16 @@ dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int da
 		tty.c_cflag |= (PARENB | PARODD);
 		tty.c_iflag |= INPCK;
 		break;
+#ifdef CMSPAR
+	case DC_PARITY_MARK:
+		tty.c_cflag |= (PARENB | PARODD | CMSPAR);
+		tty.c_iflag |= INPCK;
+		break;
+	case DC_PARITY_SPACE:
+		tty.c_cflag |= (PARENB | CMSPAR);
+		tty.c_iflag |= INPCK;
+		break;
+#endif
 	default:
 		return DC_STATUS_INVALIDARGS;
 	}
