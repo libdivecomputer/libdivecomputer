@@ -261,6 +261,9 @@ dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int da
 	case DC_STOPBITS_ONE:
 		dcb.StopBits = ONESTOPBIT;
 		break;
+	case DC_STOPBITS_ONEPOINTFIVE:
+		dcb.StopBits = ONE5STOPBITS;
+		break;
 	case DC_STOPBITS_TWO:
 		dcb.StopBits = TWOSTOPBITS;
 		break;
