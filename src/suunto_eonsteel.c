@@ -696,7 +696,6 @@ suunto_eonsteel_device_close(dc_device_t *abstract)
 
 	libusb_close(eon->handle);
 	libusb_exit(eon->ctx);
-	free(eon);
 
 	return DC_STATUS_SUCCESS;
 }

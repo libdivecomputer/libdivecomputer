@@ -48,7 +48,6 @@ static dc_status_t suunto_vyper_parser_set_data (dc_parser_t *abstract, const un
 static dc_status_t suunto_vyper_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
-static dc_status_t suunto_vyper_parser_destroy (dc_parser_t *abstract);
 
 static const dc_parser_vtable_t suunto_vyper_parser_vtable = {
 	DC_FAMILY_SUUNTO_VYPER,
@@ -56,7 +55,7 @@ static const dc_parser_vtable_t suunto_vyper_parser_vtable = {
 	suunto_vyper_parser_get_datetime, /* datetime */
 	suunto_vyper_parser_get_field, /* fields */
 	suunto_vyper_parser_samples_foreach, /* samples_foreach */
-	suunto_vyper_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 static unsigned int
@@ -185,16 +184,6 @@ suunto_vyper_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	*out = (dc_parser_t*) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-suunto_vyper_parser_destroy (dc_parser_t *abstract)
-{
-	// Free memory.
-	free (abstract);
 
 	return DC_STATUS_SUCCESS;
 }

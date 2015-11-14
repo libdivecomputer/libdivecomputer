@@ -162,9 +162,6 @@ atomics_cobalt_device_close (dc_device_t *abstract)
 	libusb_exit (device->context);
 #endif
 
-	// Free memory.
-	free (device);
-
 	return DC_STATUS_SUCCESS;
 }
 

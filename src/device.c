@@ -327,17 +327,22 @@ dc_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userd
 dc_status_t
 dc_device_close (dc_device_t *device)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	if (device == NULL)
 		return DC_STATUS_SUCCESS;
-
-	if (device->vtable->close == NULL)
-		return DC_STATUS_UNSUPPORTED;
 
 	// Disable the cancellation callback.
 	device->cancel_callback = NULL;
 	device->cancel_userdata = NULL;
 
-	return device->vtable->close (device);
+	if (device->vtable->close) {
+		status = device->vtable->close (device);
+	}
+
+	free (device);
+
+	return status;
 }
 
 

@@ -117,7 +117,6 @@ error_free:
 static dc_status_t
 shearwater_petrel_device_close (dc_device_t *abstract)
 {
-	dc_status_t rc = DC_STATUS_SUCCESS;
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
 
 	// Shutdown the device.
@@ -125,12 +124,7 @@ shearwater_petrel_device_close (dc_device_t *abstract)
 	shearwater_common_transfer (device, request, sizeof (request), NULL, 0, NULL);
 
 	// Close the device.
-	rc = shearwater_common_close (device);
-
-	// Free memory.
-	free (device);
-
-	return rc;
+	return shearwater_common_close (device);
 }
 
 

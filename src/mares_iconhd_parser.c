@@ -60,7 +60,6 @@ static dc_status_t mares_iconhd_parser_set_data (dc_parser_t *abstract, const un
 static dc_status_t mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
-static dc_status_t mares_iconhd_parser_destroy (dc_parser_t *abstract);
 
 static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 	DC_FAMILY_MARES_ICONHD,
@@ -68,7 +67,7 @@ static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 	mares_iconhd_parser_get_datetime, /* datetime */
 	mares_iconhd_parser_get_field, /* fields */
 	mares_iconhd_parser_samples_foreach, /* samples_foreach */
-	mares_iconhd_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 static dc_status_t
@@ -224,16 +223,6 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	}
 
 	*out = (dc_parser_t*) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-mares_iconhd_parser_destroy (dc_parser_t *abstract)
-{
-	// Free memory.
-	free (abstract);
 
 	return DC_STATUS_SUCCESS;
 }

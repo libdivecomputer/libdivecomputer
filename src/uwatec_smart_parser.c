@@ -150,7 +150,6 @@ static dc_status_t uwatec_smart_parser_set_data (dc_parser_t *abstract, const un
 static dc_status_t uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
-static dc_status_t uwatec_smart_parser_destroy (dc_parser_t *abstract);
 
 static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 	DC_FAMILY_UWATEC_SMART,
@@ -158,7 +157,7 @@ static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 	uwatec_smart_parser_get_datetime, /* datetime */
 	uwatec_smart_parser_get_field, /* fields */
 	uwatec_smart_parser_samples_foreach, /* samples_foreach */
-	uwatec_smart_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 static const
@@ -623,16 +622,6 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 error_free:
 	free (parser);
 	return status;
-}
-
-
-static dc_status_t
-uwatec_smart_parser_destroy (dc_parser_t *abstract)
-{
-	// Free memory.
-	free (abstract);
-
-	return DC_STATUS_SUCCESS;
 }
 
 

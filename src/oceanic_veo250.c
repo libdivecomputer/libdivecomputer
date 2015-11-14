@@ -325,9 +325,6 @@ oceanic_veo250_device_close (dc_device_t *abstract)
 		dc_status_set_error(&status, DC_STATUS_IO);
 	}
 
-	// Free memory.
-	free (device);
-
 	return status;
 }
 

@@ -67,7 +67,6 @@ static dc_status_t shearwater_predator_parser_set_data (dc_parser_t *abstract, c
 static dc_status_t shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
-static dc_status_t shearwater_predator_parser_destroy (dc_parser_t *abstract);
 
 static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 	DC_FAMILY_SHEARWATER_PREDATOR,
@@ -75,7 +74,7 @@ static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 	shearwater_predator_parser_get_datetime, /* datetime */
 	shearwater_predator_parser_get_field, /* fields */
 	shearwater_predator_parser_samples_foreach, /* samples_foreach */
-	shearwater_predator_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
@@ -84,7 +83,7 @@ static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
 	shearwater_predator_parser_get_datetime, /* datetime */
 	shearwater_predator_parser_get_field, /* fields */
 	shearwater_predator_parser_samples_foreach, /* samples_foreach */
-	shearwater_predator_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 
@@ -152,16 +151,6 @@ dc_status_t
 shearwater_petrel_parser_create (dc_parser_t **out, dc_context_t *context)
 {
 	return shearwater_common_parser_create (out, context, 1);
-}
-
-
-static dc_status_t
-shearwater_predator_parser_destroy (dc_parser_t *abstract)
-{
-	// Free memory.
-	free (abstract);
-
-	return DC_STATUS_SUCCESS;
 }
 
 

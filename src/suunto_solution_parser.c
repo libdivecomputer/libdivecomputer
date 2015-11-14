@@ -42,7 +42,6 @@ struct suunto_solution_parser_t {
 static dc_status_t suunto_solution_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t suunto_solution_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
-static dc_status_t suunto_solution_parser_destroy (dc_parser_t *abstract);
 
 static const dc_parser_vtable_t suunto_solution_parser_vtable = {
 	DC_FAMILY_SUUNTO_SOLUTION,
@@ -50,7 +49,7 @@ static const dc_parser_vtable_t suunto_solution_parser_vtable = {
 	NULL, /* datetime */
 	suunto_solution_parser_get_field, /* fields */
 	suunto_solution_parser_samples_foreach, /* samples_foreach */
-	suunto_solution_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 
@@ -76,16 +75,6 @@ suunto_solution_parser_create (dc_parser_t **out, dc_context_t *context)
 	parser->maxdepth = 0;
 
 	*out = (dc_parser_t*) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-suunto_solution_parser_destroy (dc_parser_t *abstract)
-{
-	// Free memory.
-	free (abstract);
 
 	return DC_STATUS_SUCCESS;
 }

@@ -239,13 +239,18 @@ dc_parser_samples_foreach (dc_parser_t *parser, dc_sample_callback_t callback, v
 dc_status_t
 dc_parser_destroy (dc_parser_t *parser)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	if (parser == NULL)
 		return DC_STATUS_SUCCESS;
 
-	if (parser->vtable->destroy == NULL)
-		return DC_STATUS_UNSUPPORTED;
+	if (parser->vtable->destroy) {
+		status = parser->vtable->destroy (parser);
+	}
 
-	return parser->vtable->destroy (parser);
+	free (parser);
+
+	return status;
 }
 
 

@@ -51,7 +51,6 @@ static dc_status_t reefnet_sensuspro_parser_set_data (dc_parser_t *abstract, con
 static dc_status_t reefnet_sensuspro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t reefnet_sensuspro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t reefnet_sensuspro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
-static dc_status_t reefnet_sensuspro_parser_destroy (dc_parser_t *abstract);
 
 static const dc_parser_vtable_t reefnet_sensuspro_parser_vtable = {
 	DC_FAMILY_REEFNET_SENSUSPRO,
@@ -59,7 +58,7 @@ static const dc_parser_vtable_t reefnet_sensuspro_parser_vtable = {
 	reefnet_sensuspro_parser_get_datetime, /* datetime */
 	reefnet_sensuspro_parser_get_field, /* fields */
 	reefnet_sensuspro_parser_samples_foreach, /* samples_foreach */
-	reefnet_sensuspro_parser_destroy /* destroy */
+	NULL /* destroy */
 };
 
 
@@ -89,16 +88,6 @@ reefnet_sensuspro_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	parser->maxdepth = 0;
 
 	*out = (dc_parser_t*) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-reefnet_sensuspro_parser_destroy (dc_parser_t *abstract)
-{
-	// Free memory.
-	free (abstract);
 
 	return DC_STATUS_SUCCESS;
 }
