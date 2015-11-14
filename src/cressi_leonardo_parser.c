@@ -43,6 +43,7 @@ static dc_status_t cressi_leonardo_parser_get_field (dc_parser_t *abstract, dc_f
 static dc_status_t cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
+	sizeof(cressi_leonardo_parser_t),
 	DC_FAMILY_CRESSI_EDY,
 	cressi_leonardo_parser_set_data, /* set_data */
 	cressi_leonardo_parser_get_datetime, /* datetime */
@@ -55,18 +56,17 @@ static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
 dc_status_t
 cressi_leonardo_parser_create (dc_parser_t **out, dc_context_t *context)
 {
+	cressi_leonardo_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	cressi_leonardo_parser_t *parser = (cressi_leonardo_parser_t *) malloc (sizeof (cressi_leonardo_parser_t));
+	parser = (cressi_leonardo_parser_t *) dc_parser_allocate (context, &cressi_leonardo_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &cressi_leonardo_parser_vtable);
 
 	*out = (dc_parser_t*) parser;
 

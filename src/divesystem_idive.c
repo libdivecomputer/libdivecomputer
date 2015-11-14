@@ -77,6 +77,7 @@ static dc_status_t divesystem_idive_device_foreach (dc_device_t *abstract, dc_di
 static dc_status_t divesystem_idive_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t divesystem_idive_device_vtable = {
+	sizeof(divesystem_idive_device_t),
 	DC_FAMILY_DIVESYSTEM_IDIVE,
 	divesystem_idive_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -117,14 +118,11 @@ divesystem_idive_device_open2 (dc_device_t **out, dc_context_t *context, const c
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (divesystem_idive_device_t *) malloc (sizeof (divesystem_idive_device_t));
+	device = (divesystem_idive_device_t *) dc_device_allocate (context, &divesystem_idive_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &divesystem_idive_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -165,7 +163,7 @@ divesystem_idive_device_open2 (dc_device_t **out, dc_context_t *context, const c
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

@@ -85,6 +85,7 @@ static dc_status_t suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_t
 static dc_status_t suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t suunto_d9_parser_vtable = {
+	sizeof(suunto_d9_parser_t),
 	DC_FAMILY_SUUNTO_D9,
 	suunto_d9_parser_set_data, /* set_data */
 	suunto_d9_parser_get_datetime, /* datetime */
@@ -202,18 +203,17 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 dc_status_t
 suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
+	suunto_d9_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	suunto_d9_parser_t *parser = (suunto_d9_parser_t *) malloc (sizeof (suunto_d9_parser_t));
+	parser = (suunto_d9_parser_t *) dc_parser_allocate (context, &suunto_d9_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &suunto_d9_parser_vtable);
 
 	// Set the default values.
 	parser->model = model;

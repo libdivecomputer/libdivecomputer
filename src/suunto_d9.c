@@ -55,6 +55,7 @@ static dc_status_t suunto_d9_device_close (dc_device_t *abstract);
 
 static const suunto_common2_device_vtable_t suunto_d9_device_vtable = {
 	{
+		sizeof(suunto_d9_device_t),
 		DC_FAMILY_SUUNTO_D9,
 		suunto_common2_device_set_fingerprint, /* set_fingerprint */
 		suunto_common2_device_read, /* read */
@@ -136,14 +137,14 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (suunto_d9_device_t *) malloc (sizeof (suunto_d9_device_t));
+	device = (suunto_d9_device_t *) dc_device_allocate (context, &suunto_d9_device_vtable.base);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
-	suunto_common2_device_init (&device->base, context, &suunto_d9_device_vtable);
+	suunto_common2_device_init (&device->base);
 
 	// Set the default values.
 	device->port = NULL;
@@ -207,7 +208,7 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

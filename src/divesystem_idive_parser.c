@@ -64,6 +64,7 @@ static dc_status_t divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_
 static dc_status_t divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t divesystem_idive_parser_vtable = {
+	sizeof(divesystem_idive_parser_t),
 	DC_FAMILY_DIVESYSTEM_IDIVE,
 	divesystem_idive_parser_set_data, /* set_data */
 	divesystem_idive_parser_get_datetime, /* datetime */
@@ -83,18 +84,17 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context)
 dc_status_t
 divesystem_idive_parser_create2 (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
+	divesystem_idive_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	divesystem_idive_parser_t *parser = (divesystem_idive_parser_t *) malloc (sizeof (divesystem_idive_parser_t));
+	parser = (divesystem_idive_parser_t *) dc_parser_allocate (context, &divesystem_idive_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &divesystem_idive_parser_vtable);
 
 	// Set the default values.
 	if (model >= IX3M_EASY && model <= IX3M_REB) {

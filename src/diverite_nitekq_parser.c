@@ -54,6 +54,7 @@ static dc_status_t diverite_nitekq_parser_get_field (dc_parser_t *abstract, dc_f
 static dc_status_t diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t diverite_nitekq_parser_vtable = {
+	sizeof(diverite_nitekq_parser_t),
 	DC_FAMILY_DIVERITE_NITEKQ,
 	diverite_nitekq_parser_set_data, /* set_data */
 	diverite_nitekq_parser_get_datetime, /* datetime */
@@ -66,18 +67,17 @@ static const dc_parser_vtable_t diverite_nitekq_parser_vtable = {
 dc_status_t
 diverite_nitekq_parser_create (dc_parser_t **out, dc_context_t *context)
 {
+	diverite_nitekq_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	diverite_nitekq_parser_t *parser = (diverite_nitekq_parser_t *) malloc (sizeof (diverite_nitekq_parser_t));
+	parser = (diverite_nitekq_parser_t *) dc_parser_allocate (context, &diverite_nitekq_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &diverite_nitekq_parser_vtable);
 
 	// Set the default values.
 	parser->cached = 0;

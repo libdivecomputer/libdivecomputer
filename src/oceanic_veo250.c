@@ -54,6 +54,7 @@ static dc_status_t oceanic_veo250_device_read (dc_device_t *abstract, unsigned i
 static dc_status_t oceanic_veo250_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t oceanic_veo250_device_vtable = {
+	sizeof(oceanic_veo250_device_t),
 	DC_FAMILY_OCEANIC_VEO250,
 	oceanic_common_device_set_fingerprint, /* set_fingerprint */
 	oceanic_veo250_device_read, /* read */
@@ -228,14 +229,14 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (oceanic_veo250_device_t *) malloc (sizeof (oceanic_veo250_device_t));
+	device = (oceanic_veo250_device_t *) dc_device_allocate (context, &oceanic_veo250_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
-	oceanic_common_device_init (&device->base, context, &oceanic_veo250_device_vtable);
+	oceanic_common_device_init (&device->base);
 
 	// Override the base class values.
 	device->base.layout = &oceanic_veo250_layout;
@@ -306,7 +307,7 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

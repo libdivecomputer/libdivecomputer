@@ -53,7 +53,7 @@ typedef struct suunto_common2_device_vtable_t {
 } suunto_common2_device_vtable_t;
 
 void
-suunto_common2_device_init (suunto_common2_device_t *device, dc_context_t *context, const suunto_common2_device_vtable_t *vtable);
+suunto_common2_device_init (suunto_common2_device_t *device);
 
 dc_status_t
 suunto_common2_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);

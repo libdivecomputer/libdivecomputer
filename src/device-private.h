@@ -57,6 +57,8 @@ struct dc_device_t {
 };
 
 struct dc_device_vtable_t {
+	size_t size;
+
 	dc_family_t type;
 
 	dc_status_t (*set_fingerprint) (dc_device_t *device, const unsigned char data[], unsigned int size);
@@ -75,8 +77,11 @@ struct dc_device_vtable_t {
 int
 dc_device_isinstance (dc_device_t *device, const dc_device_vtable_t *vtable);
 
+dc_device_t *
+dc_device_allocate (dc_context_t *context, const dc_device_vtable_t *vtable);
+
 void
-device_init (dc_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable);
+dc_device_deallocate (dc_device_t *device);
 
 void
 device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data);

@@ -85,6 +85,7 @@ static dc_status_t suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive
 static dc_status_t suunto_eonsteel_device_close(dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
+	sizeof(suunto_eonsteel_device_t),
 	DC_FAMILY_SUUNTO_EONSTEEL,
 	NULL, /* set_fingerprint */
 	NULL, /* read */
@@ -557,21 +558,18 @@ dc_status_t
 suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
-	suunto_eonsteel_device_t *eon;
+	suunto_eonsteel_device_t *eon = NULL;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	eon = (suunto_eonsteel_device_t *) calloc(1, sizeof(suunto_eonsteel_device_t));
+	eon = (suunto_eonsteel_device_t *) dc_device_allocate(context, &suunto_eonsteel_device_vtable);
 	if (!eon)
 		return DC_STATUS_NOMEMORY;
 
 	// Set up the magic handshake fields
 	eon->magic = INIT_MAGIC;
 	eon->seq = INIT_SEQ;
-
-	// Set up the libdivecomputer interfaces
-	device_init(&eon->base, context, &suunto_eonsteel_device_vtable);
 
 	if (libusb_init(&eon->ctx)) {
 		ERROR(context, "libusb_init() failed");

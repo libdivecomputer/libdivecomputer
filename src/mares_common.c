@@ -52,12 +52,9 @@
 #define GAUGE    3
 
 void
-mares_common_device_init (mares_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
+mares_common_device_init (mares_common_device_t *device)
 {
 	assert (device != NULL);
-
-	// Initialize the base class.
-	device_init (&device->base, context, vtable);
 
 	// Set the default values.
 	device->port = NULL;

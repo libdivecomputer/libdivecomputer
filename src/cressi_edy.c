@@ -73,6 +73,7 @@ static dc_status_t cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_cal
 static dc_status_t cressi_edy_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t cressi_edy_device_vtable = {
+	sizeof(cressi_edy_device_t),
 	DC_FAMILY_CRESSI_EDY,
 	cressi_edy_device_set_fingerprint, /* set_fingerprint */
 	cressi_edy_device_read, /* read */
@@ -243,14 +244,11 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (cressi_edy_device_t *) malloc (sizeof (cressi_edy_device_t));
+	device = (cressi_edy_device_t *) dc_device_allocate (context, &cressi_edy_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &cressi_edy_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -323,7 +321,7 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

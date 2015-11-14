@@ -69,6 +69,7 @@ static dc_status_t atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive
 static dc_status_t atomics_cobalt_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t atomics_cobalt_device_vtable = {
+	sizeof(atomics_cobalt_device_t),
 	DC_FAMILY_ATOMICS_COBALT,
 	atomics_cobalt_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -92,14 +93,11 @@ atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
 
 #ifdef HAVE_LIBUSB
 	// Allocate memory.
-	device = (atomics_cobalt_device_t *) malloc (sizeof (atomics_cobalt_device_t));
+	device = (atomics_cobalt_device_t *) dc_device_allocate (context, &atomics_cobalt_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &atomics_cobalt_device_vtable);
 
 	// Set the default values.
 	device->context = NULL;
@@ -143,7 +141,7 @@ error_usb_close:
 error_usb_exit:
 	libusb_exit (device->context);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;

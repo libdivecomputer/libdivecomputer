@@ -99,6 +99,7 @@ static dc_status_t hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_typ
 static dc_status_t hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t hw_ostc_parser_vtable = {
+	sizeof(hw_ostc_parser_t),
 	DC_FAMILY_HW_OSTC,
 	hw_ostc_parser_set_data, /* set_data */
 	hw_ostc_parser_get_datetime, /* datetime */
@@ -266,18 +267,17 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 dc_status_t
 hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
 {
+	hw_ostc_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) malloc (sizeof (hw_ostc_parser_t));
+	parser = (hw_ostc_parser_t *) dc_parser_allocate (context, &hw_ostc_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &hw_ostc_parser_vtable);
 
 	// Set the default values.
 	parser->frog = frog;

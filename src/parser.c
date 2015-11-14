@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include <libdivecomputer/suunto.h>
 #include <libdivecomputer/reefnet.h>
@@ -35,6 +36,7 @@
 #include <libdivecomputer/citizen.h>
 #include <libdivecomputer/divesystem.h>
 
+#include "context-private.h"
 #include "parser-private.h"
 #include "device-private.h"
 
@@ -152,15 +154,35 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 }
 
 
-void
-parser_init (dc_parser_t *parser, dc_context_t *context, const dc_parser_vtable_t *vtable)
+dc_parser_t *
+dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable)
 {
+	dc_parser_t *parser = NULL;
+
+	assert(vtable != NULL);
+	assert(vtable->size >= sizeof(dc_parser_t));
+
+	// Allocate memory.
+	parser = (dc_parser_t *) malloc (vtable->size);
+	if (parser == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return parser;
+	}
+
+	// Initialize the base class.
 	parser->vtable = vtable;
 	parser->context = context;
 	parser->data = NULL;
 	parser->size = 0;
+
+	return parser;
 }
 
+void
+dc_parser_deallocate (dc_parser_t *parser)
+{
+	free (parser);
+}
 
 int
 dc_parser_isinstance (dc_parser_t *parser, const dc_parser_vtable_t *vtable)
@@ -248,7 +270,7 @@ dc_parser_destroy (dc_parser_t *parser)
 		status = parser->vtable->destroy (parser);
 	}
 
-	free (parser);
+	dc_parser_deallocate (parser);
 
 	return status;
 }

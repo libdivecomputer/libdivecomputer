@@ -69,6 +69,7 @@ static dc_status_t shearwater_predator_parser_get_field (dc_parser_t *abstract, 
 static dc_status_t shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
+	sizeof(shearwater_predator_parser_t),
 	DC_FAMILY_SHEARWATER_PREDATOR,
 	shearwater_predator_parser_set_data, /* set_data */
 	shearwater_predator_parser_get_datetime, /* datetime */
@@ -78,6 +79,7 @@ static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 };
 
 static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
+	sizeof(shearwater_predator_parser_t),
 	DC_FAMILY_SHEARWATER_PETREL,
 	shearwater_predator_parser_set_data, /* set_data */
 	shearwater_predator_parser_get_datetime, /* datetime */
@@ -104,27 +106,31 @@ shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned 
 dc_status_t
 shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int petrel)
 {
+	shearwater_predator_parser_t *parser = NULL;
+	const dc_parser_vtable_t *vtable = NULL;
+	unsigned int samplesize = 0;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
+	if (petrel) {
+		vtable = &shearwater_petrel_parser_vtable;
+		samplesize = SZ_SAMPLE_PETREL;
+	} else {
+		vtable = &shearwater_predator_parser_vtable;
+		samplesize = SZ_SAMPLE_PREDATOR;
+	}
+
 	// Allocate memory.
-	shearwater_predator_parser_t *parser = (shearwater_predator_parser_t *) malloc (sizeof (shearwater_predator_parser_t));
+	parser = (shearwater_predator_parser_t *) dc_parser_allocate (context, vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// Initialize the base class.
-	parser->petrel = petrel;
-	if (petrel) {
-		parser_init (&parser->base, context, &shearwater_petrel_parser_vtable);
-		parser->samplesize = SZ_SAMPLE_PETREL;
-	} else {
-		parser_init (&parser->base, context, &shearwater_predator_parser_vtable);
-		parser->samplesize = SZ_SAMPLE_PREDATOR;
-	}
-
 	// Set the default values.
+	parser->petrel = petrel;
+	parser->samplesize = samplesize;
 	parser->cached = 0;
 	parser->headersize = 0;
 	parser->footersize = 0;

@@ -40,10 +40,21 @@
 #include "device-private.h"
 #include "context-private.h"
 
-
-void
-device_init (dc_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
+dc_device_t *
+dc_device_allocate (dc_context_t *context, const dc_device_vtable_t *vtable)
 {
+	dc_device_t *device = NULL;
+
+	assert(vtable != NULL);
+	assert(vtable->size >= sizeof(dc_device_t));
+
+	// Allocate memory.
+	device = (dc_device_t *) malloc (vtable->size);
+	if (device == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return device;
+	}
+
 	device->vtable = vtable;
 
 	device->context = context;
@@ -57,6 +68,14 @@ device_init (dc_device_t *device, dc_context_t *context, const dc_device_vtable_
 
 	memset (&device->devinfo, 0, sizeof (device->devinfo));
 	memset (&device->clock, 0, sizeof (device->clock));
+
+	return device;
+}
+
+void
+dc_device_deallocate (dc_device_t *device)
+{
+	free (device);
 }
 
 dc_status_t
@@ -340,7 +359,7 @@ dc_device_close (dc_device_t *device)
 		status = device->vtable->close (device);
 	}
 
-	free (device);
+	dc_device_deallocate (device);
 
 	return status;
 }

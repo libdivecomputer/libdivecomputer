@@ -79,6 +79,7 @@ static dc_status_t hw_ostc_device_foreach (dc_device_t *abstract, dc_dive_callba
 static dc_status_t hw_ostc_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t hw_ostc_device_vtable = {
+	sizeof(hw_ostc_device_t),
 	DC_FAMILY_HW_OSTC,
 	hw_ostc_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -132,14 +133,11 @@ hw_ostc_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (hw_ostc_device_t *) malloc (sizeof (hw_ostc_device_t));
+	device = (hw_ostc_device_t *) dc_device_allocate (context, &hw_ostc_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &hw_ostc_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -179,7 +177,7 @@ hw_ostc_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

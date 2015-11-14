@@ -62,6 +62,7 @@ static dc_status_t suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_c
 static dc_status_t suunto_vyper_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_vyper_device_vtable = {
+	sizeof(suunto_vyper_device_t),
 	DC_FAMILY_SUUNTO_VYPER,
 	suunto_common_device_set_fingerprint, /* set_fingerprint */
 	suunto_vyper_device_read, /* read */
@@ -98,14 +99,14 @@ suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (suunto_vyper_device_t *) malloc (sizeof (suunto_vyper_device_t));
+	device = (suunto_vyper_device_t *) dc_device_allocate (context, &suunto_vyper_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
-	suunto_common_device_init (&device->base, context, &suunto_vyper_device_vtable);
+	suunto_common_device_init (&device->base);
 
 	// Set the default values.
 	device->port = NULL;
@@ -153,7 +154,7 @@ suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

@@ -53,6 +53,7 @@ static dc_status_t reefnet_sensuspro_parser_get_field (dc_parser_t *abstract, dc
 static dc_status_t reefnet_sensuspro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t reefnet_sensuspro_parser_vtable = {
+	sizeof(reefnet_sensuspro_parser_t),
 	DC_FAMILY_REEFNET_SENSUSPRO,
 	reefnet_sensuspro_parser_set_data, /* set_data */
 	reefnet_sensuspro_parser_get_datetime, /* datetime */
@@ -65,18 +66,17 @@ static const dc_parser_vtable_t reefnet_sensuspro_parser_vtable = {
 dc_status_t
 reefnet_sensuspro_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int devtime, dc_ticks_t systime)
 {
+	reefnet_sensuspro_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	reefnet_sensuspro_parser_t *parser = (reefnet_sensuspro_parser_t *) malloc (sizeof (reefnet_sensuspro_parser_t));
+	parser = (reefnet_sensuspro_parser_t *) dc_parser_allocate (context, &reefnet_sensuspro_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &reefnet_sensuspro_parser_vtable);
 
 	// Set the default values.
 	parser->atmospheric = ATM;

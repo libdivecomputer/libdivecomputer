@@ -62,6 +62,7 @@ static dc_status_t mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_fiel
 static dc_status_t mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
 static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
+	sizeof(mares_iconhd_parser_t),
 	DC_FAMILY_MARES_ICONHD,
 	mares_iconhd_parser_set_data, /* set_data */
 	mares_iconhd_parser_get_datetime, /* datetime */
@@ -197,18 +198,17 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 dc_status_t
 mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
+	mares_iconhd_parser_t *parser = NULL;
+
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) malloc (sizeof (mares_iconhd_parser_t));
+	parser = (mares_iconhd_parser_t *) dc_parser_allocate (context, &mares_iconhd_parser_vtable);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	parser_init (&parser->base, context, &mares_iconhd_parser_vtable);
 
 	// Set the default values.
 	parser->model = model;

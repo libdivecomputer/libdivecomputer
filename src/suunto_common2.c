@@ -40,12 +40,9 @@
 #define VTABLE(abstract)	((suunto_common2_device_vtable_t *) abstract->vtable)
 
 void
-suunto_common2_device_init (suunto_common2_device_t *device, dc_context_t *context, const suunto_common2_device_vtable_t *vtable)
+suunto_common2_device_init (suunto_common2_device_t *device)
 {
 	assert (device != NULL);
-
-	// Initialize the base class.
-	device_init (&device->base, context, &vtable->base);
 
 	// Set the default values.
 	device->layout = NULL;

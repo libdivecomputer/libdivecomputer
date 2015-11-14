@@ -52,6 +52,7 @@ static dc_status_t suunto_solution_device_foreach (dc_device_t *abstract, dc_div
 static dc_status_t suunto_solution_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_solution_device_vtable = {
+	sizeof(suunto_solution_device_t),
 	DC_FAMILY_SUUNTO_SOLUTION,
 	NULL, /* set_fingerprint */
 	NULL, /* read */
@@ -72,14 +73,11 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (suunto_solution_device_t *) malloc (sizeof (suunto_solution_device_t));
+	device = (suunto_solution_device_t *) dc_device_allocate (context, &suunto_solution_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &suunto_solution_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -121,7 +119,7 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

@@ -50,6 +50,7 @@ static dc_status_t citizen_aqualand_device_foreach (dc_device_t *abstract, dc_di
 static dc_status_t citizen_aqualand_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t citizen_aqualand_device_vtable = {
+	sizeof(citizen_aqualand_device_t),
 	DC_FAMILY_CITIZEN_AQUALAND,
 	citizen_aqualand_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -70,14 +71,11 @@ citizen_aqualand_device_open (dc_device_t **out, dc_context_t *context, const ch
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (citizen_aqualand_device_t *) malloc (sizeof (citizen_aqualand_device_t));
+	device = (citizen_aqualand_device_t *) dc_device_allocate (context, &citizen_aqualand_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &citizen_aqualand_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -117,7 +115,7 @@ citizen_aqualand_device_open (dc_device_t **out, dc_context_t *context, const ch
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

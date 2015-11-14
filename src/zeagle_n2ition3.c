@@ -62,6 +62,7 @@ static dc_status_t zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_div
 static dc_status_t zeagle_n2ition3_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t zeagle_n2ition3_device_vtable = {
+	sizeof(zeagle_n2ition3_device_t),
 	DC_FAMILY_ZEAGLE_N2ITION3,
 	zeagle_n2ition3_device_set_fingerprint, /* set_fingerprint */
 	zeagle_n2ition3_device_read, /* read */
@@ -144,14 +145,11 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (zeagle_n2ition3_device_t *) malloc (sizeof (zeagle_n2ition3_device_t));
+	device = (zeagle_n2ition3_device_t *) dc_device_allocate (context, &zeagle_n2ition3_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &zeagle_n2ition3_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -193,7 +191,7 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

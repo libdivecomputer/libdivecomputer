@@ -31,12 +31,9 @@
 #define RB_PROFILE_PEEK(a,l)		ringbuffer_decrement (a, l->peek, l->rb_profile_begin, l->rb_profile_end)
 
 void
-suunto_common_device_init (suunto_common_device_t *device, dc_context_t *context, const dc_device_vtable_t *vtable)
+suunto_common_device_init (suunto_common_device_t *device)
 {
 	assert (device != NULL);
-
-	// Initialize the base class.
-	device_init (&device->base, context, vtable);
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));

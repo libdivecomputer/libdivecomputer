@@ -49,6 +49,7 @@ static dc_status_t suunto_vyper2_device_close (dc_device_t *abstract);
 
 static const suunto_common2_device_vtable_t suunto_vyper2_device_vtable = {
 	{
+		sizeof(suunto_vyper2_device_t),
 		DC_FAMILY_SUUNTO_VYPER2,
 		suunto_common2_device_set_fingerprint, /* set_fingerprint */
 		suunto_common2_device_read, /* read */
@@ -87,14 +88,14 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (suunto_vyper2_device_t *) malloc (sizeof (suunto_vyper2_device_t));
+	device = (suunto_vyper2_device_t *) dc_device_allocate (context, &suunto_vyper2_device_vtable.base);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Initialize the base class.
-	suunto_common2_device_init (&device->base, context, &suunto_vyper2_device_vtable);
+	suunto_common2_device_init (&device->base);
 
 	// Set the default values.
 	device->port = NULL;
@@ -159,7 +160,7 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

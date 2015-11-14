@@ -1196,6 +1196,7 @@ suunto_eonsteel_parser_destroy(dc_parser_t *parser)
 }
 
 static const dc_parser_vtable_t suunto_eonsteel_parser_vtable = {
+	sizeof(suunto_eonsteel_parser_t),
 	DC_FAMILY_SUUNTO_EONSTEEL,
 	suunto_eonsteel_parser_set_data, /* set_data */
 	suunto_eonsteel_parser_get_datetime, /* datetime */
@@ -1207,18 +1208,21 @@ static const dc_parser_vtable_t suunto_eonsteel_parser_vtable = {
 dc_status_t
 suunto_eonsteel_parser_create(dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
-	suunto_eonsteel_parser_t *eon;
+	suunto_eonsteel_parser_t *parser = NULL;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	eon = (suunto_eonsteel_parser_t *) calloc(1, sizeof(*eon));
-	if (!eon)
+	parser = (suunto_eonsteel_parser_t *) dc_parser_allocate (context, &suunto_eonsteel_parser_vtable);
+	if (parser == NULL) {
+		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
+	}
 
-	parser_init(&eon->base, context, &suunto_eonsteel_parser_vtable);
+	memset(&parser->type_desc, 0, sizeof(parser->type_desc));
+	memset(&parser->cache, 0, sizeof(parser->cache));
 
-	*out = (dc_parser_t *) eon;
+	*out = (dc_parser_t *) parser;
 
 	return DC_STATUS_SUCCESS;
 }

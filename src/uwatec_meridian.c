@@ -55,6 +55,7 @@ static dc_status_t uwatec_meridian_device_foreach (dc_device_t *abstract, dc_div
 static dc_status_t uwatec_meridian_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t uwatec_meridian_device_vtable = {
+	sizeof(uwatec_meridian_device_t),
 	DC_FAMILY_UWATEC_MERIDIAN,
 	uwatec_meridian_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
@@ -193,14 +194,11 @@ uwatec_meridian_device_open (dc_device_t **out, dc_context_t *context, const cha
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (uwatec_meridian_device_t *) malloc (sizeof (uwatec_meridian_device_t));
+	device = (uwatec_meridian_device_t *) dc_device_allocate (context, &uwatec_meridian_device_vtable);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Initialize the base class.
-	device_init (&device->base, context, &uwatec_meridian_device_vtable);
 
 	// Set the default values.
 	device->port = NULL;
@@ -244,7 +242,7 @@ uwatec_meridian_device_open (dc_device_t **out, dc_context_t *context, const cha
 error_close:
 	serial_close (device->port);
 error_free:
-	free (device);
+	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 

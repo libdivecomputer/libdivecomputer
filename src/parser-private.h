@@ -42,6 +42,8 @@ struct dc_parser_t {
 };
 
 struct dc_parser_vtable_t {
+	size_t size;
+
 	dc_family_t type;
 
 	dc_status_t (*set_data) (dc_parser_t *parser, const unsigned char *data, unsigned int size);
@@ -55,8 +57,11 @@ struct dc_parser_vtable_t {
 	dc_status_t (*destroy) (dc_parser_t *parser);
 };
 
+dc_parser_t *
+dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable);
+
 void
-parser_init (dc_parser_t *parser, dc_context_t *context, const dc_parser_vtable_t *vtable);
+dc_parser_deallocate (dc_parser_t *parser);
 
 int
 dc_parser_isinstance (dc_parser_t *parser, const dc_parser_vtable_t *vtable);
