@@ -239,11 +239,15 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].helium = data[19 + 2 * i + 1];
 		}
 	}
-	if (initial < 1 || initial > ngasmixes) {
-		ERROR(abstract->context, "Invalid initial gas mix.");
-		return DC_STATUS_DATAFORMAT;
+	if (initial != 0xFF) {
+		if (initial < 1 || initial > ngasmixes) {
+			ERROR(abstract->context, "Invalid initial gas mix.");
+			return DC_STATUS_DATAFORMAT;
+		}
+		initial--; /* Convert to a zero based index. */
+	} else {
+		WARNING(abstract->context, "No initial gas mix available.");
 	}
-	initial--; /* Convert to a zero based index. */
 
 	// Cache the data for later use.
 	parser->version = version;
@@ -611,7 +615,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Initial gas mix.
-		if (time == samplerate) {
+		if (time == samplerate && parser->initial != 0xFF) {
 			unsigned int idx = parser->initial;
 			unsigned int o2 = parser->gasmix[idx].oxygen;
 			unsigned int he = parser->gasmix[idx].helium;
