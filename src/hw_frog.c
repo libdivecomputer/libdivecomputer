@@ -409,7 +409,7 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 			end < RB_PROFILE_BEGIN ||
 			end >= RB_PROFILE_END)
 		{
-			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).", begin, end);
 			free (header);
 			return DC_STATUS_DATAFORMAT;
 		}

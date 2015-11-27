@@ -267,14 +267,14 @@ mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_be (data + 0x8A);
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", eop);
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Get the logbook index.
 	unsigned int last = data[0x8C];
 	if (last >= layout->rb_logbook_count) {
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%02x).", last);
 		return DC_STATUS_DATAFORMAT;
 	}
 

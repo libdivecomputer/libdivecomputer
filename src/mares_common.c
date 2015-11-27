@@ -224,7 +224,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 	// Get the end of the profile ring buffer.
 	unsigned int eop = array_uint16_le (data + 0x6B);
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
-		ERROR (context, "Ringbuffer pointer out of range.");
+		ERROR (context, "Ringbuffer pointer out of range (0x%04x).", eop);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -311,7 +311,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 		// something is wrong and an error is returned.
 		unsigned int length = array_uint16_le (buffer + offset);
 		if (length != nbytes) {
-			ERROR (context, "Calculated and stored size are not equal.");
+			ERROR (context, "Calculated and stored size are not equal (%u %u).", length, nbytes);
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -339,7 +339,7 @@ mares_common_extract_dives (dc_context_t *context, const mares_common_layout_t *
 			// equals the number of freedives in the profile data. If
 			// both values are different, the profile data is incomplete.
 			if (count != nsamples) {
-				ERROR (context, "Unexpected number of freedive sessions.");
+				ERROR (context, "Unexpected number of freedive sessions (%u %u).", count, nsamples);
 				free (buffer);
 				return DC_STATUS_DATAFORMAT;
 			}

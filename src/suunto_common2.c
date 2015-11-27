@@ -293,7 +293,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		begin < layout->rb_profile_begin ||
 		begin >= layout->rb_profile_end)
 	{
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x 0x%04x %u).", begin, last, end, count);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -335,7 +335,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		unsigned int size = RB_PROFILE_DISTANCE (layout, current, previous, 1);
 
 		if (size < 4 || size > remaining) {
-			ERROR (abstract->context, "Unexpected profile size.");
+			ERROR (abstract->context, "Unexpected profile size (%u %u).", size, remaining);
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -400,12 +400,12 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			next < layout->rb_profile_begin ||
 			next >= layout->rb_profile_end)
 		{
-			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x).", prev, next);
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
 		if (next != previous && next != current) {
-			ERROR (abstract->context, "Profiles are not continuous.");
+			ERROR (abstract->context, "Profiles are not continuous (0x%04x 0x%04x 0x%04x).", current, next, previous);
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -422,7 +422,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 				return DC_STATUS_SUCCESS;
 			}
 		} else {
-			ERROR (abstract->context, "Skipping incomplete dive.");
+			ERROR (abstract->context, "Skipping incomplete dive (0x%04x 0x%04x 0x%04x).", current, next, previous);
 			status = DC_STATUS_DATAFORMAT;
 		}
 

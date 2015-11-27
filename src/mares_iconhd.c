@@ -478,7 +478,7 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 			break;
 	}
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
-		ERROR (context, "Ringbuffer pointer out of range.");
+		ERROR (context, "Ringbuffer pointer out of range (0x%08x).", eop);
 		return DC_STATUS_DATAFORMAT;
 	}
 

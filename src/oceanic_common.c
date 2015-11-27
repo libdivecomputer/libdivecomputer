@@ -261,7 +261,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		rb_logbook_last < layout->rb_logbook_begin ||
 		rb_logbook_last >= layout->rb_logbook_end)
 	{
-		ERROR (abstract->context, "Invalid logbook pointer detected.");
+		ERROR (abstract->context, "Invalid logbook pointer detected (0x%04x 0x%04x).", rb_logbook_first, rb_logbook_last);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -436,7 +436,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 				rb_entry_last < layout->rb_profile_begin ||
 				rb_entry_last >= layout->rb_profile_end)
 			{
-				ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+				ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).", rb_entry_first, rb_entry_last);
 				status = DC_STATUS_DATAFORMAT;
 				begin = current + layout->rb_logbook_entry_size;
 				abort = 1;

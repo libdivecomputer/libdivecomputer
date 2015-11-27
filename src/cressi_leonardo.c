@@ -343,7 +343,7 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		if (header < RB_PROFILE_BEGIN || header + 2 > RB_PROFILE_END ||
 			footer < RB_PROFILE_BEGIN || footer + 2 > RB_PROFILE_END)
 		{
-			ERROR (context, "Invalid ringbuffer pointer detected.");
+			ERROR (context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x).", header, footer);
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -352,7 +352,7 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		unsigned int header2 = array_uint16_le (data + footer);
 		unsigned int footer2 = array_uint16_le (data + header);
 		if (header2 != header || footer2 != footer) {
-			ERROR (context, "Invalid ringbuffer pointer detected.");
+			ERROR (context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x).", header2, footer2);
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}

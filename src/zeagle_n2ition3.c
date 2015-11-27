@@ -302,7 +302,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		last < RB_LOGBOOK_BEGIN || last >= RB_LOGBOOK_END) {
 		if (last == 0xFF)
 			return DC_STATUS_SUCCESS;
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%02x 0x%02x).", first, last);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -312,7 +312,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_le (config + 0x7E);
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", eop);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -327,7 +327,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx);
 		if (current < RB_PROFILE_BEGIN || current >= RB_PROFILE_END) {
-			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", current);
 			return DC_STATUS_DATAFORMAT;
 		}
 

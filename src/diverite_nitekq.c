@@ -381,7 +381,7 @@ diverite_nitekq_extract_dives (dc_device_t *abstract, const unsigned char data[]
 	// Get the end of profile pointer.
 	unsigned int eop = array_uint16_be(data + EOP);
 	if (eop < RB_PROFILE_BEGIN || eop >= RB_PROFILE_END) {
-		ERROR (context, "Invalid ringbuffer pointer detected.");
+		ERROR (context, "Invalid ringbuffer pointer detected (0x%04x).", eop);
 		free (buffer);
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -402,7 +402,7 @@ diverite_nitekq_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		// Get the address of the profile data.
 		unsigned int address = array_uint16_be(data + ADDRESS + i * 2);
 		if (address < RB_PROFILE_BEGIN || address >= RB_PROFILE_END) {
-			ERROR (context, "Invalid ringbuffer pointer detected.");
+			ERROR (context, "Invalid ringbuffer pointer detected (0x%04x).", address);
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}

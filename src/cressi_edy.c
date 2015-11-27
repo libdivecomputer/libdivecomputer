@@ -444,7 +444,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		last < layout->rb_logbook_begin || last >= layout->rb_logbook_end) {
 		if (last == 0xFF)
 			return DC_STATUS_SUCCESS;
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%02x 0x%02x).", first, last);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -454,7 +454,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	// Get the profile pointer.
 	unsigned int eop = array_uint_le (logbook + layout->config + 2, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
-		ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", eop);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -469,7 +469,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
-			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", current);
 			return DC_STATUS_DATAFORMAT;
 		}
 
@@ -532,7 +532,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
-			ERROR (abstract->context, "Invalid ringbuffer pointer detected.");
+			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", current);
 			free(buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
