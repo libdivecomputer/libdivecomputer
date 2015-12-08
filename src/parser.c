@@ -140,7 +140,7 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = citizen_aqualand_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_parser_create (&parser, context);
+		rc = divesystem_idive_parser_create2 (&parser, context, device->devinfo.model);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

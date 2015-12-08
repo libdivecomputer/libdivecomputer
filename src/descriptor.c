@@ -254,6 +254,10 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"DiveSystem", "iDive Easy",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x09},
 	{"DiveSystem", "iDive X3M",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x0A},
 	{"DiveSystem", "iDive Deep",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x0B},
+	{"DiveSystem", "iX3M Easy",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x22},
+	{"DiveSystem", "iX3M Deep",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x23},
+	{"DiveSystem", "iX3M Tec",      DC_FAMILY_DIVESYSTEM_IDIVE, 0x24},
+	{"DiveSystem", "iX3M Reb",      DC_FAMILY_DIVESYSTEM_IDIVE, 0x25},
 };
 
 typedef struct dc_descriptor_iterator_t {

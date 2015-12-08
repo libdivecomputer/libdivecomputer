@@ -163,7 +163,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = citizen_aqualand_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_device_open (&device, context, name);
+		rc = divesystem_idive_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
