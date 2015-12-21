@@ -759,10 +759,24 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
 				}
+
+				unsigned int o2 = data[offset];
+				unsigned int he = data[offset + 1];
+				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+				if (idx >= parser->ngasmixes) {
+					if (idx >= NGASMIXES) {
+						ERROR (abstract->context, "Maximum number of gas mixes reached.");
+						return DC_STATUS_NOMEMORY;
+					}
+					parser->gasmix[idx].oxygen = o2;
+					parser->gasmix[idx].helium = he;
+					parser->ngasmixes = idx + 1;
+				}
+
 				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 				sample.event.time = 0;
 				sample.event.flags = 0;
-				sample.event.value = data[offset] | (data[offset + 1] << 16);
+				sample.event.value = o2 | (he << 16);
 				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 				offset += 2;
 				length -= 2;
@@ -849,10 +863,24 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					ERROR (abstract->context, "Buffer overflow detected!");
 					return DC_STATUS_DATAFORMAT;
 				}
+
+				unsigned int o2 = data[offset];
+				unsigned int he = data[offset + 1];
+				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+				if (idx >= parser->ngasmixes) {
+					if (idx >= NGASMIXES) {
+						ERROR (abstract->context, "Maximum number of gas mixes reached.");
+						return DC_STATUS_NOMEMORY;
+					}
+					parser->gasmix[idx].oxygen = o2;
+					parser->gasmix[idx].helium = he;
+					parser->ngasmixes = idx + 1;
+				}
+
 				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
 				sample.event.time = 0;
 				sample.event.flags = 0;
-				sample.event.value = data[offset] | (data[offset + 1] << 16);
+				sample.event.value = o2 | (he << 16);
 				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 				offset += 2;
 				length -= 2;
