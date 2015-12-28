@@ -48,6 +48,7 @@
 #endif
 
 static const dctool_command_t *g_commands[] = {
+	&dctool_help,
 	NULL
 };
 
@@ -68,6 +69,51 @@ dctool_command_find (const char *name)
 	}
 
 	return g_commands[i];
+}
+
+void
+dctool_command_showhelp (const dctool_command_t *command)
+{
+	if (command == NULL) {
+		unsigned int maxlength = 0;
+		for (size_t i = 0; g_commands[i] != NULL; ++i) {
+			unsigned int length = strlen (g_commands[i]->name);
+			if (length > maxlength)
+				maxlength = length;
+		}
+		printf (
+			"A simple command line interface for the libdivecomputer library\n"
+			"\n"
+			"Usage:\n"
+			"   dctool [options] <command> [<args>]\n"
+			"\n"
+			"Options:\n"
+#ifdef HAVE_GETOPT_LONG
+			"   -h, --help                Show help message\n"
+			"   -d, --device <device>     Device name\n"
+			"   -f, --family <family>     Device family type\n"
+			"   -m, --model <model>       Device model number\n"
+			"   -l, --logfile <logfile>   Logfile\n"
+			"   -q, --quiet               Quiet mode\n"
+			"   -v, --verbose             Verbose mode\n"
+#else
+			"   -h             Show help message\n"
+			"   -d <device>    Device name\n"
+			"   -f <family>    Family type\n"
+			"   -m <model>     Model number\n"
+			"   -l <logfile>   Logfile\n"
+			"   -q             Quiet mode\n"
+			"   -v             Verbose mode\n"
+#endif
+			"\n"
+			"Available commands:\n");
+		for (size_t i = 0; g_commands[i] != NULL; ++i) {
+			printf ("   %-*s%s\n", maxlength + 3, g_commands[i]->name, g_commands[i]->description);
+		}
+		printf ("\nSee 'dctool help <command>' for more information on a specific command.\n\n");
+	} else {
+		printf ("%s\n\n%s\n", command->description, command->usage);
+	}
 }
 
 int
@@ -165,34 +211,17 @@ main (int argc, char *argv[])
 	argv += optind;
 	optind = RESET;
 
-	// Show help message.
+	// Translate the help option into a command.
+	char *argv_help[] = {(char *) "help", NULL, NULL};
 	if (help || argv[0] == NULL) {
-		printf (
-			"A simple command line interface for the libdivecomputer library\n"
-			"\n"
-			"Usage:\n"
-			"   dctool [options] <command> [<args>]\n"
-			"\n"
-			"Options:\n"
-#ifdef HAVE_GETOPT_LONG
-			"   -h, --help                Show help message\n"
-			"   -d, --device <device>     Device name\n"
-			"   -f, --family <family>     Device family type\n"
-			"   -m, --model <model>       Device model number\n"
-			"   -l, --logfile <logfile>   Logfile\n"
-			"   -q, --quiet               Quiet mode\n"
-			"   -v, --verbose             Verbose mode\n"
-#else
-			"   -h             Show help message\n"
-			"   -d <device>    Device name\n"
-			"   -f <family>    Family type\n"
-			"   -m <model>     Model number\n"
-			"   -l <logfile>   Logfile\n"
-			"   -q             Quiet mode\n"
-			"   -v             Verbose mode\n"
-#endif
-			"\n");
-		return EXIT_SUCCESS;
+		if (argv[0]) {
+			argv_help[1] = argv[0];
+			argv = argv_help;
+			argc = 2;
+		} else {
+			argv = argv_help;
+			argc = 1;
+		}
 	}
 
 	// Try to find the command.

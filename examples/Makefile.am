@@ -9,5 +9,6 @@ dctool_SOURCES = \
 	common.c \
 	dctool.h \
 	dctool.c \
+	dctool_help.c \
 	utils.h \
 	utils.c

@@ -42,6 +42,14 @@ typedef struct dctool_command_t {
 	const char *usage;
 } dctool_command_t;
 
+extern const dctool_command_t dctool_help;
+
+const dctool_command_t *
+dctool_command_find (const char *name);
+
+void
+dctool_command_showhelp (const dctool_command_t *command);
+
 int
 dctool_cancel_cb (void *userdata);
 
