@@ -45,6 +45,12 @@ dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, v
 dc_status_t
 dctool_descriptor_search (dc_descriptor_t **out, const char *name, dc_family_t family, unsigned int model);
 
+void
+dctool_file_write (const char *filename, dc_buffer_t *buffer);
+
+dc_buffer_t *
+dctool_file_read (const char *filename);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
