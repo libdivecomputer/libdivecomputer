@@ -16,5 +16,6 @@ dctool_SOURCES = \
 	dctool_dump.c \
 	dctool_read.c \
 	dctool_write.c \
+	dctool_fwupdate.c \
 	utils.h \
 	utils.c

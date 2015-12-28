@@ -49,6 +49,7 @@ extern const dctool_command_t dctool_download;
 extern const dctool_command_t dctool_dump;
 extern const dctool_command_t dctool_read;
 extern const dctool_command_t dctool_write;
+extern const dctool_command_t dctool_fwupdate;
 
 const dctool_command_t *
 dctool_command_find (const char *name);

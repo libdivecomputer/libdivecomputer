@@ -55,6 +55,7 @@ static const dctool_command_t *g_commands[] = {
 	&dctool_dump,
 	&dctool_read,
 	&dctool_write,
+	&dctool_fwupdate,
 	NULL
 };
 
