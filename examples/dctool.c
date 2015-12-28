@@ -63,18 +63,39 @@ dctool_command_find (const char *name)
 	return g_commands[i];
 }
 
+static void
+logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
+{
+	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
+
+	if (loglevel == DC_LOGLEVEL_ERROR || loglevel == DC_LOGLEVEL_WARNING) {
+		message ("%s: %s [in %s:%d (%s)]\n", loglevels[loglevel], msg, file, line, function);
+	} else {
+		message ("%s: %s\n", loglevels[loglevel], msg);
+	}
+}
+
 int
 main (int argc, char *argv[])
 {
+	int exitcode = EXIT_SUCCESS;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_context_t *context = NULL;
+
 	// Default option values.
 	unsigned int help = 0;
+	dc_loglevel_t loglevel = DC_LOGLEVEL_WARNING;
+	const char *logfile = NULL;
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = NOPERMUTATION "h";
+	const char *optstring = NOPERMUTATION "hl:qv";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"logfile",     required_argument, 0, 'l'},
+		{"quiet",       no_argument,       0, 'q'},
+		{"verbose",     no_argument,       0, 'v'},
 		{0,             0,                 0,  0 }
 	};
 	while ((opt = getopt_long (argc, argv, optstring, options, NULL)) != -1) {
@@ -84,6 +105,15 @@ main (int argc, char *argv[])
 		switch (opt) {
 		case 'h':
 			help = 1;
+			break;
+		case 'l':
+			logfile = optarg;
+			break;
+		case 'q':
+			loglevel = DC_LOGLEVEL_NONE;
+			break;
+		case 'v':
+			loglevel++;
 			break;
 		default:
 			return EXIT_FAILURE;
@@ -105,9 +135,15 @@ main (int argc, char *argv[])
 			"\n"
 			"Options:\n"
 #ifdef HAVE_GETOPT_LONG
-			"   -h, --help   Show help message\n"
+			"   -h, --help                Show help message\n"
+			"   -l, --logfile <logfile>   Logfile\n"
+			"   -q, --quiet               Quiet mode\n"
+			"   -v, --verbose             Verbose mode\n"
 #else
-			"   -h   Show help message\n"
+			"   -h             Show help message\n"
+			"   -l <logfile>   Logfile\n"
+			"   -q             Quiet mode\n"
+			"   -v             Verbose mode\n"
 #endif
 			"\n");
 		return EXIT_SUCCESS;
@@ -120,6 +156,25 @@ main (int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	// Initialize the logfile.
+	message_set_logfile (logfile);
+
+	// Initialize a library context.
+	status = dc_context_new (&context);
+	if (status != DC_STATUS_SUCCESS) {
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
+	}
+
+	// Setup the logging.
+	dc_context_set_loglevel (context, loglevel);
+	dc_context_set_logfunc (context, logfunc, NULL);
+
 	// Execute the command.
-	return command->run (argc, argv);
+	exitcode = command->run (argc, argv, context);
+
+cleanup:
+	dc_context_free (context);
+	message_set_logfile (NULL);
+	return exitcode;
 }

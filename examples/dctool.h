@@ -22,12 +22,14 @@
 #ifndef DCTOOL_H
 #define DCTOOL_H
 
+#include <libdivecomputer/context.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 typedef struct dctool_command_t {
-	int (*run) (int argc, char *argv[]);
+	int (*run) (int argc, char *argv[], dc_context_t *context);
 	const char *name;
 	const char *description;
 	const char *usage;
