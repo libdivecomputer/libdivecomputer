@@ -24,6 +24,12 @@
 #include "common.h"
 #include "utils.h"
 
+#ifdef _WIN32
+#define DC_TICKS_FORMAT "%I64d"
+#else
+#define DC_TICKS_FORMAT "%lld"
+#endif
+
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
 typedef struct backend_table_t {
@@ -86,6 +92,44 @@ dctool_family_name (dc_family_t type)
 	}
 
 	return NULL;
+}
+
+void
+dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata)
+{
+	const dc_event_progress_t *progress = (const dc_event_progress_t *) data;
+	const dc_event_devinfo_t *devinfo = (const dc_event_devinfo_t *) data;
+	const dc_event_clock_t *clock = (const dc_event_clock_t *) data;
+	const dc_event_vendor_t *vendor = (const dc_event_vendor_t *) data;
+
+	switch (event) {
+	case DC_EVENT_WAITING:
+		message ("Event: waiting for user action\n");
+		break;
+	case DC_EVENT_PROGRESS:
+		message ("Event: progress %3.2f%% (%u/%u)\n",
+			100.0 * (double) progress->current / (double) progress->maximum,
+			progress->current, progress->maximum);
+		break;
+	case DC_EVENT_DEVINFO:
+		message ("Event: model=%u (0x%08x), firmware=%u (0x%08x), serial=%u (0x%08x)\n",
+			devinfo->model, devinfo->model,
+			devinfo->firmware, devinfo->firmware,
+			devinfo->serial, devinfo->serial);
+		break;
+	case DC_EVENT_CLOCK:
+		message ("Event: systime=" DC_TICKS_FORMAT ", devtime=%u\n",
+			clock->systime, clock->devtime);
+		break;
+	case DC_EVENT_VENDOR:
+		message ("Event: vendor=");
+		for (unsigned int i = 0; i < vendor->size; ++i)
+			message ("%02X", vendor->data[i]);
+		message ("\n");
+		break;
+	default:
+		break;
+	}
 }
 
 dc_status_t
