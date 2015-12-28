@@ -26,13 +26,20 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+#define FUNCTION __func__
+#else
+#define FUNCTION __FUNCTION__
+#endif
+
 #if defined(__GNUC__)
 #define ATTR_FORMAT_PRINTF(a,b) __attribute__((format(printf, a, b)))
 #else
 #define ATTR_FORMAT_PRINTF(a,b)
 #endif
 
-#define WARNING(expr) message ("%s:%d: %s\n", __FILE__, __LINE__, expr)
+#define WARNING(expr) message("WARNING: %s [in %s:%d (%s)]\n", expr, __FILE__, __LINE__, FUNCTION)
+#define ERROR(expr)   message("ERROR: %s [in %s:%d (%s)]\n", expr, __FILE__, __LINE__, FUNCTION)
 
 int message (const char* fmt, ...) ATTR_FORMAT_PRINTF(1, 2);
 
