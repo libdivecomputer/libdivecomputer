@@ -72,6 +72,37 @@ static const backend_table_t g_backends[] = {
 	{"idive",       DC_FAMILY_DIVESYSTEM_IDIVE},
 };
 
+const char *
+dctool_errmsg (dc_status_t status)
+{
+	switch (status) {
+	case DC_STATUS_SUCCESS:
+		return "Success";
+	case DC_STATUS_UNSUPPORTED:
+		return "Unsupported operation";
+	case DC_STATUS_INVALIDARGS:
+		return "Invalid arguments";
+	case DC_STATUS_NOMEMORY:
+		return "Out of memory";
+	case DC_STATUS_NODEVICE:
+		return "No device found";
+	case DC_STATUS_NOACCESS:
+		return "Access denied";
+	case DC_STATUS_IO:
+		return "Input/output error";
+	case DC_STATUS_TIMEOUT:
+		return "Timeout";
+	case DC_STATUS_PROTOCOL:
+		return "Protocol error";
+	case DC_STATUS_DATAFORMAT:
+		return "Data format error";
+	case DC_STATUS_CANCELLED:
+		return "Cancelled";
+	default:
+		return "Unknown error";
+	}
+}
+
 dc_family_t
 dctool_family_type (const char *name)
 {

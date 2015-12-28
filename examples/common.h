@@ -30,6 +30,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+const char *
+dctool_errmsg (dc_status_t status);
+
 dc_family_t
 dctool_family_type (const char *name);
 
