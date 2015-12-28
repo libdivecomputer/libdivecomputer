@@ -51,6 +51,7 @@ static const dctool_command_t *g_commands[] = {
 	&dctool_help,
 	&dctool_version,
 	&dctool_list,
+	&dctool_download,
 	&dctool_dump,
 	NULL
 };

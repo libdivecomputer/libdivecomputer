@@ -45,6 +45,7 @@ typedef struct dctool_command_t {
 extern const dctool_command_t dctool_help;
 extern const dctool_command_t dctool_version;
 extern const dctool_command_t dctool_list;
+extern const dctool_command_t dctool_download;
 extern const dctool_command_t dctool_dump;
 
 const dctool_command_t *
