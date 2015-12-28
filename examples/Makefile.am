@@ -5,6 +5,8 @@ bin_PROGRAMS = \
 	dctool
 
 dctool_SOURCES = \
+	common.h \
+	common.c \
 	dctool.h \
 	dctool.c \
 	utils.h \

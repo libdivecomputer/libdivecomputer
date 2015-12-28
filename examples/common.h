@@ -19,31 +19,27 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DCTOOL_H
-#define DCTOOL_H
+#ifndef DCTOOL_COMMON_H
+#define DCTOOL_COMMON_H
 
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/descriptor.h>
+#include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum dctool_config_t {
-	DCTOOL_CONFIG_NONE = 0,
-	DCTOOL_CONFIG_DESCRIPTOR = 1,
-} dctool_config_t;
+dc_family_t
+dctool_family_type (const char *name);
 
-typedef struct dctool_command_t {
-	int (*run) (int argc, char *argv[], dc_context_t *context, dc_descriptor_t *descriptor);
-	unsigned int config;
-	const char *name;
-	const char *description;
-	const char *usage;
-} dctool_command_t;
+const char *
+dctool_family_name (dc_family_t type);
+
+dc_status_t
+dctool_descriptor_search (dc_descriptor_t **out, const char *name, dc_family_t family, unsigned int model);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* DCTOOL_H */
+#endif /* DCTOOL_COMMON_H */

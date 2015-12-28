@@ -31,6 +31,10 @@
 #include <getopt.h>
 #endif
 
+#include <libdivecomputer/context.h>
+#include <libdivecomputer/descriptor.h>
+
+#include "common.h"
 #include "dctool.h"
 #include "utils.h"
 
@@ -81,18 +85,25 @@ main (int argc, char *argv[])
 	int exitcode = EXIT_SUCCESS;
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_context_t *context = NULL;
+	dc_descriptor_t *descriptor = NULL;
 
 	// Default option values.
 	unsigned int help = 0;
 	dc_loglevel_t loglevel = DC_LOGLEVEL_WARNING;
 	const char *logfile = NULL;
+	const char *device = NULL;
+	dc_family_t family = DC_FAMILY_NULL;
+	unsigned int model = 0;
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = NOPERMUTATION "hl:qv";
+	const char *optstring = NOPERMUTATION "hd:f:m:l:qv";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"device",      required_argument, 0, 'd'},
+		{"family",      required_argument, 0, 'f'},
+		{"model",       required_argument, 0, 'm'},
 		{"logfile",     required_argument, 0, 'l'},
 		{"quiet",       no_argument,       0, 'q'},
 		{"verbose",     no_argument,       0, 'v'},
@@ -105,6 +116,15 @@ main (int argc, char *argv[])
 		switch (opt) {
 		case 'h':
 			help = 1;
+			break;
+		case 'd':
+			device = optarg;
+			break;
+		case 'f':
+			family = dctool_family_type (optarg);
+			break;
+		case 'm':
+			model = strtoul (optarg, NULL, 0);
 			break;
 		case 'l':
 			logfile = optarg;
@@ -136,11 +156,17 @@ main (int argc, char *argv[])
 			"Options:\n"
 #ifdef HAVE_GETOPT_LONG
 			"   -h, --help                Show help message\n"
+			"   -d, --device <device>     Device name\n"
+			"   -f, --family <family>     Device family type\n"
+			"   -m, --model <model>       Device model number\n"
 			"   -l, --logfile <logfile>   Logfile\n"
 			"   -q, --quiet               Quiet mode\n"
 			"   -v, --verbose             Verbose mode\n"
 #else
 			"   -h             Show help message\n"
+			"   -d <device>    Device name\n"
+			"   -f <family>    Family type\n"
+			"   -m <model>     Model number\n"
 			"   -l <logfile>   Logfile\n"
 			"   -q             Quiet mode\n"
 			"   -v             Verbose mode\n"
@@ -170,10 +196,40 @@ main (int argc, char *argv[])
 	dc_context_set_loglevel (context, loglevel);
 	dc_context_set_logfunc (context, logfunc, NULL);
 
+	if (command->config & DCTOOL_CONFIG_DESCRIPTOR) {
+		// Check mandatory arguments.
+		if (device == NULL && family == DC_FAMILY_NULL) {
+			message ("No device name or family type specified.\n");
+			exitcode = EXIT_FAILURE;
+			goto cleanup;
+		}
+
+		// Search for a matching device descriptor.
+		status = dctool_descriptor_search (&descriptor, device, family, model);
+		if (status != DC_STATUS_SUCCESS) {
+			exitcode = EXIT_FAILURE;
+			goto cleanup;
+		}
+
+		// Fail if no device descriptor found.
+		if (descriptor == NULL) {
+			if (device) {
+				message ("No supported device found: %s\n",
+					device);
+			} else {
+				message ("No supported device found: %s, 0x%X\n",
+					dctool_family_name (family), model);
+			}
+			exitcode = EXIT_FAILURE;
+			goto cleanup;
+		}
+	}
+
 	// Execute the command.
-	exitcode = command->run (argc, argv, context);
+	exitcode = command->run (argc, argv, context, descriptor);
 
 cleanup:
+	dc_descriptor_free (descriptor);
 	dc_context_free (context);
 	message_set_logfile (NULL);
 	return exitcode;
