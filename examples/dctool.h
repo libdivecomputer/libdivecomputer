@@ -42,6 +42,9 @@ typedef struct dctool_command_t {
 	const char *usage;
 } dctool_command_t;
 
+int
+dctool_cancel_cb (void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

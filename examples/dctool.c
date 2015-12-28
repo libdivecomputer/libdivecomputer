@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <signal.h>
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
@@ -50,6 +51,8 @@ static const dctool_command_t *g_commands[] = {
 	NULL
 };
 
+static volatile sig_atomic_t g_cancel = 0;
+
 const dctool_command_t *
 dctool_command_find (const char *name)
 {
@@ -65,6 +68,23 @@ dctool_command_find (const char *name)
 	}
 
 	return g_commands[i];
+}
+
+int
+dctool_cancel_cb (void *userdata)
+{
+	return g_cancel;
+}
+
+static void
+sighandler (int signum)
+{
+#ifndef _WIN32
+	// Restore the default signal handler.
+	signal (signum, SIG_DFL);
+#endif
+
+	g_cancel = 1;
 }
 
 static void
@@ -181,6 +201,9 @@ main (int argc, char *argv[])
 		message ("Unknown command %s.\n", argv[0]);
 		return EXIT_FAILURE;
 	}
+
+	// Setup the cancel signal handler.
+	signal (SIGINT, sighandler);
 
 	// Initialize the logfile.
 	message_set_logfile (logfile);
