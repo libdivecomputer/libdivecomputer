@@ -44,6 +44,7 @@ typedef struct dctool_command_t {
 
 extern const dctool_command_t dctool_help;
 extern const dctool_command_t dctool_version;
+extern const dctool_command_t dctool_list;
 
 const dctool_command_t *
 dctool_command_find (const char *name);

@@ -11,5 +11,6 @@ dctool_SOURCES = \
 	dctool.c \
 	dctool_help.c \
 	dctool_version.c \
+	dctool_list.c \
 	utils.h \
 	utils.c
