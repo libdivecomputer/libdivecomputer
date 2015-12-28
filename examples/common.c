@@ -232,6 +232,42 @@ dctool_descriptor_search (dc_descriptor_t **out, const char *name, dc_family_t f
 	return DC_STATUS_SUCCESS;
 }
 
+static unsigned char
+hex2dec (unsigned char value)
+{
+	if (value >= '0' && value <= '9')
+		return value - '0';
+	else if (value >= 'A' && value <= 'F')
+		return value - 'A' + 10;
+	else if (value >= 'a' && value <= 'f')
+		return value - 'a' + 10;
+	else
+		return 0;
+}
+
+dc_buffer_t *
+dctool_convert_hex2bin (const char *str)
+{
+	// Get the length of the fingerprint data.
+	size_t nbytes = (str ? strlen (str) / 2 : 0);
+	if (nbytes == 0)
+		return NULL;
+
+	// Allocate a memory buffer.
+	dc_buffer_t *buffer = dc_buffer_new (nbytes);
+
+	// Convert the hexadecimal string.
+	for (unsigned int i = 0; i < nbytes; ++i) {
+		unsigned char msn = hex2dec (str[i * 2 + 0]);
+		unsigned char lsn = hex2dec (str[i * 2 + 1]);
+		unsigned char byte = (msn << 4) + lsn;
+
+		dc_buffer_append (buffer, &byte, 1);
+	}
+
+	return buffer;
+}
+
 void
 dctool_file_write (const char *filename, dc_buffer_t *buffer)
 {
