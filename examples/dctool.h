@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2011 Jef Driesen
+ * Copyright (C) 2015 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,23 +19,22 @@
  * MA 02110-1301 USA
  */
 
-#ifndef EXAMPLES_COMMON_H
-#define EXAMPLES_COMMON_H
-
-#include <libdivecomputer/common.h>
-#include <libdivecomputer/context.h>
+#ifndef DCTOOL_H
+#define DCTOOL_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-const char *
-errmsg (dc_status_t rc);
-
-void
-logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata);
+typedef struct dctool_command_t {
+	int (*run) (int argc, char *argv[]);
+	const char *name;
+	const char *description;
+	const char *usage;
+} dctool_command_t;
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* EXAMPLES_COMMON_H */
+
+#endif /* DCTOOL_H */

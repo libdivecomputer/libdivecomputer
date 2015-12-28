@@ -105,10 +105,12 @@ AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"
 # Checks for header files.
 AC_CHECK_HEADERS([linux/serial.h])
 AC_CHECK_HEADERS([IOKit/serial/ioss.h])
+AC_CHECK_HEADERS([getopt.h])
 
 # Checks for library functions.
 AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([localtime_r gmtime_r])
+AC_CHECK_FUNCS([getopt_long])
 
 # Versioning.
 AC_SUBST([DC_VERSION],[dc_version])
