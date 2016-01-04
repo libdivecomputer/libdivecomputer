@@ -49,6 +49,7 @@
 #define SZ_HARDWARE   1
 #define SZ_MEMORY     0x400000
 #define SZ_CONFIG     4
+#define SZ_FWINFO     4
 #define SZ_FIRMWARE   0x01E000        // 120KB
 #define SZ_FIRMWARE_BLOCK    0x1000   //   4KB
 #define FIRMWARE_AREA      0x3E0000
@@ -69,9 +70,11 @@
 #define DIVE       0x66
 #define IDENTITY   0x69
 #define HARDWARE   0x6A
+#define S_FWINFO   0x6B
 #define DISPLAY    0x6E
 #define COMPACT    0x6D
 #define READ       0x72
+#define S_UPLOAD   0x73
 #define WRITE      0x77
 #define RESET      0x78
 #define INIT       0xBB
@@ -80,8 +83,11 @@
 #define INVALID    0xFFFFFFFF
 #define UNKNOWN    0x00
 #define OSTC3      0x0A
+#define OSTC4      0x3B
 #define SPORT      0x12
 #define CR         0x05
+
+#define NODELAY 0
 
 typedef enum hw_ostc3_state_t {
 	OPEN,
@@ -178,7 +184,8 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
                   const unsigned char input[],
                   unsigned int isize,
                   unsigned char output[],
-                  unsigned int osize)
+                  unsigned int osize,
+                  unsigned int delay)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 
@@ -217,10 +224,29 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	if (input) {
 		// Send the input data packet.
-		n = serial_write (device->port, input, isize);
-		if (n != isize) {
-			ERROR (abstract->context, "Failed to send the data packet.");
-			return EXITCODE (n);
+		unsigned int nbytes = 0;
+		while (nbytes < isize) {
+			// Set the minimum packet size.
+			unsigned int len = 64;
+
+			// Limit the packet size to the total size.
+			if (nbytes + len > isize)
+				len = isize - nbytes;
+
+			// Write the packet.
+			n = serial_write (device->port, input + nbytes, len);
+			if (n != len) {
+				ERROR (abstract->context, "Failed to send the data packet.");
+				return EXITCODE (n);
+			}
+
+			// Update and emit a progress event.
+			if (progress) {
+				progress->current += len;
+				device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
+			}
+
+			nbytes += len;
 		}
 	}
 
@@ -253,6 +279,16 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 			}
 
 			nbytes += len;
+		}
+	}
+
+	if (delay) {
+		unsigned int count = delay / 100;
+		for (unsigned int i = 0; i < count; ++i) {
+			if (serial_get_received (device->port) > 0)
+				break;
+
+			serial_sleep (device->port, 100);
 		}
 	}
 
@@ -345,7 +381,7 @@ hw_ostc3_device_init_download (hw_ostc3_device_t *device)
 	dc_context_t *context = (abstract ? abstract->context : NULL);
 
 	// Send the init command.
-	dc_status_t status = hw_ostc3_transfer (device, NULL, INIT, NULL, 0, NULL, 0);
+	dc_status_t status = hw_ostc3_transfer (device, NULL, INIT, NULL, 0, NULL, 0, NODELAY);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to send the command.");
 		return status;
@@ -434,7 +470,7 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 
 	// Read the hardware descriptor.
 	unsigned char hardware[SZ_HARDWARE] = {UNKNOWN};
-	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware, sizeof(hardware));
+	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware, sizeof(hardware), NODELAY);
 	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		ERROR (abstract->context, "Failed to read the hardware descriptor.");
 		return rc;
@@ -456,7 +492,7 @@ hw_ostc3_device_close (dc_device_t *abstract)
 
 	// Send the exit command
 	if (device->state == DOWNLOAD || device->state == SERVICE) {
-		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
+		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0, NODELAY);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
 			dc_status_set_error(&status, rc);
@@ -505,7 +541,7 @@ hw_ostc3_device_version (dc_device_t *abstract, unsigned char data[], unsigned i
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, data, size);
+	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, data, size, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -529,7 +565,7 @@ hw_ostc3_device_hardware (dc_device_t *abstract, unsigned char data[], unsigned 
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, data, size);
+	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, data, size, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -586,11 +622,11 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	// This is slower, but also works for older firmware versions.
 	unsigned int compact = 1;
 	rc = hw_ostc3_transfer (device, &progress, COMPACT,
-              NULL, 0, header, RB_LOGBOOK_SIZE_COMPACT * RB_LOGBOOK_COUNT);
+              NULL, 0, header, RB_LOGBOOK_SIZE_COMPACT * RB_LOGBOOK_COUNT, NODELAY);
 	if (rc == DC_STATUS_UNSUPPORTED) {
 		compact = 0;
 		rc = hw_ostc3_transfer (device, &progress, HEADER,
-		          NULL, 0, header, RB_LOGBOOK_SIZE_FULL * RB_LOGBOOK_COUNT);
+		          NULL, 0, header, RB_LOGBOOK_SIZE_FULL * RB_LOGBOOK_COUNT, NODELAY);
 	}
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the header.");
@@ -666,7 +702,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	}
 
 	// Update and emit a progress event.
-	progress.maximum = (logbook->size * RB_LOGBOOK_COUNT) + size;
+	progress.maximum = (logbook->size * RB_LOGBOOK_COUNT) + size + ndives;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Finish immediately if there are no dives available.
@@ -700,7 +736,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		// Download the dive.
 		unsigned char number[1] = {idx};
 		rc = hw_ostc3_transfer (device, &progress, DIVE,
-			number, sizeof (number), profile, length);
+			number, sizeof (number), profile, length, NODELAY);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive.");
 			free (profile);
@@ -748,7 +784,7 @@ hw_ostc3_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
 	unsigned char packet[6] = {
 		datetime->hour, datetime->minute, datetime->second,
 		datetime->month, datetime->day, datetime->year - 2000};
-	rc = hw_ostc3_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -776,7 +812,7 @@ hw_ostc3_device_display (dc_device_t *abstract, const char *text)
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -804,7 +840,7 @@ hw_ostc3_device_customtext (dc_device_t *abstract, const char *text)
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -819,18 +855,18 @@ hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigne
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size > SZ_CONFIG) {
-		ERROR (abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	if (device->hardware == OSTC4 ? size != SZ_CONFIG : size > SZ_CONFIG) {
+		ERROR (abstract->context, "Invalid parameter specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
 	// Send the command.
 	unsigned char command[1] = {config};
-	rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size);
+	rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -845,19 +881,19 @@ hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const 
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size > SZ_CONFIG) {
-		ERROR (abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	if (device->hardware == OSTC4 ? size != SZ_CONFIG : size > SZ_CONFIG) {
+		ERROR (abstract->context, "Invalid parameter specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
 	// Send the command.
 	unsigned char command[SZ_CONFIG + 1] = {config};
 	memcpy(command + 1, data, size);
-	rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -877,7 +913,7 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -960,7 +996,7 @@ hw_ostc3_firmware_readline (FILE *fp, dc_context_t *context, unsigned int addr, 
 
 
 static dc_status_t
-hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context, const char *filename)
+hw_ostc3_firmware_readfile3 (hw_ostc3_firmware_t *firmware, dc_context_t *context, const char *filename)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	FILE *fp = NULL;
@@ -1034,6 +1070,55 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+hw_ostc3_firmware_readfile4 (dc_buffer_t *buffer, dc_context_t *context, const char *filename)
+{
+	FILE *fp = NULL;
+
+	if (buffer == NULL) {
+		ERROR (context, "Invalid arguments.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Open the file.
+	fp = fopen (filename, "rb");
+	if (fp == NULL) {
+		ERROR (context, "Failed to open the file.");
+		return DC_STATUS_IO;
+	}
+
+	// Read the entire file into the buffer.
+	size_t n = 0;
+	unsigned char block[1024] = {0};
+	while ((n = fread (block, 1, sizeof (block), fp)) > 0) {
+		dc_buffer_append (buffer, block, n);
+	}
+
+	// Close the file.
+	fclose (fp);
+
+	// Verify the minimum size.
+	size_t size = dc_buffer_get_size (buffer);
+	if (size < 4) {
+		ERROR (context, "Invalid file size.");
+		return DC_STATUS_DATAFORMAT;
+
+	}
+
+	// Verify the checksum.
+	const unsigned char *data = dc_buffer_get_data (buffer);
+	unsigned int csum1 = array_uint32_le (data + size - 4);
+	unsigned int csum2 = hw_ostc3_firmware_checksum (data, size - 4);
+	if (csum1 != csum2) {
+		ERROR (context, "Failed to verify file checksum.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Remove the checksum.
+	dc_buffer_slice (buffer, 0, size - 4);
+
+	return DC_STATUS_SUCCESS;
+}
 
 static dc_status_t
 hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned int size)
@@ -1046,7 +1131,7 @@ hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned 
 	array_uint24_be_set (buffer, addr);
 	buffer[3] = blocks;
 
-	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0);
+	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, NODELAY);
 }
 
 static dc_status_t
@@ -1056,7 +1141,7 @@ hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsi
 	array_uint24_be_set (buffer, addr);
 	array_uint24_be_set (buffer + 3, block_size);
 
-	return hw_ostc3_transfer (device, NULL, S_BLOCK_READ, buffer, sizeof (buffer), block, block_size);
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_READ, buffer, sizeof (buffer), block, block_size, NODELAY);
 }
 
 static dc_status_t
@@ -1071,7 +1156,7 @@ hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, uns
 	array_uint24_be_set (buffer, addr);
 	memcpy (buffer + 3, block, block_size);
 
-	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0);
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, NODELAY);
 }
 
 static dc_status_t
@@ -1090,7 +1175,7 @@ hw_ostc3_firmware_upgrade (dc_device_t *abstract, unsigned int checksum)
 		buffer[4]  = (buffer[4]<<1 | buffer[4]>>7);
 	}
 
-	rc = hw_ostc3_transfer (device, NULL, S_UPGRADE, buffer, sizeof (buffer), NULL, 0);
+	rc = hw_ostc3_transfer (device, NULL, S_UPGRADE, buffer, sizeof (buffer), NULL, 0, NODELAY);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to send flash firmware command");
 		return rc;
@@ -1103,20 +1188,16 @@ hw_ostc3_firmware_upgrade (dc_device_t *abstract, unsigned int checksum)
 }
 
 
-dc_status_t
-hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
+static dc_status_t
+hw_ostc3_device_fwupdate3 (dc_device_t *abstract, const char *filename)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
 
 	// Enable progress notifications.
-	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
 	// load, erase, upload FZ, verify FZ, reprogram
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = 3 + SZ_FIRMWARE * 2 / SZ_FIRMWARE_BLOCK;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
@@ -1128,14 +1209,7 @@ hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
 	}
 
 	// Read the hex file.
-	rc = hw_ostc3_firmware_readfile (firmware, context, filename);
-	if (rc != DC_STATUS_SUCCESS) {
-		free (firmware);
-		return rc;
-	}
-
-	// Make sure the device is in service mode
-	rc = hw_ostc3_device_init (device, SERVICE);
+	rc = hw_ostc3_firmware_readfile3 (firmware, context, filename);
 	if (rc != DC_STATUS_SUCCESS) {
 		free (firmware);
 		return rc;
@@ -1220,6 +1294,121 @@ hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+hw_ostc3_device_fwupdate4 (dc_device_t *abstract, const char *filename)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+	dc_context_t *context = (abstract ? abstract->context : NULL);
+
+	// Allocate memory for the firmware data.
+	dc_buffer_t *buffer = dc_buffer_new (0);
+	if (buffer == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		status = DC_STATUS_NOMEMORY;
+		goto error;
+	}
+
+	// Read the firmware file.
+	status = hw_ostc3_firmware_readfile4 (buffer, context, filename);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error;
+	}
+
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.maximum = dc_buffer_get_size (buffer);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Cache the pointer and size.
+	const unsigned char *data = dc_buffer_get_data (buffer);
+	unsigned int size = dc_buffer_get_size (buffer);
+
+	unsigned int offset = 0;
+	while (offset + 4 <= size) {
+		// Get the length of the firmware blob.
+		unsigned int length = array_uint32_be(data + offset) + 20;
+		if (offset + length > size) {
+			status = DC_STATUS_DATAFORMAT;
+			goto error;
+		}
+
+		// Get the blob type.
+		unsigned char type = data[offset + 4];
+
+		// Estimate the required delay.
+		// After uploading the firmware blob, the device writes the data
+		// to flash memory. Since this takes a significant amount of
+		// time, the ready byte is delayed. Therefore, the standard
+		// timeout is no longer sufficient. The delays are estimated
+		// based on actual measurements of the delay per byte.
+		unsigned int usecs = length;
+		if (type == 0xFF) {
+			// Firmware
+			usecs *= 50;
+		} else if (type == 0xFE) {
+			// RTE
+			usecs *= 500;
+		} else {
+			// Fonts
+			usecs *= 25;
+		}
+
+		// Read the firmware version info.
+		unsigned char fwinfo[SZ_FWINFO] = {0};
+		status = hw_ostc3_transfer (device, NULL, S_FWINFO,
+			data + offset + 4, 1, fwinfo, sizeof(fwinfo), NODELAY);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the firmware info.");
+			goto error;
+		}
+
+		// Upload the firmware blob.
+		// The update is skipped if the two versions are already
+		// identical, or if the blob is not present on the device.
+		if (memcmp(data + offset + 12, fwinfo, sizeof(fwinfo)) != 0 &&
+			!array_isequal(fwinfo, sizeof(fwinfo), 0xFF))
+		{
+			status = hw_ostc3_transfer (device, &progress, S_UPLOAD,
+				data + offset, length, NULL, 0, usecs / 1000);
+			if (status != DC_STATUS_SUCCESS) {
+				goto error;
+			}
+		} else {
+			// Update and emit a progress event.
+			progress.current += length;
+			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+		}
+
+		offset += length;
+	}
+
+error:
+	dc_buffer_free (buffer);
+	return status;
+}
+
+dc_status_t
+hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
+		return DC_STATUS_INVALIDARGS;
+
+	// Make sure the device is in service mode.
+	status = hw_ostc3_device_init (device, SERVICE);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	if (device->hardware == OSTC4) {
+		return hw_ostc3_device_fwupdate4 (abstract, filename);
+	} else {
+		return hw_ostc3_device_fwupdate3 (abstract, filename);
+	}
+}
 
 static dc_status_t
 hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
