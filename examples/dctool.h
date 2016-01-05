@@ -19,42 +19,49 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DCTOOL_COMMON_H
-#define DCTOOL_COMMON_H
+#ifndef DCTOOL_H
+#define DCTOOL_H
 
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/descriptor.h>
-#include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-const char *
-dctool_errmsg (dc_status_t status);
+typedef enum dctool_config_t {
+	DCTOOL_CONFIG_NONE = 0,
+	DCTOOL_CONFIG_DESCRIPTOR = 1,
+} dctool_config_t;
 
-dc_family_t
-dctool_family_type (const char *name);
+typedef struct dctool_command_t {
+	int (*run) (int argc, char *argv[], dc_context_t *context, dc_descriptor_t *descriptor);
+	unsigned int config;
+	const char *name;
+	const char *description;
+	const char *usage;
+} dctool_command_t;
 
-const char *
-dctool_family_name (dc_family_t type);
+extern const dctool_command_t dctool_help;
+extern const dctool_command_t dctool_version;
+extern const dctool_command_t dctool_list;
+extern const dctool_command_t dctool_download;
+extern const dctool_command_t dctool_dump;
+extern const dctool_command_t dctool_read;
+extern const dctool_command_t dctool_write;
+extern const dctool_command_t dctool_fwupdate;
+
+const dctool_command_t *
+dctool_command_find (const char *name);
 
 void
-dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata);
+dctool_command_showhelp (const dctool_command_t *command);
 
-dc_status_t
-dctool_descriptor_search (dc_descriptor_t **out, const char *name, dc_family_t family, unsigned int model);
-
-dc_buffer_t *
-dctool_convert_hex2bin (const char *str);
-
-void
-dctool_file_write (const char *filename, dc_buffer_t *buffer);
-
-dc_buffer_t *
-dctool_file_read (const char *filename);
+int
+dctool_cancel_cb (void *userdata);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* DCTOOL_COMMON_H */
+
+#endif /* DCTOOL_H */
