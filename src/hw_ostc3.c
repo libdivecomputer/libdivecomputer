@@ -385,7 +385,7 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 			output[2] != 0xCD || output[3] != 0xEF ||
 			output[4] != S_READY) {
 		ERROR (context, "Failed to verify echo.");
-		return DC_STATUS_IO;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	device->state = SERVICE;
@@ -1011,7 +1011,7 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 
 	if (firmware->checksum != hw_ostc3_firmware_checksum (firmware)) {
 		ERROR (context, "Failed to verify file checksum.");
-		return DC_STATUS_IO;
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	return DC_STATUS_SUCCESS;
