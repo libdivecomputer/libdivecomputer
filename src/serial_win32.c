@@ -48,6 +48,23 @@ struct dc_serial_t {
 	unsigned int nbits;
 };
 
+static dc_status_t
+syserror(DWORD errcode)
+{
+	switch (errcode) {
+	case ERROR_INVALID_PARAMETER:
+		return DC_STATUS_INVALIDARGS;
+	case ERROR_OUTOFMEMORY:
+		return DC_STATUS_NOMEMORY;
+	case ERROR_FILE_NOT_FOUND:
+		return DC_STATUS_NODEVICE;
+	case ERROR_ACCESS_DENIED:
+		return DC_STATUS_NOACCESS;
+	default:
+		return DC_STATUS_IO;
+	}
+}
+
 dc_status_t
 dc_serial_enumerate (dc_serial_callback_t callback, void *userdata)
 {
@@ -148,8 +165,9 @@ dc_serial_open (dc_serial_t **out, dc_context_t *context, const char *name)
 			0, // Non-overlapped I/O.
 			NULL);
 	if (device->hFile == INVALID_HANDLE_VALUE) {
-		SYSERROR (context, GetLastError ());
-		status = DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_free;
 	}
 
@@ -159,8 +177,9 @@ dc_serial_open (dc_serial_t **out, dc_context_t *context, const char *name)
 	// represents a serial device.
 	if (!GetCommState (device->hFile, &device->dcb) ||
 		!GetCommTimeouts (device->hFile, &device->timeouts)) {
-		SYSERROR (context, GetLastError ());
-		status = DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_close;
 	}
 
@@ -186,14 +205,16 @@ dc_serial_close (dc_serial_t *device)
 	// Restore the initial communication settings and timeouts.
 	if (!SetCommState (device->hFile, &device->dcb) ||
 		!SetCommTimeouts (device->hFile, &device->timeouts)) {
-		SYSERROR (device->context, GetLastError ());
-		dc_status_set_error(&status, DC_STATUS_IO);
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
 	}
 
 	// Close the device.
 	if (!CloseHandle (device->hFile)) {
-		SYSERROR (device->context, GetLastError ());
-		dc_status_set_error(&status, DC_STATUS_IO);
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
 	}
 
 	// Free memory.
@@ -214,8 +235,9 @@ dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int da
 	// Retrieve the current settings.
 	DCB dcb;
 	if (!GetCommState (device->hFile, &dcb)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	dcb.fBinary = TRUE; // Enable Binary Transmission
@@ -303,8 +325,9 @@ dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int da
 
 	// Apply the new settings.
 	if (!SetCommState (device->hFile, &dcb)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	device->baudrate = baudrate;
@@ -324,8 +347,9 @@ dc_serial_set_timeout (dc_serial_t *device, int timeout)
 	// Retrieve the current timeouts.
 	COMMTIMEOUTS timeouts;
 	if (!GetCommTimeouts (device->hFile, &timeouts)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	// Update the settings.
@@ -354,8 +378,9 @@ dc_serial_set_timeout (dc_serial_t *device, int timeout)
 
 	// Activate the new timeouts.
 	if (!SetCommTimeouts (device->hFile, &timeouts)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -393,8 +418,9 @@ dc_serial_read (dc_serial_t *device, void *data, size_t size, size_t *actual)
 	}
 
 	if (!ReadFile (device->hFile, data, size, &dwRead, NULL)) {
-		SYSERROR (device->context, GetLastError ());
-		status = DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		status = syserror (errcode);
 		goto out;
 	}
 
@@ -427,23 +453,26 @@ dc_serial_write (dc_serial_t *device, const void *data, size_t size, size_t *act
 		// Get the current time.
 		if (!QueryPerformanceFrequency(&freq) ||
 			!QueryPerformanceCounter(&begin)) {
-			SYSERROR (device->context, GetLastError ());
-			status = DC_STATUS_IO;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
 			goto out;
 		}
 	}
 
 	if (!WriteFile (device->hFile, data, size, &dwWritten, NULL)) {
-		SYSERROR (device->context, GetLastError ());
-		status = DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		status = syserror (errcode);
 		goto out;
 	}
 
 	if (device->halfduplex) {
 		// Get the current time.
 		if (!QueryPerformanceCounter(&end))  {
-			SYSERROR (device->context, GetLastError ());
-			status = DC_STATUS_IO;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
 			goto out;
 		}
 
@@ -503,8 +532,9 @@ dc_serial_purge (dc_serial_t *device, dc_direction_t direction)
 	}
 
 	if (!PurgeComm (device->hFile, flags)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -519,8 +549,9 @@ dc_serial_flush (dc_serial_t *device)
 	INFO (device->context, "Flush: none");
 
 	if (!FlushFileBuffers (device->hFile)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -536,13 +567,15 @@ dc_serial_set_break (dc_serial_t *device, unsigned int level)
 
 	if (level) {
 		if (!SetCommBreak (device->hFile)) {
-			SYSERROR (device->context, GetLastError ());
-			return DC_STATUS_IO;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 	} else {
 		if (!ClearCommBreak (device->hFile)) {
-			SYSERROR (device->context, GetLastError ());
-			return DC_STATUS_IO;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 	}
 
@@ -560,8 +593,9 @@ dc_serial_set_dtr (dc_serial_t *device, unsigned int level)
 	int status = (level ? SETDTR : CLRDTR);
 
 	if (!EscapeCommFunction (device->hFile, status)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -578,8 +612,9 @@ dc_serial_set_rts (dc_serial_t *device, unsigned int level)
 	int status = (level ? SETRTS : CLRRTS);
 
 	if (!EscapeCommFunction (device->hFile, status)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -594,8 +629,9 @@ dc_serial_get_available (dc_serial_t *device, size_t *value)
 	COMSTAT stats;
 
 	if (!ClearCommError (device->hFile, NULL, &stats)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	if (value)
@@ -614,8 +650,9 @@ dc_serial_get_lines (dc_serial_t *device, unsigned int *value)
 
 	DWORD stats = 0;
 	if (!GetCommModemStatus (device->hFile, &stats)) {
-		SYSERROR (device->context, GetLastError ());
-		return DC_STATUS_IO;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	if (stats & MS_RLSD_ON)
