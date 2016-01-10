@@ -86,7 +86,8 @@ static const oceanic_common_version_t aeris_f10_version[] = {
 };
 
 static const oceanic_common_version_t aeris_f11_version[] = {
-    {"AERISF11 \0\0 1024"},
+	{"AERISF11 \0\0 1024"},
+	{"OCEANF11 \0\0 1024"},
 };
 
 static const oceanic_common_version_t oceanic_atom1_version[] = {
