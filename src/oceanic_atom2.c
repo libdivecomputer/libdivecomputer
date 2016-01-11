@@ -198,9 +198,9 @@ static const oceanic_common_layout_t aeris_f11_layout = {
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0100, /* rb_logbook_begin */
-	0x0AC0, /* rb_logbook_end */
+	0x0D80, /* rb_logbook_end */
 	32, /* rb_logbook_entry_size */
-	0xD810, /* rb_profile_begin */
+	0x0D80, /* rb_profile_begin */
 	0x20000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	3 /* pt_mode_logbook */
