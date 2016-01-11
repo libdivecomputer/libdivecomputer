@@ -6,6 +6,7 @@ libdivecomputer_HEADERS = 	\
 	buffer.h \
 	descriptor.h \
 	iterator.h \
+	iostream.h \
 	device.h \
 	parser.h \
 	datetime.h \

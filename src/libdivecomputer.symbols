@@ -33,6 +33,22 @@ dc_descriptor_get_type
 dc_descriptor_get_model
 dc_descriptor_get_transport
 
+dc_iostream_set_timeout
+dc_iostream_set_halfduplex
+dc_iostream_set_latency
+dc_iostream_set_break
+dc_iostream_set_dtr
+dc_iostream_set_rts
+dc_iostream_get_available
+dc_iostream_get_lines
+dc_iostream_configure
+dc_iostream_read
+dc_iostream_write
+dc_iostream_flush
+dc_iostream_purge
+dc_iostream_sleep
+dc_iostream_close
+
 dc_parser_new
 dc_parser_new2
 dc_parser_get_type

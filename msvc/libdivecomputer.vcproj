@@ -295,6 +295,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\iostream.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\irda.c"
 				>
 			</File>
@@ -622,6 +626,14 @@
 			</File>
 			<File
 				RelativePath="..\src\ihex.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\iostream-private.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\iostream.h"
 				>
 			</File>
 			<File
