@@ -539,6 +539,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int time = 0;
 	unsigned int interval = 1;
+	unsigned int samplerate = 1;
 	if (parser->mode != FREEDIVE) {
 		unsigned int idx = 0x17;
 		if (parser->model == A300CS || parser->model == VTX)
@@ -556,6 +557,30 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		case 3:
 			interval = 60;
 			break;
+		}
+	} else if (parser->model == F11A || parser->model == F11B) {
+		unsigned int idx = 0x29;
+		switch (data[idx] & 0x03) {
+		case 0:
+			interval = 1;
+			samplerate = 4;
+			break;
+		case 1:
+			interval = 1;
+			samplerate = 2;
+			break;
+		case 2:
+			interval = 1;
+			break;
+		case 3:
+			interval = 2;
+			break;
+		}
+		if (samplerate > 1) {
+			// Some models supports multiple samples per second.
+			// Since our smallest unit of time is one second, we can't
+			// represent this, and the extra samples will get dropped.
+			WARNING(abstract->context, "Multiple samples per second are not supported!");
 		}
 	}
 
@@ -635,7 +660,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 		// The sample size is usually fixed, but some sample types have a
 		// larger size. Check whether we have that many bytes available.
-		unsigned int length = samplesize;
+		unsigned int length = samplesize * samplerate;
 		if (sampletype == 0xBB) {
 			length = PAGESIZE;
 			if (offset + length > size - PAGESIZE)
