@@ -468,7 +468,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		case DC_FIELD_DIVETIME:
 			if (parser->model == F10 || parser->model == F11A ||
 				parser->model == F11B)
-				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60 + bcd2dec (data[1]) * 3600;
+				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
