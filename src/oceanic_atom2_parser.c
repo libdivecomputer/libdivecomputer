@@ -154,10 +154,10 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		parser->headersize -= 2 * PAGESIZE;
 	} else if (model == F10) {
 		parser->headersize = 3 * PAGESIZE;
-		parser->footersize = PAGESIZE / 2;
+		parser->footersize = 0;
 	} else if (model == F11A || model == F11B) {
 		parser->headersize = 5 * PAGESIZE;
-		parser->footersize = PAGESIZE / 2;
+		parser->footersize = 0;
 	} else if (model == A300CS || model == VTX) {
 		parser->headersize = 5 * PAGESIZE;
 	}
