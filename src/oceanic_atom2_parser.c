@@ -70,9 +70,10 @@
 #define AMPHOS      0x4545
 #define AMPHOSAIR   0x4546
 #define PROPLUS3    0x4548
-#define F11         0x4549
+#define F11A        0x4549
 #define OCI         0x454B
 #define A300CS      0x454C
+#define F11B        0x4554
 #define VTX         0x4557
 
 #define NORMAL   0
@@ -153,10 +154,10 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		parser->headersize -= 2 * PAGESIZE;
 	} else if (model == F10) {
 		parser->headersize = 3 * PAGESIZE;
-		parser->footersize = PAGESIZE / 2;
-	} else if (model == F11) {
+		parser->footersize = 0;
+	} else if (model == F11A || model == F11B) {
 		parser->headersize = 5 * PAGESIZE;
-		parser->footersize = PAGESIZE / 2;
+		parser->footersize = 0;
 	} else if (model == A300CS || model == VTX) {
 		parser->headersize = 5 * PAGESIZE;
 	}
@@ -207,7 +208,8 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
 	unsigned int header = 8;
-	if (parser->model == F10 || parser->model == F11)
+	if (parser->model == F10 || parser->model == F11A ||
+		parser->model == F11B)
 		header = 32;
 
 	if (abstract->size < header)
@@ -261,7 +263,8 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			datetime->minute = bcd2dec (p[0]);
 			break;
 		case F10:
-		case F11:
+		case F11A:
+		case F11B:
 			datetime->year   = bcd2dec (p[6]) + 2000;
 			datetime->month  = bcd2dec (p[7]);
 			datetime->day    = bcd2dec (p[8]);
@@ -361,7 +364,8 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 
 	// Get the dive mode.
 	unsigned int mode = NORMAL;
-	if (parser->model == F10 || parser->model == F11) {
+	if (parser->model == F10 || parser->model == F11A ||
+		parser->model == F11B) {
 		mode = FREEDIVE;
 	} else if (parser->model == T3B || parser->model == VT3 ||
 		parser->model == DG03) {
@@ -462,13 +466,15 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			if (parser->model == F10 || parser->model == F11)
-				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60 + bcd2dec (data[1]) * 3600;
+			if (parser->model == F10 || parser->model == F11A ||
+				parser->model == F11B)
+				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			if (parser->model == F10 || parser->model == F11)
+			if (parser->model == F10 || parser->model == F11A ||
+				parser->model == F11B)
 				*((double *) value) = array_uint16_le (data + 4) / 16.0 * FEET;
 			else
 				*((double *) value) = array_uint16_le (data + parser->footer + 4) / 16.0 * FEET;
@@ -533,6 +539,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int time = 0;
 	unsigned int interval = 1;
+	unsigned int samplerate = 1;
 	if (parser->mode != FREEDIVE) {
 		unsigned int idx = 0x17;
 		if (parser->model == A300CS || parser->model == VTX)
@@ -551,11 +558,36 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			interval = 60;
 			break;
 		}
+	} else if (parser->model == F11A || parser->model == F11B) {
+		unsigned int idx = 0x29;
+		switch (data[idx] & 0x03) {
+		case 0:
+			interval = 1;
+			samplerate = 4;
+			break;
+		case 1:
+			interval = 1;
+			samplerate = 2;
+			break;
+		case 2:
+			interval = 1;
+			break;
+		case 3:
+			interval = 2;
+			break;
+		}
+		if (samplerate > 1) {
+			// Some models supports multiple samples per second.
+			// Since our smallest unit of time is one second, we can't
+			// represent this, and the extra samples will get dropped.
+			WARNING(abstract->context, "Multiple samples per second are not supported!");
+		}
 	}
 
 	unsigned int samplesize = PAGESIZE / 2;
 	if (parser->mode == FREEDIVE) {
-		if (parser->model == F10 || parser->model == F11) {
+		if (parser->model == F10 || parser->model == F11A ||
+			parser->model == F11B) {
 			samplesize = 2;
 		} else {
 			samplesize = 4;
@@ -606,7 +638,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, samplesize, 0x00) ||
+		if ((parser->mode != FREEDIVE &&
+			array_isequal (data + offset, samplesize, 0x00)) ||
 			array_isequal (data + offset, samplesize, 0xFF)) {
 			offset += samplesize;
 			continue;
@@ -628,7 +661,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 		// The sample size is usually fixed, but some sample types have a
 		// larger size. Check whether we have that many bytes available.
-		unsigned int length = samplesize;
+		unsigned int length = samplesize * samplerate;
 		if (sampletype == 0xBB) {
 			length = PAGESIZE;
 			if (offset + length > size - PAGESIZE)
