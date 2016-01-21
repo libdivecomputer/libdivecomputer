@@ -90,8 +90,9 @@ irda_socket_open (irda_t **out, dc_context_t *context)
 	// Initialize the winsock dll.
 	WSADATA wsaData;
 	WORD wVersionRequested = MAKEWORD (2, 2);
-	if (WSAStartup (wVersionRequested, &wsaData) != 0) {
-		SYSERROR (context, ERRNO);
+	int rc = WSAStartup (wVersionRequested, &wsaData);
+	if (rc != 0) {
+		SYSERROR (context, rc);
 		goto error_free;
 	}
 
