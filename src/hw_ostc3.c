@@ -77,6 +77,8 @@
 #define INIT       0xBB
 #define EXIT       0xFF
 
+#define INVALID    0xFFFFFFFF
+#define UNKNOWN    0x00
 #define OSTC3      0x0A
 #define SPORT      0x12
 #define CR         0x05
@@ -91,6 +93,7 @@ typedef enum hw_ostc3_state_t {
 typedef struct hw_ostc3_device_t {
 	dc_device_t base;
 	serial_t *port;
+	unsigned int hardware;
 	unsigned char fingerprint[5];
 	hw_ostc3_state_t state;
 } hw_ostc3_device_t;
@@ -291,6 +294,7 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, const char *name
 
 	// Set the default values.
 	device->port = NULL;
+	device->hardware = INVALID;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
@@ -398,6 +402,7 @@ static dc_status_t
 hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device->state == state) {
 		// No change.
@@ -421,7 +426,24 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		rc = DC_STATUS_INVALIDARGS;
 	}
 
-	return rc;
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	if (device->hardware != INVALID)
+		return DC_STATUS_SUCCESS;
+
+	// Read the hardware descriptor.
+	unsigned char hardware[SZ_HARDWARE] = {UNKNOWN};
+	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware, sizeof(hardware));
+	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+		ERROR (abstract->context, "Failed to read the hardware descriptor.");
+		return rc;
+	}
+
+	// Cache the descriptor.
+	device->hardware = hardware[0];
+
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -537,20 +559,13 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		return rc;
 	}
 
-	// Download the hardware descriptor.
-	unsigned char hardware[SZ_HARDWARE] = {0};
-	rc = hw_ostc3_device_hardware (abstract, hardware, sizeof (hardware));
-	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
-		ERROR (abstract->context, "Failed to read the hardware descriptor.");
-		return rc;
-	}
-
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.firmware = array_uint16_be (id + 2);
 	devinfo.serial = array_uint16_le (id + 0);
-	devinfo.model = hardware[0];
-	if (devinfo.model == 0) {
+	if (device->hardware != UNKNOWN) {
+		devinfo.model = device->hardware;
+	} else {
 		// Fallback to the serial number.
 		if (devinfo.serial > 10000)
 			devinfo.model = SPORT;
