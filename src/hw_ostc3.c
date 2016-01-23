@@ -872,12 +872,12 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 // This is a variant of fletcher16 with a 16 bit sum instead of an 8 bit sum,
 // and modulo 2^16 instead of 2^16-1
 static unsigned int
-hw_ostc3_firmware_checksum (hw_ostc3_firmware_t *firmware)
+hw_ostc3_firmware_checksum (const unsigned char data[], unsigned int size)
 {
 	unsigned short low = 0;
 	unsigned short high = 0;
-	for (unsigned int i = 0; i < SZ_FIRMWARE; i++) {
-		low  += firmware->data[i];
+	for (unsigned int i = 0; i < size; i++) {
+		low  += data[i];
 		high += low;
 	}
 	return (((unsigned int)high) << 16) + low;
@@ -1007,12 +1007,14 @@ hw_ostc3_firmware_readfile (hw_ostc3_firmware_t *firmware, dc_context_t *context
 
 	fclose (fp);
 
-	firmware->checksum = array_uint32_le (checksum);
-
-	if (firmware->checksum != hw_ostc3_firmware_checksum (firmware)) {
+	unsigned int csum1 = array_uint32_le (checksum);
+	unsigned int csum2 = hw_ostc3_firmware_checksum (firmware->data, sizeof(firmware->data));
+	if (csum1 != csum2) {
 		ERROR (context, "Failed to verify file checksum.");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	firmware->checksum = csum1;
 
 	return DC_STATUS_SUCCESS;
 }
