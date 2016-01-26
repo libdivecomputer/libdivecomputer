@@ -137,7 +137,7 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	// Allocate memory.
 	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
 	if (device == NULL) {
-		SYSERROR (context, errno);
+		SYSERROR (context, ENOMEM);
 		return -1; // ENOMEM (Not enough space)
 	}
 

@@ -83,7 +83,7 @@ irda_socket_open (irda_t **out, dc_context_t *context)
 #ifdef _WIN32
 		SYSERROR (context, ERROR_OUTOFMEMORY);
 #else
-		SYSERROR (context, errno);
+		SYSERROR (context, ENOMEM);
 #endif
 		return -1; // ENOMEM (Not enough space)
 	}
