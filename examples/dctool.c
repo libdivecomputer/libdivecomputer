@@ -217,6 +217,9 @@ main (int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	optind = RESET;
+#if defined(HAVE_DECL_OPTRESET) && HAVE_DECL_OPTRESET
+	optreset = 1;
+#endif
 
 	// Translate the help option into a command.
 	char *argv_help[] = {(char *) "help", NULL, NULL};
