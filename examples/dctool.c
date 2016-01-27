@@ -31,6 +31,9 @@
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
 
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/descriptor.h>
@@ -40,11 +43,15 @@
 #include "utils.h"
 
 #if defined(__GLIBC__) || defined(__MINGW32__)
-#define NOPERMUTATION "+"
 #define RESET 0
 #else
-#define NOPERMUTATION ""
 #define RESET 1
+#endif
+
+#if defined(__GLIBC__) || defined(__MINGW32__) || defined(BSD)
+#define NOPERMUTATION "+"
+#else
+#define NOPERMUTATION ""
 #endif
 
 static const dctool_command_t *g_commands[] = {
