@@ -389,7 +389,14 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (°C or °F).
-		unsigned int temperature = data[offset + 13];
+		int temperature = (signed char) data[offset + 13];
+		if (temperature < 0) {
+			// Fix negative temperatures.
+			temperature += 102;
+			if (temperature > 0) {
+				temperature = 0;
+			}
+		}
 		if (units == IMPERIAL)
 			sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		else
