@@ -34,6 +34,9 @@ typedef struct dctool_output_t dctool_output_t;
 dctool_output_t *
 dctool_xml_output_new (const char *filename);
 
+dctool_output_t *
+dctool_raw_output_new (const char *template);
+
 dc_status_t
 dctool_output_write (dctool_output_t *output, dc_parser_t *parser, const unsigned char data[], unsigned int size, const unsigned char fingerprint[], unsigned int fsize);
 
