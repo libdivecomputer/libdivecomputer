@@ -20,5 +20,6 @@ dctool_SOURCES = \
 	output.h \
 	output-private.h \
 	output.c \
+	output_xml.c \
 	utils.h \
 	utils.c
