@@ -47,6 +47,7 @@ extern const dctool_command_t dctool_version;
 extern const dctool_command_t dctool_list;
 extern const dctool_command_t dctool_download;
 extern const dctool_command_t dctool_dump;
+extern const dctool_command_t dctool_parse;
 extern const dctool_command_t dctool_read;
 extern const dctool_command_t dctool_write;
 extern const dctool_command_t dctool_fwupdate;
