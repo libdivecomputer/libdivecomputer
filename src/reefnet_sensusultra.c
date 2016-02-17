@@ -45,7 +45,7 @@
 
 typedef struct reefnet_sensusultra_device_t {
 	dc_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 	unsigned char handshake[SZ_HANDSHAKE];
 	unsigned int timestamp;
 	unsigned int devtime;
@@ -87,42 +87,42 @@ reefnet_sensusultra_device_open (dc_device_t **out, dc_context_t *context, const
 	}
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 	memset (device->handshake, 0, sizeof (device->handshake));
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
-	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (3000ms).
-	status = dc_serial_set_timeout (device->port, 3000);
+	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -137,7 +137,7 @@ reefnet_sensusultra_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
@@ -190,7 +190,7 @@ reefnet_sensusultra_send_uchar (reefnet_sensusultra_device_t *device, unsigned c
 
 	// Wait for the prompt byte.
 	unsigned char prompt = 0;
-	status = dc_serial_read (device->port, &prompt, 1, NULL);
+	status = dc_iostream_read (device->iostream, &prompt, 1, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the prompt byte");
 		return status;
@@ -203,7 +203,7 @@ reefnet_sensusultra_send_uchar (reefnet_sensusultra_device_t *device, unsigned c
 	}
 
 	// Send the value to the device.
-	status = dc_serial_write (device->port, &value, 1, NULL);
+	status = dc_iostream_write (device->iostream, &value, 1, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the value.");
 		return status;
@@ -244,7 +244,7 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 		return DC_STATUS_CANCELLED;
 
 	// Receive the data packet.
-	status = dc_serial_read (device->port, data, size, NULL);
+	status = dc_iostream_read (device->iostream, data, size, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the packet.");
 		return status;
@@ -346,7 +346,7 @@ static dc_status_t
 reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short command)
 {
 	// Flush the input and output buffers.
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Wake-up the device and send the instruction code.
 	unsigned int nretries = 0;
@@ -366,8 +366,8 @@ reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short c
 		// not accidentally buffered by the host and (mis)interpreted as part
 		// of the next packet.
 
-		dc_serial_sleep (device->port, 250);
-		dc_serial_purge (device->port, DC_DIRECTION_ALL);
+		dc_iostream_sleep (device->iostream, 250);
+		dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 	}
 
 	return DC_STATUS_SUCCESS;

@@ -94,7 +94,7 @@ typedef struct cochran_device_layout_t {
 
 typedef struct cochran_commander_device_t {
 	dc_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 	const cochran_device_layout_t *layout;
 	unsigned char id[67];
 	unsigned char fingerprint[6];
@@ -305,30 +305,30 @@ cochran_commander_serial_setup (cochran_commander_device_t *device)
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	// Set the serial communication protocol (9600 8N2, no FC).
-	status = dc_serial_configure (device->port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to set the terminal attributes.");
 		return status;
 	}
 
 	// Set the timeout for receiving data (5000 ms).
-	status = dc_serial_set_timeout (device->port, 5000);
+	status = dc_iostream_set_timeout (device->iostream, 5000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to set the timeout.");
 		return status;
 	}
 
 	// Wake up DC and trigger heartbeat
-	dc_serial_set_break(device->port, 1);
-	dc_serial_sleep(device->port, 16);
-	dc_serial_set_break(device->port, 0);
+	dc_iostream_set_break(device->iostream, 1);
+	dc_iostream_sleep(device->iostream, 16);
+	dc_iostream_set_break(device->iostream, 0);
 
 	// Clear old heartbeats
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Wait for heartbeat byte before send
 	unsigned char answer = 0;
-	status = dc_serial_read(device->port, &answer, 1, NULL);
+	status = dc_iostream_read(device->iostream, &answer, 1, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to receive device heartbeat.");
 		return status;
@@ -359,9 +359,9 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 	// has no buffering.
 	for (unsigned int i = 0; i < csize; i++) {
 		// Give the DC time to read the character.
-		if (i) dc_serial_sleep(device->port, 16); // 16 ms
+		if (i) dc_iostream_sleep(device->iostream, 16); // 16 ms
 
-		status = dc_serial_write(device->port, command + i, 1, NULL);
+		status = dc_iostream_write(device->iostream, command + i, 1, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
 			return status;
@@ -370,10 +370,10 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 
 	if (high_speed && device->layout->baudrate != 9600) {
 		// Give the DC time to process the command.
-		dc_serial_sleep(device->port, 45);
+		dc_iostream_sleep(device->iostream, 45);
 
 		// Rates are odd, like 850400 for the EMC, 115200 for commander
-		status = dc_serial_configure(device->port, device->layout->baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+		status = dc_iostream_configure(device->iostream, device->layout->baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to set the high baud rate.");
 			return status;
@@ -388,7 +388,7 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 		if (len > 1024)
 			len = 1024;
 
-		status = dc_serial_read (device->port, answer + nbytes, len, NULL);
+		status = dc_iostream_read (device->iostream, answer + nbytes, len, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive data.");
 			return status;
@@ -523,7 +523,7 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 		return DC_STATUS_UNSUPPORTED;
 	}
 
-	dc_serial_sleep(device->port, 550);
+	dc_iostream_sleep(device->iostream, 550);
 
 	// set back to 9600 baud
 	rc = cochran_commander_serial_setup(device);
@@ -732,11 +732,11 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 	}
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	cochran_commander_device_set_fingerprint((dc_device_t *) device, NULL, 0);
 
 	// Open the device.
-	status = dc_serial_open (&device->port, device->base.context, name);
+	status = dc_serial_open (&device->iostream, device->base.context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to open the serial port.");
 		goto error_free;
@@ -785,7 +785,7 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -799,7 +799,7 @@ cochran_commander_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

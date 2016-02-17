@@ -125,43 +125,43 @@ mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *
 		device->layout = &mares_darwin_layout;
 
 	// Open the device.
-	status = dc_serial_open (&device->base.port, context, name);
+	status = dc_serial_open (&device->base.iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
-	status = dc_serial_configure (device->base.port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->base.iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	status = dc_serial_set_timeout (device->base.port, 1000);
+	status = dc_iostream_set_timeout (device->base.iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Set the DTR line.
-	status = dc_serial_set_dtr (device->base.port, 1);
+	status = dc_iostream_set_dtr (device->base.iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
 		goto error_close;
 	}
 
 	// Set the RTS line.
-	status = dc_serial_set_rts (device->base.port, 1);
+	status = dc_iostream_set_rts (device->base.iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the RTS line.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	dc_serial_sleep (device->base.port, 100);
-	dc_serial_purge (device->base.port, DC_DIRECTION_ALL);
+	dc_iostream_sleep (device->base.iostream, 100);
+	dc_iostream_purge (device->base.iostream, DC_DIRECTION_ALL);
 
 	// Override the base class values.
 	device->base.echo = 1;
@@ -172,7 +172,7 @@ mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->base.port);
+	dc_iostream_close (device->base.iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -186,7 +186,7 @@ mares_darwin_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_serial_close (device->base.port);
+	rc = dc_iostream_close (device->base.iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

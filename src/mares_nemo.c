@@ -45,7 +45,7 @@
 
 typedef struct mares_nemo_device_t {
 	dc_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 	unsigned char fingerprint[5];
 } mares_nemo_device_t;
 
@@ -100,53 +100,53 @@ mares_nemo_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
-	status = dc_serial_configure (device->port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	status = dc_serial_set_timeout (device->port, 1000);
+	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Set the DTR line.
-	status = dc_serial_set_dtr (device->port, 1);
+	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
 		goto error_close;
 	}
 
 	// Set the RTS line.
-	status = dc_serial_set_rts (device->port, 1);
+	status = dc_iostream_set_rts (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the RTS line.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -161,7 +161,7 @@ mares_nemo_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
@@ -207,18 +207,18 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Wait until some data arrives.
 	size_t available = 0;
-	while (dc_serial_get_available (device->port, &available) == DC_STATUS_SUCCESS && available == 0) {
+	while (dc_iostream_get_available (device->iostream, &available) == DC_STATUS_SUCCESS && available == 0) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
 		device_event_emit (abstract, DC_EVENT_WAITING, NULL);
-		dc_serial_sleep (device->port, 100);
+		dc_iostream_sleep (device->iostream, 100);
 	}
 
 	// Receive the header of the package.
 	unsigned char header = 0x00;
 	for (unsigned int i = 0; i < 20;) {
-		status = dc_serial_read (device->port, &header, 1, NULL);
+		status = dc_iostream_read (device->iostream, &header, 1, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the header.");
 			return status;
@@ -238,7 +238,7 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	while (nbytes < MEMORYSIZE) {
 		// Read the packet.
 		unsigned char packet[(PACKETSIZE + 1) * 2] = {0};
-		status = dc_serial_read (device->port, packet, sizeof (packet), NULL);
+		status = dc_iostream_read (device->iostream, packet, sizeof (packet), NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return status;

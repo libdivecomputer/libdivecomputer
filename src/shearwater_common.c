@@ -41,34 +41,34 @@ shearwater_common_open (shearwater_common_device_t *device, dc_context_t *contex
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		return status;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
-	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (3000ms).
-	status = dc_serial_set_timeout (device->port, 3000);
+	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	dc_serial_sleep (device->port, 300);
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_sleep (device->iostream, 300);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 	return status;
 }
 
@@ -77,7 +77,7 @@ dc_status_t
 shearwater_common_close (shearwater_common_device_t *device)
 {
 	// Close the device.
-	return dc_serial_close (device->port);
+	return dc_iostream_close (device->iostream);
 }
 
 
@@ -153,7 +153,7 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 #if 0
 	// Send an initial END character to flush out any data that may have
 	// accumulated in the receiver due to line noise.
-	status = dc_serial_write (device->port, end, sizeof (end), NULL);
+	status = dc_iostream_write (device->iostream, end, sizeof (end), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		return status;
 	}
@@ -182,7 +182,7 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 
 		// Flush the buffer if necessary.
 		if (nbytes + len + sizeof(end) > sizeof(buffer)) {
-			status = dc_serial_write (device->port, buffer, nbytes, NULL);
+			status = dc_iostream_write (device->iostream, buffer, nbytes, NULL);
 			if (status != DC_STATUS_SUCCESS) {
 				return status;
 			}
@@ -200,7 +200,7 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 	nbytes += sizeof(end);
 
 	// Flush the buffer.
-	status = dc_serial_write (device->port, buffer, nbytes, NULL);
+	status = dc_iostream_write (device->iostream, buffer, nbytes, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		return status;
 	}
@@ -223,7 +223,7 @@ shearwater_common_slip_read (shearwater_common_device_t *device, unsigned char d
 		unsigned char c = 0;
 
 		// Get a single character to process.
-		status = dc_serial_read (device->port, &c, 1, NULL);
+		status = dc_iostream_read (device->iostream, &c, 1, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			return status;
 		}
@@ -242,7 +242,7 @@ shearwater_common_slip_read (shearwater_common_device_t *device, unsigned char d
 		case ESC:
 			// If it's an ESC character, get another character and then
 			// figure out what to store in the packet based on that.
-			status = dc_serial_read (device->port, &c, 1, NULL);
+			status = dc_iostream_read (device->iostream, &c, 1, NULL);
 			if (status != DC_STATUS_SUCCESS) {
 				return status;
 			}

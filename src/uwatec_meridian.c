@@ -37,7 +37,7 @@
 
 typedef struct uwatec_meridian_device_t {
 	dc_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -83,7 +83,7 @@ uwatec_meridian_transfer (uwatec_meridian_device_t *device, const unsigned char 
 	packet[11 + csize] = checksum_xor_uint8 (packet + 7, csize + 4, 0x00);
 
 	// Send the packet.
-	status = dc_serial_write (device->port, packet, csize + 12, NULL);
+	status = dc_iostream_write (device->iostream, packet, csize + 12, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -91,7 +91,7 @@ uwatec_meridian_transfer (uwatec_meridian_device_t *device, const unsigned char 
 
 	// Read the echo.
 	unsigned char echo[sizeof(packet)];
-	status = dc_serial_read (device->port, echo, csize + 12, NULL);
+	status = dc_iostream_read (device->iostream, echo, csize + 12, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the echo.");
 		return status;
@@ -105,7 +105,7 @@ uwatec_meridian_transfer (uwatec_meridian_device_t *device, const unsigned char 
 
 	// Read the header.
 	unsigned char header[6];
-	status = dc_serial_read (device->port, header, sizeof (header), NULL);
+	status = dc_iostream_read (device->iostream, header, sizeof (header), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the header.");
 		return status;
@@ -118,7 +118,7 @@ uwatec_meridian_transfer (uwatec_meridian_device_t *device, const unsigned char 
 	}
 
 	// Read the packet.
-	status = dc_serial_read (device->port, answer, asize, NULL);
+	status = dc_iostream_read (device->iostream, answer, asize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the packet.");
 		return status;
@@ -126,7 +126,7 @@ uwatec_meridian_transfer (uwatec_meridian_device_t *device, const unsigned char 
 
 	// Read the checksum.
 	unsigned char csum = 0x00;
-	status = dc_serial_read (device->port, &csum, sizeof (csum), NULL);
+	status = dc_iostream_read (device->iostream, &csum, sizeof (csum), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the checksum.");
 		return status;
@@ -199,34 +199,34 @@ uwatec_meridian_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (57600 8N1).
-	status = dc_serial_configure (device->port, 57600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 57600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (3000ms).
-	status  = dc_serial_set_timeout (device->port, 3000);
+	status  = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Perform the handshaking.
 	status = uwatec_meridian_handshake (device);
@@ -240,7 +240,7 @@ uwatec_meridian_device_open (dc_device_t **out, dc_context_t *context, const cha
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -255,7 +255,7 @@ uwatec_meridian_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
@@ -398,7 +398,7 @@ uwatec_meridian_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		// Read the header.
 		unsigned char header[5];
-		status = dc_serial_read (device->port, header, sizeof (header), NULL);
+		status = dc_iostream_read (device->iostream, header, sizeof (header), NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the header.");
 			return status;
@@ -412,7 +412,7 @@ uwatec_meridian_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		}
 
 		// Read the packet data.
-		status = dc_serial_read (device->port, data + nbytes, packetsize - 1, NULL);
+		status = dc_iostream_read (device->iostream, data + nbytes, packetsize - 1, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the packet.");
 			return status;
@@ -420,7 +420,7 @@ uwatec_meridian_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		// Read the checksum.
 		unsigned char csum = 0x00;
-		status = dc_serial_read (device->port, &csum, sizeof (csum), NULL);
+		status = dc_iostream_read (device->iostream, &csum, sizeof (csum), NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the checksum.");
 			return status;

@@ -54,7 +54,7 @@
 
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 	unsigned int delay;
 	unsigned int bigpage;
 	unsigned char cache[256];
@@ -471,11 +471,11 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 		return DC_STATUS_CANCELLED;
 
 	if (device->delay) {
-		dc_serial_sleep (device->port, device->delay);
+		dc_iostream_sleep (device->iostream, device->delay);
 	}
 
 	// Send the command to the dive computer.
-	status = dc_serial_write (device->port, command, csize, NULL);
+	status = dc_iostream_write (device->iostream, command, csize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -489,7 +489,7 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 
 	// Receive the response (ACK/NAK) of the dive computer.
 	unsigned char response = 0;
-	status = dc_serial_read (device->port, &response, 1, NULL);
+	status = dc_iostream_read (device->iostream, &response, 1, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -503,7 +503,7 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 
 	if (asize) {
 		// Receive the answer of the dive computer.
-		status = dc_serial_read (device->port, answer, asize, NULL);
+		status = dc_iostream_read (device->iostream, answer, asize, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return status;
@@ -552,8 +552,8 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 			device->delay++;
 
 		// Delay the next attempt.
-		dc_serial_sleep (device->port, 100);
-		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
+		dc_iostream_sleep (device->iostream, 100);
+		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -593,14 +593,14 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	oceanic_common_device_init (&device->base);
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	device->delay = 0;
 	device->bigpage = 1; // no big pages
 	device->cached = INVALID;
 	memset(device->cache, 0, sizeof(device->cache));
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
@@ -613,28 +613,28 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Set the serial communication protocol (38400 8N1).
-	status = dc_serial_configure (device->port, baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	status = dc_serial_set_timeout (device->port, 1000);
+	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	dc_serial_sleep (device->port, 100);
+	dc_iostream_sleep (device->iostream, 100);
 
 	// Set the DTR/RTS lines.
-	dc_serial_set_dtr(device->port, 1);
-	dc_serial_set_rts(device->port, 1);
+	dc_iostream_set_dtr(device->iostream, 1);
+	dc_iostream_set_rts(device->iostream, 1);
 
 	// Make sure everything is in a sane state.
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Switch the device from surface mode into download mode. Before sending
 	// this command, the device needs to be in PC mode (automatically activated
@@ -712,7 +712,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -733,7 +733,7 @@ oceanic_atom2_device_close (dc_device_t *abstract)
 	}
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

@@ -52,7 +52,7 @@ mares_common_device_init (mares_common_device_t *device)
 	assert (device != NULL);
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	device->echo = 0;
 	device->delay = 0;
 }
@@ -88,11 +88,11 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 		return DC_STATUS_CANCELLED;
 
 	if (device->delay) {
-		dc_serial_sleep (device->port, device->delay);
+		dc_iostream_sleep (device->iostream, device->delay);
 	}
 
 	// Send the command to the device.
-	status = dc_serial_write (device->port, command, csize, NULL);
+	status = dc_iostream_write (device->iostream, command, csize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -101,7 +101,7 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	if (device->echo) {
 		// Receive the echo of the command.
 		unsigned char echo[PACKETSIZE] = {0};
-		status = dc_serial_read (device->port, echo, csize, NULL);
+		status = dc_iostream_read (device->iostream, echo, csize, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the echo.");
 			return status;
@@ -114,7 +114,7 @@ mares_common_packet (mares_common_device_t *device, const unsigned char command[
 	}
 
 	// Receive the answer of the device.
-	status = dc_serial_read (device->port, answer, asize, NULL);
+	status = dc_iostream_read (device->iostream, answer, asize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -155,8 +155,8 @@ mares_common_transfer (mares_common_device_t *device, const unsigned char comman
 			return rc;
 
 		// Discard any garbage bytes.
-		dc_serial_sleep (device->port, 100);
-		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
+		dc_iostream_sleep (device->iostream, 100);
+		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
 	}
 
 	return rc;
