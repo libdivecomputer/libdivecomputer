@@ -32,7 +32,7 @@
 
 typedef struct uwatec_smart_device_t {
 	dc_device_t base;
-	dc_irda_t *socket;
+	dc_iostream_t *iostream;
 	unsigned int address;
 	unsigned int timestamp;
 	unsigned int devtime;
@@ -88,13 +88,13 @@ uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char comman
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	status = dc_irda_write (device->socket, command, csize, NULL);
+	status = dc_iostream_write (device->iostream, command, csize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
 	}
 
-	status = dc_irda_read (device->socket, answer, asize, NULL);
+	status = dc_iostream_read (device->iostream, answer, asize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -158,21 +158,21 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
-	device->socket = NULL;
+	device->iostream = NULL;
 	device->address = 0;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
 
 	// Open the irda socket.
-	status = dc_irda_open (&device->socket, context);
+	status = dc_irda_open (&device->iostream, context);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the irda socket.");
 		goto error_free;
 	}
 
 	// Discover the device.
-	status = dc_irda_discover (device->socket, uwatec_smart_discovery, device);
+	status = dc_irda_discover (device->iostream, uwatec_smart_discovery, device);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to discover the device.");
 		goto error_close;
@@ -185,7 +185,7 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Connect the device.
-	status = dc_irda_connect_lsap (device->socket, device->address, 1);
+	status = dc_irda_connect_lsap (device->iostream, device->address, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to connect the device.");
 		goto error_close;
@@ -203,7 +203,7 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_irda_close (device->socket);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -218,7 +218,7 @@ uwatec_smart_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_irda_close (device->socket);
+	rc = dc_iostream_close (device->iostream);
 	if (status != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
@@ -362,7 +362,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		// Increase the packet size if more data is immediately available.
 		size_t available = 0;
-		rc = dc_irda_get_available (device->socket, &available);
+		rc = dc_iostream_get_available (device->iostream, &available);
 		if (rc == DC_STATUS_SUCCESS && available > len)
 			len = available;
 
@@ -370,7 +370,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		if (nbytes + len > length)
 			len = length - nbytes;
 
-		rc = dc_irda_read (device->socket, data + nbytes, len, NULL);
+		rc = dc_iostream_read (device->iostream, data + nbytes, len, NULL);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return rc;

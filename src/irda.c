@@ -50,8 +50,10 @@
 #endif
 
 #include "irda.h"
+
 #include "common-private.h"
 #include "context-private.h"
+#include "iostream-private.h"
 #include "array.h"
 #include "platform.h"
 
@@ -83,17 +85,44 @@ typedef int s_errcode_t;
 #define S_CLOSE close
 #endif
 
-struct dc_irda_t {
-	dc_context_t *context;
+#define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_irda_vtable)
+
+#ifdef IRDA
+static dc_status_t dc_irda_set_timeout (dc_iostream_t *iostream, int timeout);
+static dc_status_t dc_irda_get_available (dc_iostream_t *iostream, size_t *value);
+static dc_status_t dc_irda_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
+static dc_status_t dc_irda_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+static dc_status_t dc_irda_close (dc_iostream_t *iostream);
+
+typedef struct dc_irda_t {
+	dc_iostream_t base;
 #ifdef _WIN32
 	SOCKET fd;
 #else
 	int fd;
 #endif
 	int timeout;
+} dc_irda_t;
+
+static const dc_iostream_vtable_t dc_irda_vtable = {
+	sizeof(dc_irda_t),
+	dc_irda_set_timeout, /* set_timeout */
+	NULL, /* set_latency */
+	NULL, /* set_halfduplex */
+	NULL, /* set_break */
+	NULL, /* set_dtr */
+	NULL, /* set_rts */
+	NULL, /* get_lines */
+	dc_irda_get_available, /* get_received */
+	NULL, /* configure */
+	dc_irda_read, /* read */
+	dc_irda_write, /* write */
+	NULL, /* flush */
+	NULL, /* purge */
+	NULL, /* sleep */
+	dc_irda_close, /* close */
 };
 
-#ifdef IRDA
 static dc_status_t
 syserror(s_errcode_t errcode)
 {
@@ -113,7 +142,7 @@ syserror(s_errcode_t errcode)
 #endif
 
 dc_status_t
-dc_irda_open (dc_irda_t **out, dc_context_t *context)
+dc_irda_open (dc_iostream_t **out, dc_context_t *context)
 {
 #ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
@@ -123,14 +152,11 @@ dc_irda_open (dc_irda_t **out, dc_context_t *context)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (dc_irda_t *) malloc (sizeof (dc_irda_t));
+	device = (dc_irda_t *) dc_iostream_allocate (context, &dc_irda_vtable);
 	if (device == NULL) {
 		SYSERROR (context, S_ENOMEM);
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Library context.
-	device->context = context;
 
 	// Default to blocking reads.
 	device->timeout = -1;
@@ -166,7 +192,7 @@ dc_irda_open (dc_irda_t **out, dc_context_t *context)
 		goto error_wsacleanup;
 	}
 
-	*out = device;
+	*out = (dc_iostream_t *) device;
 
     return DC_STATUS_SUCCESS;
 
@@ -175,21 +201,19 @@ error_wsacleanup:
 	WSACleanup ();
 error_free:
 #endif
-	free (device);
+	dc_iostream_deallocate ((dc_iostream_t *) device);
 	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif
 }
 
-dc_status_t
-dc_irda_close (dc_irda_t *device)
-{
 #ifdef IRDA
+static dc_status_t
+dc_irda_close (dc_iostream_t *abstract)
+{
 	dc_status_t status = DC_STATUS_SUCCESS;
-
-	if (device == NULL)
-		return DC_STATUS_SUCCESS;
+	dc_irda_t *device = (dc_irda_t *) abstract;
 
 	// Terminate all send and receive operations.
 	shutdown (device->fd, 0);
@@ -197,7 +221,7 @@ dc_irda_close (dc_irda_t *device)
 	// Close the socket.
 	if (S_CLOSE (device->fd) != 0) {
 		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (device->context, errcode);
+		SYSERROR (abstract->context, errcode);
 		dc_status_set_error(&status, syserror(errcode));
 	}
 
@@ -205,37 +229,24 @@ dc_irda_close (dc_irda_t *device)
 	// Terminate the winsock dll.
 	if (WSACleanup () != 0) {
 		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (device->context, errcode);
+		SYSERROR (abstract->context, errcode);
 		dc_status_set_error(&status, syserror(errcode));
 	}
 #endif
 
-	// Free memory.
-	free (device);
-
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
-dc_status_t
-dc_irda_set_timeout (dc_irda_t *device, int timeout)
+static dc_status_t
+dc_irda_set_timeout (dc_iostream_t *abstract, int timeout)
 {
-#ifdef IRDA
-	if (device == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	INFO (device->context, "Timeout: value=%i", timeout);
+	dc_irda_t *device = (dc_irda_t *) abstract;
 
 	device->timeout = timeout;
 
 	return DC_STATUS_SUCCESS;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
-
+#endif
 
 #define DISCOVER_MAX_DEVICES 16	// Maximum number of devices.
 #define DISCOVER_MAX_RETRIES 4	// Maximum number of retries.
@@ -249,10 +260,12 @@ dc_irda_set_timeout (dc_irda_t *device, int timeout)
 #endif
 
 dc_status_t
-dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata)
+dc_irda_discover (dc_iostream_t *abstract, dc_irda_callback_t callback, void *userdata)
 {
 #ifdef IRDA
-	if (device == NULL)
+	dc_irda_t *device = (dc_irda_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	unsigned char data[DISCOVER_BUFSIZE] = {0};
@@ -280,7 +293,7 @@ dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata
 		if (rc != 0) {
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode != S_EAGAIN) {
-				SYSERROR (device->context, errcode);
+				SYSERROR (abstract->context, errcode);
 				return syserror(errcode);
 			}
 		}
@@ -316,7 +329,7 @@ dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata
 			unsigned int hints = array_uint16_be (list->dev[i].hints);
 #endif
 
-			INFO (device->context,
+			INFO (abstract->context,
 				"Discover: address=%08x, name=%s, charset=%02x, hints=%04x",
 				address, name, charset, hints);
 
@@ -331,13 +344,15 @@ dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata
 }
 
 dc_status_t
-dc_irda_connect_name (dc_irda_t *device, unsigned int address, const char *name)
+dc_irda_connect_name (dc_iostream_t *abstract, unsigned int address, const char *name)
 {
 #ifdef IRDA
-	if (device == NULL)
+	dc_irda_t *device = (dc_irda_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Connect: address=%08x, name=%s", address, name ? name : "");
+	INFO (abstract->context, "Connect: address=%08x, name=%s", address, name ? name : "");
 
 #ifdef _WIN32
 	SOCKADDR_IRDA peer;
@@ -362,7 +377,7 @@ dc_irda_connect_name (dc_irda_t *device, unsigned int address, const char *name)
 
 	if (connect (device->fd, (struct sockaddr *) &peer, sizeof (peer)) != 0) {
 		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (device->context, errcode);
+		SYSERROR (abstract->context, errcode);
 		return syserror(errcode);
 	}
 
@@ -373,13 +388,15 @@ dc_irda_connect_name (dc_irda_t *device, unsigned int address, const char *name)
 }
 
 dc_status_t
-dc_irda_connect_lsap (dc_irda_t *device, unsigned int address, unsigned int lsap)
+dc_irda_connect_lsap (dc_iostream_t *abstract, unsigned int address, unsigned int lsap)
 {
 #ifdef IRDA
-	if (device == NULL)
+	dc_irda_t *device = (dc_irda_t *) abstract;
+
+	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Connect: address=%08x, lsap=%u", address, lsap);
+	INFO (abstract->context, "Connect: address=%08x, lsap=%u", address, lsap);
 
 #ifdef _WIN32
 	SOCKADDR_IRDA peer;
@@ -399,7 +416,7 @@ dc_irda_connect_lsap (dc_irda_t *device, unsigned int address, unsigned int lsap
 
 	if (connect (device->fd, (struct sockaddr *) &peer, sizeof (peer)) != 0) {
 		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (device->context, errcode);
+		SYSERROR (abstract->context, errcode);
 		return syserror(errcode);
 	}
 
@@ -409,12 +426,11 @@ dc_irda_connect_lsap (dc_irda_t *device, unsigned int address, unsigned int lsap
 #endif
 }
 
-dc_status_t
-dc_irda_get_available (dc_irda_t *device, size_t *value)
-{
 #ifdef IRDA
-	if (device == NULL)
-		return DC_STATUS_INVALIDARGS;
+static dc_status_t
+dc_irda_get_available (dc_iostream_t *abstract, size_t *value)
+{
+	dc_irda_t *device = (dc_irda_t *) abstract;
 
 #ifdef _WIN32
 	unsigned long bytes = 0;
@@ -424,7 +440,7 @@ dc_irda_get_available (dc_irda_t *device, size_t *value)
 
 	if (S_IOCTL (device->fd, FIONREAD, &bytes) != 0) {
 		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (device->context, errcode);
+		SYSERROR (abstract->context, errcode);
 		return syserror(errcode);
 	}
 
@@ -432,22 +448,14 @@ dc_irda_get_available (dc_irda_t *device, size_t *value)
 		*value = bytes;
 
 	return DC_STATUS_SUCCESS;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
-dc_status_t
-dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
+static dc_status_t
+dc_irda_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
 {
-#ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_irda_t *device = (dc_irda_t *) abstract;
 	size_t nbytes = 0;
-
-	if (device == NULL) {
-		status = DC_STATUS_INVALIDARGS;
-		goto out_invalidargs;
-	}
 
 	while (nbytes < size) {
 		fd_set fds;
@@ -467,7 +475,7 @@ dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode == S_EINTR)
 				continue; // Retry.
-			SYSERROR (device->context, errcode);
+			SYSERROR (abstract->context, errcode);
 			status = syserror(errcode);
 			goto out;
 		} else if (rc == 0) {
@@ -479,7 +487,7 @@ dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode == S_EINTR || errcode == S_EAGAIN)
 				continue; // Retry.
-			SYSERROR (device->context, errcode);
+			SYSERROR (abstract->context, errcode);
 			status = syserror(errcode);
 			goto out;
 		} else if (n == 0) {
@@ -494,29 +502,18 @@ dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 	}
 
 out:
-	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
-
-out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
-dc_status_t
-dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
+static dc_status_t
+dc_irda_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *actual)
 {
-#ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_irda_t *device = (dc_irda_t *) abstract;
 	size_t nbytes = 0;
-
-	if (device == NULL) {
-		status = DC_STATUS_INVALIDARGS;
-		goto out_invalidargs;
-	}
 
 	while (nbytes < size) {
 		fd_set fds;
@@ -528,7 +525,7 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode == S_EINTR)
 				continue; // Retry.
-			SYSERROR (device->context, errcode);
+			SYSERROR (abstract->context, errcode);
 			status = syserror(errcode);
 			goto out;
 		} else if (rc == 0) {
@@ -540,7 +537,7 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode == S_EINTR || errcode == S_EAGAIN)
 				continue; // Retry.
-			SYSERROR (device->context, errcode);
+			SYSERROR (abstract->context, errcode);
 			status = syserror(errcode);
 			goto out;
 		} else if (n == 0) {
@@ -555,14 +552,9 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 	}
 
 out:
-	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (const unsigned char *) data, nbytes);
-
-out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
+#endif
