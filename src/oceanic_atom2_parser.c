@@ -258,7 +258,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case AMPHOS:
 		case AMPHOSAIR:
 		case VOYAGER2G:
-			datetime->year   = (p[3] & 0x0F) + 2000;
+			datetime->year   = (p[3] & 0x1F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
 			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
 			datetime->hour   = bcd2dec (p[1] & 0x1F);
