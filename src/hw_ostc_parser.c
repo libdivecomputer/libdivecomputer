@@ -33,6 +33,8 @@
 #define MAXCONFIG 7
 #define NGASMIXES 15
 
+#define UNDEFINED 0xFF
+
 #define ALL    0
 #define FIXED  1
 #define MANUAL 2
@@ -211,7 +213,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	}
 
 	// Get all the gas mixes, and the index of the inital mix.
-	unsigned int initial = 0;
+	unsigned int initial = UNDEFINED;
 	unsigned int ngasmixes = 0;
 	hw_ostc_gasmix_t gasmix[NGASMIXES] = {{0}};
 	if (version == 0x22) {
@@ -227,7 +229,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].oxygen = data[28 + 4 * i + 0];
 			gasmix[i].helium = data[28 + 4 * i + 1];
 			// Find the first gas marked as the initial gas.
-			if (!initial && data[28 + 4 * i + 3] == 1) {
+			if (initial == UNDEFINED && data[28 + 4 * i + 3] == 1) {
 				initial = i + 1; /* One based index! */
 			}
 		}
@@ -239,7 +241,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].helium = data[19 + 2 * i + 1];
 		}
 	}
-	if (initial != 0xFF) {
+	if (initial != UNDEFINED) {
 		if (initial < 1 || initial > ngasmixes) {
 			ERROR(abstract->context, "Invalid initial gas mix.");
 			return DC_STATUS_DATAFORMAT;
@@ -604,7 +606,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Initial gas mix.
-		if (time == samplerate && parser->initial != 0xFF) {
+		if (time == samplerate && parser->initial != UNDEFINED) {
 			sample.gasmix = parser->initial;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
 #ifdef ENABLE_DEPRECATED
