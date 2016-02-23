@@ -672,9 +672,6 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 				break;
 			if (!callback(dc_buffer_get_data(file), dc_buffer_get_size(file), NULL, 0, userdata))
 				skip = 1;
-
-			// We've used up the buffer, so create a new one
-			file = dc_buffer_new(0);
 		}
 		progress.current++;
 		device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);
