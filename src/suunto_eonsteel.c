@@ -52,6 +52,7 @@ typedef struct suunto_eonsteel_device_t {
 	libusb_device_handle *handle;
 	unsigned int magic;
 	unsigned short seq;
+	unsigned char fingerprint[4];
 } suunto_eonsteel_device_t;
 
 // The EON Steel implements a small filesystem
@@ -81,13 +82,14 @@ struct directory_entry {
 #define READDIR_CMD    0x0910
 #define DIR_CLOSE_CMD  0x0a10
 
+static dc_status_t suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t suunto_eonsteel_device_close(dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
 	sizeof(suunto_eonsteel_device_t),
 	DC_FAMILY_SUUNTO_EONSTEEL,
-	NULL, /* set_fingerprint */
+	suunto_eonsteel_device_set_fingerprint, /* set_fingerprint */
 	NULL, /* read */
 	NULL, /* write */
 	NULL, /* dump */
@@ -570,6 +572,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 	// Set up the magic handshake fields
 	eon->magic = INIT_MAGIC;
 	eon->seq = INIT_SEQ;
+	memset (eon->fingerprint, 0, sizeof (eon->fingerprint));
 
 	if (libusb_init(&eon->ctx)) {
 		ERROR(context, "libusb_init() failed");
@@ -620,6 +623,22 @@ static int count_dir_entries(struct directory_entry *de)
 }
 
 static dc_status_t
+suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	suunto_eonsteel_device_t *device = (suunto_eonsteel_device_t *) abstract;
+
+	if (size && size != sizeof (device->fingerprint))
+		return DC_STATUS_INVALIDARGS;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
 suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	int skip = 0, rc;
@@ -642,6 +661,8 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 		int len;
 		struct directory_entry *next = de->next;
 		unsigned char buf[4];
+		const unsigned char *data = NULL;
+		unsigned int size = 0;
 
 		if (device_is_cancelled(abstract))
 			skip = 1;
@@ -668,9 +689,16 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 			rc = read_file(eon, pathname, file);
 			if (rc < 0)
 				break;
-			if (!callback)
+
+			data = dc_buffer_get_data(file);
+			size = dc_buffer_get_size(file);
+
+			if (memcmp (data, eon->fingerprint, sizeof (eon->fingerprint)) == 0) {
+				skip = 1;
 				break;
-			if (!callback(dc_buffer_get_data(file), dc_buffer_get_size(file), NULL, 0, userdata))
+			}
+
+			if (callback && !callback(data, size, data, sizeof(eon->fingerprint), userdata))
 				skip = 1;
 		}
 		progress.current++;
