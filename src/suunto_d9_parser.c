@@ -46,6 +46,12 @@
 #define D9tx     0x1B
 #define DX       0x1C
 
+#define ID_D6I_V1_MIX2 0x1871C062
+#define ID_D6I_V1_MIX3 0x1871C063
+#define ID_D6I_V2      0x18724062
+#define ID_D4I_V1      ID_D6I_V1_MIX2
+#define ID_D4I_V2      ID_D6I_V2
+
 #define AIR      0
 #define NITROX   1
 #define GAUGE    2
@@ -118,6 +124,9 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		return DC_STATUS_SUCCESS;
 	}
 
+	// Get the logbook id tag.
+	unsigned int id = array_uint32_le (data + 1);
+
 	// Gasmix information.
 	unsigned int gasmode_offset = 0x19;
 	unsigned int gasmix_offset = 0x21;
@@ -128,12 +137,18 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		gasmix_count = 8;
 	} else if (parser->model == D4i) {
 		gasmode_offset = 0x1D;
-		gasmix_offset = 0x5F;
+		if (id == ID_D4I_V2)
+			gasmix_offset = 0x67;
+		else
+			gasmix_offset = 0x5F;
 		gasmix_count = 1;
 	} else if (parser->model == D6i) {
 		gasmode_offset = 0x1D;
-		gasmix_offset = 0x5F;
-		if (data[1] == 0x63)
+		if (id == ID_D6I_V2)
+			gasmix_offset = 0x67;
+		else
+			gasmix_offset = 0x5F;
+		if (id == ID_D6I_V1_MIX3)
 			gasmix_count = 3;
 		else
 			gasmix_count = 2;
@@ -191,7 +206,11 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 			parser->gasmix = data[0x26];
 		} else if (parser->model == D4i || parser->model == D6i ||
 			parser->model == D9tx) {
-			parser->gasmix = data[0x28];
+			if (id == ID_D4I_V2 || id == ID_D6I_V2) {
+				parser->gasmix = data[0x2D];
+			} else {
+				parser->gasmix = data[0x28];
+			}
 		}
 	}
 	parser->config = config;
