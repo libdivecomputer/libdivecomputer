@@ -148,7 +148,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 			gasmix_offset = 0x67;
 		else
 			gasmix_offset = 0x5F;
-		if (id == ID_D6I_V1_MIX3)
+		if (id == ID_D6I_V1_MIX3 || id == ID_D6I_V2)
 			gasmix_count = 3;
 		else
 			gasmix_count = 2;
