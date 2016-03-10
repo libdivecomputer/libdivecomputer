@@ -77,6 +77,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "D6i",  DC_FAMILY_SUUNTO_D9, 0x1A},
 	{"Suunto", "D9tx", DC_FAMILY_SUUNTO_D9, 0x1B},
 	{"Suunto", "DX",   DC_FAMILY_SUUNTO_D9, 0x1C},
+	{"Suunto", "Vyper Novo", DC_FAMILY_SUUNTO_D9, 0x1D},
+	{"Suunto", "Zoop Novo",  DC_FAMILY_SUUNTO_D9, 0x1E},
 	/* Suunto EON Steel */
 #ifdef HAVE_LIBUSB
 	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0},
