@@ -234,16 +234,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	unsigned int ngasmixes = 0;
 	unsigned int oxygen[NGASMIXES] = {0};
 	unsigned int helium[NGASMIXES] = {0};
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		unsigned int o2 = data[20 + i];
-		unsigned int he = data[30 + i];
-		if (o2 == 0 && he == 0)
-			continue;
-		oxygen[ngasmixes] = o2;
-		helium[ngasmixes] = he;
-		ngasmixes++;
-	}
-
+	unsigned int o2_previous = 0, he_previous = 0;
 
 	unsigned int offset = headersize;
 	unsigned int length = size - footersize;
@@ -258,6 +249,33 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		unsigned int status = data[offset + 11];
 		if ((status & OC) == 0) {
 			mode = DC_DIVEMODE_CC;
+		}
+
+		// Gaschange.
+		unsigned int o2 = data[offset + 7];
+		unsigned int he = data[offset + 8];
+		if (o2 != o2_previous || he != he_previous) {
+			// Find the gasmix in the list.
+			unsigned int idx = 0;
+			while (idx < ngasmixes) {
+				if (o2 == oxygen[idx] && he == helium[idx])
+					break;
+				idx++;
+			}
+
+			// Add it to list if not found.
+			if (idx >= ngasmixes) {
+				if (idx >= NGASMIXES) {
+					ERROR (abstract->context, "Maximum number of gas mixes reached.");
+					return DC_STATUS_NOMEMORY;
+				}
+				oxygen[idx] = o2;
+				helium[idx] = he;
+				ngasmixes = idx + 1;
+			}
+
+			o2_previous = o2;
+			he_previous = he;
 		}
 
 		offset += parser->samplesize;
