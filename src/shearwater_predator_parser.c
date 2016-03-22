@@ -61,6 +61,7 @@ struct shearwater_predator_parser_t {
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
+	dc_divemode_t mode;
 };
 
 static dc_status_t shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -139,6 +140,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->mode = DC_DIVEMODE_OC;
 
 	*out = (dc_parser_t *) parser;
 
@@ -174,6 +176,7 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->mode = DC_DIVEMODE_OC;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -224,6 +227,9 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		}
 	}
 
+	// Default dive mode.
+	dc_divemode_t mode = DC_DIVEMODE_OC;
+
 	// Get the gas mixes.
 	unsigned int ngasmixes = 0;
 	unsigned int oxygen[NGASMIXES] = {0};
@@ -238,28 +244,9 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		ngasmixes++;
 	}
 
-	// Cache the data for later use.
-	parser->headersize = headersize;
-	parser->footersize = footersize;
-	parser->ngasmixes = ngasmixes;
-	for (unsigned int i = 0; i < ngasmixes; ++i) {
-		parser->oxygen[i] = oxygen[i];
-		parser->helium[i] = helium[i];
-	}
-	parser->cached = 1;
 
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_divemode_t
-shearwater_predator_parser_get_divemode (shearwater_predator_parser_t *parser)
-{
-	dc_parser_t *abstract = (dc_parser_t *) parser;
-	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
-
-	unsigned int offset = parser->headersize;
-	unsigned int length = size - parser->footersize;
+	unsigned int offset = headersize;
+	unsigned int length = size - footersize;
 	while (offset < length) {
 		// Ignore empty samples.
 		if (array_isequal (data + offset, parser->samplesize, 0x00)) {
@@ -270,13 +257,24 @@ shearwater_predator_parser_get_divemode (shearwater_predator_parser_t *parser)
 		// Status flags.
 		unsigned int status = data[offset + 11];
 		if ((status & OC) == 0) {
-			return DC_DIVEMODE_CC;
+			mode = DC_DIVEMODE_CC;
 		}
 
 		offset += parser->samplesize;
 	}
 
-	return DC_DIVEMODE_OC;
+	// Cache the data for later use.
+	parser->headersize = headersize;
+	parser->footersize = footersize;
+	parser->ngasmixes = ngasmixes;
+	for (unsigned int i = 0; i < ngasmixes; ++i) {
+		parser->oxygen[i] = oxygen[i];
+		parser->helium[i] = helium[i];
+	}
+	parser->mode = mode;
+	parser->cached = 1;
+
+	return DC_STATUS_SUCCESS;
 }
 
 static dc_status_t
@@ -333,7 +331,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			*((double *) value) = array_uint16_be (data + 47) / 1000.0;
 			break;
 		case DC_FIELD_DIVEMODE:
-			*((dc_divemode_t *) value) = shearwater_predator_parser_get_divemode (parser);
+			*((dc_divemode_t *) value) = parser->mode;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
