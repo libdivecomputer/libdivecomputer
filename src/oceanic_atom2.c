@@ -180,6 +180,10 @@ static const oceanic_common_version_t aeris_a300cs_version[] = {
 	{"OCEANVTX \0\0 2048"},
 };
 
+static const oceanic_common_version_t aqualung_i450t_version[] = {
+	{"AQUAI450 \0\0 2048"},
+};
+
 static const oceanic_common_layout_t aeris_f10_layout = {
 	0x10000, /* memsize */
 	0x0000, /* cf_devinfo */
@@ -401,6 +405,18 @@ static const oceanic_common_layout_t aeris_a300cs_layout = {
 	1 /* pt_mode_logbook */
 };
 
+static const oceanic_common_layout_t aqualung_i450t_layout = {
+	0x40000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x10C0, /* rb_logbook_begin */
+	0x1400, /* rb_logbook_end */
+	16, /* rb_logbook_entry_size */
+	0x1400, /* rb_profile_begin */
+	0x3FE00, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1 /* pt_mode_logbook */
+};
 
 static dc_status_t
 oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int crc_size)
@@ -634,6 +650,8 @@ oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_a300cs_version)) {
 		device->base.layout = &aeris_a300cs_layout;
 		device->bigpage = 16;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, aqualung_i450t_version)) {
+		device->base.layout = &aqualung_i450t_layout;
 	} else {
 		device->base.layout = &oceanic_default_layout;
 	}
