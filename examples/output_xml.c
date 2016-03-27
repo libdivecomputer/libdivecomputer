@@ -154,6 +154,11 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 	dctool_xml_output_t *output = (dctool_xml_output_t *) abstract;
 	dc_status_t status = DC_STATUS_SUCCESS;
 
+	// Initialize the sample data.
+	sample_data_t sampledata = {0};
+	sampledata.nsamples = 0;
+	sampledata.ostream = output->ostream;
+
 	fprintf (output->ostream, "<dive>\n<number>%u</number>\n<size>%u</size>\n", abstract->number, size);
 
 	if (fingerprint) {
@@ -331,11 +336,6 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 			atmospheric);
 	}
 
-	// Initialize the sample data.
-	sample_data_t sampledata = {0};
-	sampledata.nsamples = 0;
-	sampledata.ostream = output->ostream;
-
 	// Parse the sample data.
 	message ("Parsing the sample data.\n");
 	status = dc_parser_samples_foreach (parser, sample_cb, &sampledata);
@@ -344,11 +344,12 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 		goto cleanup;
 	}
 
+cleanup:
+
 	if (sampledata.nsamples)
 		fprintf (output->ostream, "</sample>\n");
 	fprintf (output->ostream, "</dive>\n");
 
-cleanup:
 	return status;
 }
 
