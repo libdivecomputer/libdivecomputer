@@ -246,6 +246,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_buffer_t *fingerprint = NULL;
 	dctool_output_t *output = NULL;
+	dctool_units_t units = DCTOOL_UNITS_METRIC;
 
 	// Default option values.
 	unsigned int help = 0;
@@ -256,7 +257,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ho:p:c:f:";
+	const char *optstring = "ho:p:c:f:u:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
@@ -264,6 +265,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		{"fingerprint", required_argument, 0, 'p'},
 		{"cache",       required_argument, 0, 'c'},
 		{"format",      required_argument, 0, 'f'},
+		{"units",       required_argument, 0, 'u'},
 		{0,             0,                 0,  0 }
 	};
 	while ((opt = getopt_long (argc, argv, optstring, options, NULL)) != -1) {
@@ -286,6 +288,12 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		case 'f':
 			format = optarg;
 			break;
+		case 'u':
+			if (strcmp (optarg, "metric") == 0)
+				units = DCTOOL_UNITS_METRIC;
+			if (strcmp (optarg, "imperial") == 0)
+				units = DCTOOL_UNITS_IMPERIAL;
+			break;
 		default:
 			return EXIT_FAILURE;
 		}
@@ -307,7 +315,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	if (strcasecmp(format, "raw") == 0) {
 		output = dctool_raw_output_new (filename);
 	} else if (strcasecmp(format, "xml") == 0) {
-		output = dctool_xml_output_new (filename);
+		output = dctool_xml_output_new (filename, units);
 	} else {
 		message ("Unknown output format: %s\n", format);
 		exitcode = EXIT_FAILURE;
@@ -348,12 +356,14 @@ const dctool_command_t dctool_download = {
 	"   -p, --fingerprint <data>   Fingerprint data (hexadecimal)\n"
 	"   -c, --cache <directory>    Cache directory\n"
 	"   -f, --format <format>      Output format\n"
+	"   -u, --units <units>        Set units (metric or imperial)\n"
 #else
 	"   -h                 Show help message\n"
 	"   -o <filename>      Output filename\n"
 	"   -p <fingerprint>   Fingerprint data (hexadecimal)\n"
 	"   -c <directory>     Cache directory\n"
 	"   -f <format>        Output format\n"
+	"   -u <units>         Set units (metric or imperial)\n"
 #endif
 	"\n"
 	"Supported output formats:\n"

@@ -31,8 +31,13 @@ extern "C" {
 
 typedef struct dctool_output_t dctool_output_t;
 
+typedef enum dctool_units_t {
+	DCTOOL_UNITS_METRIC,
+	DCTOOL_UNITS_IMPERIAL
+} dctool_units_t;
+
 dctool_output_t *
-dctool_xml_output_new (const char *filename);
+dctool_xml_output_new (const char *filename, dctool_units_t units);
 
 dctool_output_t *
 dctool_raw_output_new (const char *template);

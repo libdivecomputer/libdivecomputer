@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
@@ -196,6 +197,7 @@ dctool_parse_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_buffer_t *buffer = NULL;
 	dctool_output_t *output = NULL;
+	dctool_units_t units = DCTOOL_UNITS_METRIC;
 
 	// Default option values.
 	unsigned int help = 0;
@@ -205,13 +207,14 @@ dctool_parse_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ho:d:s:";
+	const char *optstring = "ho:d:s:u:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
 		{"output",      required_argument, 0, 'o'},
 		{"devtime",     required_argument, 0, 'd'},
 		{"systime",     required_argument, 0, 's'},
+		{"units",       required_argument, 0, 'u'},
 		{0,             0,                 0,  0 }
 	};
 	while ((opt = getopt_long (argc, argv, optstring, options, NULL)) != -1) {
@@ -231,6 +234,12 @@ dctool_parse_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 		case 's':
 			systime = strtoll (optarg, NULL, 0);
 			break;
+		case 'u':
+			if (strcmp (optarg, "metric") == 0)
+				units = DCTOOL_UNITS_METRIC;
+			if (strcmp (optarg, "imperial") == 0)
+				units = DCTOOL_UNITS_IMPERIAL;
+			break;
 		default:
 			return EXIT_FAILURE;
 		}
@@ -246,7 +255,7 @@ dctool_parse_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 	}
 
 	// Create the output.
-	output = dctool_xml_output_new (filename);
+	output = dctool_xml_output_new (filename, units);
 	if (output == NULL) {
 		message ("Failed to create the output.\n");
 		exitcode = EXIT_FAILURE;
@@ -295,10 +304,12 @@ const dctool_command_t dctool_parse = {
 	"   -o, --output <filename>    Output filename\n"
 	"   -d, --devtime <timestamp>  Device time\n"
 	"   -s, --systime <timestamp>  System time\n"
+	"   -u, --units <units>        Set units (metric or imperial)\n"
 #else
 	"   -h              Show help message\n"
 	"   -o <filename>   Output filename\n"
 	"   -d <devtime>    Device time\n"
 	"   -s <systime>    System time\n"
+	"   -u <units>      Set units (metric or imperial)\n"
 #endif
 };
