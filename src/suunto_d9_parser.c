@@ -53,6 +53,8 @@
 #define ID_D6I_V2      0x18724062
 #define ID_D4I_V1      ID_D6I_V1_MIX2
 #define ID_D4I_V2      ID_D6I_V2
+#define ID_DX_V1       0x18922062
+#define ID_DX_V2       0x18924062
 
 #define AIR      0
 #define NITROX   1
@@ -160,7 +162,10 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		gasmix_count = 8;
 	} else if (parser->model == DX) {
 		gasmode_offset = 0x21;
-		gasmix_offset = 0xC1;
+		if (id == ID_DX_V2)
+			gasmix_offset = 0xC3;
+		else
+			gasmix_offset = 0xC1;
 		gasmix_count = 11;
 	}
 
