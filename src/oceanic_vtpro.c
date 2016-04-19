@@ -31,7 +31,7 @@
 #include "ringbuffer.h"
 #include "checksum.h"
 
-#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_vtpro_device_vtable)
+#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_vtpro_device_vtable.base)
 
 #define MAXRETRIES 2
 #define MULTIPAGE  4
@@ -48,15 +48,19 @@ typedef struct oceanic_vtpro_device_t {
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_vtpro_device_close (dc_device_t *abstract);
 
-static const dc_device_vtable_t oceanic_vtpro_device_vtable = {
-	sizeof(oceanic_vtpro_device_t),
-	DC_FAMILY_OCEANIC_VTPRO,
-	oceanic_common_device_set_fingerprint, /* set_fingerprint */
-	oceanic_vtpro_device_read, /* read */
-	NULL, /* write */
-	oceanic_common_device_dump, /* dump */
-	oceanic_common_device_foreach, /* foreach */
-	oceanic_vtpro_device_close /* close */
+static const oceanic_common_device_vtable_t oceanic_vtpro_device_vtable = {
+	{
+		sizeof(oceanic_vtpro_device_t),
+		DC_FAMILY_OCEANIC_VTPRO,
+		oceanic_common_device_set_fingerprint, /* set_fingerprint */
+		oceanic_vtpro_device_read, /* read */
+		NULL, /* write */
+		oceanic_common_device_dump, /* dump */
+		oceanic_common_device_foreach, /* foreach */
+		oceanic_vtpro_device_close /* close */
+	},
+	oceanic_common_device_logbook,
+	oceanic_common_device_profile,
 };
 
 static const oceanic_common_version_t oceanic_vtpro_version[] = {
@@ -260,7 +264,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (oceanic_vtpro_device_t *) dc_device_allocate (context, &oceanic_vtpro_device_vtable);
+	device = (oceanic_vtpro_device_t *) dc_device_allocate (context, &oceanic_vtpro_device_vtable.base);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;

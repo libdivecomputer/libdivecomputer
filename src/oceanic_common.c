@@ -29,6 +29,8 @@
 #include "ringbuffer.h"
 #include "array.h"
 
+#define VTABLE(abstract)	((oceanic_common_device_vtable_t *) abstract->vtable)
+
 #define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
 
@@ -187,7 +189,7 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 }
 
 
-static dc_status_t
+dc_status_t
 oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
@@ -408,7 +410,7 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 }
 
 
-static dc_status_t
+dc_status_t
 oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
@@ -655,7 +657,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	}
 
 	// Download the logbook ringbuffer.
-	rc = oceanic_common_device_logbook (abstract, &progress, logbook);
+	rc = VTABLE(abstract)->logbook (abstract, &progress, logbook);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (logbook);
 		return rc;
@@ -668,7 +670,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	}
 
 	// Download the profile ringbuffer.
-	rc = oceanic_common_device_profile (abstract, &progress, logbook, callback, userdata);
+	rc = VTABLE(abstract)->profile (abstract, &progress, logbook, callback, userdata);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (logbook);
 		return rc;

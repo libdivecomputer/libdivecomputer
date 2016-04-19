@@ -32,7 +32,7 @@
 #include "ringbuffer.h"
 #include "checksum.h"
 
-#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable)
+#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
 #define VTX        0x4557
 
@@ -65,15 +65,19 @@ static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned in
 static dc_status_t oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static dc_status_t oceanic_atom2_device_close (dc_device_t *abstract);
 
-static const dc_device_vtable_t oceanic_atom2_device_vtable = {
-	sizeof(oceanic_atom2_device_t),
-	DC_FAMILY_OCEANIC_ATOM2,
-	oceanic_common_device_set_fingerprint, /* set_fingerprint */
-	oceanic_atom2_device_read, /* read */
-	oceanic_atom2_device_write, /* write */
-	oceanic_common_device_dump, /* dump */
-	oceanic_common_device_foreach, /* foreach */
-	oceanic_atom2_device_close /* close */
+static const oceanic_common_device_vtable_t oceanic_atom2_device_vtable = {
+	{
+		sizeof(oceanic_atom2_device_t),
+		DC_FAMILY_OCEANIC_ATOM2,
+		oceanic_common_device_set_fingerprint, /* set_fingerprint */
+		oceanic_atom2_device_read, /* read */
+		oceanic_atom2_device_write, /* write */
+		oceanic_common_device_dump, /* dump */
+		oceanic_common_device_foreach, /* foreach */
+		oceanic_atom2_device_close /* close */
+	},
+	oceanic_common_device_logbook,
+	oceanic_common_device_profile,
 };
 
 static const oceanic_common_version_t aeris_f10_version[] = {
@@ -544,7 +548,7 @@ oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (oceanic_atom2_device_t *) dc_device_allocate (context, &oceanic_atom2_device_vtable);
+	device = (oceanic_atom2_device_t *) dc_device_allocate (context, &oceanic_atom2_device_vtable.base);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
