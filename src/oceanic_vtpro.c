@@ -43,6 +43,7 @@
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	dc_serial_t *port;
+	unsigned int model;
 } oceanic_vtpro_device_t;
 
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -257,6 +258,13 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 dc_status_t
 oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
+	return oceanic_vtpro_device_open2 (out, context, name, 0);
+}
+
+
+dc_status_t
+oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+{
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = NULL;
 
@@ -278,6 +286,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 	// Set the default values.
 	device->port = NULL;
+	device->model = model;
 
 	// Open the device.
 	status = dc_serial_open (&device->port, context, name);

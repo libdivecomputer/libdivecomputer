@@ -92,7 +92,7 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = reefnet_sensusultra_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create (&parser, context);
+		rc = oceanic_vtpro_parser_create2 (&parser, context, device->devinfo.model);
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_parser_create (&parser, context, device->devinfo.model);

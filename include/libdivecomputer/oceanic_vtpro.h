@@ -34,6 +34,9 @@ dc_status_t
 oceanic_vtpro_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
+oceanic_vtpro_device_open2 (dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
+
+dc_status_t
 oceanic_vtpro_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
@@ -41,6 +44,9 @@ oceanic_vtpro_device_keepalive (dc_device_t *device);
 
 dc_status_t
 oceanic_vtpro_parser_create (dc_parser_t **parser, dc_context_t *context);
+
+dc_status_t
+oceanic_vtpro_parser_create2 (dc_parser_t **parser, dc_context_t *context, unsigned int model);
 
 #ifdef __cplusplus
 }

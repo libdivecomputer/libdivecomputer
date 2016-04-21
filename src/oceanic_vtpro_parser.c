@@ -35,6 +35,7 @@ typedef struct oceanic_vtpro_parser_t oceanic_vtpro_parser_t;
 
 struct oceanic_vtpro_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int divetime;
@@ -60,6 +61,13 @@ static const dc_parser_vtable_t oceanic_vtpro_parser_vtable = {
 dc_status_t
 oceanic_vtpro_parser_create (dc_parser_t **out, dc_context_t *context)
 {
+	return oceanic_vtpro_parser_create2 (out, context, 0);
+}
+
+
+dc_status_t
+oceanic_vtpro_parser_create2 (dc_parser_t **out, dc_context_t *context, unsigned int model)
+{
 	oceanic_vtpro_parser_t *parser = NULL;
 
 	if (out == NULL)
@@ -73,6 +81,7 @@ oceanic_vtpro_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
+	parser->model = model;
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;

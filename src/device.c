@@ -129,7 +129,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = reefnet_sensusultra_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_device_open (&device, context, name);
+		rc = oceanic_vtpro_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_device_open (&device, context, name);
