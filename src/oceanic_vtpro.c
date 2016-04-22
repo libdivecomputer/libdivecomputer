@@ -40,10 +40,16 @@
 #define NAK 0xA5
 #define END 0x51
 
+typedef enum oceanic_vtpro_protocol_t {
+	MOD,
+	INTR,
+} oceanic_vtpro_protocol_t;
+
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	dc_serial_t *port;
 	unsigned int model;
+	oceanic_vtpro_protocol_t protocol;
 } oceanic_vtpro_device_t;
 
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -179,8 +185,10 @@ oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the command to the dive computer.
-	unsigned char command[2] = {0xAA, 0x00};
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	unsigned char command[2][2] = {
+		{0xAA, 0x00},
+		{0x20, 0x00}};
+	status = dc_serial_write (device->port, command[device->protocol], sizeof (command[device->protocol]), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -195,10 +203,10 @@ oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 	}
 
 	// Verify the answer.
-	const unsigned char response[13] = {
-		0x4D, 0x4F, 0x44, 0x2D, 0x2D, 0x4F, 0x4B,
-		0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30};
-	if (memcmp (answer, response, sizeof (response)) != 0) {
+	const unsigned char response[2][13] = {
+		{0x4D, 0x4F, 0x44, 0x2D, 0x2D, 0x4F, 0x4B, 0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30},
+		{0x49, 0x4E, 0x54, 0x52, 0x2D, 0x4F, 0x4B, 0x5F, 0x56, 0x31, 0x2E, 0x31, 0x31}};
+	if (memcmp (answer, response[device->protocol], sizeof (response[device->protocol])) != 0) {
 		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -287,6 +295,7 @@ oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char
 	// Set the default values.
 	device->port = NULL;
 	device->model = model;
+	device->protocol = MOD;
 
 	// Open the device.
 	status = dc_serial_open (&device->port, context, name);
@@ -324,7 +333,7 @@ oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	dc_serial_sleep (device->port, 100);
+	dc_serial_sleep (device->port, device->protocol == MOD ? 100 : 1000);
 
 	// Make sure everything is in a sane state.
 	dc_serial_purge (device->port, DC_DIRECTION_ALL);
@@ -444,32 +453,36 @@ oceanic_vtpro_device_version (dc_device_t *abstract, unsigned char data[], unsig
 		return DC_STATUS_PROTOCOL;
 	}
 
-	// Obtain the device identification string. This string is
-	// split over two packets, but we join both parts again.
+	if (device->protocol == MOD) {
+		// Obtain the device identification string. This string is
+		// split over two packets, but we join both parts again.
+		for (unsigned int i = 0; i < 2; ++i) {
+			unsigned char command[4] = {0x72, 0x03, i * 0x10, 0x00};
+			unsigned char answer[PAGESIZE / 2 + 2] = {0};
+			rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
 
-	for (unsigned int i = 0; i < 2; ++i) {
-		unsigned char command[4] = {0x72, 0x03, i * 0x10, 0x00};
-		unsigned char answer[PAGESIZE / 2 + 2] = {0};
-		rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+			// Verify the checksum of the answer.
+			unsigned char crc = answer[PAGESIZE / 2];
+			unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
+			if (crc != ccrc) {
+				ERROR (abstract->context, "Unexpected answer checksum.");
+				return DC_STATUS_PROTOCOL;
+			}
 
-		// Verify the checksum of the answer.
-		unsigned char crc = answer[PAGESIZE / 2];
-		unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
-		if (crc != ccrc) {
-			ERROR (abstract->context, "Unexpected answer checksum.");
-			return DC_STATUS_PROTOCOL;
+			// Verify the last byte of the answer.
+			if (answer[PAGESIZE / 2 + 1] != END) {
+				ERROR (abstract->context, "Unexpected answer byte.");
+				return DC_STATUS_PROTOCOL;
+			}
+
+			// Append the answer to the output buffer.
+			memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
 		}
-
-		// Verify the last byte of the answer.
-		if (answer[PAGESIZE / 2 + 1] != END) {
-			ERROR (abstract->context, "Unexpected answer byte.");
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Append the answer to the output buffer.
-		memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
+	} else {
+		// Return an empty device identification string.
+		memset (data, 0x00, PAGESIZE);
 	}
 
 	return DC_STATUS_SUCCESS;
