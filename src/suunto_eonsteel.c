@@ -52,6 +52,7 @@ typedef struct suunto_eonsteel_device_t {
 	libusb_device_handle *handle;
 	unsigned int magic;
 	unsigned short seq;
+	unsigned char version[0x30];
 	unsigned char fingerprint[4];
 } suunto_eonsteel_device_t;
 
@@ -544,7 +545,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 		ERROR(eon->base.context, "Failed to send initialization command");
 		return -1;
 	}
-	if (receive_header(eon, &hdr, buf, sizeof(buf)) < 0) {
+	if (receive_header(eon, &hdr, eon->version, sizeof(eon->version)) < 0) {
 		ERROR(eon->base.context, "Failed to receive initial reply");
 		return -1;
 	}
@@ -572,6 +573,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 	// Set up the magic handshake fields
 	eon->magic = INIT_MAGIC;
 	eon->seq = INIT_SEQ;
+	memset (eon->version, 0, sizeof (eon->version));
 	memset (eon->fingerprint, 0, sizeof (eon->fingerprint));
 
 	if (libusb_init(&eon->ctx)) {
@@ -651,6 +653,13 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 
 	if (get_file_list(eon, &de) < 0)
 		return DC_STATUS_IO;
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = 0;
+	devinfo.firmware = array_uint32_be (eon->version + 0x20);
+	devinfo.serial = array_convert_str2num(eon->version + 0x10, 16);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	file = dc_buffer_new(0);
 	progress.maximum = count_dir_entries(de);

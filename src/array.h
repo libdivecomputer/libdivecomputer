@@ -50,6 +50,9 @@ int
 array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize);
 
 unsigned int
+array_convert_str2num (const unsigned char data[], unsigned int size);
+
+unsigned int
 array_uint_be (const unsigned char data[], unsigned int n);
 
 unsigned int
