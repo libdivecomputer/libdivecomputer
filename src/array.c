@@ -147,6 +147,20 @@ array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned
 }
 
 unsigned int
+array_convert_str2num (const unsigned char data[], unsigned int size)
+{
+	unsigned int value = 0;
+	for (unsigned int i = 0; i < size; ++i) {
+		if (data[i] < '0' || data[i] > '9')
+			break;
+		value *= 10;
+		value += data[i] - '0';
+	}
+
+	return value;
+}
+
+unsigned int
 array_uint_be (const unsigned char data[], unsigned int n)
 {
 	unsigned int shift = n * 8;
