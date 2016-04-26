@@ -83,6 +83,7 @@ static const dc_device_vtable_t oceanic_atom2_device_vtable = {
 
 static const oceanic_common_version_t aeris_f10_version[] = {
 	{"FREEWAER \0\0 512K"},
+	{"MUNDIAL R\0\0 512K"},
 };
 
 static const oceanic_common_version_t aeris_f11_version[] = {
