@@ -247,7 +247,8 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, PAGESIZE / 2, 0x00)) {
+		if (array_isequal (data + offset, PAGESIZE / 2, 0x00) ||
+			array_isequal (data + offset, PAGESIZE / 2, 0xFF)) {
 			offset += PAGESIZE / 2;
 			continue;
 		}
@@ -273,7 +274,8 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				unsigned int idx = offset + PAGESIZE / 2 ;
 				while (idx + PAGESIZE / 2 <= size - PAGESIZE) {
 					// Ignore empty samples.
-					if (array_isequal (data + idx, PAGESIZE / 2, 0x00)) {
+					if (array_isequal (data + idx, PAGESIZE / 2, 0x00) ||
+						array_isequal (data + idx, PAGESIZE / 2, 0xFF)) {
 						idx += PAGESIZE / 2;
 						continue;
 					}
