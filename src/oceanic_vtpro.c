@@ -36,18 +36,13 @@
 #define MAXRETRIES 2
 #define MULTIPAGE  4
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define ACK 0x5A
 #define NAK 0xA5
 #define END 0x51
 
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 } oceanic_vtpro_device_t;
 
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -107,24 +102,25 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 static dc_status_t
 oceanic_vtpro_send (oceanic_vtpro_device_t *device, const unsigned char command[], unsigned int csize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
 	// Send the command to the dive computer.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
+	status = dc_serial_write (device->port, command, csize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Receive the response (ACK/NAK) of the dive computer.
 	unsigned char response = NAK;
-	n = serial_read (device->port, &response, 1);
-	if (n != 1) {
+	status = dc_serial_read (device->port, &response, 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the response of the dive computer.
@@ -140,6 +136,7 @@ oceanic_vtpro_send (oceanic_vtpro_device_t *device, const unsigned char command[
 static dc_status_t
 oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the command to the device. If the device responds with an
@@ -160,10 +157,10 @@ oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char comm
 	}
 
 	// Receive the answer of the dive computer.
-	int n = serial_read (device->port, answer, asize);
-	if (n != asize) {
+	status = dc_serial_read (device->port, answer, asize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -173,22 +170,23 @@ oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char comm
 static dc_status_t
 oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the command to the dive computer.
 	unsigned char command[2] = {0xAA, 0x00};
-	int n = serial_write (device->port, command, sizeof (command));
-	if (n != sizeof (command)) {
+	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Receive the answer of the dive computer.
 	unsigned char answer[13] = {0};
-	n = serial_read (device->port, answer, sizeof (answer));
-	if (n != sizeof (answer)) {
+	status = dc_serial_read (device->port, answer, sizeof (answer), NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the answer.
@@ -236,9 +234,9 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 	// device needs approximately 6 seconds to respond.
 	unsigned char answer[2] = {0};
 	unsigned char command[2] = {0x18, 0x00};
-	serial_set_timeout (device->port, 9000);
+	dc_serial_set_timeout (device->port, 9000);
 	dc_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-	serial_set_timeout (device->port, 3000);
+	dc_serial_set_timeout (device->port, 3000);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -278,41 +276,45 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	device->port = NULL;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
-	rc = serial_configure (device->port, 9600, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
-	if (serial_set_timeout (device->port, 3000) == -1) {
+	status = dc_serial_set_timeout (device->port, 3000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Set the DTR and RTS lines.
-	if (serial_set_dtr (device->port, 1) == -1 ||
-		serial_set_rts (device->port, 1) == -1) {
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Set the DTR line.
+	status = dc_serial_set_dtr (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the DTR line.");
+		goto error_close;
+	}
+
+	// Set the RTS line.
+	status = dc_serial_set_rts (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the RTS line.");
 		goto error_close;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	serial_sleep (device->port, 100);
+	dc_serial_sleep (device->port, 100);
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	// Initialize the data cable (MOD mode).
 	status = oceanic_vtpro_init (device);
@@ -348,7 +350,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -360,13 +362,15 @@ oceanic_vtpro_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Switch the device back to surface mode.
 	oceanic_vtpro_quit (device);
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;

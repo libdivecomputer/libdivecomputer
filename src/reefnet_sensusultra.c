@@ -33,11 +33,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &reefnet_sensusultra_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define SZ_PACKET    512
 #define SZ_MEMORY    2080768
 #define SZ_USER      16384
@@ -51,7 +46,7 @@
 
 typedef struct reefnet_sensusultra_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned char handshake[SZ_HANDSHAKE];
 	unsigned int timestamp;
 	unsigned int devtime;
@@ -99,37 +94,35 @@ reefnet_sensusultra_device_open (dc_device_t **out, dc_context_t *context, const
 	memset (device->handshake, 0, sizeof (device->handshake));
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (115200 8N1).
-	rc = serial_configure (device->port, 115200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (3000ms).
-	if (serial_set_timeout (device->port, 3000) == -1) {
+	status = dc_serial_set_timeout (device->port, 3000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -141,10 +134,12 @@ reefnet_sensusultra_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -190,14 +185,15 @@ reefnet_sensusultra_device_set_fingerprint (dc_device_t *abstract, const unsigne
 static dc_status_t
 reefnet_sensusultra_send_uchar (reefnet_sensusultra_device_t *device, unsigned char value)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Wait for the prompt byte.
 	unsigned char prompt = 0;
-	int rc = serial_read (device->port, &prompt, 1);
-	if (rc != 1) {
+	status = dc_serial_read (device->port, &prompt, 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the prompt byte");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Verify the prompt byte.
@@ -207,10 +203,10 @@ reefnet_sensusultra_send_uchar (reefnet_sensusultra_device_t *device, unsigned c
 	}
 
 	// Send the value to the device.
-	rc = serial_write (device->port, &value, 1);
-	if (rc != 1) {
+	status = dc_serial_write (device->port, &value, 1, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the value.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -239,18 +235,19 @@ reefnet_sensusultra_send_ushort (reefnet_sensusultra_device_t *device, unsigned 
 static dc_status_t
 reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char *data, unsigned int size, unsigned int header)
 {
-	assert (size >= header + 2);
-
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+
+	assert (size >= header + 2);
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
 	// Receive the data packet.
-	int rc = serial_read (device->port, data, size);
-	if (rc != size) {
+	status = dc_serial_read (device->port, data, size, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the packet.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Verify the checksum of the packet.
@@ -349,7 +346,7 @@ static dc_status_t
 reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short command)
 {
 	// Flush the input and output buffers.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	// Wake-up the device and send the instruction code.
 	unsigned int nretries = 0;
@@ -369,8 +366,8 @@ reefnet_sensusultra_send (reefnet_sensusultra_device_t *device, unsigned short c
 		// not accidentally buffered by the host and (mis)interpreted as part
 		// of the next packet.
 
-		serial_sleep (device->port, 250);
-		serial_flush (device->port, SERIAL_QUEUE_BOTH);
+		dc_serial_sleep (device->port, 250);
+		dc_serial_purge (device->port, DC_DIRECTION_ALL);
 	}
 
 	return DC_STATUS_SUCCESS;

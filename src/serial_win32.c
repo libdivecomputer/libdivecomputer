@@ -25,9 +25,10 @@
 #include <windows.h>
 
 #include "serial.h"
+#include "common-private.h"
 #include "context-private.h"
 
-struct serial_t {
+struct dc_serial_t {
 	/* Library context. */
 	dc_context_t *context;
 	/*
@@ -47,17 +48,34 @@ struct serial_t {
 	unsigned int nbits;
 };
 
-int
-serial_enumerate (serial_callback_t callback, void *userdata)
+static dc_status_t
+syserror(DWORD errcode)
+{
+	switch (errcode) {
+	case ERROR_INVALID_PARAMETER:
+		return DC_STATUS_INVALIDARGS;
+	case ERROR_OUTOFMEMORY:
+		return DC_STATUS_NOMEMORY;
+	case ERROR_FILE_NOT_FOUND:
+		return DC_STATUS_NODEVICE;
+	case ERROR_ACCESS_DENIED:
+		return DC_STATUS_NOACCESS;
+	default:
+		return DC_STATUS_IO;
+	}
+}
+
+dc_status_t
+dc_serial_enumerate (dc_serial_callback_t callback, void *userdata)
 {
 	// Open the registry key.
 	HKEY hKey;
 	LONG rc = RegOpenKeyExA (HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\SERIALCOMM", 0, KEY_QUERY_VALUE, &hKey);
 	if (rc != ERROR_SUCCESS) {
 		if (rc == ERROR_FILE_NOT_FOUND)
-			return 0;
+			return DC_STATUS_SUCCESS;
 		else
-			return -1;
+			return DC_STATUS_IO;
 	}
 
 	// Get the number of values.
@@ -65,7 +83,7 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 	rc = RegQueryInfoKey (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &count, NULL, NULL, NULL, NULL);
 	if (rc != ERROR_SUCCESS) {
 		RegCloseKey(hKey);
-		return -1;
+		return DC_STATUS_IO;
 	}
 
 	for (DWORD i = 0; i < count; ++i) {
@@ -77,7 +95,7 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 		rc = RegEnumValueA (hKey, i, name, &name_len, NULL, &type, (LPBYTE) data, &data_len);
 		if (rc != ERROR_SUCCESS) {
 			RegCloseKey(hKey);
-			return -1;
+			return DC_STATUS_IO;
 		}
 
 		// Ignore non-string values.
@@ -87,7 +105,7 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 		// Prevent a possible buffer overflow.
 		if (data_len >= sizeof (data)) {
 			RegCloseKey(hKey);
-			return -1;
+			return DC_STATUS_NOMEMORY;
 		}
 
 		// Null terminate the string.
@@ -98,18 +116,16 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 
 	RegCloseKey(hKey);
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-//
-// Open the serial port.
-//
-
-int
-serial_open (serial_t **out, dc_context_t *context, const char* name)
+dc_status_t
+dc_serial_open (dc_serial_t **out, dc_context_t *context, const char *name)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	if (out == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (context, "Open: name=%s", name ? name : "");
 
@@ -119,7 +135,7 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	if (name && strncmp (name, buffer, 4) != 0) {
 		size_t length = strlen (name) + 1;
 		if (length + 4 > sizeof (buffer))
-			return -1;
+			return DC_STATUS_NOMEMORY;
 		memcpy (buffer + 4, name, length);
 		devname = buffer;
 	} else {
@@ -127,10 +143,10 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	}
 
 	// Allocate memory.
-	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
+	dc_serial_t *device = (dc_serial_t *) malloc (sizeof (dc_serial_t));
 	if (device == NULL) {
 		SYSERROR (context, ERROR_OUTOFMEMORY);
-		return -1; // ERROR_OUTOFMEMORY (Not enough storage is available to complete this operation)
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Library context.
@@ -149,7 +165,9 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 			0, // Non-overlapped I/O.
 			NULL);
 	if (device->hFile == INVALID_HANDLE_VALUE) {
-		SYSERROR (context, GetLastError ());
+		DWORD errcode = GetLastError ();
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_free;
 	}
 
@@ -159,61 +177,57 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	// represents a serial device.
 	if (!GetCommState (device->hFile, &device->dcb) ||
 		!GetCommTimeouts (device->hFile, &device->timeouts)) {
-		SYSERROR (context, GetLastError ());
+		DWORD errcode = GetLastError ();
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_close;
 	}
 
 	*out = device;
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 
 error_close:
 	CloseHandle (device->hFile);
 error_free:
 	free (device);
-	return -1;
+	return status;
 }
 
-//
-// Close the serial port.
-//
-
-int
-serial_close (serial_t *device)
+dc_status_t
+dc_serial_close (dc_serial_t *device)
 {
-	int errcode = 0;
+	dc_status_t status = DC_STATUS_SUCCESS;
 
 	if (device == NULL)
-		return 0;
+		return DC_STATUS_SUCCESS;
 
 	// Restore the initial communication settings and timeouts.
 	if (!SetCommState (device->hFile, &device->dcb) ||
 		!SetCommTimeouts (device->hFile, &device->timeouts)) {
-		SYSERROR (device->context, GetLastError ());
-		errcode = -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
 	}
 
 	// Close the device.
 	if (!CloseHandle (device->hFile)) {
-		SYSERROR (device->context, GetLastError ());
-		errcode = -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
 	}
 
 	// Free memory.
 	free (device);
 
-	return errcode;
+	return status;
 }
 
-//
-// Configure the serial port (baudrate, databits, parity, stopbits and flowcontrol).
-//
-
-int
-serial_configure (serial_t *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol)
+dc_status_t
+dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "Configure: baudrate=%i, databits=%i, parity=%i, stopbits=%i, flowcontrol=%i",
 		baudrate, databits, parity, stopbits, flowcontrol);
@@ -221,8 +235,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	// Retrieve the current settings.
 	DCB dcb;
 	if (!GetCommState (device->hFile, &dcb)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	dcb.fBinary = TRUE; // Enable Binary Transmission
@@ -235,40 +250,52 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	if (databits >= 5 && databits <= 8)
 		dcb.ByteSize = databits;
 	else
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 
 	// Parity checking.
 	switch (parity) {
-	case SERIAL_PARITY_NONE: // No parity
+	case DC_PARITY_NONE:
 		dcb.Parity = NOPARITY;
 		dcb.fParity = FALSE;
 		break;
-	case SERIAL_PARITY_EVEN: // Even parity
+	case DC_PARITY_EVEN:
 		dcb.Parity = EVENPARITY;
 		dcb.fParity = TRUE;
 		break;
-	case SERIAL_PARITY_ODD: // Odd parity
+	case DC_PARITY_ODD:
 		dcb.Parity = ODDPARITY;
 		dcb.fParity = TRUE;
 		break;
+	case DC_PARITY_MARK:
+		dcb.Parity = MARKPARITY;
+		dcb.fParity = TRUE;
+		break;
+	case DC_PARITY_SPACE:
+		dcb.Parity = SPACEPARITY;
+		dcb.fParity = TRUE;
+		break;
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
+
 	// Stopbits.
 	switch (stopbits) {
-	case 1: // One stopbit
+	case DC_STOPBITS_ONE:
 		dcb.StopBits = ONESTOPBIT;
 		break;
-	case 2: // Two stopbits
+	case DC_STOPBITS_ONEPOINTFIVE:
+		dcb.StopBits = ONE5STOPBITS;
+		break;
+	case DC_STOPBITS_TWO:
 		dcb.StopBits = TWOSTOPBITS;
 		break;
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Flow control.
 	switch (flowcontrol) {
-	case SERIAL_FLOWCONTROL_NONE: // No flow control.
+	case DC_FLOWCONTROL_NONE:
 		dcb.fInX = FALSE;
 		dcb.fOutX = FALSE;
 		dcb.fOutxCtsFlow = FALSE;
@@ -276,7 +303,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		dcb.fDtrControl = DTR_CONTROL_ENABLE;
 		dcb.fRtsControl = RTS_CONTROL_ENABLE;
 		break;
-	case SERIAL_FLOWCONTROL_HARDWARE: // Hardware (RTS/CTS) flow control.
+	case DC_FLOWCONTROL_HARDWARE:
 		dcb.fInX = FALSE;
 		dcb.fOutX = FALSE;
 		dcb.fOutxCtsFlow = TRUE;
@@ -284,7 +311,7 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		dcb.fDtrControl = DTR_CONTROL_HANDSHAKE;
 		dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
 		break;
-	case SERIAL_FLOWCONTROL_SOFTWARE: // Software (XON/XOFF) flow control.
+	case DC_FLOWCONTROL_SOFTWARE:
 		dcb.fInX = TRUE;
 		dcb.fOutX = TRUE;
 		dcb.fOutxCtsFlow = FALSE;
@@ -293,38 +320,36 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		dcb.fRtsControl = RTS_CONTROL_ENABLE;
 		break;
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Apply the new settings.
 	if (!SetCommState (device->hFile, &dcb)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	device->baudrate = baudrate;
 	device->nbits = 1 + databits + stopbits + (parity ? 1 : 0);
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-//
-// Configure the serial port (timeouts).
-//
-
-int
-serial_set_timeout (serial_t *device, long timeout)
+dc_status_t
+dc_serial_set_timeout (dc_serial_t *device, int timeout)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Timeout: value=%li", timeout);
+	INFO (device->context, "Timeout: value=%i", timeout);
 
 	// Retrieve the current timeouts.
 	COMMTIMEOUTS timeouts;
 	if (!GetCommTimeouts (device->hFile, &timeouts)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	// Update the settings.
@@ -353,98 +378,102 @@ serial_set_timeout (serial_t *device, long timeout)
 
 	// Activate the new timeouts.
 	if (!SetCommTimeouts (device->hFile, &timeouts)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-//
-// Configure the serial port (recommended size of the input/output buffers).
-//
-
-int
-serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output)
+dc_status_t
+dc_serial_set_halfduplex (dc_serial_t *device, unsigned int value)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
-
-	if (!SetupComm (device->hFile, input, output)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
-	}
-
-	return 0;
-}
-
-
-int
-serial_set_halfduplex (serial_t *device, int value)
-{
-	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	device->halfduplex = value;
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_set_latency (serial_t *device, unsigned int milliseconds)
+dc_status_t
+dc_serial_set_latency (dc_serial_t *device, unsigned int value)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-int
-serial_read (serial_t *device, void* data, unsigned int size)
+dc_status_t
+dc_serial_read (dc_serial_t *device, void *data, size_t size, size_t *actual)
 {
-	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
-
+	dc_status_t status = DC_STATUS_SUCCESS;
 	DWORD dwRead = 0;
-	if (!ReadFile (device->hFile, data, size, &dwRead, NULL)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+
+	if (device == NULL) {
+		status = DC_STATUS_INVALIDARGS;
+		goto out;
 	}
 
+	if (!ReadFile (device->hFile, data, size, &dwRead, NULL)) {
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		status = syserror (errcode);
+		goto out;
+	}
+
+	if (dwRead != size) {
+		status = DC_STATUS_TIMEOUT;
+	}
+
+out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, dwRead);
 
-	return dwRead;
+	if (actual)
+		*actual = dwRead;
+
+	return status;
 }
 
-
-int
-serial_write (serial_t *device, const void* data, unsigned int size)
+dc_status_t
+dc_serial_write (dc_serial_t *device, const void *data, size_t size, size_t *actual)
 {
-	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+	dc_status_t status = DC_STATUS_SUCCESS;
+	DWORD dwWritten = 0;
+
+	if (device == NULL) {
+		status = DC_STATUS_INVALIDARGS;
+		goto out;
+	}
 
 	LARGE_INTEGER begin, end, freq;
 	if (device->halfduplex) {
 		// Get the current time.
 		if (!QueryPerformanceFrequency(&freq) ||
 			!QueryPerformanceCounter(&begin)) {
-			SYSERROR (device->context, GetLastError ());
-			return -1;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		}
 	}
 
-	DWORD dwWritten = 0;
 	if (!WriteFile (device->hFile, data, size, &dwWritten, NULL)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		status = syserror (errcode);
+		goto out;
 	}
 
 	if (device->halfduplex) {
 		// Get the current time.
 		if (!QueryPerformanceCounter(&end))  {
-			SYSERROR (device->context, GetLastError ());
-			return -1;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		}
 
 		// Calculate the elapsed time (microseconds).
@@ -461,204 +490,195 @@ serial_write (serial_t *device, const void* data, unsigned int size)
 			// The remaining time is rounded up to the nearest millisecond
 			// because the Windows Sleep() function doesn't have a higher
 			// resolution.
-			serial_sleep (device, (remaining + 999) / 1000);
+			dc_serial_sleep (device, (remaining + 999) / 1000);
 		}
 	}
 
+	if (dwWritten != size) {
+		status = DC_STATUS_TIMEOUT;
+	}
+
+out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, dwWritten);
 
-	return dwWritten;
+	if (actual)
+		*actual = dwWritten;
+
+	return status;
 }
 
-
-int
-serial_flush (serial_t *device, int queue)
+dc_status_t
+dc_serial_purge (dc_serial_t *device, dc_direction_t direction)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Flush: queue=%u, input=%i, output=%i", queue,
-		serial_get_received (device),
-		serial_get_transmitted (device));
+	INFO (device->context, "Purge: direction=%u", direction);
 
 	DWORD flags = 0;
 
-	switch (queue) {
-	case SERIAL_QUEUE_INPUT:
+	switch (direction) {
+	case DC_DIRECTION_INPUT:
 		flags = PURGE_RXABORT | PURGE_RXCLEAR;
 		break;
-	case SERIAL_QUEUE_OUTPUT:
+	case DC_DIRECTION_OUTPUT:
 		flags = PURGE_TXABORT | PURGE_TXCLEAR;
 		break;
-	default:
+	case DC_DIRECTION_ALL:
 		flags = PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR;
 		break;
+	default:
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	if (!PurgeComm (device->hFile, flags)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_send_break (serial_t *device)
+dc_status_t
+dc_serial_flush (dc_serial_t *device)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
-	if (!SetCommBreak (device->hFile)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+	INFO (device->context, "Flush: none");
+
+	if (!FlushFileBuffers (device->hFile)) {
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	Sleep (250);
-
-	if (!ClearCommBreak (device->hFile)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
-	}
-
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_set_break (serial_t *device, int level)
+dc_status_t
+dc_serial_set_break (dc_serial_t *device, unsigned int level)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "Break: value=%i", level);
 
 	if (level) {
 		if (!SetCommBreak (device->hFile)) {
-			SYSERROR (device->context, GetLastError ());
-			return -1;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 	} else {
 		if (!ClearCommBreak (device->hFile)) {
-			SYSERROR (device->context, GetLastError ());
-			return -1;
+			DWORD errcode = GetLastError ();
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-int
-serial_set_dtr (serial_t *device, int level)
+dc_status_t
+dc_serial_set_dtr (dc_serial_t *device, unsigned int level)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "DTR: value=%i", level);
 
 	int status = (level ? SETDTR : CLRDTR);
 
 	if (!EscapeCommFunction (device->hFile, status)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_set_rts (serial_t *device, int level)
+dc_status_t
+dc_serial_set_rts (dc_serial_t *device, unsigned int level)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "RTS: value=%i", level);
 
 	int status = (level ? SETRTS : CLRRTS);
 
 	if (!EscapeCommFunction (device->hFile, status)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_get_received (serial_t *device)
+dc_status_t
+dc_serial_get_available (dc_serial_t *device, size_t *value)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	COMSTAT stats;
 
 	if (!ClearCommError (device->hFile, NULL, &stats)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return stats.cbInQue;
+	if (value)
+		*value = stats.cbInQue;
+
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_get_transmitted (serial_t *device)
+dc_status_t
+dc_serial_get_lines (dc_serial_t *device, unsigned int *value)
 {
+	unsigned int lines = 0;
+
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
-
-	COMSTAT stats;
-
-	if (!ClearCommError (device->hFile, NULL, &stats)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
-	}
-
-	return stats.cbOutQue;
-}
-
-
-int
-serial_get_line (serial_t *device, int line)
-{
-	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
+		return DC_STATUS_INVALIDARGS;
 
 	DWORD stats = 0;
 	if (!GetCommModemStatus (device->hFile, &stats)) {
-		SYSERROR (device->context, GetLastError ());
-		return -1;
+		DWORD errcode = GetLastError ();
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	switch (line) {
-	case SERIAL_LINE_DCD:
-		return (stats & MS_RLSD_ON) == MS_RLSD_ON;
-	case SERIAL_LINE_CTS:
-		return (stats & MS_CTS_ON) == MS_CTS_ON;
-	case SERIAL_LINE_DSR:
-		return (stats & MS_DSR_ON) == MS_DSR_ON;
-	case SERIAL_LINE_RNG:
-		return (stats & MS_RING_ON) == MS_RING_ON;
-	default:
-		return -1;
-	}
+	if (stats & MS_RLSD_ON)
+		lines |= DC_LINE_DCD;
+	if (stats & MS_CTS_ON)
+		lines |= DC_LINE_CTS;
+	if (stats & MS_DSR_ON)
+		lines |= DC_LINE_DSR;
+	if (stats & MS_RING_ON)
+		lines |= DC_LINE_RNG;
 
-	return 0;
+	if (value)
+		*value = lines;
+
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_sleep (serial_t *device, unsigned long timeout)
+dc_status_t
+dc_serial_sleep (dc_serial_t *device, unsigned int timeout)
 {
 	if (device == NULL)
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Sleep: value=%lu", timeout);
+	INFO (device->context, "Sleep: value=%u", timeout);
 
 	Sleep (timeout);
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }

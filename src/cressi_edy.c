@@ -34,11 +34,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &cressi_edy_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define MAXRETRIES        4
 
 #define SZ_PACKET         0x80
@@ -60,7 +55,7 @@ typedef struct cressi_edy_layout_t {
 
 typedef struct cressi_edy_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	const cressi_edy_layout_t *layout;
 	unsigned char fingerprint[SZ_PAGE / 2];
 	unsigned int model;
@@ -122,6 +117,7 @@ iceil (unsigned int x, unsigned int n)
 static dc_status_t
 cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	if (device_is_cancelled (abstract))
@@ -129,18 +125,18 @@ cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], u
 
 	for (unsigned int i = 0; i < csize; ++i) {
 		// Send the command to the device.
-		int n = serial_write (device->port, command + i, 1);
-		if (n != 1) {
+		status = dc_serial_write (device->port, command + i, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Receive the echo.
 		unsigned char echo = 0;
-		n = serial_read (device->port, &echo, 1);
-		if (n != 1) {
+		status = dc_serial_read (device->port, &echo, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the echo.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Verify the echo.
@@ -152,10 +148,10 @@ cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], u
 
 	if (asize) {
 		// Receive the answer of the device.
-		int n = serial_read (device->port, answer, asize);
-		if (n != asize) {
+		status = dc_serial_read (device->port, answer, asize, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Verify the trailer of the packet.
@@ -182,8 +178,8 @@ cressi_edy_transfer (cressi_edy_device_t *device, const unsigned char command[],
 			return rc;
 
 		// Delay the next attempt.
-		serial_sleep (device->port, 300);
-		serial_flush (device->port, SERIAL_QUEUE_INPUT);
+		dc_serial_sleep (device->port, 300);
+		dc_serial_purge (device->port, DC_DIRECTION_INPUT);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -257,39 +253,43 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (1200 8N1).
-	rc = serial_configure (device->port, 1200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Set the DTR and clear the RTS line.
-	if (serial_set_dtr (device->port, 1) == -1 ||
-		serial_set_rts (device->port, 0) == -1) {
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Set the DTR line.
+	status = dc_serial_set_dtr (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the DTR line.");
+		goto error_close;
+	}
+
+	// Clear the RTS line.
+	status = dc_serial_set_rts (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the RTS line.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep(device->port, 300);
-	serial_flush(device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_sleep(device->port, 300);
+	dc_serial_purge(device->port, DC_DIRECTION_ALL);
 
 	// Send the init commands.
 	cressi_edy_init1 (device);
@@ -303,23 +303,22 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Set the serial communication protocol (4800 8N1).
-	rc = serial_configure (device->port, 4800, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	serial_sleep(device->port, 300);
-	serial_flush(device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_sleep(device->port, 300);
+	dc_serial_purge(device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -331,13 +330,15 @@ cressi_edy_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Send the quit command.
 	cressi_edy_quit (device);
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;

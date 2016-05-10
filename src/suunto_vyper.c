@@ -34,11 +34,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &suunto_vyper_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #define MAX(a,b)	(((a) > (b)) ? (a) : (b))
 
@@ -52,7 +47,7 @@
 
 typedef struct suunto_vyper_device_t {
 	suunto_common_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 } suunto_vyper_device_t;
 
 static dc_status_t suunto_vyper_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -112,47 +107,45 @@ suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *
 	device->port = NULL;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status= DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (2400 8O1).
-	rc = serial_configure (device->port, 2400, 8, SERIAL_PARITY_ODD, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 2400, 8, DC_PARITY_ODD, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
-	if (serial_set_timeout (device->port, 1000) == -1) {
+	status = dc_serial_set_timeout (device->port, 1000);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the DTR line (power supply for the interface).
-	if (serial_set_dtr (device->port, 1) == -1) {
+	status = dc_serial_set_dtr (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	serial_sleep (device->port, 100);
+	dc_serial_sleep (device->port, 100);
 
 	// Make sure everything is in a sane state.
-	serial_flush (device->port, SERIAL_QUEUE_BOTH);
+	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -164,10 +157,12 @@ suunto_vyper_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -177,18 +172,19 @@ suunto_vyper_device_close (dc_device_t *abstract)
 static dc_status_t
 suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[], unsigned int csize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	serial_sleep (device->port, 500);
+	dc_serial_sleep (device->port, 500);
 
 	// Set RTS to send the command.
-	serial_set_rts (device->port, 1);
+	dc_serial_set_rts (device->port, 1);
 
 	// Send the command to the dive computer.
-	int n = serial_write (device->port, command, csize);
-	if (n != csize) {
+	status = dc_serial_write (device->port, command, csize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// If the interface sends an echo back (which is the case for many clone
@@ -202,11 +198,11 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 	// receive the reply before RTS is cleared. We have to wait some time
 	// before clearing RTS (around 30ms). But if we wait too long (> 500ms),
 	// the reply disappears again.
-	serial_sleep (device->port, 200);
-	serial_flush (device->port, SERIAL_QUEUE_INPUT);
+	dc_serial_sleep (device->port, 200);
+	dc_serial_purge (device->port, DC_DIRECTION_INPUT);
 
 	// Clear RTS to receive the reply.
-	serial_set_rts (device->port, 0);
+	dc_serial_set_rts (device->port, 0);
 
 	return DC_STATUS_SUCCESS;
 }
@@ -215,9 +211,10 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 static dc_status_t
 suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size)
 {
-	assert (asize >= size + 2);
-
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+
+	assert (asize >= size + 2);
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -230,10 +227,10 @@ suunto_vyper_transfer (suunto_vyper_device_t *device, const unsigned char comman
 	}
 
 	// Receive the answer of the dive computer.
-	int n = serial_read (device->port, answer, asize);
-	if (n != asize) {
+	status = dc_serial_read (device->port, answer, asize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	// Verify the header of the package.
@@ -329,6 +326,7 @@ suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const un
 static dc_status_t
 suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc_event_progress_t *progress)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
 
 	if (device_is_cancelled (abstract))
@@ -352,9 +350,10 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 	unsigned int nbytes = 0;
 	for (unsigned int npackages = 0;; ++npackages) {
 		// Receive the header of the package.
+		size_t n = 0;
 		unsigned char answer[SZ_PACKET + 3] = {0};
-		int n = serial_read (device->port, answer, 2);
-		if (n != 2) {
+		status = dc_serial_read (device->port, answer, 2, &n);
+		if (status != DC_STATUS_SUCCESS) {
 			// If no data is received because a timeout occured, we assume
 			// the last package was already received and the transmission
 			// can be finished. Unfortunately this is not 100% reliable,
@@ -366,7 +365,7 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 			if (n == 0 && npackages != 0)
 				break;
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Verify the header of the package.
@@ -378,10 +377,10 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 
 		// Receive the remaining part of the package.
 		unsigned char len = answer[1];
-		n = serial_read (device->port, answer + 2, len + 1);
-		if (n != len + 1) {
+		status = dc_serial_read (device->port, answer + 2, len + 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return status;
 		}
 
 		// Verify the checksum of the package.

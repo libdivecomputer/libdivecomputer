@@ -33,11 +33,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_aladin_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 #define SZ_MEMORY 2048
 
 #define RB_PROFILE_BEGIN			0x000
@@ -49,7 +44,7 @@
 
 typedef struct uwatec_aladin_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -95,33 +90,37 @@ uwatec_aladin_device_open (dc_device_t **out, dc_context_t *context, const char 
 	device->devtime = 0;
 
 	// Open the device.
-	int rc = serial_open (&device->port, context, name);
-	if (rc == -1) {
+	status = dc_serial_open (&device->port, context, name);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (19200 8N1).
-	rc = serial_configure (device->port, 19200, 8, SERIAL_PARITY_NONE, 1, SERIAL_FLOWCONTROL_NONE);
-	if (rc == -1) {
+	status = dc_serial_configure (device->port, 19200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (INFINITE).
-	if (serial_set_timeout (device->port, -1) == -1) {
+	status = dc_serial_set_timeout (device->port, -1);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
-	// Clear the RTS line and set the DTR line.
-	if (serial_set_dtr (device->port, 1) == -1 ||
-		serial_set_rts (device->port, 0) == -1) {
-		ERROR (context, "Failed to set the DTR/RTS line.");
-		status = DC_STATUS_IO;
+	// Set the DTR line.
+	status = dc_serial_set_dtr (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the DTR line.");
+		goto error_close;
+	}
+
+	// Clear the RTS line.
+	status = dc_serial_set_rts (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the RTS line.");
 		goto error_close;
 	}
 
@@ -130,7 +129,7 @@ uwatec_aladin_device_open (dc_device_t **out, dc_context_t *context, const char 
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	serial_close (device->port);
+	dc_serial_close (device->port);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -142,10 +141,12 @@ uwatec_aladin_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (serial_close (device->port) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_serial_close (device->port);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -172,6 +173,7 @@ uwatec_aladin_device_set_fingerprint (dc_device_t *abstract, const unsigned char
 static dc_status_t
 uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
 	// Erase the current contents of the buffer and
@@ -193,10 +195,10 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
-		int rc = serial_read (device->port, answer + i, 1);
-		if (rc != 1) {
+		status = dc_serial_read (device->port, answer + i, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (rc);
+			return status;
 		}
 		if (answer[i] == (i < 3 ? 0x55 : 0x00)) {
 			i++; // Continue.
@@ -214,10 +216,10 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Receive the remaining part of the package.
-	int rc = serial_read (device->port, answer + 4, sizeof (answer) - 4);
-	if (rc != sizeof (answer) - 4) {
+	status = dc_serial_read (device->port, answer + 4, sizeof (answer) - 4, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Unexpected EOF in answer.");
-		return EXITCODE (rc);
+		return status;
 	}
 
 	// Update and emit a progress event.

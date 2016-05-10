@@ -41,7 +41,7 @@ typedef struct mares_common_layout_t {
 
 typedef struct mares_common_device_t {
 	dc_device_t base;
-	serial_t *port;
+	dc_serial_t *port;
 	unsigned int echo;
 	unsigned int delay;
 } mares_common_device_t;

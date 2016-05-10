@@ -31,14 +31,9 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_smart_device_vtable)
 
-#define EXITCODE(rc) \
-( \
-	rc == -1 ? DC_STATUS_IO : DC_STATUS_TIMEOUT \
-)
-
 typedef struct uwatec_smart_device_t {
 	dc_device_t base;
-	irda_t *socket;
+	dc_irda_t *socket;
 	unsigned int address;
 	unsigned int timestamp;
 	unsigned int devtime;
@@ -88,18 +83,19 @@ uwatec_smart_discovery (unsigned int address, const char *name, unsigned int cha
 static dc_status_t
 uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	int n = irda_socket_write (device->socket, command, csize);
-	if (n != csize) {
+	status = dc_irda_write (device->socket, command, csize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE (n);
+		return status;
 	}
 
-	n = irda_socket_read (device->socket, answer, asize);
-	if (n != asize) {
+	status = dc_irda_read (device->socket, answer, asize, NULL);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE (n);
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -167,18 +163,16 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	device->devtime = 0;
 
 	// Open the irda socket.
-	int rc = irda_socket_open (&device->socket, context);
-	if (rc == -1) {
+	status = dc_irda_open (&device->socket, context);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the irda socket.");
-		status = DC_STATUS_IO;
 		goto error_free;
 	}
 
 	// Discover the device.
-	rc = irda_socket_discover (device->socket, uwatec_smart_discovery, device);
-	if (rc == -1) {
+	status = dc_irda_discover (device->socket, uwatec_smart_discovery, device);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to discover the device.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
@@ -189,10 +183,9 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Connect the device.
-	rc = irda_socket_connect_lsap (device->socket, device->address, 1);
-	if (rc == -1) {
+	status = dc_irda_connect_lsap (device->socket, device->address, 1);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to connect the device.");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
@@ -204,7 +197,7 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	irda_socket_close (device->socket);
+	dc_irda_close (device->socket);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -216,10 +209,12 @@ uwatec_smart_device_close (dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	if (irda_socket_close (device->socket) == -1) {
-		dc_status_set_error(&status, DC_STATUS_IO);
+	rc = dc_irda_close (device->socket);
+	if (status != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
 	}
 
 	return status;
@@ -360,25 +355,26 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		unsigned int len = 32;
 
 		// Increase the packet size if more data is immediately available.
-		int available = irda_socket_available (device->socket);
-		if (available > len)
+		size_t available = 0;
+		rc = dc_irda_get_available (device->socket, &available);
+		if (rc == DC_STATUS_SUCCESS && available > len)
 			len = available;
 
 		// Limit the packet size to the total size.
 		if (nbytes + len > length)
 			len = length - nbytes;
 
-		int n = irda_socket_read (device->socket, data + nbytes, len);
-		if (n != len) {
+		rc = dc_irda_read (device->socket, data + nbytes, len, NULL);
+		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE (n);
+			return rc;
 		}
 
 		// Update and emit a progress event.
-		progress.current += n;
+		progress.current += len;
 		device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
-		nbytes += n;
+		nbytes += len;
 	}
 
 	return DC_STATUS_SUCCESS;

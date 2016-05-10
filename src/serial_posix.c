@@ -54,16 +54,17 @@
 #endif
 
 #include "serial.h"
+#include "common-private.h"
 #include "context-private.h"
 
-struct serial_t {
+struct dc_serial_t {
 	/* Library context. */
 	dc_context_t *context;
 	/*
 	 * The file descriptor corresponding to the serial port.
 	 */
 	int fd;
-	long timeout;
+	int timeout;
 	/*
 	 * Serial port settings are saved into this variable immediately
 	 * after the port is opened. These settings are restored when the
@@ -76,9 +77,26 @@ struct serial_t {
 	unsigned int nbits;
 };
 
+static dc_status_t
+syserror(int errcode)
+{
+	switch (errcode) {
+	case EINVAL:
+		return DC_STATUS_INVALIDARGS;
+	case ENOMEM:
+		return DC_STATUS_NOMEMORY;
+	case ENOENT:
+		return DC_STATUS_NODEVICE;
+	case EACCES:
+	case EBUSY:
+		return DC_STATUS_NOACCESS;
+	default:
+		return DC_STATUS_IO;
+	}
+}
 
-int
-serial_enumerate (serial_callback_t callback, void *userdata)
+dc_status_t
+dc_serial_enumerate (dc_serial_callback_t callback, void *userdata)
 {
 	DIR *dp = NULL;
 	struct dirent *ep = NULL;
@@ -97,7 +115,7 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 
 	dp = opendir (dirname);
 	if (dp == NULL) {
-		return -1;
+		return DC_STATUS_IO;
 	}
 
 	while ((ep = readdir (dp)) != NULL) {
@@ -107,7 +125,7 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 				int n = snprintf (filename, sizeof (filename), "%s/%s", dirname, ep->d_name);
 				if (n >= sizeof (filename)) {
 					closedir (dp);
-					return -1;
+					return DC_STATUS_NOMEMORY;
 				}
 
 				callback (filename, userdata);
@@ -118,27 +136,24 @@ serial_enumerate (serial_callback_t callback, void *userdata)
 
 	closedir (dp);
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-//
-// Open the serial port.
-//
-
-int
-serial_open (serial_t **out, dc_context_t *context, const char* name)
+dc_status_t
+dc_serial_open (dc_serial_t **out, dc_context_t *context, const char *name)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	if (out == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (context, "Open: name=%s", name ? name : "");
 
 	// Allocate memory.
-	serial_t *device = (serial_t *) malloc (sizeof (serial_t));
+	dc_serial_t *device = (dc_serial_t *) malloc (sizeof (dc_serial_t));
 	if (device == NULL) {
 		SYSERROR (context, ENOMEM);
-		return -1; // ENOMEM (Not enough space)
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Library context.
@@ -156,14 +171,18 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	// without waiting for the modem connection to complete.
 	device->fd = open (name, O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (device->fd == -1) {
-		SYSERROR (context, errno);
+		int errcode = errno;
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_free;
 	}
 
 #ifndef ENABLE_PTY
 	// Enable exclusive access mode.
 	if (ioctl (device->fd, TIOCEXCL, NULL) != 0) {
-		SYSERROR (context, errno);
+		int errcode = errno;
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_close;
 	}
 #endif
@@ -173,37 +192,36 @@ serial_open (serial_t **out, dc_context_t *context, const char* name)
 	// It is also used to check if the obtained
 	// file descriptor represents a terminal device.
 	if (tcgetattr (device->fd, &device->tty) != 0) {
-		SYSERROR (context, errno);
+		int errcode = errno;
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
 		goto error_close;
 	}
 
 	*out = device;
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 
 error_close:
 	close (device->fd);
 error_free:
 	free (device);
-	return -1;
+	return status;
 }
 
-//
-// Close the serial port.
-//
-
-int
-serial_close (serial_t *device)
+dc_status_t
+dc_serial_close (dc_serial_t *device)
 {
-	int errcode = 0;
+	dc_status_t status = DC_STATUS_SUCCESS;
 
 	if (device == NULL)
-		return 0;
+		return DC_STATUS_SUCCESS;
 
 	// Restore the initial terminal attributes.
 	if (tcsetattr (device->fd, TCSANOW, &device->tty) != 0) {
-		SYSERROR (device->context, errno);
-		errcode = -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
 	}
 
 #ifndef ENABLE_PTY
@@ -213,25 +231,22 @@ serial_close (serial_t *device)
 
 	// Close the device.
 	if (close (device->fd) != 0) {
-		SYSERROR (device->context, errno);
-		errcode = -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
 	}
 
 	// Free memory.
 	free (device);
 
-	return errcode;
+	return status;
 }
 
-//
-// Configure the serial port (baudrate, databits, parity, stopbits and flowcontrol).
-//
-
-int
-serial_configure (serial_t *device, int baudrate, int databits, int parity, int stopbits, int flowcontrol)
+dc_status_t
+dc_serial_configure (dc_serial_t *device, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "Configure: baudrate=%i, databits=%i, parity=%i, stopbits=%i, flowcontrol=%i",
 		baudrate, databits, parity, stopbits, flowcontrol);
@@ -240,8 +255,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	struct termios tty;
 	memset (&tty, 0, sizeof (tty));
 	if (tcgetattr (device->fd, &tty) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	// Setup raw input/output mode without echo.
@@ -336,8 +352,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 	}
 	if (cfsetispeed (&tty, baud) != 0 ||
 		cfsetospeed (&tty, baud) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	// Set the character size.
@@ -356,70 +373,85 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		tty.c_cflag |= CS8;
 		break;
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Set the parity type.
+#ifdef CMSPAR
+	tty.c_cflag &= ~(PARENB | PARODD | CMSPAR);
+#else
 	tty.c_cflag &= ~(PARENB | PARODD);
+#endif
 	tty.c_iflag &= ~(IGNPAR | PARMRK | INPCK);
 	switch (parity) {
-	case SERIAL_PARITY_NONE: // No parity
+	case DC_PARITY_NONE:
 		tty.c_iflag |= IGNPAR;
 		break;
-	case SERIAL_PARITY_EVEN: // Even parity
+	case DC_PARITY_EVEN:
 		tty.c_cflag |= PARENB;
 		tty.c_iflag |= INPCK;
 		break;
-	case SERIAL_PARITY_ODD: // Odd parity
+	case DC_PARITY_ODD:
 		tty.c_cflag |= (PARENB | PARODD);
 		tty.c_iflag |= INPCK;
 		break;
+#ifdef CMSPAR
+	case DC_PARITY_MARK:
+		tty.c_cflag |= (PARENB | PARODD | CMSPAR);
+		tty.c_iflag |= INPCK;
+		break;
+	case DC_PARITY_SPACE:
+		tty.c_cflag |= (PARENB | CMSPAR);
+		tty.c_iflag |= INPCK;
+		break;
+#endif
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Set the number of stop bits.
 	switch (stopbits) {
-	case 1: // One stopbit
+	case DC_STOPBITS_ONE:
 		tty.c_cflag &= ~CSTOPB;
 		break;
-	case 2: // Two stopbits
+	case DC_STOPBITS_TWO:
 		tty.c_cflag |= CSTOPB;
 		break;
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Set the flow control.
 	switch (flowcontrol) {
-	case SERIAL_FLOWCONTROL_NONE: // No flow control.
+	case DC_FLOWCONTROL_NONE:
 		#ifdef CRTSCTS
 			tty.c_cflag &= ~CRTSCTS;
 		#endif
 		tty.c_iflag &= ~(IXON | IXOFF | IXANY);
 		break;
-	case SERIAL_FLOWCONTROL_HARDWARE: // Hardware (RTS/CTS) flow control.
+	case DC_FLOWCONTROL_HARDWARE:
 		#ifdef CRTSCTS
 			tty.c_cflag |= CRTSCTS;
 			tty.c_iflag &= ~(IXON | IXOFF | IXANY);
 			break;
 		#else
-			return -1; // Hardware flow control is unsupported.
+			return DC_STATUS_UNSUPPORTED;
 		#endif
-	case SERIAL_FLOWCONTROL_SOFTWARE: // Software (XON/XOFF) flow control.
+	case DC_FLOWCONTROL_SOFTWARE:
 		#ifdef CRTSCTS
 			tty.c_cflag &= ~CRTSCTS;
 		#endif
 		tty.c_iflag |= (IXON | IXOFF);
 		break;
 	default:
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	// Apply the new settings.
 	if (tcsetattr (device->fd, TCSANOW, &tty) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	// Configure a custom baudrate if necessary.
@@ -428,8 +460,9 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 		// Get the current settings.
 		struct serial_struct ss;
 		if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0 && NOPTY) {
-			SYSERROR (device->context, errno);
-			return -1;
+			int errcode = errno;
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 
 		// Set the custom divisor.
@@ -439,82 +472,66 @@ serial_configure (serial_t *device, int baudrate, int databits, int parity, int 
 
 		// Apply the new settings.
 		if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0 && NOPTY) {
-			SYSERROR (device->context, errno);
-			return -1;
+			int errcode = errno;
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 #elif defined(IOSSIOSPEED)
 		speed_t speed = baudrate;
 		if (ioctl (device->fd, IOSSIOSPEED, &speed) != 0 && NOPTY) {
-			SYSERROR (device->context, errno);
-			return -1;
+			int errcode = errno;
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 #else
 		// Custom baudrates are not supported.
-		return -1;
+		return DC_STATUS_UNSUPPORTED;
 #endif
 	}
 
 	device->baudrate = baudrate;
 	device->nbits = 1 + databits + stopbits + (parity ? 1 : 0);
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-//
-// Configure the serial port (timeouts).
-//
-
-int
-serial_set_timeout (serial_t *device, long timeout)
+dc_status_t
+dc_serial_set_timeout (dc_serial_t *device, int timeout)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Timeout: value=%li", timeout);
+	INFO (device->context, "Timeout: value=%i", timeout);
 
 	device->timeout = timeout;
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-//
-// Configure the serial port (recommended size of the input/output buffers).
-//
-
-int
-serial_set_queue_size (serial_t *device, unsigned int input, unsigned int output)
+dc_status_t
+dc_serial_set_halfduplex (dc_serial_t *device, unsigned int value)
 {
 	if (device == NULL)
-		return -1; // ERROR_INVALID_PARAMETER (The parameter is incorrect)
-
-	return 0;
-}
-
-
-int
-serial_set_halfduplex (serial_t *device, int value)
-{
-	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	device->halfduplex = value;
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-int
-serial_set_latency (serial_t *device, unsigned int milliseconds)
+dc_status_t
+dc_serial_set_latency (dc_serial_t *device, unsigned int milliseconds)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 #if defined(TIOCGSERIAL) && defined(TIOCSSERIAL) && !defined(__ANDROID__)
 	// Get the current settings.
 	struct serial_struct ss;
 	if (ioctl (device->fd, TIOCGSERIAL, &ss) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
 	// Set or clear the low latency flag.
@@ -526,8 +543,9 @@ serial_set_latency (serial_t *device, unsigned int milliseconds)
 
 	// Apply the new settings.
 	if (ioctl (device->fd, TIOCSSERIAL, &ss) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 #elif defined(IOSSDATALAT)
 	// Set the receive latency in microseconds. Serial drivers use this
@@ -535,28 +553,33 @@ serial_set_latency (serial_t *device, unsigned int milliseconds)
 	// the hardware. A value of zero restores the default value.
 	unsigned long usec = (milliseconds == 0 ? 1 : milliseconds * 1000);
 	if (ioctl (device->fd, IOSSDATALAT, &usec) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 #endif
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-int
-serial_read (serial_t *device, void *data, unsigned int size)
+dc_status_t
+dc_serial_read (dc_serial_t *device, void *data, size_t size, size_t *actual)
 {
-	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+	dc_status_t status = DC_STATUS_SUCCESS;
+	size_t nbytes = 0;
+
+	if (device == NULL) {
+		status = DC_STATUS_INVALIDARGS;
+		goto out;
+	}
 
 	// The total timeout.
-	long timeout = device->timeout;
+	int timeout = device->timeout;
 
 	// The absolute target time.
 	struct timeval tve;
 
 	int init = 1;
-	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		fd_set fds;
 		FD_ZERO (&fds);
@@ -566,8 +589,10 @@ serial_read (serial_t *device, void *data, unsigned int size)
 		if (timeout > 0) {
 			struct timeval now;
 			if (gettimeofday (&now, NULL) != 0) {
-				SYSERROR (device->context, errno);
-				return -1;
+				int errcode = errno;
+				SYSERROR (device->context, errcode);
+				status = syserror (errcode);
+				goto out;
 			}
 
 			if (init) {
@@ -590,20 +615,24 @@ serial_read (serial_t *device, void *data, unsigned int size)
 
 		int rc = select (device->fd + 1, &fds, NULL, NULL, timeout >= 0 ? &tvt : NULL);
 		if (rc < 0) {
-			if (errno == EINTR)
+			int errcode = errno;
+			if (errcode == EINTR)
 				continue; // Retry.
-			SYSERROR (device->context, errno);
-			return -1; // Error during select call.
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		} else if (rc == 0) {
 			break; // Timeout.
 		}
 
-		int n = read (device->fd, (char *) data + nbytes, size - nbytes);
+		ssize_t n = read (device->fd, (char *) data + nbytes, size - nbytes);
 		if (n < 0) {
-			if (errno == EINTR || errno == EAGAIN)
+			int errcode = errno;
+			if (errcode == EINTR || errcode == EAGAIN)
 				continue; // Retry.
-			SYSERROR (device->context, errno);
-			return -1; // Error during read call.
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		} else if (n == 0) {
 			 break; // EOF.
 		}
@@ -611,28 +640,41 @@ serial_read (serial_t *device, void *data, unsigned int size)
 		nbytes += n;
 	}
 
+	if (nbytes != size) {
+		status = DC_STATUS_TIMEOUT;
+	}
+
+out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
 
-	return nbytes;
+	if (actual)
+		*actual = nbytes;
+
+	return status;
 }
 
-
-int
-serial_write (serial_t *device, const void *data, unsigned int size)
+dc_status_t
+dc_serial_write (dc_serial_t *device, const void *data, size_t size, size_t *actual)
 {
-	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+	dc_status_t status = DC_STATUS_SUCCESS;
+	size_t nbytes = 0;
+
+	if (device == NULL) {
+		status = DC_STATUS_INVALIDARGS;
+		goto out;
+	}
 
 	struct timeval tve, tvb;
 	if (device->halfduplex) {
 		// Get the current time.
 		if (gettimeofday (&tvb, NULL) != 0) {
-			SYSERROR (device->context, errno);
-			return -1;
+			int errcode = errno;
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		}
 	}
 
-	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		fd_set fds;
 		FD_ZERO (&fds);
@@ -640,20 +682,24 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 
 		int rc = select (device->fd + 1, NULL, &fds, NULL, NULL);
 		if (rc < 0) {
-			if (errno == EINTR)
+			int errcode = errno;
+			if (errcode == EINTR)
 				continue; // Retry.
-			SYSERROR (device->context, errno);
-			return -1; // Error during select call.
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		} else if (rc == 0) {
 			break; // Timeout.
 		}
 
-		int n = write (device->fd, (char *) data + nbytes, size - nbytes);
+		ssize_t n = write (device->fd, (const char *) data + nbytes, size - nbytes);
 		if (n < 0) {
-			if (errno == EINTR || errno == EAGAIN)
+			int errcode = errno;
+			if (errcode == EINTR || errcode == EAGAIN)
 				continue; // Retry.
-			SYSERROR (device->context, errno);
-			return -1; // Error during write call.
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		} else if (n == 0) {
 			 break; // EOF.
 		}
@@ -668,17 +714,21 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 #else
 	while (tcdrain (device->fd) != 0) {
 #endif
-		if (errno != EINTR ) {
-			SYSERROR (device->context, errno);
-			return -1;
+		int errcode = errno;
+		if (errcode != EINTR ) {
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		}
 	}
 
 	if (device->halfduplex) {
 		// Get the current time.
 		if (gettimeofday (&tve, NULL) != 0) {
-			SYSERROR (device->context, errno);
-			return -1;
+			int errcode = errno;
+			SYSERROR (device->context, errcode);
+			status = syserror (errcode);
+			goto out;
 		}
 
 		// Calculate the elapsed time (microseconds).
@@ -697,88 +747,87 @@ serial_write (serial_t *device, const void *data, unsigned int size)
 			// The remaining time is rounded up to the nearest millisecond to
 			// match the Windows implementation. The higher resolution is
 			// pointless anyway, since we already added a fudge factor above.
-			serial_sleep (device, (remaining + 999) / 1000);
+			dc_serial_sleep (device, (remaining + 999) / 1000);
 		}
 	}
 
+out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
 
-	return nbytes;
+	if (actual)
+		*actual = nbytes;
+
+	return status;
 }
 
-
-int
-serial_flush (serial_t *device, int queue)
+dc_status_t
+dc_serial_purge (dc_serial_t *device, dc_direction_t direction)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Flush: queue=%u, input=%i, output=%i", queue,
-		serial_get_received (device),
-		serial_get_transmitted (device));
+	INFO (device->context, "Purge: direction=%u", direction);
 
 	int flags = 0;
 
-	switch (queue) {
-	case SERIAL_QUEUE_INPUT:
+	switch (direction) {
+	case DC_DIRECTION_INPUT:
 		flags = TCIFLUSH;
 		break;
-	case SERIAL_QUEUE_OUTPUT:
+	case DC_DIRECTION_OUTPUT:
 		flags = TCOFLUSH;
 		break;
-	default:
+	case DC_DIRECTION_ALL:
 		flags = TCIOFLUSH;
 		break;
+	default:
+		return DC_STATUS_INVALIDARGS;
 	}
 
 	if (tcflush (device->fd, flags) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_send_break (serial_t *device)
+dc_status_t
+dc_serial_flush (dc_serial_t *device)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
-	if (tcsendbreak (device->fd, 0) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
-	}
-	
-	return 0;
+	INFO (device->context, "Flush: none");
+
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_set_break (serial_t *device, int level)
+dc_status_t
+dc_serial_set_break (dc_serial_t *device, unsigned int level)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "Break: value=%i", level);
 
 	unsigned long action = (level ? TIOCSBRK : TIOCCBRK);
 
 	if (ioctl (device->fd, action, NULL) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_set_dtr (serial_t *device, int level)
+dc_status_t
+dc_serial_set_dtr (dc_serial_t *device, unsigned int level)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "DTR: value=%i", level);
 
@@ -786,19 +835,19 @@ serial_set_dtr (serial_t *device, int level)
 
 	int value = TIOCM_DTR;
 	if (ioctl (device->fd, action, &value) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_set_rts (serial_t *device, int level)
+dc_status_t
+dc_serial_set_rts (dc_serial_t *device, unsigned int level)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	INFO (device->context, "RTS: value=%i", level);
 
@@ -806,93 +855,82 @@ serial_set_rts (serial_t *device, int level)
 
 	int value = TIOCM_RTS;
 	if (ioctl (device->fd, action, &value) != 0 && NOPTY) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_get_received (serial_t *device)
+dc_status_t
+dc_serial_get_available (dc_serial_t *device, size_t *value)
 {
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	int bytes = 0;
 	if (ioctl (device->fd, TIOCINQ, &bytes) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	return bytes;
+	if (value)
+		*value = bytes;
+
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_get_transmitted (serial_t *device)
+dc_status_t
+dc_serial_get_lines (dc_serial_t *device, unsigned int *value)
 {
+	unsigned int lines = 0;
+
 	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
-
-	int bytes = 0;
-	if (ioctl (device->fd, TIOCOUTQ, &bytes) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
-	}
-
-	return bytes;
-}
-
-
-int
-serial_get_line (serial_t *device, int line)
-{
-	if (device == NULL)
-		return -1; // EINVAL (Invalid argument)
+		return DC_STATUS_INVALIDARGS;
 
 	int status = 0;
 	if (ioctl (device->fd, TIOCMGET, &status) != 0) {
-		SYSERROR (device->context, errno);
-		return -1;
+		int errcode = errno;
+		SYSERROR (device->context, errcode);
+		return syserror (errcode);
 	}
 
-	switch (line) {
-	case SERIAL_LINE_DCD:
-		return (status & TIOCM_CAR) == TIOCM_CAR;
-	case SERIAL_LINE_CTS:
-		return (status & TIOCM_CTS) == TIOCM_CTS;
-	case SERIAL_LINE_DSR:
-		return (status & TIOCM_DSR) == TIOCM_DSR;
-	case SERIAL_LINE_RNG:
-		return (status & TIOCM_RNG) == TIOCM_RNG;
-	default:
-		return -1;
-	}
+	if (status & TIOCM_CAR)
+		lines |= DC_LINE_DCD;
+	if (status & TIOCM_CTS)
+		lines |= DC_LINE_CTS;
+	if (status & TIOCM_DSR)
+		lines |= DC_LINE_DSR;
+	if (status & TIOCM_RNG)
+		lines |= DC_LINE_RNG;
 
-	return 0;
+	if (value)
+		*value = lines;
+
+	return DC_STATUS_SUCCESS;
 }
 
-
-int
-serial_sleep (serial_t *device, unsigned long timeout)
+dc_status_t
+dc_serial_sleep (dc_serial_t *device, unsigned int timeout)
 {
 	if (device == NULL)
-		return -1;
+		return DC_STATUS_INVALIDARGS;
 
-	INFO (device->context, "Sleep: value=%lu", timeout);
+	INFO (device->context, "Sleep: value=%u", timeout);
 
 	struct timespec ts;
 	ts.tv_sec  = (timeout / 1000);
 	ts.tv_nsec = (timeout % 1000) * 1000000;
 
 	while (nanosleep (&ts, &ts) != 0) {
-		if (errno != EINTR ) {
-			SYSERROR (device->context, errno);
-			return -1;
+		int errcode = errno;
+		if (errcode != EINTR ) {
+			SYSERROR (device->context, errcode);
+			return syserror (errcode);
 		}
 	}
 
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
