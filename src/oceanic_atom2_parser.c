@@ -77,6 +77,7 @@
 #define MUNDIAL3    0x4550
 #define F11B        0x4554
 #define VTX         0x4557
+#define I300        0x4559
 #define I450T       0x4641
 
 #define NORMAL   0
@@ -147,7 +148,8 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		model == VEO20 || model == VEO30 ||
 		model == OCS || model == PROPLUS3 ||
 		model == A300 || model == MANTA ||
-		model == INSIGHT2 || model == ZEN) {
+		model == INSIGHT2 || model == ZEN ||
+		model == I300) {
 		parser->headersize -= PAGESIZE;
 	} else if (model == VT4 || model == VT41) {
 		parser->headersize += PAGESIZE;
@@ -253,6 +255,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case DATAMASK:
 		case COMPUMASK:
 		case INSIGHT2:
+		case I300:
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
@@ -624,7 +627,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		parser->model == ELEMENT2 || parser->model == VEO20 ||
 		parser->model == A300 || parser->model == ZEN ||
 		parser->model == GEO || parser->model == GEO20 ||
-		parser->model == MANTA) {
+		parser->model == MANTA || parser->model == I300) {
 		have_pressure = 0;
 	}
 
@@ -738,7 +741,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == VEO30 || parser->model == OC1A ||
 					parser->model == OC1B || parser->model == OC1C ||
 					parser->model == OCI || parser->model == A300 ||
-					parser->model == I450T) {
+					parser->model == I450T || parser->model == I300) {
 					temperature = data[offset + 3];
 				} else if (parser->model == OCS || parser->model == TX1) {
 					temperature = data[offset + 1];
@@ -798,7 +801,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				parser->model == VEO30 || parser->model == OC1A ||
 				parser->model == OC1B || parser->model == OC1C ||
 				parser->model == OCI || parser->model == A300 ||
-				parser->model == I450T)
+				parser->model == I450T || parser->model == I300)
 				depth = (data[offset + 4] + (data[offset + 5] << 8)) & 0x0FFF;
 			else if (parser->model == ATOM1)
 				depth = data[offset + 3] * 16;
