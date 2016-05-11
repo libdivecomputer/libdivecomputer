@@ -156,7 +156,11 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
-			gasmix->oxygen = 0.21;
+			if (mode == NITROX) {
+				gasmix->oxygen = p[0x0E] / 100.0;
+			} else {
+				gasmix->oxygen = 0.21;
+			}
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
