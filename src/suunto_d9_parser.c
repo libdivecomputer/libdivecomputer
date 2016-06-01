@@ -724,7 +724,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
-					if (parser->model == DX)
+					if (parser->model == DX || parser->model == VYPERNOVO)
 						length = 5;
 					else
 						length = 4;
@@ -735,7 +735,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					unknown = data[offset + 0];
 					he = data[offset + 1];
 					o2 = data[offset + 2];
-					if (parser->model == DX) {
+					if (parser->model == DX || parser->model == VYPERNOVO) {
 						seconds = data[offset + 4];
 					} else {
 						seconds = data[offset + 3];
