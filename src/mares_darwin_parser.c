@@ -34,6 +34,10 @@
 #define DARWIN    0
 #define DARWINAIR 1
 
+#define AIR    0
+#define GAUGE  1
+#define NITROX 2
+
 typedef struct mares_darwin_parser_t mares_darwin_parser_t;
 
 struct mares_darwin_parser_t {
@@ -133,6 +137,8 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 
+	unsigned int mode = p[0x0C] & 0x03;
+
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
@@ -142,7 +148,11 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = array_uint16_be (p + 0x08) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 1;
+			if (mode == GAUGE) {
+				*((unsigned int *) value) = 0;
+			} else {
+				*((unsigned int *) value) = 1;
+			}
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
@@ -169,6 +179,19 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				tank->endpressure = array_uint16_be (p + 0x19);
 			} else {
 				return DC_STATUS_UNSUPPORTED;
+			}
+			break;
+		case DC_FIELD_DIVEMODE:
+			switch (mode) {
+			case AIR:
+			case NITROX:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case GAUGE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
 			}
 			break;
 		default:
