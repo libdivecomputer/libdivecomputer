@@ -561,7 +561,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int samplerate = 1;
 	if (parser->mode != FREEDIVE) {
 		unsigned int idx = 0x17;
-		if (parser->model == A300CS || parser->model == VTX)
+		if (parser->model == A300CS || parser->model == VTX ||
+			parser->model == I450T)
 			idx = 0x1f;
 		switch (data[idx] & 0x03) {
 		case 0:
