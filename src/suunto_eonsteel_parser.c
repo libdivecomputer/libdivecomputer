@@ -35,27 +35,30 @@
 
 enum eon_sample {
 	ES_none = 0,
-	ES_dtime,	// duint16,precision=3 (time delta in ms)
-	ES_depth,	// uint16,precision=2,nillable=65535 (depth in cm)
-	ES_temp,	// int16,precision=2,nillable=-3000 (temp in deci-Celsius)
-	ES_ndl,		// int16,nillable=-1 (ndl in minutes)
-	ES_ceiling,	// uint16,precision=2,nillable=65535 (ceiling in cm)
-	ES_tts,		// uint16,nillable=65535 (time to surface)
-	ES_heading,	// uint16,precision=4,nillable=65535 (heading in degrees)
-	ES_abspressure,	// uint16,precision=0,nillable=65535 (abs presure in centibar)
-	ES_gastime,	// int16,nillable=-1 (remaining gas time in minutes)
-	ES_ventilation,	// uint16,precision=6,nillable=65535 ("x/6000000,x"? No idea)
-	ES_gasnr,	// uint8
-	ES_pressure,	// uint16,nillable=65535 (cylinder pressure in centibar)
-	ES_state,
-	ES_state_active,
-	ES_notify,
-	ES_notify_active,
-	ES_warning,
-	ES_warning_active,
+	ES_dtime,		// duint16,precision=3 (time delta in ms)
+	ES_depth,		// uint16,precision=2,nillable=65535 (depth in cm)
+	ES_temp,		// int16,precision=2,nillable=-3000 (temp in deci-Celsius)
+	ES_ndl,			// int16,nillable=-1 (ndl in minutes)
+	ES_ceiling,		// uint16,precision=2,nillable=65535 (ceiling in cm)
+	ES_tts,			// uint16,nillable=65535 (time to surface)
+	ES_heading,		// uint16,precision=4,nillable=65535 (heading in degrees)
+	ES_abspressure,		// uint16,precision=0,nillable=65535 (abs presure in centibar)
+	ES_gastime,		// int16,nillable=-1 (remaining gas time in minutes)
+	ES_ventilation,		// uint16,precision=6,nillable=65535 ("x/6000000,x"? No idea)
+	ES_gasnr,		// uint8
+	ES_pressure,		// uint16,nillable=65535 (cylinder pressure in centibar)
+	ES_state,		// enum:0=Wet Outside,1=Below Wet Activation Depth,2=Below Surface,3=Dive Active,4=Surface Calculation,5=Tank pressure available,6=Closed Circuit Mode
+	ES_state_active,	// bool
+	ES_notify,		// enum:0=NoFly Time,1=Depth,2=Surface Time,3=Tissue Level,4=Deco,5=Deco Window,6=Safety Stop Ahead,7=Safety Stop,8=Safety Stop Broken,9=Deep Stop Ahead,10=Deep Stop,11=Dive Time,12=Gas Available,13=SetPoint Switch,14=Diluent Hypoxia,15=Air Time,16=Tank Pressure
+	ES_notify_active,	// bool
+	ES_warning,		// enum:0=ICD Penalty,1=Deep Stop Penalty,2=Mandatory Safety Stop,3=OTU250,4=OTU300,5=CNS80%,6=CNS100%,7=Max.Depth,8=Air Time,9=Tank Pressure,10=Safety Stop Broken,11=Deep Stop Broken,12=Ceiling Broken,13=PO2 High
+	ES_warning_active,	// bool
 	ES_alarm,
 	ES_alarm_active,
-	ES_gasswitch,	// uint16
+	ES_gasswitch,		// uint16
+	ES_setpoint_type,	// enum:0=Low,1=High,2=Custom
+	ES_setpoint_po2,	// uint32
+	ES_setpoint_automatic,	// bool
 	ES_bookmark,
 };
 
@@ -83,6 +86,10 @@ typedef struct suunto_eonsteel_parser_t {
 		dc_gasmix_t gasmix[MAXGASES];
 		dc_salinity_t salinity;
 		double surface_pressure;
+		dc_divemode_t divemode;
+		double lowsetpoint;
+		double highsetpoint;
+		double customsetpoint;
 		dc_tankvolume_t tankinfo[MAXGASES];
 		double tanksize[MAXGASES];
 		double tankworkingpressure[MAXGASES];
@@ -117,6 +124,9 @@ static const struct {
 	{ "Events.Alarm.Active",		ES_alarm_active },
 	{ "Events.Bookmark.Name",		ES_bookmark },
 	{ "Events.GasSwitch.GasNumber",		ES_gasswitch },
+	{ "Events.SetPoint.Type",		ES_setpoint_type },
+	{ "Events.Events.SetPoint.PO2",		ES_setpoint_po2 },
+	{ "Events.SetPoint.Automatic",		ES_setpoint_automatic },
 	{ "Events.DiveTimer.Active",		ES_none },
 	{ "Events.DiveTimer.Time",		ES_none },
 };
@@ -737,6 +747,41 @@ static void sample_event_alarm_value(struct sample_data *info, unsigned char val
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
+// enum:0=Low,1=High,2=Custom
+static void sample_setpoint_type(struct sample_data *info, unsigned char value)
+{
+	dc_sample_value_t sample = {0};
+
+	switch (value) {
+	case 0:
+		sample.ppo2 = info->eon->cache.lowsetpoint;
+		break;
+	case 1:
+		sample.ppo2 = info->eon->cache.highsetpoint;
+		break;
+	case 2:
+		sample.ppo2 = info->eon->cache.customsetpoint;
+		break;
+	default:
+		DEBUG(info->eon->base.context, "sample_setpoint_type(%u)", value);
+		return;
+	}
+	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, sample, info->userdata);
+}
+
+// uint32
+static void sample_setpoint_po2(struct sample_data *info, unsigned int pressure)
+{
+	// I *think* this just sets the custom SP, and then
+	// we'll get a setpoint_type(2) later.
+	info->eon->cache.customsetpoint = pressure / 100000.0;	// Pascal to bar
+}
+
+static void sample_setpoint_automatic(struct sample_data *info, unsigned char value)
+{
+	DEBUG(info->eon->base.context, "sample_setpoint_automatic(%u)", value);
+}
+
 static int handle_sample_type(struct sample_data *info, enum eon_sample type, const unsigned char *data)
 {
 	switch (type) {
@@ -827,6 +872,18 @@ static int handle_sample_type(struct sample_data *info, enum eon_sample type, co
 	case ES_gasswitch:
 		sample_gas_switch_event(info, array_uint16_le(data));
 		return 2;
+
+	case ES_setpoint_type:
+		sample_setpoint_type(info, data[0]);
+		return 1;
+
+	case ES_setpoint_po2:
+		sample_setpoint_po2(info, array_uint32_le(data));
+		return 4;
+
+	case ES_setpoint_automatic:	// bool
+		sample_setpoint_automatic(info, data[0]);
+		return 1;
 
 	default:
 		return 0;
@@ -925,6 +982,9 @@ suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsi
 		break;
 	case DC_FIELD_ATMOSPHERIC:
 		field_value(value, eon->cache.surface_pressure);
+		break;
+	case DC_FIELD_DIVEMODE:
+		field_value(value, eon->cache.divemode);
 		break;
 	case DC_FIELD_TANK:
 		/*
@@ -1115,6 +1175,12 @@ static int traverse_device_fields(suunto_eonsteel_parser_t *eon, const struct ty
 //   AlgorithmTransitionDepth (uint8)
 //   DaysInSeries (uint32)
 //   PreviousDiveDepth (float32,precision=2)
+//   LowSetPoint (uint32)
+//   HighSetPoint (uint32)
+//   SwitchHighSetPoint.Enabled (bool)
+//   SwitchHighSetPoint.Depth (float32,precision=1)
+//   SwitchLowSetPoint.Enabled (bool)
+//   SwitchLowSetPoint.Depth (float32,precision=1)
 //   StartTissue.CNS (float32,precision=3)
 //   StartTissue.OTU (float32)
 //   StartTissue.OLF (float32,precision=3)
@@ -1159,6 +1225,26 @@ static int traverse_diving_fields(suunto_eonsteel_parser_t *eon, const struct ty
 		unsigned int pressure = array_uint32_le(data); // in SI units - Pascal
 		eon->cache.surface_pressure = pressure / 100000.0; // bar
 		eon->cache.initialized |= 1 << DC_FIELD_ATMOSPHERIC;
+		return 0;
+	}
+
+	if (!strcmp(name, "DiveMode")) {
+		if (!strncmp(data, "CCR", 3)) {
+			eon->cache.divemode = DC_DIVEMODE_CC;
+			eon->cache.initialized |= 1 << DC_FIELD_DIVEMODE;
+		}
+		return 0;
+	}
+
+	if (!strcmp(name, "LowSetPoint")) {
+		unsigned int pressure = array_uint32_le(data); // in SI units - Pascal
+		eon->cache.lowsetpoint = pressure / 100000.0; // bar
+		return 0;
+	}
+
+	if (!strcmp(name, "HighSetPoint")) {
+		unsigned int pressure = array_uint32_le(data); // in SI units - Pascal
+		eon->cache.highsetpoint = pressure / 100000.0; // bar
 		return 0;
 	}
 
