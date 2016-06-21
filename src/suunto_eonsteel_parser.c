@@ -95,6 +95,7 @@ static const struct {
 	const char *name;
 	enum eon_sample type;
 } type_translation[] = {
+	{ "+Time",				ES_dtime },
 	{ "Depth",				ES_depth },
 	{ "Temperature",			ES_temp },
 	{ "NoDecTime",				ES_ndl },
@@ -150,6 +151,16 @@ static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, str
 			return type_translation[i].type;
 	}
 	return ES_none;
+}
+
+static const char *desc_type_name(enum eon_sample type)
+{
+	int i;
+	for (i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
+		if (type == type_translation[i].type)
+			return type_translation[i].name;
+	}
+	return "Unknown";
 }
 
 static int lookup_descriptor_size(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
@@ -1252,6 +1263,31 @@ static void initialize_field_caches(suunto_eonsteel_parser_t *eon)
 	eon->cache.divetime /= 1000;
 }
 
+static void show_descriptor(suunto_eonsteel_parser_t *eon, int nr, struct type_desc *desc)
+{
+	int i;
+
+	if (!desc->desc)
+		return;
+	DEBUG(eon->base.context, "Descriptor %d: '%s', size %d bytes", nr, desc->desc, desc->size);
+	if (desc->format)
+		DEBUG(eon->base.context, "    format '%s'", desc->format);
+	if (desc->mod)
+		DEBUG(eon->base.context, "    mod '%s'", desc->mod);
+	for (i = 0; i < EON_MAX_GROUP; i++) {
+		enum eon_sample type = desc->type[i];
+		if (!type)
+			continue;
+		DEBUG(eon->base.context, "    %d: %d (%s)", i, type, desc_type_name(type));
+	}
+}
+
+static void show_all_descriptors(suunto_eonsteel_parser_t *eon)
+{
+	for (unsigned int i = 0; i < MAXTYPE; ++i)
+		show_descriptor(eon, i, eon->type_desc+i);
+}
+
 static dc_status_t
 suunto_eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, unsigned int size)
 {
@@ -1260,6 +1296,7 @@ suunto_eonsteel_parser_set_data(dc_parser_t *parser, const unsigned char *data, 
 	desc_free(eon->type_desc, MAXTYPE);
 	memset(eon->type_desc, 0, sizeof(eon->type_desc));
 	initialize_field_caches(eon);
+	show_all_descriptors(eon);
 	return DC_STATUS_SUCCESS;
 }
 
