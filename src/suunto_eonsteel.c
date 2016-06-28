@@ -649,6 +649,7 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	dc_buffer_t *file;
 	char pathname[64];
 	unsigned int time;
+	unsigned int count = 0;
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 
 	if (get_file_list(eon, &de) < 0)
@@ -661,8 +662,13 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	devinfo.serial = array_convert_str2num(eon->version + 0x10, 16);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
+	count = count_dir_entries(de);
+	if (count == 0)  {
+		return DC_STATUS_SUCCESS;
+	}
+
 	file = dc_buffer_new(0);
-	progress.maximum = count_dir_entries(de);
+	progress.maximum = count;
 	progress.current = 0;
 	device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);
 
