@@ -175,6 +175,7 @@ main (int argc, char *argv[])
 	const char *device = NULL;
 	dc_family_t family = DC_FAMILY_NULL;
 	unsigned int model = 0;
+	unsigned int have_family = 0, have_model = 0;
 
 	// Parse the command-line options.
 	int opt = 0;
@@ -203,9 +204,11 @@ main (int argc, char *argv[])
 			break;
 		case 'f':
 			family = dctool_family_type (optarg);
+			have_family = 1;
 			break;
 		case 'm':
 			model = strtoul (optarg, NULL, 0);
+			have_model = 1;
 			break;
 		case 'l':
 			logfile = optarg;
@@ -228,6 +231,11 @@ main (int argc, char *argv[])
 #if defined(HAVE_DECL_OPTRESET) && HAVE_DECL_OPTRESET
 	optreset = 1;
 #endif
+
+	// Set the default model number.
+	if (have_family && !have_model) {
+		model = dctool_family_model (family);
+	}
 
 	// Translate the help option into a command.
 	char *argv_help[] = {(char *) "help", NULL, NULL};

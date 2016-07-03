@@ -41,42 +41,43 @@
 typedef struct backend_table_t {
 	const char *name;
 	dc_family_t type;
+	unsigned int model;
 } backend_table_t;
 
 static const backend_table_t g_backends[] = {
-	{"solution",    DC_FAMILY_SUUNTO_SOLUTION},
-	{"eon",	        DC_FAMILY_SUUNTO_EON},
-	{"vyper",       DC_FAMILY_SUUNTO_VYPER},
-	{"vyper2",      DC_FAMILY_SUUNTO_VYPER2},
-	{"d9",          DC_FAMILY_SUUNTO_D9},
-	{"eonsteel",    DC_FAMILY_SUUNTO_EONSTEEL},
-	{"aladin",      DC_FAMILY_UWATEC_ALADIN},
-	{"memomouse",   DC_FAMILY_UWATEC_MEMOMOUSE},
-	{"smart",       DC_FAMILY_UWATEC_SMART},
-	{"meridian",    DC_FAMILY_UWATEC_MERIDIAN},
-	{"sensus",      DC_FAMILY_REEFNET_SENSUS},
-	{"sensuspro",   DC_FAMILY_REEFNET_SENSUSPRO},
-	{"sensusultra", DC_FAMILY_REEFNET_SENSUSULTRA},
-	{"vtpro",       DC_FAMILY_OCEANIC_VTPRO},
-	{"veo250",      DC_FAMILY_OCEANIC_VEO250},
-	{"atom2",       DC_FAMILY_OCEANIC_ATOM2},
-	{"nemo",        DC_FAMILY_MARES_NEMO},
-	{"puck",        DC_FAMILY_MARES_PUCK},
-	{"darwin",      DC_FAMILY_MARES_DARWIN},
-	{"iconhd",      DC_FAMILY_MARES_ICONHD},
-	{"ostc",        DC_FAMILY_HW_OSTC},
-	{"frog",        DC_FAMILY_HW_FROG},
-	{"ostc3",       DC_FAMILY_HW_OSTC3},
-	{"edy",         DC_FAMILY_CRESSI_EDY},
-	{"leonardo",	DC_FAMILY_CRESSI_LEONARDO},
-	{"n2ition3",    DC_FAMILY_ZEAGLE_N2ITION3},
-	{"cobalt",      DC_FAMILY_ATOMICS_COBALT},
-	{"predator",	DC_FAMILY_SHEARWATER_PREDATOR},
-	{"petrel",      DC_FAMILY_SHEARWATER_PETREL},
-	{"nitekq",      DC_FAMILY_DIVERITE_NITEKQ},
-	{"aqualand",    DC_FAMILY_CITIZEN_AQUALAND},
-	{"idive",       DC_FAMILY_DIVESYSTEM_IDIVE},
-	{"cochran",     DC_FAMILY_COCHRAN_COMMANDER},
+	{"solution",    DC_FAMILY_SUUNTO_SOLUTION,     0},
+	{"eon",	        DC_FAMILY_SUUNTO_EON,          0},
+	{"vyper",       DC_FAMILY_SUUNTO_VYPER,        0x0A},
+	{"vyper2",      DC_FAMILY_SUUNTO_VYPER2,       0x10},
+	{"d9",          DC_FAMILY_SUUNTO_D9,           0x0E},
+	{"eonsteel",    DC_FAMILY_SUUNTO_EONSTEEL,     0},
+	{"aladin",      DC_FAMILY_UWATEC_ALADIN,       0x3F},
+	{"memomouse",   DC_FAMILY_UWATEC_MEMOMOUSE,    0},
+	{"smart",       DC_FAMILY_UWATEC_SMART,        0x10},
+	{"meridian",    DC_FAMILY_UWATEC_MERIDIAN,     0x20},
+	{"sensus",      DC_FAMILY_REEFNET_SENSUS,      1},
+	{"sensuspro",   DC_FAMILY_REEFNET_SENSUSPRO,   2},
+	{"sensusultra", DC_FAMILY_REEFNET_SENSUSULTRA, 3},
+	{"vtpro",       DC_FAMILY_OCEANIC_VTPRO,       0x4245},
+	{"veo250",      DC_FAMILY_OCEANIC_VEO250,      0x424C},
+	{"atom2",       DC_FAMILY_OCEANIC_ATOM2,       0x4342},
+	{"nemo",        DC_FAMILY_MARES_NEMO,          0},
+	{"puck",        DC_FAMILY_MARES_PUCK,          7},
+	{"darwin",      DC_FAMILY_MARES_DARWIN,        0},
+	{"iconhd",      DC_FAMILY_MARES_ICONHD,        0x14},
+	{"ostc",        DC_FAMILY_HW_OSTC,             0},
+	{"frog",        DC_FAMILY_HW_FROG,             0},
+	{"ostc3",       DC_FAMILY_HW_OSTC3,            0x0A},
+	{"edy",         DC_FAMILY_CRESSI_EDY,          0x08},
+	{"leonardo",	DC_FAMILY_CRESSI_LEONARDO,     1},
+	{"n2ition3",    DC_FAMILY_ZEAGLE_N2ITION3,     0},
+	{"cobalt",      DC_FAMILY_ATOMICS_COBALT,      0},
+	{"predator",	DC_FAMILY_SHEARWATER_PREDATOR, 2},
+	{"petrel",      DC_FAMILY_SHEARWATER_PETREL,   3},
+	{"nitekq",      DC_FAMILY_DIVERITE_NITEKQ,     0},
+	{"aqualand",    DC_FAMILY_CITIZEN_AQUALAND,    0},
+	{"idive",       DC_FAMILY_DIVESYSTEM_IDIVE,    0x03},
+	{"cochran",     DC_FAMILY_COCHRAN_COMMANDER,   0},
 };
 
 const char *
@@ -130,6 +131,17 @@ dctool_family_name (dc_family_t type)
 	}
 
 	return NULL;
+}
+
+unsigned int
+dctool_family_model (dc_family_t type)
+{
+	for (unsigned int i = 0; i < C_ARRAY_SIZE (g_backends); ++i) {
+		if (g_backends[i].type == type)
+			return g_backends[i].model;
+	}
+
+	return 0;
 }
 
 void

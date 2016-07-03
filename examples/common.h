@@ -39,6 +39,9 @@ dctool_family_type (const char *name);
 const char *
 dctool_family_name (dc_family_t type);
 
+unsigned int
+dctool_family_model (dc_family_t type);
+
 void
 dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata);
 
