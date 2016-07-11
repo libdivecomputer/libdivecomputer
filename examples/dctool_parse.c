@@ -106,7 +106,7 @@ parse (dc_buffer_t *buffer, dc_context_t *context, dc_descriptor_t *descriptor, 
 		rc = reefnet_sensusultra_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create (&parser, context);
+		rc = oceanic_vtpro_parser_create2 (&parser, context, model);
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_parser_create (&parser, context, model);

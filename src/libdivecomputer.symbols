@@ -58,6 +58,7 @@ mares_nemo_parser_create
 mares_darwin_parser_create
 mares_iconhd_parser_create
 oceanic_vtpro_parser_create
+oceanic_vtpro_parser_create2
 oceanic_veo250_parser_create
 oceanic_atom2_parser_create
 hw_ostc_parser_create
@@ -102,6 +103,7 @@ oceanic_veo250_device_open
 oceanic_veo250_device_version
 oceanic_veo250_device_keepalive
 oceanic_vtpro_device_open
+oceanic_vtpro_device_open2
 oceanic_vtpro_device_version
 oceanic_vtpro_device_keepalive
 reefnet_sensus_device_open

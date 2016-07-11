@@ -31,10 +31,13 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &oceanic_vtpro_parser_vtable)
 
+#define AERIS500AI 0x4151
+
 typedef struct oceanic_vtpro_parser_t oceanic_vtpro_parser_t;
 
 struct oceanic_vtpro_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int divetime;
@@ -60,6 +63,13 @@ static const dc_parser_vtable_t oceanic_vtpro_parser_vtable = {
 dc_status_t
 oceanic_vtpro_parser_create (dc_parser_t **out, dc_context_t *context)
 {
+	return oceanic_vtpro_parser_create2 (out, context, 0);
+}
+
+
+dc_status_t
+oceanic_vtpro_parser_create2 (dc_parser_t **out, dc_context_t *context, unsigned int model)
+{
 	oceanic_vtpro_parser_t *parser = NULL;
 
 	if (out == NULL)
@@ -73,6 +83,7 @@ oceanic_vtpro_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
+	parser->model = model;
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
@@ -100,27 +111,41 @@ oceanic_vtpro_parser_set_data (dc_parser_t *abstract, const unsigned char *data,
 static dc_status_t
 oceanic_vtpro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
+	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
+
 	if (abstract->size < 8)
 		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data;
 
 	if (datetime) {
-		// The logbook entry can only store the last digit of the year field,
-		// but the full year is also available in the dive header.
-		if (abstract->size < 40)
-			datetime->year = bcd2dec (p[4] & 0x0F) + 2000;
-		else
-			datetime->year = bcd2dec (((p[32 + 3] & 0xC0) >> 2) + ((p[32 + 2] & 0xF0) >> 4)) + 2000;
-		datetime->month  = (p[4] & 0xF0) >> 4;
-		datetime->day    = bcd2dec (p[3]);
-		datetime->hour   = bcd2dec (p[1] & 0x7F);
+		// AM/PM bit of the 12-hour clock.
+		unsigned int pm = 0;
+
+		if (parser->model == AERIS500AI) {
+			datetime->year   = (p[2] & 0x0F) + 1999;
+			datetime->month  = (p[3] & 0xF0) >> 4;
+			datetime->day    = ((p[2] & 0xF0) >> 4) | ((p[3] & 0x02) << 3);
+			datetime->hour   = bcd2dec (p[1] & 0x0F) + 10 * (p[3] & 0x01);
+			pm = p[3] & 0x08;
+		} else {
+			// The logbook entry can only store the last digit of the year field,
+			// but the full year is also available in the dive header.
+			if (abstract->size < 40)
+				datetime->year = bcd2dec (p[4] & 0x0F) + 2000;
+			else
+				datetime->year = bcd2dec (((p[32 + 3] & 0xC0) >> 2) + ((p[32 + 2] & 0xF0) >> 4)) + 2000;
+			datetime->month  = (p[4] & 0xF0) >> 4;
+			datetime->day    = bcd2dec (p[3]);
+			datetime->hour   = bcd2dec (p[1] & 0x7F);
+			pm = p[1] & 0x80;
+		}
 		datetime->minute = bcd2dec (p[0]);
 		datetime->second = 0;
 
 		// Convert to a 24-hour clock.
 		datetime->hour %= 12;
-		if (p[1] & 0x80)
+		if (pm)
 			datetime->hour += 12;
 	}
 
@@ -153,8 +178,17 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 
 	unsigned int footer = size - PAGESIZE;
 
+	unsigned int oxygen = 0;
+	unsigned int maxdepth = 0;
 	unsigned int beginpressure = array_uint16_le(data + 0x26) & 0x0FFF;
 	unsigned int endpressure = array_uint16_le(data + footer + 0x05) & 0x0FFF;
+	if (parser->model == AERIS500AI) {
+		oxygen = (array_uint16_le(data + footer + 2) & 0x0FF0) >> 4;
+		maxdepth = data[footer + 1];
+	} else {
+		oxygen = data[footer + 3];
+		maxdepth = array_uint16_le(data + footer + 0) & 0x0FFF;
+	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
@@ -165,15 +199,15 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			*((unsigned int *) value) = parser->divetime;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = (data[footer + 0] + ((data[footer + 1] & 0x0F) << 8)) * FEET;
+			*((double *) value) = maxdepth * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 1;
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
-			if (data[footer + 3])
-				gasmix->oxygen = data[footer + 3] / 100.0;
+			if (oxygen)
+				gasmix->oxygen = oxygen / 100.0;
 			else
 				gasmix->oxygen = 0.21;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -204,6 +238,8 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 static dc_status_t
 oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
+	oceanic_vtpro_parser_t *parser = (oceanic_vtpro_parser_t *) abstract;
+
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
@@ -212,22 +248,18 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int time = 0;
 	unsigned int interval = 0;
-	switch ((data[0x27] >> 4) & 0x07) {
-	case 0:
-		interval = 2;
-		break;
-	case 1:
-		interval = 15;
-		break;
-	case 2:
-		interval = 30;
-		break;
-	case 3:
-		interval = 60;
-		break;
-	default:
-		interval = 0;
-		break;
+	if (parser->model == AERIS500AI) {
+		const unsigned int intervals[] = {2, 5, 10, 15, 20, 25, 30};
+		unsigned int samplerate = (data[0x27] >> 4);
+		if (samplerate >= 3 && samplerate <= 9) {
+			interval = intervals[samplerate - 3];
+		}
+	} else {
+		const unsigned int intervals[] = {2, 15, 30, 60};
+		unsigned int samplerate = (data[0x27] >> 4) & 0x07;
+		if (samplerate <= 3) {
+			interval = intervals[samplerate];
+		}
 	}
 
 	// Initialize the state for the timestamp processing.
@@ -238,7 +270,8 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
-		if (array_isequal (data + offset, PAGESIZE / 2, 0x00)) {
+		if (array_isequal (data + offset, PAGESIZE / 2, 0x00) ||
+			array_isequal (data + offset, PAGESIZE / 2, 0xFF)) {
 			offset += PAGESIZE / 2;
 			continue;
 		}
@@ -264,7 +297,8 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				unsigned int idx = offset + PAGESIZE / 2 ;
 				while (idx + PAGESIZE / 2 <= size - PAGESIZE) {
 					// Ignore empty samples.
-					if (array_isequal (data + idx, PAGESIZE / 2, 0x00)) {
+					if (array_isequal (data + idx, PAGESIZE / 2, 0x00) ||
+						array_isequal (data + idx, PAGESIZE / 2, 0xFF)) {
 						idx += PAGESIZE / 2;
 						continue;
 					}
@@ -312,12 +346,22 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
 
 		// Depth (ft)
-		unsigned int depth = data[offset + 3];
+		unsigned int depth = 0;
+		if (parser->model == AERIS500AI) {
+			depth = (array_uint16_le(data + offset + 2) & 0x0FF0) >> 4;
+		} else {
+			depth = data[offset + 3];
+		}
 		sample.depth = depth * FEET;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Temperature (°F)
-		unsigned int temperature = data[offset + 6];
+		unsigned int temperature = 0;
+		if (parser->model == AERIS500AI) {
+			temperature = (array_uint16_le(data + offset + 6) & 0x0FF0) >> 4;
+		} else {
+			temperature = data[offset + 6];
+		}
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 

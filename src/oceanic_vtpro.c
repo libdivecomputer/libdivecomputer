@@ -21,6 +21,7 @@
 
 #include <string.h> // memcpy
 #include <stdlib.h> // malloc, free
+#include <assert.h>
 
 #include <libdivecomputer/oceanic_vtpro.h>
 
@@ -30,8 +31,9 @@
 #include "serial.h"
 #include "ringbuffer.h"
 #include "checksum.h"
+#include "array.h"
 
-#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_vtpro_device_vtable)
+#define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_vtpro_device_vtable.base)
 
 #define MAXRETRIES 2
 #define MULTIPAGE  4
@@ -40,23 +42,37 @@
 #define NAK 0xA5
 #define END 0x51
 
+#define AERIS500AI 0x4151
+
+typedef enum oceanic_vtpro_protocol_t {
+	MOD,
+	INTR,
+} oceanic_vtpro_protocol_t;
+
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	dc_serial_t *port;
+	unsigned int model;
+	oceanic_vtpro_protocol_t protocol;
 } oceanic_vtpro_device_t;
 
+static dc_status_t oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook);
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_vtpro_device_close (dc_device_t *abstract);
 
-static const dc_device_vtable_t oceanic_vtpro_device_vtable = {
-	sizeof(oceanic_vtpro_device_t),
-	DC_FAMILY_OCEANIC_VTPRO,
-	oceanic_common_device_set_fingerprint, /* set_fingerprint */
-	oceanic_vtpro_device_read, /* read */
-	NULL, /* write */
-	oceanic_common_device_dump, /* dump */
-	oceanic_common_device_foreach, /* foreach */
-	oceanic_vtpro_device_close /* close */
+static const oceanic_common_device_vtable_t oceanic_vtpro_device_vtable = {
+	{
+		sizeof(oceanic_vtpro_device_t),
+		DC_FAMILY_OCEANIC_VTPRO,
+		oceanic_common_device_set_fingerprint, /* set_fingerprint */
+		oceanic_vtpro_device_read, /* read */
+		NULL, /* write */
+		oceanic_common_device_dump, /* dump */
+		oceanic_common_device_foreach, /* foreach */
+		oceanic_vtpro_device_close /* close */
+	},
+	oceanic_vtpro_device_logbook,
+	oceanic_common_device_profile,
 };
 
 static const oceanic_common_version_t oceanic_vtpro_version[] = {
@@ -98,6 +114,18 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 	0 /* pt_mode_logbook */
 };
 
+static const oceanic_common_layout_t aeris_500ai_layout = {
+	0x20000, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0110, /* cf_pointers */
+	0x0200, /* rb_logbook_begin */
+	0x0200, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
+	0x00200, /* rb_profile_begin */
+	0x20000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1 /* pt_mode_logbook */
+};
 
 static dc_status_t
 oceanic_vtpro_send (oceanic_vtpro_device_t *device, const unsigned char command[], unsigned int csize)
@@ -156,11 +184,13 @@ oceanic_vtpro_transfer (oceanic_vtpro_device_t *device, const unsigned char comm
 			return rc;
 	}
 
-	// Receive the answer of the dive computer.
-	status = dc_serial_read (device->port, answer, asize, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the answer.");
-		return status;
+	if (asize) {
+		// Receive the answer of the dive computer.
+		status = dc_serial_read (device->port, answer, asize, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
+		}
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -174,8 +204,10 @@ oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Send the command to the dive computer.
-	unsigned char command[2] = {0xAA, 0x00};
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	unsigned char command[2][2] = {
+		{0xAA, 0x00},
+		{0x20, 0x00}};
+	status = dc_serial_write (device->port, command[device->protocol], sizeof (command[device->protocol]), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -190,10 +222,10 @@ oceanic_vtpro_init (oceanic_vtpro_device_t *device)
 	}
 
 	// Verify the answer.
-	const unsigned char response[13] = {
-		0x4D, 0x4F, 0x44, 0x2D, 0x2D, 0x4F, 0x4B,
-		0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30};
-	if (memcmp (answer, response, sizeof (response)) != 0) {
+	const unsigned char response[2][13] = {
+		{0x4D, 0x4F, 0x44, 0x2D, 0x2D, 0x4F, 0x4B, 0x5F, 0x56, 0x32, 0x2E, 0x30, 0x30},
+		{0x49, 0x4E, 0x54, 0x52, 0x2D, 0x4F, 0x4B, 0x5F, 0x56, 0x31, 0x2E, 0x31, 0x31}};
+	if (memcmp (answer, response[device->protocol], sizeof (response[device->protocol])) != 0) {
 		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -249,9 +281,115 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->base.layout != NULL);
+	assert (device->base.layout->rb_logbook_entry_size == PAGESIZE / 2);
+	assert (device->base.layout->rb_logbook_begin == device->base.layout->rb_logbook_end);
+	assert (progress != NULL);
+
+	const oceanic_common_layout_t *layout = device->base.layout;
+
+	// Erase the buffer.
+	if (!dc_buffer_clear (logbook))
+		return DC_STATUS_NOMEMORY;
+
+	// Read the pointer data.
+	unsigned char pointers[PAGESIZE] = {0};
+	rc = oceanic_vtpro_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return rc;
+	}
+
+	// Get the logbook pointers.
+	unsigned int last = pointers[0x03];
+
+	// Update and emit a progress event.
+	progress->current += PAGESIZE;
+	progress->maximum += PAGESIZE + (last + 1) * PAGESIZE / 2;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+
+	// Allocate memory for the logbook entries.
+	if (!dc_buffer_reserve (logbook, (last + 1) * PAGESIZE / 2))
+		return DC_STATUS_NOMEMORY;
+
+	// Send the logbook index command.
+	unsigned char command[] = {0x52,
+			(last >> 8) & 0xFF, // high
+			(last     ) & 0xFF, // low
+			0x00};
+	rc = oceanic_vtpro_transfer (device, command, sizeof (command), NULL, 0);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to send the logbook index command.");
+		return rc;
+	}
+
+	// Read the logbook index.
+	for (unsigned int i = 0; i < last + 1; ++i) {
+		// Receive the answer of the dive computer.
+		unsigned char answer[PAGESIZE / 2 + 1] = {0};
+		rc = dc_serial_read (device->port, answer, sizeof(answer), NULL);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return rc;
+		}
+
+		// Verify the checksum of the answer.
+		unsigned char crc = answer[PAGESIZE / 2];
+		unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
+		if (crc != ccrc) {
+			ERROR (abstract->context, "Unexpected answer checksum.");
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Update and emit a progress event.
+		progress->current += PAGESIZE / 2;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+
+		// Ignore uninitialized entries.
+		if (array_isequal (answer, PAGESIZE / 2, 0xFF)) {
+			WARNING (abstract->context, "Uninitialized logbook entries detected!");
+			continue;
+		}
+
+		// Compare the fingerprint to identify previously downloaded entries.
+		if (memcmp (answer, device->base.fingerprint, PAGESIZE / 2) == 0) {
+			dc_buffer_clear (logbook);
+		} else {
+			dc_buffer_append (logbook, answer, PAGESIZE / 2);
+		}
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+{
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
+
+	if (device->model == AERIS500AI) {
+		return oceanic_aeris500ai_device_logbook (abstract, progress, logbook);
+	} else {
+		return oceanic_common_device_logbook (abstract, progress, logbook);
+	}
+}
 
 dc_status_t
 oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+{
+	return oceanic_vtpro_device_open2 (out, context, name, 0);
+}
+
+
+dc_status_t
+oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = NULL;
@@ -260,7 +398,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (oceanic_vtpro_device_t *) dc_device_allocate (context, &oceanic_vtpro_device_vtable);
+	device = (oceanic_vtpro_device_t *) dc_device_allocate (context, &oceanic_vtpro_device_vtable.base);
 	if (device == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -274,6 +412,12 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 	// Set the default values.
 	device->port = NULL;
+	device->model = model;
+	if (model == AERIS500AI) {
+		device->protocol = INTR;
+	} else {
+		device->protocol = MOD;
+	}
 
 	// Open the device.
 	status = dc_serial_open (&device->port, context, name);
@@ -311,7 +455,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
-	dc_serial_sleep (device->port, 100);
+	dc_serial_sleep (device->port, device->protocol == MOD ? 100 : 1000);
 
 	// Make sure everything is in a sane state.
 	dc_serial_purge (device->port, DC_DIRECTION_ALL);
@@ -339,7 +483,9 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	}
 
 	// Override the base class values.
-	if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_wisdom_version)) {
+	if (model == AERIS500AI) {
+		device->base.layout = &aeris_500ai_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_wisdom_version)) {
 		device->base.layout = &oceanic_wisdom_layout;
 	} else {
 		device->base.layout = &oceanic_vtpro_layout;
@@ -431,32 +577,36 @@ oceanic_vtpro_device_version (dc_device_t *abstract, unsigned char data[], unsig
 		return DC_STATUS_PROTOCOL;
 	}
 
-	// Obtain the device identification string. This string is
-	// split over two packets, but we join both parts again.
+	if (device->protocol == MOD) {
+		// Obtain the device identification string. This string is
+		// split over two packets, but we join both parts again.
+		for (unsigned int i = 0; i < 2; ++i) {
+			unsigned char command[4] = {0x72, 0x03, i * 0x10, 0x00};
+			unsigned char answer[PAGESIZE / 2 + 2] = {0};
+			rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
 
-	for (unsigned int i = 0; i < 2; ++i) {
-		unsigned char command[4] = {0x72, 0x03, i * 0x10, 0x00};
-		unsigned char answer[PAGESIZE / 2 + 2] = {0};
-		rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+			// Verify the checksum of the answer.
+			unsigned char crc = answer[PAGESIZE / 2];
+			unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
+			if (crc != ccrc) {
+				ERROR (abstract->context, "Unexpected answer checksum.");
+				return DC_STATUS_PROTOCOL;
+			}
 
-		// Verify the checksum of the answer.
-		unsigned char crc = answer[PAGESIZE / 2];
-		unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
-		if (crc != ccrc) {
-			ERROR (abstract->context, "Unexpected answer checksum.");
-			return DC_STATUS_PROTOCOL;
+			// Verify the last byte of the answer.
+			if (answer[PAGESIZE / 2 + 1] != END) {
+				ERROR (abstract->context, "Unexpected answer byte.");
+				return DC_STATUS_PROTOCOL;
+			}
+
+			// Append the answer to the output buffer.
+			memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
 		}
-
-		// Verify the last byte of the answer.
-		if (answer[PAGESIZE / 2 + 1] != END) {
-			ERROR (abstract->context, "Unexpected answer byte.");
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Append the answer to the output buffer.
-		memcpy (data + i * PAGESIZE / 2, answer, PAGESIZE / 2);
+	} else {
+		// Return an empty device identification string.
+		memset (data, 0x00, PAGESIZE);
 	}
 
 	return DC_STATUS_SUCCESS;

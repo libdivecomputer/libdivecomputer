@@ -121,6 +121,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2},
 	{"Reefnet", "Sensus Ultra", DC_FAMILY_REEFNET_SENSUSULTRA, 3},
 	/* Oceanic VT Pro */
+	{"Aeris",    "500 AI",     DC_FAMILY_OCEANIC_VTPRO, 0x4151},
 	{"Oceanic",  "Versa Pro",  DC_FAMILY_OCEANIC_VTPRO, 0x4155},
 	{"Aeris",    "Atmos 2",    DC_FAMILY_OCEANIC_VTPRO, 0x4158},
 	{"Oceanic",  "Pro Plus 2", DC_FAMILY_OCEANIC_VTPRO, 0x4159},
