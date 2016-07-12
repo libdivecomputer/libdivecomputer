@@ -83,7 +83,7 @@ typedef struct hw_ostc_gasmix_t {
 
 typedef struct hw_ostc_parser_t {
 	dc_parser_t base;
-	unsigned int frog;
+	unsigned int hwos;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int version;
@@ -181,7 +181,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	}
 
 	// Check the profile version
-	unsigned int version = data[parser->frog ? 8 : 2];
+	unsigned int version = data[parser->hwos ? 8 : 2];
 	const hw_ostc_layout_t *layout = NULL;
 	unsigned int header = 0;
 	switch (version) {
@@ -267,7 +267,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 }
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int frog)
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int hwos)
 {
 	hw_ostc_parser_t *parser = NULL;
 
@@ -282,7 +282,7 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int fr
 	}
 
 	// Set the default values.
-	parser->frog = frog;
+	parser->hwos = hwos;
 	parser->cached = 0;
 	parser->version = 0;
 	parser->header = 0;
