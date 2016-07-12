@@ -59,6 +59,8 @@
 #define OSTC3_GAUGE 2
 #define OSTC3_APNEA 3
 
+#define OSTC4      0x3B
+
 typedef struct hw_ostc_sample_info_t {
 	unsigned int type;
 	unsigned int divisor;
@@ -74,6 +76,7 @@ typedef struct hw_ostc_layout_t {
 	unsigned int salinity;
 	unsigned int duration;
 	unsigned int temperature;
+	unsigned int firmware;
 } hw_ostc_layout_t;
 
 typedef struct hw_ostc_gasmix_t {
@@ -120,6 +123,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	43, /* salinity */
 	47, /* duration */
 	13, /* temperature */
+	32, /* firmware */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_frog = {
@@ -131,6 +135,7 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	43, /* salinity */
 	47, /* duration */
 	19, /* temperature */
+	34, /* firmware */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
@@ -142,6 +147,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	70, /* salinity */
 	75, /* duration */
 	22, /* temperature */
+	48, /* firmware */
 };
 
 static unsigned int
@@ -603,6 +609,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		}
 	}
 
+	// Get the firmware version.
+	unsigned int firmware = 0;
+	if (parser->model == OSTC4) {
+		firmware = array_uint16_le (data + layout->firmware);
+	} else {
+		firmware = array_uint16_be (data + layout->firmware);
+	}
+
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
 
@@ -823,6 +837,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 					break;
 				case 1: // Deco / NDL
+					// Due to a firmware bug, the deco/ndl info is incorrect for
+					// all OSTC4 dives with a firmware older than version 1.0.8.
+					if (parser->model == OSTC4 && firmware < 0x0810)
+						break;
 					if (data[offset]) {
 						sample.deco.type = DC_DECO_DECOSTOP;
 						sample.deco.depth = data[offset];
