@@ -84,6 +84,7 @@ typedef struct hw_ostc_gasmix_t {
 typedef struct hw_ostc_parser_t {
 	dc_parser_t base;
 	unsigned int hwos;
+	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int version;
@@ -267,7 +268,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 }
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int hwos)
+hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsigned int hwos, unsigned int model)
 {
 	hw_ostc_parser_t *parser = NULL;
 
@@ -283,6 +284,7 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int hw
 
 	// Set the default values.
 	parser->hwos = hwos;
+	parser->model = model;
 	parser->cached = 0;
 	parser->version = 0;
 	parser->header = 0;
@@ -300,6 +302,18 @@ hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int hw
 	return DC_STATUS_SUCCESS;
 }
 
+
+dc_status_t
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int hwos)
+{
+	return hw_ostc_parser_create_internal (out, context, hwos, 0);
+}
+
+dc_status_t
+hw_ostc3_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+{
+	return hw_ostc_parser_create_internal (out, context, 1, model);
+}
 
 static dc_status_t
 hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)

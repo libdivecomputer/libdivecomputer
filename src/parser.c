@@ -116,7 +116,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_HW_FROG:
 	case DC_FAMILY_HW_OSTC3:
-		rc = hw_ostc_parser_create (&parser, context, 1);
+		rc = hw_ostc3_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_CRESSI_EDY:
 	case DC_FAMILY_ZEAGLE_N2ITION3:
