@@ -955,7 +955,7 @@ suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsi
 
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *)parser;
 
-	if (!(eon->cache.initialized >> type))
+	if (!(eon->cache.initialized & (1 << type)))
 		return DC_STATUS_UNSUPPORTED;
 
 	switch (type) {
