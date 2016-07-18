@@ -83,6 +83,8 @@ else
 libdivecomputer_la_SOURCES += irda.h irda_dummy.c
 endif
 
+libdivecomputer_la_SOURCES += usbhid.h usbhid.c
+
 if OS_WIN32
 libdivecomputer_la_SOURCES += libdivecomputer.rc
 endif
