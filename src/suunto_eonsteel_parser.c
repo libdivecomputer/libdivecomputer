@@ -449,8 +449,8 @@ struct sample_data {
 	dc_sample_callback_t callback;
 	void *userdata;
 	unsigned int time;
-	unsigned char state_type, notify_type;
-	unsigned char warning_type, alarm_type;
+	const char *state_type, *notify_type;
+	const char *warning_type, *alarm_type;
 
 	/* We gather up deco and cylinder pressure information */
 	int gasnr;
@@ -601,76 +601,110 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
 }
 
 /*
+ * Look up the string from an enumeration.
+ *
+ * Enumerations have the enum values in the "format" string,
+ * and all start with "enum:" followed by a comma-separated list
+ * of enumeration values and strings. Example:
+ *
+ * "enum:0=NoFly Time,1=Depth,2=Surface Time,3=..."
+ */
+static const char *lookup_enum(const struct type_desc *desc, unsigned char value)
+{
+	const char *str = desc->format;
+	unsigned char c;
+
+	if (!str)
+		return NULL;
+	if (strncmp(str, "enum:", 5))
+		return NULL;
+	str += 5;
+
+	while ((c = *str) != 0) {
+		unsigned char n;
+		const char *begin, *end;
+		char *ret;
+
+		str++;
+		if (!isdigit(c))
+			continue;
+		n = c - '0';
+
+		// We only handle one or two digits
+		if (isdigit(*str)) {
+			n = n*10 + *str - '0';
+			str++;
+		}
+
+		begin = end = str;
+		while ((c = *str) != 0) {
+			str++;
+			if (c == ',')
+				break;
+			end = str;
+		}
+
+		// Verify that it has the 'n=string' format and skip the equals sign
+		if (*begin != '=')
+			continue;
+		begin++;
+
+		// Is it the value we're looking for?
+		if (n != value)
+			continue;
+
+		ret = malloc(end - begin + 1);
+		if (!ret)
+			break;
+
+		memcpy(ret, begin, end-begin);
+		ret[end-begin] = 0;
+		return ret;
+	}
+	return NULL;
+}
+
+/*
  * The EON Steel has four different sample events: "state", "notification",
  * "warning" and "alarm". All end up having two fields: type and a boolean value.
- *
- * The type enumerations are available as part of the type descriptor, and we
- * *should* probably parse them dynamically, but this hardcodes the different
- * type values.
- *
- * For event states, the types are:
- *
- * 0=Wet Outside
- * 1=Below Wet Activation Depth
- * 2=Below Surface
- * 3=Dive Active
- * 4=Surface Calculation
- * 5=Tank pressure available
- *
- * FIXME! This needs to parse the actual type descriptor enum
  */
 static void sample_event_state_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
-	info->state_type = type;
+	info->state_type = lookup_enum(desc, type);
 }
 
 static void sample_event_state_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
-	/*
-	 * We could turn these into sample events, but they don't actually
-	 * match any libdivecomputer events.
-	 *
-	 *   unsigned int state = info->state_type;
-	 *   dc_sample_value_t sample = {0};
-	 *   sample.event.type = ...
-	 *   sample.event.value = value;
-	 *   if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
-	 */
+	dc_sample_value_t sample = {0};
+	const char *name;
+
+	name = info->state_type;
+	if (!name)
+		return;
+
+	sample.event.type = SAMPLE_EVENT_NONE;
+	if (sample.event.type == SAMPLE_EVENT_NONE)
+		return;
+
+	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
 static void sample_event_notify_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
-	info->notify_type = type;
+	info->notify_type = lookup_enum(desc, type);
 }
 
-
-// FIXME! This needs to parse the actual type descriptor enum
 static void sample_event_notify_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
-	static const enum parser_sample_event_t translate_notification[] = {
-		SAMPLE_EVENT_NONE,			// 0=NoFly Time
-		SAMPLE_EVENT_NONE,			// 1=Depth
-		SAMPLE_EVENT_NONE,			// 2=Surface Time
-		SAMPLE_EVENT_TISSUELEVEL,		// 3=Tissue Level
-		SAMPLE_EVENT_NONE,			// 4=Deco
-		SAMPLE_EVENT_NONE,			// 5=Deco Window
-		SAMPLE_EVENT_SAFETYSTOP_VOLUNTARY,	// 6=Safety Stop Ahead
-		SAMPLE_EVENT_SAFETYSTOP,		// 7=Safety Stop
-		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 8=Safety Stop Broken
-		SAMPLE_EVENT_NONE,			// 9=Deep Stop Ahead
-		SAMPLE_EVENT_DEEPSTOP,			// 10=Deep Stop
-		SAMPLE_EVENT_DIVETIME,			// 11=Dive Time
-		SAMPLE_EVENT_NONE,			// 12=Gas Available
-		SAMPLE_EVENT_NONE,			// 13=SetPoint Switch
-		SAMPLE_EVENT_NONE,			// 14=Diluent Hypoxia
-		SAMPLE_EVENT_NONE,			// 15=Tank Pressure
-	};
+	const char *name;
 
-	if (info->notify_type > 15)
+	name = info->notify_type;
+	if (!name)
 		return;
 
-	sample.event.type = translate_notification[info->notify_type];
+	sample.event.type = SAMPLE_EVENT_NONE;
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
@@ -681,34 +715,19 @@ static void sample_event_notify_value(const struct type_desc *desc, struct sampl
 
 static void sample_event_warning_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
-	info->warning_type = type;
+	info->warning_type = lookup_enum(desc, type);
 }
-
 
 static void sample_event_warning_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
-	static const enum parser_sample_event_t translate_warning[] = {
-		SAMPLE_EVENT_NONE,			// 0=ICD Penalty ("Isobaric counterdiffusion")
-		SAMPLE_EVENT_VIOLATION,			// 1=Deep Stop Penalty
-		SAMPLE_EVENT_SAFETYSTOP_MANDATORY,	// 2=Mandatory Safety Stop
-		SAMPLE_EVENT_NONE,			// 3=OTU250
-		SAMPLE_EVENT_NONE,			// 4=OTU300
-		SAMPLE_EVENT_NONE,			// 5=CNS80%
-		SAMPLE_EVENT_NONE,			// 6=CNS100%
-		SAMPLE_EVENT_AIRTIME,			// 7=Air Time
-		SAMPLE_EVENT_MAXDEPTH,			// 8=Max.Depth
-		SAMPLE_EVENT_AIRTIME,			// 9=Tank Pressure
-		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 10=Safety Stop Broken
-		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 11=Deep Stop Broken
-		SAMPLE_EVENT_CEILING,			// 12=Ceiling Broken
-		SAMPLE_EVENT_PO2,			// 13=PO2 High
-	};
+	const char *name;
 
-	if (info->warning_type > 13)
+	name = info->warning_type;
+	if (!name)
 		return;
 
-	sample.event.type = translate_warning[info->warning_type];
+	sample.event.type = SAMPLE_EVENT_NONE;
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
@@ -718,28 +737,20 @@ static void sample_event_warning_value(const struct type_desc *desc, struct samp
 
 static void sample_event_alarm_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
-	info->alarm_type = type;
+	info->alarm_type = lookup_enum(desc, type);
 }
 
 
-// FIXME! This needs to parse the actual type descriptor enum
 static void sample_event_alarm_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
-	static const enum parser_sample_event_t translate_alarm[] = {
-		SAMPLE_EVENT_CEILING_SAFETYSTOP,	// 0=Mandatory Safety Stop Broken
-		SAMPLE_EVENT_ASCENT,			// 1=Ascent Speed
-		SAMPLE_EVENT_NONE,			// 2=Diluent Hyperoxia
-		SAMPLE_EVENT_VIOLATION,			// 3=Violated Deep Stop
-		SAMPLE_EVENT_CEILING,			// 4=Ceiling Broken
-		SAMPLE_EVENT_PO2,			// 5=PO2 High
-		SAMPLE_EVENT_PO2,			// 6=PO2 Low
-	};
+	const char *name;
 
-	if (info->alarm_type > 6)
+	name = info->alarm_type;
+	if (!name)
 		return;
 
-	sample.event.type = translate_alarm[info->alarm_type];
+	sample.event.type = SAMPLE_EVENT_NONE;
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
