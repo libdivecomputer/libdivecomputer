@@ -619,12 +619,12 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
  *
  * FIXME! This needs to parse the actual type descriptor enum
  */
-static void sample_event_state_type(struct sample_data *info, unsigned char type)
+static void sample_event_state_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
 	info->state_type = type;
 }
 
-static void sample_event_state_value(struct sample_data *info, unsigned char value)
+static void sample_event_state_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	/*
 	 * We could turn these into sample events, but they don't actually
@@ -638,14 +638,14 @@ static void sample_event_state_value(struct sample_data *info, unsigned char val
 	 */
 }
 
-static void sample_event_notify_type(struct sample_data *info, unsigned char type)
+static void sample_event_notify_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
 	info->notify_type = type;
 }
 
 
 // FIXME! This needs to parse the actual type descriptor enum
-static void sample_event_notify_value(struct sample_data *info, unsigned char value)
+static void sample_event_notify_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
 	static const enum parser_sample_event_t translate_notification[] = {
@@ -679,13 +679,13 @@ static void sample_event_notify_value(struct sample_data *info, unsigned char va
 }
 
 
-static void sample_event_warning_type(struct sample_data *info, unsigned char type)
+static void sample_event_warning_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
 	info->warning_type = type;
 }
 
 
-static void sample_event_warning_value(struct sample_data *info, unsigned char value)
+static void sample_event_warning_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
 	static const enum parser_sample_event_t translate_warning[] = {
@@ -716,14 +716,14 @@ static void sample_event_warning_value(struct sample_data *info, unsigned char v
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
-static void sample_event_alarm_type(struct sample_data *info, unsigned char type)
+static void sample_event_alarm_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
 	info->alarm_type = type;
 }
 
 
 // FIXME! This needs to parse the actual type descriptor enum
-static void sample_event_alarm_value(struct sample_data *info, unsigned char value)
+static void sample_event_alarm_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
 	static const enum parser_sample_event_t translate_alarm[] = {
@@ -748,7 +748,7 @@ static void sample_event_alarm_value(struct sample_data *info, unsigned char val
 }
 
 // enum:0=Low,1=High,2=Custom
-static void sample_setpoint_type(struct sample_data *info, unsigned char value)
+static void sample_setpoint_type(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
 
@@ -782,7 +782,7 @@ static void sample_setpoint_automatic(struct sample_data *info, unsigned char va
 	DEBUG(info->eon->base.context, "sample_setpoint_automatic(%u)", value);
 }
 
-static int handle_sample_type(struct sample_data *info, enum eon_sample type, const unsigned char *data)
+static int handle_sample_type(const struct type_desc *desc, struct sample_data *info, enum eon_sample type, const unsigned char *data)
 {
 	switch (type) {
 	case ES_dtime:
@@ -834,35 +834,35 @@ static int handle_sample_type(struct sample_data *info, enum eon_sample type, co
 		return 2;
 
 	case ES_state:
-		sample_event_state_type(info, data[0]);
+		sample_event_state_type(desc, info, data[0]);
 		return 1;
 
 	case ES_state_active:
-		sample_event_state_value(info, data[0]);
+		sample_event_state_value(desc, info, data[0]);
 		return 1;
 
 	case ES_notify:
-		sample_event_notify_type(info, data[0]);
+		sample_event_notify_type(desc, info, data[0]);
 		return 1;
 
 	case ES_notify_active:
-		sample_event_notify_value(info, data[0]);
+		sample_event_notify_value(desc, info, data[0]);
 		return 1;
 
 	case ES_warning:
-		sample_event_warning_type(info, data[0]);
+		sample_event_warning_type(desc, info, data[0]);
 		return 1;
 
 	case ES_warning_active:
-		sample_event_warning_value(info, data[0]);
+		sample_event_warning_value(desc, info, data[0]);
 		return 1;
 
 	case ES_alarm:
-		sample_event_alarm_type(info, data[0]);
+		sample_event_alarm_type(desc, info, data[0]);
 		return 1;
 
 	case ES_alarm_active:
-		sample_event_alarm_value(info, data[0]);
+		sample_event_alarm_value(desc, info, data[0]);
 		return 1;
 
 	case ES_bookmark:
@@ -874,7 +874,7 @@ static int handle_sample_type(struct sample_data *info, enum eon_sample type, co
 		return 2;
 
 	case ES_setpoint_type:
-		sample_setpoint_type(info, data[0]);
+		sample_setpoint_type(desc, info, data[0]);
 		return 1;
 
 	case ES_setpoint_po2:
@@ -905,7 +905,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 
 	for (i = 0; i < EON_MAX_GROUP; i++) {
 		enum eon_sample type = desc->type[i];
-		int bytes = handle_sample_type(info, type, data);
+		int bytes = handle_sample_type(desc, info, type, data);
 
 		if (!bytes)
 			break;
