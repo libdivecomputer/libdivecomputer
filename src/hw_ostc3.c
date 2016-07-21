@@ -42,6 +42,7 @@
 #define SZ_CUSTOMTEXT 60
 #define SZ_VERSION    (SZ_CUSTOMTEXT + 4)
 #define SZ_HARDWARE   1
+#define SZ_HARDWARE2  5
 #define SZ_MEMORY     0x400000
 #define SZ_CONFIG     4
 #define SZ_FWINFO     4
@@ -59,6 +60,7 @@
 #define S_READY    0x4C
 #define READY      0x4D
 #define S_UPGRADE  0x50
+#define HARDWARE2  0x60
 #define HEADER     0x61
 #define CLOCK      0x62
 #define CUSTOMTEXT 0x63
@@ -95,6 +97,8 @@ typedef struct hw_ostc3_device_t {
 	dc_device_t base;
 	dc_serial_t *port;
 	unsigned int hardware;
+	unsigned int feature;
+	unsigned int model;
 	unsigned char fingerprint[5];
 	hw_ostc3_state_t state;
 } hw_ostc3_device_t;
@@ -330,6 +334,8 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, const char *name
 	// Set the default values.
 	device->port = NULL;
 	device->hardware = INVALID;
+	device->feature = 0;
+	device->model = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
@@ -368,6 +374,33 @@ error_close:
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
+}
+
+
+static dc_status_t
+hw_ostc3_device_id (hw_ostc3_device_t *device, unsigned char data[], unsigned int size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+
+	if (size != SZ_HARDWARE && size != SZ_HARDWARE2)
+		return DC_STATUS_INVALIDARGS;
+
+	// Send the command.
+	unsigned char hardware[SZ_HARDWARE2] = {0};
+	status = hw_ostc3_transfer (device, NULL, HARDWARE2, NULL, 0, hardware, SZ_HARDWARE2, NODELAY);
+	if (status == DC_STATUS_UNSUPPORTED) {
+		status = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware + 1, SZ_HARDWARE, NODELAY);
+	}
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	if (size == SZ_HARDWARE2) {
+		memcpy (data, hardware, SZ_HARDWARE2);
+	} else {
+		memcpy (data, hardware + 1, SZ_HARDWARE);
+	}
+
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -466,15 +499,17 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		return DC_STATUS_SUCCESS;
 
 	// Read the hardware descriptor.
-	unsigned char hardware[SZ_HARDWARE] = {UNKNOWN};
-	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware, sizeof(hardware), NODELAY);
+	unsigned char hardware[SZ_HARDWARE2] = {0, UNKNOWN};
+	rc = hw_ostc3_device_id (device, hardware, sizeof(hardware));
 	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
 		ERROR (abstract->context, "Failed to read the hardware descriptor.");
 		return rc;
 	}
 
 	// Cache the descriptor.
-	device->hardware = hardware[0];
+	device->hardware = array_uint16_be(hardware + 0);
+	device->feature = array_uint16_be(hardware + 2);
+	device->model = hardware[4];
 
 	return DC_STATUS_SUCCESS;
 }
@@ -555,7 +590,7 @@ hw_ostc3_device_hardware (dc_device_t *abstract, unsigned char data[], unsigned 
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	if (size != SZ_HARDWARE)
+	if (size != SZ_HARDWARE && size != SZ_HARDWARE2)
 		return DC_STATUS_INVALIDARGS;
 
 	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
@@ -563,7 +598,7 @@ hw_ostc3_device_hardware (dc_device_t *abstract, unsigned char data[], unsigned 
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, data, size, NODELAY);
+	rc = hw_ostc3_device_id (device, data, size);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
