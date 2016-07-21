@@ -1166,19 +1166,45 @@ static int traverse_device_fields(suunto_eonsteel_parser_t *eon, const struct ty
 	return 0;
 }
 
+// "sml.DeviceLog.Header.Diving.Gases"
+//
+//   +Gas.State (enum:0=Off,1=Primary,3=Diluent,4=Oxygen)
+//   .Gas.Oxygen (uint8,precision=2)
+//   .Gas.Helium (uint8,precision=2)
+//   .Gas.PO2 (uint32)
+//   .Gas.TransmitterID (utf8)
+//   .Gas.TankSize (float32,precision=5)
+//   .Gas.TankFillPressure (float32,precision=0)
+//   .Gas.StartPressure (float32,precision=0)
+//   .Gas.EndPressure (float32,precision=0)
+//   .Gas.TransmitterStartBatteryCharge (int8,precision=2)
+//   .Gas.TransmitterEndBatteryCharge (int8,precision=2)
+static int traverse_gas_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc,
+                               const unsigned char *data, int len)
+{
+	const char *name = desc->desc + strlen("sml.DeviceLog.Header.Diving.Gases");
+
+	if (!strcmp(name, "+Gas.State"))
+		return add_gas_type(eon, desc, data[0]);
+
+	if (!strcmp(name, ".Gas.Oxygen"))
+		return add_gas_o2(eon, data[0]);
+
+	if (!strcmp(name, ".Gas.Helium"))
+		return add_gas_he(eon, data[0]);
+
+	if (!strcmp(name, ".Gas.TankSize"))
+		return add_gas_size(eon, get_le32_float(data));
+
+	if (!strcmp(name, ".Gas.TankFillPressure"))
+		return add_gas_workpressure(eon, get_le32_float(data));
+
+	return 0;
+}
+
+
 // "sml.DeviceLog.Header.Diving."
 //
-//   Gases+Gas.State (enum:0=Off,1=Primary,3=Diluent,4=Oxygen)
-//   Gases.Gas.Oxygen (uint8,precision=2)
-//   Gases.Gas.Helium (uint8,precision=2)
-//   Gases.Gas.PO2 (uint32)
-//   Gases.Gas.TransmitterID (utf8)
-//   Gases.Gas.TankSize (float32,precision=5)
-//   Gases.Gas.TankFillPressure (float32,precision=0)
-//   Gases.Gas.StartPressure (float32,precision=0)
-//   Gases.Gas.EndPressure (float32,precision=0)
-//   Gases.Gas.TransmitterStartBatteryCharge (int8,precision=2)
-//   Gases.Gas.TransmitterEndBatteryCharge (int8,precision=2)
 //   SurfaceTime (uint32)
 //   NumberInSeries (uint32)
 //   Algorithm (utf8)
@@ -1219,20 +1245,8 @@ static int traverse_diving_fields(suunto_eonsteel_parser_t *eon, const struct ty
 {
 	const char *name = desc->desc + strlen("sml.DeviceLog.Header.Diving.");
 
-	if (!strcmp(name, "Gases+Gas.State"))
-		return add_gas_type(eon, desc, data[0]);
-
-	if (!strcmp(name, "Gases.Gas.Oxygen"))
-		return add_gas_o2(eon, data[0]);
-
-	if (!strcmp(name, "Gases.Gas.Helium"))
-		return add_gas_he(eon, data[0]);
-
-	if (!strcmp(name, "Gases.Gas.TankSize"))
-		return add_gas_size(eon, get_le32_float(data));
-
-	if (!strcmp(name, "Gases.Gas.TankFillPressure"))
-		return add_gas_workpressure(eon, get_le32_float(data));
+	if (!strncmp(name, "Gases", 5))
+		return traverse_gas_fields(eon, desc, data, len);
 
 	if (!strcmp(name, "SurfacePressure")) {
 		unsigned int pressure = array_uint32_le(data); // in SI units - Pascal
