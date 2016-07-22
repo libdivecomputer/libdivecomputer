@@ -23,6 +23,8 @@
 #define DC_PARSER_H
 
 #include "common.h"
+#include "context.h"
+#include "descriptor.h"
 #include "device.h"
 #include "datetime.h"
 
@@ -219,6 +221,9 @@ typedef void (*dc_sample_callback_t) (dc_sample_type_t type, dc_sample_value_t v
 
 dc_status_t
 dc_parser_new (dc_parser_t **parser, dc_device_t *device);
+
+dc_status_t
+dc_parser_new2 (dc_parser_t **parser, dc_context_t *context, dc_descriptor_t *descriptor, unsigned int devtime, dc_ticks_t systime);
 
 dc_family_t
 dc_parser_get_type (dc_parser_t *parser);

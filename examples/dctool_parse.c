@@ -61,108 +61,12 @@ parse (dc_buffer_t *buffer, dc_context_t *context, dc_descriptor_t *descriptor, 
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_parser_t *parser = NULL;
-	dc_family_t family = dc_descriptor_get_type (descriptor);
-	unsigned int model = dc_descriptor_get_model (descriptor);
 	unsigned char *data = dc_buffer_get_data (buffer);
 	unsigned int size = dc_buffer_get_size (buffer);
 
 	// Create the parser.
 	message ("Creating the parser.\n");
-	switch (family) {
-	case DC_FAMILY_SUUNTO_SOLUTION:
-		rc = suunto_solution_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_SUUNTO_EON:
-		rc = suunto_eon_parser_create (&parser, context, 0);
-		break;
-	case DC_FAMILY_SUUNTO_VYPER:
-		if (model == 0x01)
-			rc = suunto_eon_parser_create (&parser, context, 1);
-		else
-			rc = suunto_vyper_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_SUUNTO_VYPER2:
-	case DC_FAMILY_SUUNTO_D9:
-		rc = suunto_d9_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_SUUNTO_EONSTEEL:
-		rc = suunto_eonsteel_parser_create(&parser, context, model);
-		break;
-	case DC_FAMILY_UWATEC_ALADIN:
-	case DC_FAMILY_UWATEC_MEMOMOUSE:
-		rc = uwatec_memomouse_parser_create (&parser, context, devtime, systime);
-		break;
-	case DC_FAMILY_UWATEC_SMART:
-	case DC_FAMILY_UWATEC_MERIDIAN:
-		rc = uwatec_smart_parser_create (&parser, context, model, devtime, systime);
-		break;
-	case DC_FAMILY_REEFNET_SENSUS:
-		rc = reefnet_sensus_parser_create (&parser, context, devtime, systime);
-		break;
-	case DC_FAMILY_REEFNET_SENSUSPRO:
-		rc = reefnet_sensuspro_parser_create (&parser, context, devtime, systime);
-		break;
-	case DC_FAMILY_REEFNET_SENSUSULTRA:
-		rc = reefnet_sensusultra_parser_create (&parser, context, devtime, systime);
-		break;
-	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create2 (&parser, context, model);
-		break;
-	case DC_FAMILY_OCEANIC_VEO250:
-		rc = oceanic_veo250_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_OCEANIC_ATOM2:
-		if (model == REACTPROWHITE)
-			rc = oceanic_veo250_parser_create (&parser, context, model);
-		else
-			rc = oceanic_atom2_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_MARES_NEMO:
-	case DC_FAMILY_MARES_PUCK:
-		rc = mares_nemo_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_MARES_DARWIN:
-		rc = mares_darwin_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_HW_OSTC:
-		rc = hw_ostc_parser_create (&parser, context, 0);
-		break;
-	case DC_FAMILY_HW_FROG:
-	case DC_FAMILY_HW_OSTC3:
-		rc = hw_ostc_parser_create (&parser, context, 1);
-		break;
-	case DC_FAMILY_CRESSI_EDY:
-	case DC_FAMILY_ZEAGLE_N2ITION3:
-		rc = cressi_edy_parser_create (&parser, context, model);
-		break;
-	case DC_FAMILY_CRESSI_LEONARDO:
-		rc = cressi_leonardo_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_ATOMICS_COBALT:
-		rc = atomics_cobalt_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_SHEARWATER_PREDATOR:
-		rc = shearwater_predator_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_SHEARWATER_PETREL:
-		rc = shearwater_petrel_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_DIVERITE_NITEKQ:
-		rc = diverite_nitekq_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_CITIZEN_AQUALAND:
-		rc = citizen_aqualand_parser_create (&parser, context);
-		break;
-	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_parser_create2 (&parser, context, model);
-		break;
-	default:
-		rc = DC_STATUS_INVALIDARGS;
-		break;
-	}
+	rc = dc_parser_new2 (&parser, context, descriptor, devtime, systime);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error creating the parser.");
 		goto cleanup;

@@ -43,18 +43,16 @@
 
 #define REACTPROWHITE 0x4354
 
-dc_status_t
-dc_parser_new (dc_parser_t **out, dc_device_t *device)
+static dc_status_t
+dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t family, unsigned int model, unsigned int devtime, dc_ticks_t systime)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_parser_t *parser = NULL;
 
-	if (out == NULL || device == NULL)
+	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	dc_context_t *context = device->context;
-
-	switch (dc_device_get_type (device)) {
+	switch (family) {
 	case DC_FAMILY_SUUNTO_SOLUTION:
 		rc = suunto_solution_parser_create (&parser, context);
 		break;
@@ -62,56 +60,56 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = suunto_eon_parser_create (&parser, context, 0);
 		break;
 	case DC_FAMILY_SUUNTO_VYPER:
-		if (device->devinfo.model == 0x01)
+		if (model == 0x01)
 			rc = suunto_eon_parser_create (&parser, context, 1);
 		else
 			rc = suunto_vyper_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_SUUNTO_VYPER2:
 	case DC_FAMILY_SUUNTO_D9:
-		rc = suunto_d9_parser_create (&parser, context, device->devinfo.model);
+		rc = suunto_d9_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_SUUNTO_EONSTEEL:
-		rc = suunto_eonsteel_parser_create(&parser, context, device->devinfo.model);
+		rc = suunto_eonsteel_parser_create(&parser, context, model);
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 	case DC_FAMILY_UWATEC_MEMOMOUSE:
-		rc = uwatec_memomouse_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
+		rc = uwatec_memomouse_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_UWATEC_SMART:
 	case DC_FAMILY_UWATEC_MERIDIAN:
-		rc = uwatec_smart_parser_create (&parser, context, device->devinfo.model, device->clock.devtime, device->clock.systime);
+		rc = uwatec_smart_parser_create (&parser, context, model, devtime, systime);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
-		rc = reefnet_sensus_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
+		rc = reefnet_sensus_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_REEFNET_SENSUSPRO:
-		rc = reefnet_sensuspro_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
+		rc = reefnet_sensuspro_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_REEFNET_SENSUSULTRA:
-		rc = reefnet_sensusultra_parser_create (&parser, context, device->clock.devtime, device->clock.systime);
+		rc = reefnet_sensusultra_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create2 (&parser, context, device->devinfo.model);
+		rc = oceanic_vtpro_parser_create2 (&parser, context, model);
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
-		rc = oceanic_veo250_parser_create (&parser, context, device->devinfo.model);
+		rc = oceanic_veo250_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
-		if (device->devinfo.model == REACTPROWHITE)
-			rc = oceanic_veo250_parser_create (&parser, context, device->devinfo.model);
+		if (model == REACTPROWHITE)
+			rc = oceanic_veo250_parser_create (&parser, context, model);
 		else
-			rc = oceanic_atom2_parser_create (&parser, context, device->devinfo.model);
+			rc = oceanic_atom2_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_MARES_NEMO:
 	case DC_FAMILY_MARES_PUCK:
-		rc = mares_nemo_parser_create (&parser, context, device->devinfo.model);
+		rc = mares_nemo_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_MARES_DARWIN:
-		rc = mares_darwin_parser_create (&parser, context, device->devinfo.model);
+		rc = mares_darwin_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_parser_create (&parser, context, device->devinfo.model);
+		rc = mares_iconhd_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_HW_OSTC:
 		rc = hw_ostc_parser_create (&parser, context, 0);
@@ -122,7 +120,7 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		break;
 	case DC_FAMILY_CRESSI_EDY:
 	case DC_FAMILY_ZEAGLE_N2ITION3:
-		rc = cressi_edy_parser_create (&parser, context, device->devinfo.model);
+		rc = cressi_edy_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_CRESSI_LEONARDO:
 		rc = cressi_leonardo_parser_create (&parser, context);
@@ -143,10 +141,10 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 		rc = citizen_aqualand_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_parser_create2 (&parser, context, device->devinfo.model);
+		rc = divesystem_idive_parser_create2 (&parser, context, model);
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
-		rc = cochran_commander_parser_create (&parser, context, device->devinfo.model);
+		rc = cochran_commander_parser_create (&parser, context, model);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
@@ -157,6 +155,24 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 	return rc;
 }
 
+dc_status_t
+dc_parser_new (dc_parser_t **out, dc_device_t *device)
+{
+	if (device == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	return dc_parser_new_internal (out, device->context,
+		dc_device_get_type (device), device->devinfo.model,
+		device->clock.devtime, device->clock.systime);
+}
+
+dc_status_t
+dc_parser_new2 (dc_parser_t **out, dc_context_t *context, dc_descriptor_t *descriptor, unsigned int devtime, dc_ticks_t systime)
+{
+	return dc_parser_new_internal (out, context,
+		dc_descriptor_get_type (descriptor), dc_descriptor_get_model (descriptor),
+		devtime, systime);
+}
 
 dc_parser_t *
 dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable)
