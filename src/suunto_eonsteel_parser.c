@@ -686,7 +686,7 @@ static void sample_event_state_value(const struct type_desc *desc, struct sample
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
-	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
@@ -708,7 +708,7 @@ static void sample_event_notify_value(const struct type_desc *desc, struct sampl
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
-	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
@@ -731,7 +731,7 @@ static void sample_event_warning_value(const struct type_desc *desc, struct samp
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
-	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
@@ -754,7 +754,7 @@ static void sample_event_alarm_value(const struct type_desc *desc, struct sample
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
-	sample.event.value = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
+	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
 	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
 }
 
