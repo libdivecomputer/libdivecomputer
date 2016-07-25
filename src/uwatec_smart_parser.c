@@ -501,7 +501,8 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 
 			unsigned int beginpressure = 0;
 			unsigned int endpressure = 0;
-			if (header->tankpressure != UNSUPPORTED) {
+			if (header->tankpressure != UNSUPPORTED &&
+				divemode != DC_DIVEMODE_FREEDIVE) {
 				if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
 					parser->model == ALADIN2G || parser->model == MERIDIAN ||
 					parser->model == CHROMIS || parser->model == MANTIS2) {
@@ -924,6 +925,11 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
+	unsigned int interval = 4;
+	if (parser->divemode == DC_DIVEMODE_FREEDIVE) {
+		interval = 1;
+	}
+
 	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
 		have_heartrate = 0, have_bearing = 0;
 
@@ -1210,7 +1216,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 
-			time += 4;
+			time += interval;
 			complete--;
 		}
 	}
