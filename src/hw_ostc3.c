@@ -595,7 +595,11 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.firmware = array_uint16_be (id + 2);
+	if (device->hardware == OSTC4) {
+		devinfo.firmware = array_uint16_le (id + 2);
+	} else {
+		devinfo.firmware = array_uint16_be (id + 2);
+	}
 	devinfo.serial = array_uint16_le (id + 0);
 	if (device->hardware != UNKNOWN) {
 		devinfo.model = device->hardware;

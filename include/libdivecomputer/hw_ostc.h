@@ -65,7 +65,7 @@ dc_status_t
 hw_ostc_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int frog);
+hw_ostc_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int hwos);
 
 dc_status_t
 hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename);

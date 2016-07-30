@@ -63,6 +63,7 @@ oceanic_vtpro_parser_create2
 oceanic_veo250_parser_create
 oceanic_atom2_parser_create
 hw_ostc_parser_create
+hw_ostc3_parser_create
 cressi_edy_parser_create
 cressi_leonardo_parser_create
 atomics_cobalt_parser_create
