@@ -852,6 +852,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				decostop = data[offset + 10];
 				decotime = array_uint16_le(data + offset + 6);
 				have_deco = 1;
+			} else if (parser->model == ATOM31) {
+				decostop = (data[offset + 5] & 0xF0) >> 4;
+				decotime = array_uint16_le(data + offset + 4) & 0x03FF;
+				have_deco = 1;
 			}
 			if (have_deco) {
 				if (decostop) {
@@ -863,6 +867,20 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				}
 				sample.deco.time = decotime * 60;
 				if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+			}
+
+			unsigned int have_rbt = 0;
+			unsigned int rbt = 0;
+			if (parser->model == ATOM31) {
+				rbt = array_uint16_le(data + offset + 6) & 0x01FF;
+				have_rbt = 1;
+			} else if (parser->model == I450T) {
+				rbt = array_uint16_le(data + offset + 8) & 0x01FF;
+				have_rbt = 1;
+			}
+			if (have_rbt) {
+				sample.rbt = rbt;
+				if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
 			}
 
 			complete = 1;
