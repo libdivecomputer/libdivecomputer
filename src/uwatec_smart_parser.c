@@ -209,8 +209,8 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
-	UNSUPPORTED, /* salinity */
-	UNSUPPORTED, /* timezone */
+	62, /* salinity */
+	16, /* timezone */
 };
 
 static const
