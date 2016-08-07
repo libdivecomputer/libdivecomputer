@@ -646,8 +646,13 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	devinfo.firmware = 0;
 	if (layout->pt_mode_serial == 0)
 		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
-	else
+	else if (layout->pt_mode_serial == 1)
 		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];
+	else
+		devinfo.serial =
+			(id[11] & 0x0F) * 100000 + ((id[11] & 0xF0) >> 4) * 10000 +
+			(id[12] & 0x0F) * 1000   + ((id[12] & 0xF0) >> 4) * 100 +
+			(id[13] & 0x0F) * 10     + ((id[13] & 0xF0) >> 4) * 1;
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Memory buffer for the logbook data.

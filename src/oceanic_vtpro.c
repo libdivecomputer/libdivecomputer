@@ -127,7 +127,7 @@ static const oceanic_common_layout_t aeris_500ai_layout = {
 	0x20000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	1, /* pt_mode_logbook */
-	0, /* pt_mode_serial */
+	2, /* pt_mode_serial */
 };
 
 static dc_status_t
