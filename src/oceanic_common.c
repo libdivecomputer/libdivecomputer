@@ -644,7 +644,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = 0;
-	if (layout->pt_mode_global == 0)
+	if (layout->pt_mode_serial == 0)
 		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
 	else
 		devinfo.serial = id[11] * 10000 + id[12] * 100 + id[13];

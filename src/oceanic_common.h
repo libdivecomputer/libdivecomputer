@@ -55,6 +55,7 @@ typedef struct oceanic_common_layout_t {
 	// 12-bit values or two 16-bit values with each 4 bits padding).
 	unsigned int pt_mode_global;
 	unsigned int pt_mode_logbook;
+	unsigned int pt_mode_serial;
 } oceanic_common_layout_t;
 
 typedef struct oceanic_common_device_t {
