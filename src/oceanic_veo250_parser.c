@@ -162,7 +162,7 @@ oceanic_veo250_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			*((unsigned int *) value) = data[footer + 3] * 60;
+			*((unsigned int *) value) = data[footer + 3] * 60 + data[footer + 4] * 3600;
 			break;
 		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = parser->maxdepth;
