@@ -146,6 +146,7 @@ static const oceanic_common_version_t oceanic_oc1_version[] = {
 	{"OCWATCH R\0\0 1024"},
 	{"OC1WATCH \0\0 1024"},
 	{"OCSWATCH \0\0 1024"},
+	{"AQUAI550 \0\0 1024"},
 };
 
 static const oceanic_common_version_t oceanic_oci_version[] = {

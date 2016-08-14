@@ -79,6 +79,7 @@
 #define VTX         0x4557
 #define I300        0x4559
 #define I450T       0x4641
+#define I550T       0x4642
 
 #define NORMAL   0
 #define GAUGE    1
@@ -149,7 +150,7 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		model == OCS || model == PROPLUS3 ||
 		model == A300 || model == MANTA ||
 		model == INSIGHT2 || model == ZEN ||
-		model == I300) {
+		model == I300 || model == I550T) {
 		parser->headersize -= PAGESIZE;
 	} else if (model == VT4 || model == VT41) {
 		parser->headersize += PAGESIZE;
@@ -238,6 +239,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case ATOM31:
 		case A300AI:
 		case OCI:
+		case I550T:
 			datetime->year   = ((p[5] & 0xE0) >> 5) + ((p[7] & 0xE0) >> 2) + 2000;
 			datetime->month  = (p[3] & 0x0F);
 			datetime->day    = ((p[0] & 0x80) >> 3) + ((p[3] & 0xF0) >> 4);
@@ -752,7 +754,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					temperature = data[offset + 11];
 				} else {
 					unsigned int sign;
-					if (parser->model == DG03 || parser->model == PROPLUS3)
+					if (parser->model == DG03 || parser->model == PROPLUS3 ||
+						parser->model == I550T)
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == VOYAGER2G || parser->model == AMPHOS ||
 						parser->model == AMPHOSAIR)
@@ -783,7 +786,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == ATOM3 || parser->model == ATOM31 ||
 					parser->model == ZENAIR ||parser->model == A300AI ||
 					parser->model == DG03 || parser->model == PROPLUS3 ||
-					parser->model == AMPHOSAIR)
+					parser->model == AMPHOSAIR || parser->model == I550T)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else if (parser->model == TX1 || parser->model == A300CS || parser->model == VTX)
 					pressure = array_uint16_le (data + offset + 4);
@@ -856,6 +859,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				decostop = (data[offset + 5] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 4) & 0x03FF;
 				have_deco = 1;
+			} else if (parser->model == I550T) {
+				decostop = (data[offset + 7] & 0xF0) >> 4;
+				decotime = array_uint16_le(data + offset + 6) & 0x03FF;
+				have_deco = 1;
 			}
 			if (have_deco) {
 				if (decostop) {
@@ -876,6 +883,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				have_rbt = 1;
 			} else if (parser->model == I450T) {
 				rbt = array_uint16_le(data + offset + 8) & 0x01FF;
+				have_rbt = 1;
+			} else if (parser->model == I550T) {
+				rbt = array_uint16_le(data + offset + 4) & 0x03FF;
 				have_rbt = 1;
 			}
 			if (have_rbt) {
