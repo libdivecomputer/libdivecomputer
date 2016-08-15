@@ -62,6 +62,7 @@
 #define FREEDIVE1 0x00000080
 #define FREEDIVE2 0x00000200
 #define GAUGE     0x00001000
+#define SALINITY  0x00100000
 
 typedef enum {
 	PRESSURE_DEPTH,
@@ -96,7 +97,6 @@ typedef struct uwatec_smart_header_info_t {
 	unsigned int temp_maximum;
 	unsigned int temp_surface;
 	unsigned int tankpressure;
-	unsigned int salinity;
 	unsigned int timezone;
 	unsigned int settings;
 } uwatec_smart_header_info_t;
@@ -177,7 +177,6 @@ uwatec_smart_header_info_t uwatec_smart_pro_header = {
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
-	UNSUPPORTED, /* salinity */
 	UNSUPPORTED, /* timezone */
 	UNSUPPORTED, /* settings */
 };
@@ -191,7 +190,6 @@ uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	50, /* tankpressure */
-	94, /* salinity */
 	16, /* timezone */
 	92, /* settings */
 };
@@ -205,7 +203,6 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
-	54, /* salinity */
 	16, /* timezone */
 	52, /* settings */
 };
@@ -219,7 +216,6 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
-	62, /* salinity */
 	16, /* timezone */
 	60, /* settings */
 };
@@ -233,7 +229,6 @@ uwatec_smart_header_info_t uwatec_smart_com_header = {
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
 	30, /* tankpressure */
-	UNSUPPORTED, /* salinity */
 	UNSUPPORTED, /* timezone */
 	UNSUPPORTED, /* settings */
 };
@@ -247,7 +242,6 @@ uwatec_smart_header_info_t uwatec_smart_tec_header = {
 	UNSUPPORTED, /* temp_maximum */
 	UNSUPPORTED, /* temp_surface */
 	34, /* tankpressure */
-	UNSUPPORTED, /* salinity */
 	UNSUPPORTED, /* timezone */
 	UNSUPPORTED, /* settings */
 };
@@ -450,6 +444,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 
 	// Get the settings.
 	dc_divemode_t divemode = DC_DIVEMODE_OC;
+	dc_water_t watertype = DC_WATER_FRESH;
 	if (header->settings != UNSUPPORTED) {
 		unsigned int settings = array_uint32_le (data + header->settings);
 
@@ -473,6 +468,11 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 			divemode = DC_DIVEMODE_GAUGE;
 		} else {
 			divemode = DC_DIVEMODE_OC;
+		}
+
+		// Get the water type.
+		if (settings & SALINITY) {
+			watertype = DC_WATER_SALT;
 		}
 	}
 
@@ -523,14 +523,6 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 				tank[ntanks].gasmix = idx;
 				ntanks++;
 			}
-		}
-	}
-
-	// Get the water type.
-	dc_water_t watertype = DC_WATER_FRESH;
-	if (header->salinity != UNSUPPORTED) {
-		if (data[header->salinity] & 0x10) {
-			watertype = DC_WATER_SALT;
 		}
 	}
 
@@ -805,7 +797,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((dc_divemode_t *) value) = parser->divemode;
 			break;
 		case DC_FIELD_SALINITY:
-			if (table->salinity == UNSUPPORTED)
+			if (table->settings == UNSUPPORTED)
 				return DC_STATUS_UNSUPPORTED;
 			water->type = parser->watertype;
 			water->density = salinity * 1000.0;
