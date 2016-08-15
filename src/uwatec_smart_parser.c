@@ -59,6 +59,10 @@
 #define FRESH 1.000
 #define SALT  1.025
 
+#define FREEDIVE1 0x00000080
+#define FREEDIVE2 0x00000200
+#define GAUGE     0x00001000
+
 typedef enum {
 	PRESSURE_DEPTH,
 	RBT,
@@ -94,6 +98,7 @@ typedef struct uwatec_smart_header_info_t {
 	unsigned int tankpressure;
 	unsigned int salinity;
 	unsigned int timezone;
+	unsigned int settings;
 } uwatec_smart_header_info_t;
 
 typedef struct uwatec_smart_sample_info_t {
@@ -145,6 +150,7 @@ struct uwatec_smart_parser_t {
 	unsigned int ntanks;
 	uwatec_smart_tank_t tank[NGASMIXES];
 	dc_water_t watertype;
+	dc_divemode_t divemode;
 };
 
 static dc_status_t uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -173,6 +179,7 @@ uwatec_smart_header_info_t uwatec_smart_pro_header = {
 	UNSUPPORTED, /* tankpressure */
 	UNSUPPORTED, /* salinity */
 	UNSUPPORTED, /* timezone */
+	UNSUPPORTED, /* settings */
 };
 
 static const
@@ -186,6 +193,7 @@ uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	50, /* tankpressure */
 	94, /* salinity */
 	16, /* timezone */
+	92, /* settings */
 };
 
 static const
@@ -199,6 +207,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	UNSUPPORTED, /* tankpressure */
 	54, /* salinity */
 	16, /* timezone */
+	52, /* settings */
 };
 
 static const
@@ -212,6 +221,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	UNSUPPORTED, /* tankpressure */
 	62, /* salinity */
 	16, /* timezone */
+	60, /* settings */
 };
 
 static const
@@ -225,6 +235,7 @@ uwatec_smart_header_info_t uwatec_smart_com_header = {
 	30, /* tankpressure */
 	UNSUPPORTED, /* salinity */
 	UNSUPPORTED, /* timezone */
+	UNSUPPORTED, /* settings */
 };
 
 static const
@@ -238,6 +249,7 @@ uwatec_smart_header_info_t uwatec_smart_tec_header = {
 	34, /* tankpressure */
 	UNSUPPORTED, /* salinity */
 	UNSUPPORTED, /* timezone */
+	UNSUPPORTED, /* settings */
 };
 
 static const
@@ -436,6 +448,34 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 		}
 	}
 
+	// Get the settings.
+	dc_divemode_t divemode = DC_DIVEMODE_OC;
+	if (header->settings != UNSUPPORTED) {
+		unsigned int settings = array_uint32_le (data + header->settings);
+
+		// Get the freedive/gauge bits.
+		unsigned int freedive = 0;
+		unsigned int gauge = (settings & GAUGE) != 0;
+		if (parser->model == ALADINTEC) {
+			freedive = 0;
+		} else if (parser->model == ALADINTEC2G) {
+			freedive = (settings & FREEDIVE2) != 0;
+		} else {
+			freedive = (settings & FREEDIVE1) != 0;
+		}
+
+		// Get the dive mode. The freedive bit needs to be checked
+		// first, because freedives have both the freedive and gauge
+		// bits set.
+		if (freedive) {
+			divemode = DC_DIVEMODE_FREEDIVE;
+		} else if (gauge) {
+			divemode = DC_DIVEMODE_GAUGE;
+		} else {
+			divemode = DC_DIVEMODE_OC;
+		}
+	}
+
 	// Get the gas mixes and tanks.
 	unsigned int ntanks = 0;
 	unsigned int ngasmixes = 0;
@@ -504,6 +544,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 		parser->tank[i] = tank[i];
 	}
 	parser->watertype = watertype;
+	parser->divemode = divemode;
 	parser->cached = HEADER;
 
 	return DC_STATUS_SUCCESS;
@@ -614,6 +655,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->tank[i].gasmix = 0;
 	}
 	parser->watertype = DC_WATER_FRESH;
+	parser->divemode = DC_DIVEMODE_OC;
 
 	*out = (dc_parser_t*) parser;
 
@@ -645,6 +687,7 @@ uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 		parser->tank[i].gasmix = 0;
 	}
 	parser->watertype = DC_WATER_FRESH;
+	parser->divemode = DC_DIVEMODE_OC;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -756,10 +799,9 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((double *) value) = (signed short) array_uint16_le (data + table->temp_surface) / 10.0;
 			break;
 		case DC_FIELD_DIVEMODE:
-			if (parser->ngasmixes)
-				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
-			else
-				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+			if (table->settings == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			*((dc_divemode_t *) value) = parser->divemode;
 			break;
 		case DC_FIELD_SALINITY:
 			if (table->salinity == UNSUPPORTED)
