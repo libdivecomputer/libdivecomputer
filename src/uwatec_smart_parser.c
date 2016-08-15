@@ -197,7 +197,7 @@ uwatec_smart_header_info_t uwatec_smart_aladin_tec_header = {
 	28, /* temp_maximum */
 	32, /* temp_surface */
 	UNSUPPORTED, /* tankpressure */
-	UNSUPPORTED, /* salinity */
+	54, /* salinity */
 	16, /* timezone */
 };
 
