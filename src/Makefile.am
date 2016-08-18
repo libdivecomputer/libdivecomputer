@@ -1,9 +1,9 @@
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
-AM_CFLAGS = $(LIBUSB_CFLAGS) -DENABLE_DEPRECATED
+AM_CFLAGS = $(LIBUSB_CFLAGS) $(HIDAPI_CFLAGS) -DENABLE_DEPRECATED
 
 lib_LTLIBRARIES = libdivecomputer.la
 
-libdivecomputer_la_LIBADD = $(LIBUSB_LIBS) -lm
+libdivecomputer_la_LIBADD = $(LIBUSB_LIBS) $(HIDAPI_LIBS) -lm
 libdivecomputer_la_LDFLAGS = \
 	-version-info $(DC_VERSION_LIBTOOL) \
 	-no-undefined \
