@@ -162,6 +162,7 @@ static const oceanic_common_version_t oceanic_vt4_version[] = {
 	{"OCEANVT4 \0\0 1024"},
 	{"OCEAVT41 \0\0 1024"},
 	{"AERISAIR \0\0 1024"},
+	{"SWVISION \0\0 1024"},
 };
 
 static const oceanic_common_version_t hollis_tx1_version[] = {
