@@ -211,7 +211,7 @@ static const
 uwatec_smart_header_info_t uwatec_smart_aladin_tec2g_header = {
 	22,
 	26,
-	34, 2,
+	34, 3,
 	30, /* temp_minimum */
 	28, /* temp_maximum */
 	32, /* temp_surface */
@@ -483,17 +483,17 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 	uwatec_smart_gasmix_t gasmix[NGASMIXES] = {{0}};
 	if (!trimix) {
 		for (unsigned int i = 0; i < header->ngases; ++i) {
-			unsigned int id = i;
-			if (id > 0 && header->ngases == 2) {
-				id++; // Remap the id of the deco mix.
+			unsigned int idx = DC_GASMIX_UNKNOWN;
+			unsigned int o2 = 0;
+			if (parser->model == ALADINTEC2G) {
+				o2 = data[header->gasmix + i];
+			} else {
+				o2 = array_uint16_le (data + header->gasmix + i * 2);
 			}
 
-			unsigned int idx = DC_GASMIX_UNKNOWN;
-
-			unsigned int o2 = data[header->gasmix + i * 2];
 			if (o2 != 0) {
 				idx = ngasmixes;
-				gasmix[ngasmixes].id = id;
+				gasmix[ngasmixes].id = i;
 				gasmix[ngasmixes].oxygen = o2;
 				gasmix[ngasmixes].helium = 0;
 				ngasmixes++;
@@ -517,7 +517,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 			}
 			if ((beginpressure != 0 || endpressure != 0) &&
 				(beginpressure != 0xFFFF) && (endpressure != 0xFFFF)) {
-				tank[ntanks].id = id;
+				tank[ntanks].id = i;
 				tank[ntanks].beginpressure = beginpressure;
 				tank[ntanks].endpressure = endpressure;
 				tank[ntanks].gasmix = idx;
