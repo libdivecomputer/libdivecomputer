@@ -758,7 +758,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 						parser->model == I550T)
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == VOYAGER2G || parser->model == AMPHOS ||
-						parser->model == AMPHOSAIR)
+						parser->model == AMPHOSAIR || parser->model == ZENAIR)
 						sign = (data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
