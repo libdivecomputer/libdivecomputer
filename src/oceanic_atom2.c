@@ -676,6 +676,17 @@ oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char
 	} else {
 		WARNING (context, "Unsupported device detected!");
 		device->base.layout = &oceanic_default_layout;
+		if (memcmp(device->base.version + 12, "256K", 4) == 0) {
+			device->base.layout = &oceanic_atom1_layout;
+		} else if (memcmp(device->base.version + 12, "512K", 4) == 0) {
+			device->base.layout = &oceanic_default_layout;
+		} else if (memcmp(device->base.version + 12, "1024", 4) == 0) {
+			device->base.layout = &oceanic_oc1_layout;
+		} else if (memcmp(device->base.version + 12, "2048", 4) == 0) {
+			device->base.layout = &hollis_tx1_layout;
+		} else {
+			device->base.layout = &oceanic_default_layout;
+		}
 	}
 
 	*out = (dc_device_t*) device;
