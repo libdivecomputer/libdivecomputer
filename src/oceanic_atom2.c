@@ -671,7 +671,10 @@ oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char
 		device->bigpage = 16;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, aqualung_i450t_version)) {
 		device->base.layout = &aqualung_i450t_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_default_version)) {
+		device->base.layout = &oceanic_default_layout;
 	} else {
+		WARNING (context, "Unsupported device detected!");
 		device->base.layout = &oceanic_default_layout;
 	}
 

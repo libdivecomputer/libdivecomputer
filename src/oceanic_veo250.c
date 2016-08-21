@@ -63,7 +63,7 @@ static const oceanic_common_device_vtable_t oceanic_veo250_device_vtable = {
 	oceanic_common_device_profile,
 };
 
-static const oceanic_common_version_t oceanic_vtpro_version[] = {
+static const oceanic_common_version_t oceanic_veo250_version[] = {
 	{"GENREACT \0\0 256K"},
 	{"VEO 200 R\0\0 256K"},
 	{"VEO 250 R\0\0 256K"},
@@ -244,7 +244,6 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	oceanic_common_device_init (&device->base);
 
 	// Override the base class values.
-	device->base.layout = &oceanic_veo250_layout;
 	device->base.multipage = MULTIPAGE;
 
 	// Set the default values.
@@ -307,6 +306,14 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	status = oceanic_veo250_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_close;
+	}
+
+	// Override the base class values.
+	if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_veo250_version)) {
+		device->base.layout = &oceanic_veo250_layout;
+	} else {
+		WARNING (context, "Unsupported device detected!");
+		device->base.layout = &oceanic_veo250_layout;
 	}
 
 	*out = (dc_device_t*) device;

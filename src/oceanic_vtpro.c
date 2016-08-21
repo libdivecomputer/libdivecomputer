@@ -490,7 +490,10 @@ oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char
 		device->base.layout = &aeris_500ai_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_wisdom_version)) {
 		device->base.layout = &oceanic_wisdom_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_vtpro_version)) {
+		device->base.layout = &oceanic_vtpro_layout;
 	} else {
+		WARNING (context, "Unsupported device detected!");
 		device->base.layout = &oceanic_vtpro_layout;
 	}
 
