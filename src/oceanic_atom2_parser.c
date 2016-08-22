@@ -498,7 +498,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				parser->model == MUNDIAL3)
 				*((double *) value) = array_uint16_le (data + 4) / 16.0 * FEET;
 			else
-				*((double *) value) = array_uint16_le (data + parser->footer + 4) / 16.0 * FEET;
+				*((double *) value) = (array_uint16_le (data + parser->footer + 4) & 0x0FFF) / 16.0 * FEET;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = parser->ngasmixes;
