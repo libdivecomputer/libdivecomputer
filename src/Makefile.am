@@ -65,7 +65,7 @@ libdivecomputer_la_SOURCES = \
 	checksum.h checksum.c \
 	array.h array.c \
 	buffer.c \
-	cochran_commander.h cochran_commander.c \
+	cochran_commander.c \
 	cochran_commander_parser.c
 
 if OS_WIN32

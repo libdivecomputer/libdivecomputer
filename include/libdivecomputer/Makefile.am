@@ -13,6 +13,7 @@ libdivecomputer_HEADERS = 	\
 	suunto.h \
 	suunto_solution.h \
 	suunto_eon.h \
+	suunto_eonsteel.h \
 	suunto_vyper.h \
 	suunto_vyper2.h  \
 	suunto_d9.h \
