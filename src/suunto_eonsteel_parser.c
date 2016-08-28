@@ -762,21 +762,24 @@ static void sample_event_alarm_value(const struct type_desc *desc, struct sample
 static void sample_setpoint_type(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
+	const char *type = lookup_enum(desc, value);
 
-	switch (value) {
-	case 0:
-		sample.ppo2 = info->eon->cache.lowsetpoint;
-		break;
-	case 1:
-		sample.ppo2 = info->eon->cache.highsetpoint;
-		break;
-	case 2:
-		sample.ppo2 = info->eon->cache.customsetpoint;
-		break;
-	default:
-		DEBUG(info->eon->base.context, "sample_setpoint_type(%u)", value);
+	if (!type) {
+		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) did not match anything in %s", value, desc->format);
 		return;
 	}
+
+	if (!strcasecmp(type, "Low"))
+		sample.ppo2 = info->eon->cache.lowsetpoint;
+	else if (!strcasecmp(type, "High"))
+		sample.ppo2 = info->eon->cache.highsetpoint;
+	else if (!strcasecmp(type, "Custom"))
+		sample.ppo2 = info->eon->cache.customsetpoint;
+	else {
+		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) unknown type '%s'", value, type);
+		return;
+	}
+
 	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, sample, info->userdata);
 }
 
@@ -1081,18 +1084,24 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 {
 	int idx = eon->cache.ngases;
 	dc_tankvolume_t tankinfo = DC_TANKVOLUME_METRIC;
+	const char *name;
 
 	if (idx >= MAXGASES)
 		return 0;
 
 	eon->cache.ngases = idx+1;
-	switch (type) {
-	case 0:
+	name = lookup_enum(desc, type);
+	if (!name)
+		DEBUG(eon->base.context, "Unable to look up gas type %u in %s", type, desc->format);
+	else if (!strcasecmp(name, "Diluent"))
+		;
+	else if (!strcasecmp(name, "Oxygen"))
+		;
+	else if (!strcasecmp(name, "None"))
 		tankinfo = 0;
-		break;
-	default:
-		break;
-	}
+	else if (strcasecmp(name, "Primary"))
+		DEBUG(eon->base.context, "Unknown gas type %u (%s)", type, name);
+
 	eon->cache.tankinfo[idx] = tankinfo;
 
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX_COUNT;
