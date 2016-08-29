@@ -1007,6 +1007,7 @@ suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsi
 		 * that metric is (at least so far) always whole liters
 		 */
 		tank->volume = eon->cache.tanksize[flags];
+		tank->gasmix = flags;
 
 		/*
 		 * The pressure reported is NOT the pressure the user enters.
