@@ -26,11 +26,13 @@
 #include <stdlib.h>
 
 #if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#define USBHID
 #ifdef _WIN32
 #define NOGDI
 #endif
 #include <libusb-1.0/libusb.h>
 #elif defined(HAVE_HIDAPI)
+#define USBHID
 #include <hidapi/hidapi.h>
 #endif
 
@@ -81,6 +83,7 @@ syserror(int errcode)
 dc_status_t
 dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsigned int pid)
 {
+#ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_usbhid_t *usbhid = NULL;
 	int rc = 0;
@@ -273,11 +276,15 @@ error_hid_exit:
 error_free:
 	free (usbhid);
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_usbhid_close (dc_usbhid_t *usbhid)
 {
+#ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	if (usbhid == NULL)
@@ -294,11 +301,15 @@ dc_usbhid_close (dc_usbhid_t *usbhid)
 	free (usbhid);
 
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_usbhid_set_timeout (dc_usbhid_t *usbhid, int timeout)
 {
+#ifdef USBHID
 	if (usbhid == NULL)
 		return DC_STATUS_INVALIDARGS;
 
@@ -321,11 +332,15 @@ dc_usbhid_set_timeout (dc_usbhid_t *usbhid, int timeout)
 #endif
 
 	return DC_STATUS_SUCCESS;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 {
+#ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
 	int nbytes = 0;
 
@@ -358,11 +373,15 @@ out:
 		*actual = nbytes;
 
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *actual)
 {
+#ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
 	int nbytes = 0;
 
@@ -395,4 +414,7 @@ out:
 		*actual = nbytes;
 
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
