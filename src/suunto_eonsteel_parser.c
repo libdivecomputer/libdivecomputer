@@ -98,6 +98,11 @@ typedef struct suunto_eonsteel_parser_t {
 
 typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user);
 
+typedef struct eon_event_t {
+	const char *name;
+	parser_sample_event_t type;
+} eon_event_t;
+
 static const struct {
 	const char *name;
 	enum eon_sample type;
@@ -161,6 +166,16 @@ static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, str
 			return type_translation[i].type;
 	}
 	return ES_none;
+}
+
+static parser_sample_event_t lookup_event(const char *name, const eon_event_t events[], size_t n)
+{
+	for (size_t i = 0; i < n; ++i) {
+		if (!strcasecmp(name, events[i].name))
+			return events[i].type;
+	}
+
+	return SAMPLE_EVENT_NONE;
 }
 
 static const char *desc_type_name(enum eon_sample type)
@@ -676,13 +691,22 @@ static void sample_event_state_type(const struct type_desc *desc, struct sample_
 static void sample_event_state_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
+	static const eon_event_t states[] = {
+		{"Wet Outside",                SAMPLE_EVENT_NONE},
+		{"Below Wet Activation Depth", SAMPLE_EVENT_NONE},
+		{"Below Surface",              SAMPLE_EVENT_NONE},
+		{"Dive Active",                SAMPLE_EVENT_NONE},
+		{"Surface Calculation",        SAMPLE_EVENT_NONE},
+		{"Tank pressure available",    SAMPLE_EVENT_NONE},
+		{"Closed Circuit Mode",        SAMPLE_EVENT_NONE},
+	};
 	const char *name;
 
 	name = info->state_type;
 	if (!name)
 		return;
 
-	sample.event.type = SAMPLE_EVENT_NONE;
+	sample.event.type = lookup_event(name, states, C_ARRAY_SIZE(states));
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
@@ -697,6 +721,25 @@ static void sample_event_notify_type(const struct type_desc *desc, struct sample
 
 static void sample_event_notify_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
+	static const eon_event_t notifications[] = {
+		{"NoFly Time",         SAMPLE_EVENT_NONE},
+		{"Depth",              SAMPLE_EVENT_NONE},
+		{"Surface Time",       SAMPLE_EVENT_NONE},
+		{"Tissue Level",       SAMPLE_EVENT_TISSUELEVEL},
+		{"Deco",               SAMPLE_EVENT_NONE},
+		{"Deco Window",        SAMPLE_EVENT_NONE},
+		{"Safety Stop Ahead",  SAMPLE_EVENT_NONE},
+		{"Safety Stop",        SAMPLE_EVENT_SAFETYSTOP},
+		{"Safety Stop Broken", SAMPLE_EVENT_CEILING_SAFETYSTOP},
+		{"Deep Stop Ahead",    SAMPLE_EVENT_NONE},
+		{"Deep Stop",          SAMPLE_EVENT_DEEPSTOP},
+		{"Dive Time",          SAMPLE_EVENT_DIVETIME},
+		{"Gas Available",      SAMPLE_EVENT_NONE},
+		{"SetPoint Switch",    SAMPLE_EVENT_NONE},
+		{"Diluent Hypoxia",    SAMPLE_EVENT_NONE},
+		{"Air Time",           SAMPLE_EVENT_NONE},
+		{"Tank Pressure",      SAMPLE_EVENT_NONE},
+	};
 	dc_sample_value_t sample = {0};
 	const char *name;
 
@@ -704,7 +747,7 @@ static void sample_event_notify_value(const struct type_desc *desc, struct sampl
 	if (!name)
 		return;
 
-	sample.event.type = SAMPLE_EVENT_NONE;
+	sample.event.type = lookup_event(name, notifications, C_ARRAY_SIZE(notifications));
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
@@ -720,6 +763,22 @@ static void sample_event_warning_type(const struct type_desc *desc, struct sampl
 
 static void sample_event_warning_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
+	static const eon_event_t warnings[] = {
+		{"ICD Penalty",           SAMPLE_EVENT_NONE},
+		{"Deep Stop Penalty",     SAMPLE_EVENT_VIOLATION},
+		{"Mandatory Safety Stop", SAMPLE_EVENT_SAFETYSTOP_MANDATORY},
+		{"OTU250",                SAMPLE_EVENT_NONE},
+		{"OTU300",                SAMPLE_EVENT_NONE},
+		{"CNS80%",                SAMPLE_EVENT_NONE},
+		{"CNS100%",               SAMPLE_EVENT_NONE},
+		{"Max.Depth",             SAMPLE_EVENT_MAXDEPTH},
+		{"Air Time",              SAMPLE_EVENT_AIRTIME},
+		{"Tank Pressure",         SAMPLE_EVENT_NONE},
+		{"Safety Stop Broken",    SAMPLE_EVENT_CEILING_SAFETYSTOP},
+		{"Deep Stop Broken",      SAMPLE_EVENT_CEILING_SAFETYSTOP},
+		{"Ceiling Broken",        SAMPLE_EVENT_CEILING},
+		{"PO2 High",              SAMPLE_EVENT_PO2},
+	};
 	dc_sample_value_t sample = {0};
 	const char *name;
 
@@ -727,7 +786,7 @@ static void sample_event_warning_value(const struct type_desc *desc, struct samp
 	if (!name)
 		return;
 
-	sample.event.type = SAMPLE_EVENT_NONE;
+	sample.event.type = lookup_event(name, warnings, C_ARRAY_SIZE(warnings));
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
@@ -743,6 +802,15 @@ static void sample_event_alarm_type(const struct type_desc *desc, struct sample_
 
 static void sample_event_alarm_value(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
+	static const eon_event_t alarms[] = {
+		{"Mandatory Safety Stop Broken", SAMPLE_EVENT_CEILING_SAFETYSTOP},
+		{"Ascent Speed",                 SAMPLE_EVENT_ASCENT},
+		{"Diluent Hyperoxia",            SAMPLE_EVENT_NONE},
+		{"Violated Deep Stop",           SAMPLE_EVENT_VIOLATION},
+		{"Ceiling Broken",               SAMPLE_EVENT_CEILING},
+		{"PO2 High",                     SAMPLE_EVENT_PO2},
+		{"PO2 Low",                      SAMPLE_EVENT_PO2},
+	};
 	dc_sample_value_t sample = {0};
 	const char *name;
 
@@ -750,7 +818,7 @@ static void sample_event_alarm_value(const struct type_desc *desc, struct sample
 	if (!name)
 		return;
 
-	sample.event.type = SAMPLE_EVENT_NONE;
+	sample.event.type = lookup_event(name, alarms, C_ARRAY_SIZE(alarms));
 	if (sample.event.type == SAMPLE_EVENT_NONE)
 		return;
 
