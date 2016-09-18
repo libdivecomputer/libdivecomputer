@@ -135,7 +135,7 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	43, /* salinity */
 	47, /* duration */
 	19, /* temperature */
-	34, /* firmware */
+	32, /* firmware */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
