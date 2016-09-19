@@ -19,10 +19,6 @@
  * MA 02110-1301 USA
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,24 +28,15 @@
 #include "context-private.h"
 #include "device-private.h"
 #include "array.h"
+#include "usbhid.h"
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #endif
 
-#ifdef HAVE_LIBUSB
-
-#ifdef _WIN32
-#define NOGDI
-#endif
-
-#include <libusb-1.0/libusb.h>
-
 typedef struct suunto_eonsteel_device_t {
 	dc_device_t base;
-
-	libusb_context *ctx;
-	libusb_device_handle *handle;
+	dc_usbhid_t *usbhid;
 	unsigned int magic;
 	unsigned short seq;
 	unsigned char version[0x30];
@@ -143,13 +130,13 @@ static void put_le32(unsigned int val, unsigned char *p)
 static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
 {
 	unsigned char buf[64];
-	const int InEndpoint = 0x82;
-	int rc, transferred,  len;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	size_t transferred = 0;
+	int len;
 
-	/* 5000 = 5s timeout */
-	rc = libusb_interrupt_transfer(eon->handle, InEndpoint, buf, PACKET_SIZE, &transferred, 5000);
-	if (rc) {
-		ERROR(eon->base.context, "read interrupt transfer failed (%s)", libusb_error_name(rc));
+	rc = dc_usbhid_read(eon->usbhid, buf, PACKET_SIZE, &transferred);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR(eon->base.context, "read interrupt transfer failed");
 		return -1;
 	}
 	if (transferred != PACKET_SIZE) {
@@ -179,11 +166,11 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 	unsigned int len,
 	const unsigned char *buffer)
 {
-	const int OutEndpoint = 0x02;
 	unsigned char buf[64];
-	int transferred, rc;
 	unsigned short seq = eon->seq;
 	unsigned int magic = eon->magic;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	size_t transferred = 0;
 
 	// Two-byte packet header, followed by 12 bytes of extended header
 	if (len > sizeof(buf)-2-12) {
@@ -213,8 +200,8 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 		memcpy(buf+14, buffer, len);
 	}
 
-	rc = libusb_interrupt_transfer(eon->handle, OutEndpoint, buf, sizeof(buf), &transferred, 5000);
-	if (rc < 0) {
+	rc = dc_usbhid_write(eon->usbhid, buf, sizeof(buf), &transferred);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "write interrupt transfer failed");
 		return -1;
 	}
@@ -525,21 +512,24 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 
 static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 {
-	const int InEndpoint = 0x82;
 	const unsigned char init[] = {0x02, 0x00, 0x2a, 0x00};
 	unsigned char buf[64];
 	struct eon_hdr hdr;
 
+	dc_usbhid_set_timeout(eon->usbhid, 10);
+
 	/* Get rid of any pending stale input first */
 	for (;;) {
-		int transferred;
+		size_t transferred = 0;
 
-		int rc = libusb_interrupt_transfer(eon->handle, InEndpoint, buf, sizeof(buf), &transferred, 10);
-		if (rc < 0)
+		dc_status_t rc = dc_usbhid_read(eon->usbhid, buf, sizeof(buf), &transferred);
+		if (rc != DC_STATUS_SUCCESS)
 			break;
 		if (!transferred)
 			break;
 	}
+
+	dc_usbhid_set_timeout(eon->usbhid, 5000);
 
 	if (send_cmd(eon, INIT_CMD, sizeof(init), init)) {
 		ERROR(eon->base.context, "Failed to send initialization command");
@@ -576,39 +566,24 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char
 	memset (eon->version, 0, sizeof (eon->version));
 	memset (eon->fingerprint, 0, sizeof (eon->fingerprint));
 
-	if (libusb_init(&eon->ctx)) {
-		ERROR(context, "libusb_init() failed");
-		status = DC_STATUS_IO;
+	status = dc_usbhid_open(&eon->usbhid, context, 0x1493, 0x0030);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR(context, "unable to open device");
 		goto error_free;
 	}
-
-	eon->handle = libusb_open_device_with_vid_pid(eon->ctx, 0x1493, 0x0030);
-	if (!eon->handle) {
-		ERROR(context, "unable to open device");
-		status = DC_STATUS_IO;
-		goto error_usb_exit;
-	}
-
-#if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x01000102)
-	libusb_set_auto_detach_kernel_driver(eon->handle, 1);
-#endif
-
-	libusb_claim_interface(eon->handle, 0);
 
 	if (initialize_eonsteel(eon) < 0) {
 		ERROR(context, "unable to initialize device");
 		status = DC_STATUS_IO;
-		goto error_usb_close;
+		goto error_close;
 	}
 
 	*out = (dc_device_t *) eon;
 
 	return DC_STATUS_SUCCESS;
 
-error_usb_close:
-	libusb_close(eon->handle);
-error_usb_exit:
-	libusb_exit(eon->ctx);
+error_close:
+	dc_usbhid_close(eon->usbhid);
 error_free:
 	free(eon);
 	return status;
@@ -732,19 +707,7 @@ suunto_eonsteel_device_close(dc_device_t *abstract)
 {
 	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
 
-	libusb_close(eon->handle);
-	libusb_exit(eon->ctx);
+	dc_usbhid_close(eon->usbhid);
 
 	return DC_STATUS_SUCCESS;
 }
-
-#else // no LIBUSB support
-
-dc_status_t
-suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
-{
-	ERROR(context, "The Suunto EON Steel backend needs libusb-1.0");
-	return DC_STATUS_UNSUPPORTED;
-}
-
-#endif

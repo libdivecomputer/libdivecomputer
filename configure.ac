@@ -73,6 +73,8 @@ esac
 AC_MSG_RESULT([$os_win32])
 AM_CONDITIONAL([OS_WIN32], [test "$os_win32" = "yes"])
 
+DEPENDENCIES=""
+
 # Checks for USB support.
 AC_ARG_WITH([libusb],
 	[AS_HELP_STRING([--without-libusb],
@@ -82,9 +84,24 @@ AS_IF([test "x$with_libusb" != "xno"], [
 	PKG_CHECK_MODULES([LIBUSB], [libusb-1.0], [have_libusb=yes], [have_libusb=no])
 	AS_IF([test "x$have_libusb" = "xyes"], [
 		AC_DEFINE([HAVE_LIBUSB], [1], [libusb library])
-		AC_SUBST([DEPENDENCIES], [libusb-1.0])
+		DEPENDENCIES="$DEPENDENCIES libusb-1.0"
 	])
 ])
+
+# Checks for HIDAPI support.
+AC_ARG_WITH([hidapi],
+	[AS_HELP_STRING([--without-hidapi],
+		[Build without the hidapi library])],
+	[], [with_hidapi=auto])
+AS_IF([test "x$with_hidapi" != "xno"], [
+	PKG_CHECK_MODULES([HIDAPI], [hidapi], [have_hidapi=yes], [have_hidapi=no])
+	AS_IF([test "x$have_hidapi" = "xyes"], [
+		AC_DEFINE([HAVE_HIDAPI], [1], [hidapi library])
+		DEPENDENCIES="$DEPENDENCIES hidapi"
+	])
+])
+
+AC_SUBST([DEPENDENCIES])
 
 # Checks for IrDA support.
 AC_CHECK_HEADERS([winsock2.h af_irda.h], [irda_win32=yes], [irda_win32=no], [

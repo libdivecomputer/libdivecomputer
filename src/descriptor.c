@@ -23,6 +23,12 @@
 #include "config.h"
 #endif
 
+#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#define USBHID
+#elif defined(HAVE_HIDAPI)
+#define USBHID
+#endif
+
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -80,7 +86,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "Vyper Novo", DC_FAMILY_SUUNTO_D9, 0x1D},
 	{"Suunto", "Zoop Novo",  DC_FAMILY_SUUNTO_D9, 0x1E},
 	/* Suunto EON Steel */
-#ifdef HAVE_LIBUSB
+#ifdef USBHID
 	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0},
 #endif
 	/* Uwatec Aladin */
