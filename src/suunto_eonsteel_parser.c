@@ -30,6 +30,16 @@
 #include "parser-private.h"
 #include "array.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#if _MSC_VER < 1800
+// The rint() function is only available in MSVC 2013 and later
+// versions. Our replacement macro isn't entirely correct, because the
+// rounding rules for halfway cases are slightly different (away from
+// zero vs to even). But for our use-case, that's not a problem.
+#define rint(x) ((x) >= 0.0 ? floor((x) + 0.5): ceil((x) - 0.5))
+#endif
+#endif
 
 #define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
