@@ -30,6 +30,16 @@
 #include "parser-private.h"
 #include "array.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#if _MSC_VER < 1800
+// The rint() function is only available in MSVC 2013 and later
+// versions. Our replacement macro isn't entirely correct, because the
+// rounding rules for halfway cases are slightly different (away from
+// zero vs to even). But for our use-case, that's not a problem.
+#define rint(x) ((x) >= 0.0 ? floor((x) + 0.5): ceil((x) - 0.5))
+#endif
+#endif
 
 #define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -668,7 +678,7 @@ static const char *lookup_enum(const struct type_desc *desc, unsigned char value
 		if (n != value)
 			continue;
 
-		ret = malloc(end - begin + 1);
+		ret = (char *)malloc(end - begin + 1);
 		if (!ret)
 			break;
 
@@ -1167,7 +1177,7 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 	else if (!strcasecmp(name, "Oxygen"))
 		;
 	else if (!strcasecmp(name, "None"))
-		tankinfo = 0;
+		tankinfo = DC_TANKVOLUME_NONE;
 	else if (strcasecmp(name, "Primary"))
 		DEBUG(eon->base.context, "Unknown gas type %u (%s)", type, name);
 
@@ -1334,7 +1344,7 @@ static int traverse_diving_fields(suunto_eonsteel_parser_t *eon, const struct ty
 	}
 
 	if (!strcmp(name, "DiveMode")) {
-		if (!strncmp(data, "CCR", 3)) {
+		if (!strncmp((const char *)data, "CCR", 3)) {
 			eon->cache.divemode = DC_DIVEMODE_CC;
 			eon->cache.initialized |= 1 << DC_FIELD_DIVEMODE;
 		}

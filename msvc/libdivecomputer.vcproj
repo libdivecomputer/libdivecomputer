@@ -463,6 +463,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\usbhid.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\uwatec_aladin.c"
 				>
 			</File>
@@ -750,6 +754,10 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\units.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\usbhid.h"
 				>
 			</File>
 			<File
