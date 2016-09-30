@@ -1,3 +1,54 @@
+Version 0.5.0 (2016-09-30)
+==========================
+
+After more than three years of development, the v0.5.0 release is long
+overdue. The main highlights are the support for many new devices, a few
+new features and lots of bug fixes. This release is fully backwards
+compatible with the previous one.
+
+New features:
+
+ * Add support for new backends:
+    - aqualand: Citizen Hyper Aqualand
+    - commander: Cochran Commander and EMC
+    - eonsteel: Suunto EON Steel
+    - idive: DiveSystem iDive and iX3M
+    - meridian: Scubapro Meridian, Mantis and Chromis
+    - nitekq: Dive Rite NiTek Q
+ * Add support for many new devices:
+    - Aeris: 500 AI, A300, A300CS, F11, XR-1 NX
+    - Aqualung: i300, i450T, i550T
+    - Beuchat: Mundial 2, Mundial 3, Voyager 2G
+    - Cressi: Giotto, Newton
+    - Dive Rite: NiTek Trio
+    - Heinrichs Weikamp: OSTC 2, 3+, 4, cR and Sport
+    - Hollis: TX1
+    - Mares: Airlab, Smart, Smart Apnea, Puck 2
+    - Oceanic: F11, OCi, VTX
+    - Scubapro: XTender 5
+    - Shearwater: Nerd, Perdix, Petrel 2
+    - Sherwood: Amphos, Amphos Air, Vision
+    - Subgear: XP-3G, XP-Air
+    - Suunto: Vyper Novo, Zoop Novo
+    - Tusa: IQ-700
+    - Uwatec: Aladin 2G, Aladin Sport
+ * Add a new sample with the active gas mix.
+ * Add the temperature, tank and divemode fields.
+ * Add support for updating the OSTC and OSTC3 firmware.
+ * Add support for configuring the OSTC3 settings.
+ * Add a new dc_parser_new2 convenience function.
+
+Removed/changed features:
+
+ * The gas change events (SAMPLE_EVENT_GASCHANGE and
+   SAMPLE_EVENT_GASCHANGE2) have been replaced with the new gasmix
+   sample (DC_SAMPLE_GASMIX). The legacy events are considered
+   deprecated, but kept for backwards compatibility.
+
+Bug fixes:
+
+ * Many small improvements
+
 Version 0.4.0 (2013-05-13)
 ==========================
 
