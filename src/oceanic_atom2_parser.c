@@ -41,7 +41,7 @@
 #define DATAMASK    0x4347
 #define COMPUMASK   0x4348
 #define OC1A        0x434E
-#define F10         0x434D
+#define F10A        0x434D
 #define WISDOM2     0x4350
 #define INSIGHT2    0x4353
 #define ELEMENT2    0x4357
@@ -75,6 +75,7 @@
 #define OCI         0x454B
 #define A300CS      0x454C
 #define MUNDIAL3    0x4550
+#define F10B        0x4553
 #define F11B        0x4554
 #define XPAIR       0x4555
 #define VISION      0x4556
@@ -160,7 +161,8 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		parser->headersize += 2 * PAGESIZE;
 	} else if (model == ATOM1) {
 		parser->headersize -= 2 * PAGESIZE;
-	} else if (model == F10 || model == MUNDIAL2 || model == MUNDIAL3) {
+	} else if (model == F10A || model == F10B ||
+		model == MUNDIAL2 || model == MUNDIAL3) {
 		parser->headersize = 3 * PAGESIZE;
 		parser->footersize = 0;
 	} else if (model == F11A || model == F11B) {
@@ -216,9 +218,9 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
 
 	unsigned int header = 8;
-	if (parser->model == F10 || parser->model == F11A ||
-		parser->model == F11B || parser->model == MUNDIAL2 ||
-		parser->model == MUNDIAL3)
+	if (parser->model == F10A || parser->model == F10B ||
+		parser->model == F11A || parser->model == F11B ||
+		parser->model == MUNDIAL2 || parser->model == MUNDIAL3)
 		header = 32;
 
 	if (abstract->size < header)
@@ -278,7 +280,8 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			datetime->hour   = bcd2dec (p[1] & 0x1F);
 			datetime->minute = bcd2dec (p[0]);
 			break;
-		case F10:
+		case F10A:
+		case F10B:
 		case F11A:
 		case F11B:
 		case MUNDIAL2:
@@ -384,9 +387,9 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 
 	// Get the dive mode.
 	unsigned int mode = NORMAL;
-	if (parser->model == F10 || parser->model == F11A ||
-		parser->model == F11B || parser->model == MUNDIAL2 ||
-		parser->model == MUNDIAL3) {
+	if (parser->model == F10A || parser->model == F10B ||
+		parser->model == F11A || parser->model == F11B ||
+		parser->model == MUNDIAL2 || parser->model == MUNDIAL3) {
 		mode = FREEDIVE;
 	} else if (parser->model == T3B || parser->model == VT3 ||
 		parser->model == DG03) {
@@ -491,17 +494,17 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			if (parser->model == F10 || parser->model == F11A ||
-				parser->model == F11B || parser->model == MUNDIAL2 ||
-				parser->model == MUNDIAL3)
+			if (parser->model == F10A || parser->model == F10B ||
+				parser->model == F11A || parser->model == F11B ||
+				parser->model == MUNDIAL2 || parser->model == MUNDIAL3)
 				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			if (parser->model == F10 || parser->model == F11A ||
-				parser->model == F11B || parser->model == MUNDIAL2 ||
-				parser->model == MUNDIAL3)
+			if (parser->model == F10A || parser->model == F10B ||
+				parser->model == F11A || parser->model == F11B ||
+				parser->model == MUNDIAL2 || parser->model == MUNDIAL3)
 				*((double *) value) = array_uint16_le (data + 4) / 16.0 * FEET;
 			else
 				*((double *) value) = (array_uint16_le (data + parser->footer + 4) & 0x0FFF) / 16.0 * FEET;
@@ -614,9 +617,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int samplesize = PAGESIZE / 2;
 	if (parser->mode == FREEDIVE) {
-		if (parser->model == F10 || parser->model == F11A ||
-			parser->model == F11B || parser->model == MUNDIAL2 ||
-			parser->model == MUNDIAL3) {
+		if (parser->model == F10A || parser->model == F10B ||
+			parser->model == F11A || parser->model == F11B ||
+			parser->model == MUNDIAL2 || parser->model == MUNDIAL3) {
 			samplesize = 2;
 		} else {
 			samplesize = 4;
