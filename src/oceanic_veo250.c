@@ -71,6 +71,7 @@ static const oceanic_common_version_t oceanic_veo250_version[] = {
 	{"VEO 180 R\0\0 256K"},
 	{"AERISXR2 \0\0 256K"},
 	{"INSIGHT R\0\0 256K"},
+	{"HO DGO2 R\0\0 256K"},
 };
 
 static const oceanic_common_layout_t oceanic_veo250_layout = {
