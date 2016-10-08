@@ -31,6 +31,7 @@
 #include "checksum.h"
 #include "array.h"
 #include "ringbuffer.h"
+#include "rbstream.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &zeagle_n2ition3_device_vtable)
 
@@ -352,16 +353,21 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	progress.maximum = (RB_LOGBOOK_END - RB_LOGBOOK_BEGIN) * 2 + 8 + total;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Create the ringbuffer stream.
+	dc_rbstream_t *rbstream = NULL;
+	rc = dc_rbstream_new (&rbstream, abstract, 1, SZ_PACKET, RB_PROFILE_BEGIN, RB_PROFILE_END, eop);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
+		return rc;
+	}
+
 	// Memory buffer for the profile data.
 	unsigned char buffer[RB_PROFILE_END - RB_PROFILE_BEGIN] = {0};
 
-	unsigned int available = 0;
-	unsigned int remaining = total;
 	unsigned int offset = RB_PROFILE_END - RB_PROFILE_BEGIN;
 
 	idx = last;
 	previous = eop;
-	unsigned int address = previous;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Get the pointer to the profile data.
 		unsigned int current = array_uint16_le (config + 2 * idx);
@@ -369,50 +375,37 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		// Get the profile length.
 		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
-		unsigned nbytes = available;
-		while (nbytes < length) {
-			if (address == RB_PROFILE_BEGIN)
-				address = RB_PROFILE_END;
+		// Move to the begin of the current dive.
+		offset -= length;
 
-			unsigned int len = SZ_PACKET;
-			if (RB_PROFILE_BEGIN + len > address)
-				len = address - RB_PROFILE_BEGIN; // End of ringbuffer.
-			if (nbytes + len > remaining)
-				len = remaining - nbytes; // End of profile.
-
-			address -= len;
-			offset -= len;
-
-			// Read the memory page.
-			rc = zeagle_n2ition3_device_read (abstract, address, buffer + offset, len);
-			if (rc != DC_STATUS_SUCCESS) {
-				ERROR (abstract->context, "Failed to read the memory page.");
-				return rc;
-			}
-
-			// Update and emit a progress event.
-			progress.current += len;
-			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-			nbytes += len;
+		// Read the dive.
+		rc = dc_rbstream_read (rbstream, &progress, buffer + offset, length);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the dive.");
+			dc_rbstream_free (rbstream);
+			return rc;
 		}
 
-		remaining -= length;
-		available = nbytes - length;
+		unsigned char *p = buffer + offset;
+
+		if (memcmp (p, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+			dc_rbstream_free (rbstream);
+			return DC_STATUS_SUCCESS;
+		}
+
+		if (callback && !callback (p, length, p, sizeof (device->fingerprint), userdata)) {
+			dc_rbstream_free (rbstream);
+			return DC_STATUS_SUCCESS;
+		}
+
 		previous = current;
-
-		unsigned char *p = buffer + offset + available;
-
-		if (memcmp (p, device->fingerprint, sizeof (device->fingerprint)) == 0)
-			return DC_STATUS_SUCCESS;
-
-		if (callback && !callback (p, length, p, sizeof (device->fingerprint), userdata))
-			return DC_STATUS_SUCCESS;
 
 		if (idx == RB_LOGBOOK_BEGIN)
 			idx = RB_LOGBOOK_END;
 		idx--;
 	}
+
+	dc_rbstream_free (rbstream);
 
 	return DC_STATUS_SUCCESS;
 }

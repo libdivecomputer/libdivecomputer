@@ -26,6 +26,7 @@
 #include "context-private.h"
 #include "suunto_common2.h"
 #include "ringbuffer.h"
+#include "rbstream.h"
 #include "checksum.h"
 #include "array.h"
 
@@ -294,102 +295,59 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	// Memory buffer to store all the dives.
-
-	unsigned char *data = (unsigned char *) malloc (layout->rb_profile_end - layout->rb_profile_begin + SZ_MINIMUM);
-	if (data == NULL) {
-		ERROR (abstract->context, "Failed to allocate memory.");
-		return DC_STATUS_NOMEMORY;
-	}
-
 	// Calculate the total amount of bytes.
-
 	unsigned int remaining = RB_PROFILE_DISTANCE (layout, begin, end, count != 0);
 
 	// Update and emit a progress event.
-
 	progress.maximum -= (layout->rb_profile_end - layout->rb_profile_begin) - remaining;
 	progress.current += sizeof (header);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	// To reduce the number of read operations, we always try to read
-	// packages with the largest possible size. As a consequence, the
-	// last package of a dive can contain data from more than one dive.
-	// Therefore, the remaining data of this package (and its size)
-	// needs to be preserved for the next dive.
+	// Create the ringbuffer stream.
+	dc_rbstream_t *rbstream = NULL;
+	rc = dc_rbstream_new (&rbstream, abstract, 1, SZ_PACKET, layout->rb_profile_begin, layout->rb_profile_end, end);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
+		return rc;
+	}
 
-	unsigned int available = 0;
+	// Memory buffer to store all the dives.
+	unsigned char *data = (unsigned char *) malloc (layout->rb_profile_end - layout->rb_profile_begin);
+	if (data == NULL) {
+		ERROR (abstract->context, "Failed to allocate memory.");
+		dc_rbstream_free (rbstream);
+		return DC_STATUS_NOMEMORY;
+	}
 
 	// The ring buffer is traversed backwards to retrieve the most recent
 	// dives first. This allows us to download only the new dives.
-
 	unsigned int current = last;
 	unsigned int previous = end;
-	unsigned int address = previous;
-	unsigned int offset = remaining + SZ_MINIMUM;
-	while (remaining) {
+	unsigned int offset = remaining;
+	while (offset) {
 		// Calculate the size of the current dive.
 		unsigned int size = RB_PROFILE_DISTANCE (layout, current, previous, 1);
 
-		if (size < 4 || size > remaining) {
-			ERROR (abstract->context, "Unexpected profile size (%u %u).", size, remaining);
+		if (size < 4 || size > offset) {
+			ERROR (abstract->context, "Unexpected profile size (%u %u).", size, offset);
+			dc_rbstream_free (rbstream);
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		unsigned int nbytes = available;
-		while (nbytes < size) {
-			// Handle the ringbuffer wrap point.
-			if (address == layout->rb_profile_begin)
-				address = layout->rb_profile_end;
+		// Move to the begin of the current dive.
+		offset -= size;
 
-			// Calculate the package size. Try with the largest possible
-			// size first, and adjust when the end of the ringbuffer or
-			// the end of the profile data is reached.
-			unsigned int len = SZ_PACKET;
-			if (layout->rb_profile_begin + len > address)
-				len = address - layout->rb_profile_begin; // End of ringbuffer.
-			if (nbytes + len > remaining)
-				len = remaining - nbytes; // End of profile.
-			/*if (nbytes + len > size)
-				len = size - nbytes;*/ // End of dive (for testing only).
-
-			// Move to the begin of the current package.
-			offset -= len;
-			address -= len;
-
-			// Always read at least the minimum amount of bytes, because
-			// reading fewer bytes is unreliable. The memory buffer is
-			// large enough to prevent buffer overflows, and the extra
-			// bytes are automatically ignored (due to reading backwards).
-			unsigned int extra = 0;
-			if (len < SZ_MINIMUM)
-				extra = SZ_MINIMUM - len;
-
-			// Read the package.
-			rc = suunto_common2_device_read (abstract, address - extra, data + offset - extra, len + extra);
-			if (rc != DC_STATUS_SUCCESS) {
-				ERROR (abstract->context, "Failed to read the memory.");
-				free (data);
-				return rc;
-			}
-
-			// Update and emit a progress event.
-			progress.current += len;
-			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-			// Next package.
-			nbytes += len;
+		// Read the dive.
+		rc = dc_rbstream_read (rbstream, &progress, data + offset, size);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the dive.");
+			dc_rbstream_free (rbstream);
+			free (data);
+			return rc;
 		}
 
-		// The last package of the current dive contains the previous and
-		// next pointers (in a continuous memory area). It can also contain
-		// a number of bytes from the next dive.
-
-		remaining -= size;
-		available = nbytes - size;
-
-		unsigned char *p = data + offset + available;
+		unsigned char *p = data + offset;
 		unsigned int prev = array_uint16_le (p + 0);
 		unsigned int next = array_uint16_le (p + 2);
 		if (prev < layout->rb_profile_begin ||
@@ -398,11 +356,13 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			next >= layout->rb_profile_end)
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x).", prev, next);
+			dc_rbstream_free (rbstream);
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
 		if (next != previous && next != current) {
 			ERROR (abstract->context, "Profiles are not continuous (0x%04x 0x%04x 0x%04x).", current, next, previous);
+			dc_rbstream_free (rbstream);
 			free (data);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -410,11 +370,13 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		if (next != current) {
 			unsigned int fp_offset = layout->fingerprint + 4;
 			if (memcmp (p + fp_offset, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+				dc_rbstream_free (rbstream);
 				free (data);
 				return DC_STATUS_SUCCESS;
 			}
 
 			if (callback && !callback (p + 4, size - 4, p + fp_offset, sizeof (device->fingerprint), userdata)) {
+				dc_rbstream_free (rbstream);
 				free (data);
 				return DC_STATUS_SUCCESS;
 			}
@@ -428,6 +390,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		current = prev;
 	}
 
+	dc_rbstream_free (rbstream);
 	free (data);
 
 	return status;

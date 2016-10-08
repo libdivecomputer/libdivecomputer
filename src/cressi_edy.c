@@ -31,6 +31,7 @@
 #include "checksum.h"
 #include "array.h"
 #include "ringbuffer.h"
+#include "rbstream.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &cressi_edy_device_vtable)
 
@@ -99,20 +100,6 @@ static const cressi_edy_layout_t tusa_iq700_layout = {
 	60, /* rb_logbook_end */
 	0x3C, /* config */
 };
-
-static unsigned int
-ifloor (unsigned int x, unsigned int n)
-{
-	// Round down to next lower multiple.
-	return (x / n) * n;
-}
-
-static unsigned int
-iceil (unsigned int x, unsigned int n)
-{
-	// Round up to next higher multiple.
-	return ((x + n - 1) / n) * n;
-}
 
 static dc_status_t
 cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, int trailer)
@@ -492,40 +479,28 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		idx--;
 	}
 
-	// Because dives are not necessary aligned to packet boundaries, and
-	// we always do aligned reads, there can be padding bytes present on
-	// both sides of the memory buffer. These extra bytes need to be
-	// included in the total length.
-	total += (previous - ifloor(previous, SZ_PACKET)) +
-		(iceil(eop, SZ_PACKET) - eop);
-
 	// Update and emit a progress event.
 	progress.current += SZ_PACKET;
 	progress.maximum = SZ_PACKET + total;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Create the ringbuffer stream.
+	dc_rbstream_t *rbstream = NULL;
+	rc = dc_rbstream_new (&rbstream, abstract, SZ_PAGE, SZ_PACKET, layout->rb_profile_begin, layout->rb_profile_end, eop);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
+		return rc;
+	}
+
 	// Memory buffer for the profile data.
 	unsigned char *buffer = (unsigned char *) malloc (total);
 	if (buffer == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
+		dc_rbstream_free (rbstream);
 		return DC_STATUS_NOMEMORY;
 	}
 
-	unsigned int available = 0;
 	unsigned int offset = total;
-
-	// Align the ringbuffer to packet boundaries. This results in a
-	// virtual ringbuffer that is slightly larger than the actual
-	// ringbuffer. Data outside the real ringbuffer is downloaded
-	// and then immediately dropped.
-	unsigned int rb_profile_begin = ifloor(layout->rb_profile_begin, SZ_PACKET);
-	unsigned int rb_profile_end = iceil(layout->rb_profile_end, SZ_PACKET);
-
-	// Align the initial memory address to the next packet boundary, and
-	// calculate the amount of padding bytes, so we can easily skip
-	// them later.
-	unsigned int address = iceil(eop, SZ_PACKET);
-	unsigned int skip = address - eop;
 
 	idx = last;
 	previous = eop;
@@ -534,6 +509,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		unsigned int current = array_uint_le (logbook + idx * layout->rb_logbook_size, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
 		if (current < layout->rb_profile_begin || current >= layout->rb_profile_end) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x).", current);
+			dc_rbstream_free (rbstream);
 			free(buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -541,51 +517,19 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		// Get the profile length.
 		unsigned int length = ringbuffer_distance (current, previous, 1, layout->rb_profile_begin, layout->rb_profile_end);
 
-		unsigned nbytes = available;
-		while (nbytes < length) {
-			if (address == rb_profile_begin)
-				address = rb_profile_end;
-			address -= SZ_PACKET;
+		// Move to the begin of the current dive.
+		offset -= length;
 
-			// Read the memory page.
-			unsigned char packet[SZ_PACKET];
-			rc = cressi_edy_device_read (abstract, address, packet, sizeof(packet));
-			if (rc != DC_STATUS_SUCCESS) {
-				ERROR (abstract->context, "Failed to read the memory page.");
-				free(buffer);
-				return rc;
-			}
-
-			// At the head and tail of the ringbuffer, the packet can
-			// contain extra data, originating from the larger virtual
-			// ringbuffer. This data must be removed from the packet.
-			unsigned int head = 0;
-			unsigned int tail = 0;
-			unsigned int len = SZ_PACKET;
-			if (address < layout->rb_profile_begin) {
-				head = layout->rb_profile_begin - address;
-			}
-			if (address + SZ_PACKET > layout->rb_profile_end) {
-				tail = (address + SZ_PACKET) - layout->rb_profile_end;
-			}
-			len -= head + tail;
-			offset -= len;
-
-			// Copy the data packet to the buffer.
-			memcpy(buffer + offset, packet + head, len);
-
-			// Update and emit a progress event.
-			progress.current += len;
-			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-			nbytes += len - skip;
-			skip = 0;
+		// Read the dive.
+		rc = dc_rbstream_read (rbstream, &progress, buffer + offset, length);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the dive.");
+			dc_rbstream_free (rbstream);
+			free (buffer);
+			return rc;
 		}
 
-		available = nbytes - length;
-		previous = current;
-
-		unsigned char *p = buffer + offset + available;
+		unsigned char *p = buffer + offset;
 
 		if (memcmp (p, device->fingerprint, sizeof (device->fingerprint)) == 0)
 			break;
@@ -593,11 +537,14 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		if (callback && !callback (p, length, p, sizeof (device->fingerprint), userdata))
 			break;
 
+		previous = current;
+
 		if (idx == layout->rb_logbook_begin)
 			idx = layout->rb_logbook_end;
 		idx--;
 	}
 
+	dc_rbstream_free (rbstream);
 	free(buffer);
 
 	return DC_STATUS_SUCCESS;
