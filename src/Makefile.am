@@ -62,6 +62,7 @@ libdivecomputer_la_SOURCES = \
 	citizen_aqualand.c citizen_aqualand_parser.c \
 	divesystem_idive.c divesystem_idive_parser.c \
 	ringbuffer.h ringbuffer.c \
+	rbstream.h rbstream.c \
 	checksum.h checksum.c \
 	array.h array.c \
 	buffer.c \

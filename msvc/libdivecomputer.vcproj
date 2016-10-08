@@ -363,6 +363,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\rbstream.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\reefnet_sensus.c"
 				>
 			</File>
@@ -678,6 +682,10 @@
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\parser.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\rbstream.h"
 				>
 			</File>
 			<File
