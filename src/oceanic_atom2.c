@@ -35,6 +35,7 @@
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
 #define VTX        0x4557
+#define I750TC     0x455A
 
 #define MAXRETRIES 2
 #define MAXDELAY   16
@@ -183,6 +184,7 @@ static const oceanic_common_version_t oceanic_reactpro_version[] = {
 static const oceanic_common_version_t aeris_a300cs_version[] = {
 	{"AER300CS \0\0 2048"},
 	{"OCEANVTX \0\0 2048"},
+	{"AQUAI750 \0\0 2048"},
 };
 
 static const oceanic_common_version_t aqualung_i450t_version[] = {
@@ -595,7 +597,7 @@ oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char
 
 	// Get the correct baudrate.
 	unsigned int baudrate = 38400;
-	if (model == VTX) {
+	if (model == VTX || model == I750TC) {
 		baudrate = 115200;
 	}
 
