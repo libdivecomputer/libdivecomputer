@@ -123,7 +123,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = cressi_edy_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_CRESSI_LEONARDO:
-		rc = cressi_leonardo_parser_create (&parser, context);
+		rc = cressi_leonardo_parser_create2 (&parser, context, model);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context);

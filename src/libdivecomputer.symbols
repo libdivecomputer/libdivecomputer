@@ -66,6 +66,7 @@ hw_ostc_parser_create
 hw_ostc3_parser_create
 cressi_edy_parser_create
 cressi_leonardo_parser_create
+cressi_leonardo_parser_create2
 atomics_cobalt_parser_create
 atomics_cobalt_parser_set_calibration
 shearwater_predator_parser_create

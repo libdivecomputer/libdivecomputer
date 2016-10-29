@@ -253,6 +253,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Cressi", "Leonardo", DC_FAMILY_CRESSI_LEONARDO, 1},
 	{"Cressi", "Giotto",   DC_FAMILY_CRESSI_LEONARDO, 4},
 	{"Cressi", "Newton",   DC_FAMILY_CRESSI_LEONARDO, 5},
+	{"Cressi", "Drake",    DC_FAMILY_CRESSI_LEONARDO, 6},
 	/* Zeagle N2iTiON3 */
 	{"Zeagle",   "N2iTiON3",   DC_FAMILY_ZEAGLE_N2ITION3, 0},
 	{"Apeks",    "Quantum X",  DC_FAMILY_ZEAGLE_N2ITION3, 0},

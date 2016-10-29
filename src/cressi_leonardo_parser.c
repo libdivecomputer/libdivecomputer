@@ -31,10 +31,13 @@
 
 #define SZ_HEADER 82
 
+#define DRAKE 6
+
 typedef struct cressi_leonardo_parser_t cressi_leonardo_parser_t;
 
 struct cressi_leonardo_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 };
 
 static dc_status_t cressi_leonardo_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -54,7 +57,7 @@ static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
 
 
 dc_status_t
-cressi_leonardo_parser_create (dc_parser_t **out, dc_context_t *context)
+cressi_leonardo_parser_create2 (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	cressi_leonardo_parser_t *parser = NULL;
 
@@ -68,9 +71,18 @@ cressi_leonardo_parser_create (dc_parser_t **out, dc_context_t *context)
 		return DC_STATUS_NOMEMORY;
 	}
 
+	parser->model = model;
+
 	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+dc_status_t
+cressi_leonardo_parser_create (dc_parser_t **parser, dc_context_t *context)
+{
+	return cressi_leonardo_parser_create2 (parser, context, 0);
 }
 
 
@@ -105,23 +117,33 @@ cressi_leonardo_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datet
 static dc_status_t
 cressi_leonardo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
+	cressi_leonardo_parser_t *parser = (cressi_leonardo_parser_t *) abstract;
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *data = abstract->data;
+
+	unsigned int interval = 20;
+	if (parser->model == DRAKE) {
+		interval = 1;
+	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			*((unsigned int *) value) = array_uint16_le (data + 0x06) * 20;
+			*((unsigned int *) value) = array_uint16_le (data + 0x06) * interval;
 			break;
 		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = array_uint16_le (data + 0x20) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = 1;
+			if (parser->model == DRAKE) {
+				*((unsigned int *) value) = 0;
+			} else {
+				*((unsigned int *) value) = 1;
+			}
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
@@ -143,11 +165,15 @@ cressi_leonardo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 static dc_status_t
 cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
+	cressi_leonardo_parser_t *parser = (cressi_leonardo_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
 	unsigned int time = 0;
 	unsigned int interval = 20;
+	if (parser->model == DRAKE) {
+		interval = 1;
+	}
 
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 	unsigned int gasmix = 0;
@@ -156,36 +182,53 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	while (offset + 2 <= size) {
 		dc_sample_value_t sample = {0};
 
-		unsigned int value = array_uint16_le (data + offset);
-		unsigned int depth = value & 0x07FF;
-		unsigned int ascent = (value & 0xC000) >> 14;
+		if (offset + 4 <= size &&
+			array_uint16_le (data + offset + 2) == 0xFF00)
+		{
+			unsigned int surftime = data[offset] + (data[offset + 1] & 0x07) * 60;
 
-		// Time (seconds).
-		time += interval;
-		sample.time = time;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			// Time (seconds).
+			time += surftime;
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
-		// Depth (1/10 m).
-		sample.depth = depth / 10.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			// Depth (1/10 m).
+			sample.depth = 0.0;
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
-		// Gas change.
-		if (gasmix != gasmix_previous) {
-			sample.gasmix = gasmix;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-			gasmix_previous = gasmix;
+			offset += 4;
+		} else {
+			unsigned int value = array_uint16_le (data + offset);
+			unsigned int depth = value & 0x07FF;
+			unsigned int ascent = (value & 0xC000) >> 14;
+
+			// Time (seconds).
+			time += interval;
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+			// Depth (1/10 m).
+			sample.depth = depth / 10.0;
+			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Gas change.
+			if (gasmix != gasmix_previous) {
+				sample.gasmix = gasmix;
+				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				gasmix_previous = gasmix;
+			}
+
+			// Ascent rate
+			if (ascent) {
+				sample.event.type = SAMPLE_EVENT_ASCENT;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = ascent;
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			}
+
+			offset += 2;
 		}
-
-		// Ascent rate
-		if (ascent) {
-			sample.event.type = SAMPLE_EVENT_ASCENT;
-			sample.event.time = 0;
-			sample.event.flags = 0;
-			sample.event.value = ascent;
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-		}
-
-		offset += 2;
 	}
 
 	return DC_STATUS_SUCCESS;
