@@ -4,6 +4,10 @@ if ENABLE_EXAMPLES
 SUBDIRS += examples
 endif
 
+if ENABLE_DOC
+SUBDIRS += doc
+endif
+
 AM_MAKEFLAGS = -s
 ACLOCAL_AMFLAGS = -I m4
 

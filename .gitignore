@@ -32,6 +32,11 @@ Makefile.in
 /stamp-h1
 /tags
 
+/doc/doxygen
+/doc/doxygen.cfg
+/doc/html/
+/doc/latex/
+
 /examples/aladin
 /examples/atom2
 /examples/d9

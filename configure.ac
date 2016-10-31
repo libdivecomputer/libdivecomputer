@@ -53,9 +53,19 @@ AC_ARG_ENABLE([examples],
 	[], [enable_examples=yes])
 AM_CONDITIONAL([ENABLE_EXAMPLES], [test "x$enable_examples" = "xyes"])
 
+# Documentation.
+AC_ARG_ENABLE([doc],
+	[AS_HELP_STRING([--enable-doc=@<:@yes/no@:>@],
+		[Build documentation @<:@default=yes@:>@])],
+	[], [enable_doc=yes])
+AM_CONDITIONAL([ENABLE_DOC], [test "x$enable_doc" = "xyes"])
+
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_CC_C99
+AC_CHECK_PROGS([DOXYGEN], [doxygen])
+
+AM_CONDITIONAL([HAVE_DOXYGEN],[test -n "$DOXYGEN"])
 
 # Enable automake silent build rules.
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
@@ -159,6 +169,8 @@ AC_CONFIG_FILES([
    include/libdivecomputer/version.h
    src/Makefile
    src/libdivecomputer.rc
+   doc/Makefile
+   doc/doxygen.cfg
    examples/Makefile
 ])
 AC_OUTPUT
