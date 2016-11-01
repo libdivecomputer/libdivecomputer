@@ -501,6 +501,9 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 	sample.temperature = (data[layout->start_temp] - 32.0) / 1.8;
 	if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 
+	sample.gasmix = 0;
+	if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+
 	while (offset < size) {
 		const unsigned char *s = samples + offset;
 

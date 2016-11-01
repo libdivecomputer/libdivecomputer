@@ -319,6 +319,8 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	unsigned int gauge = data[4] & 0x40;
+
 	// Time
 	sample.time = 0;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
@@ -326,6 +328,12 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	// Depth (0 ft)
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+	// Initial gas mix
+	if (!gauge) {
+		sample.gasmix = 0;
+		if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+	}
 
 	unsigned int depth = 0;
 	unsigned int time = 0;

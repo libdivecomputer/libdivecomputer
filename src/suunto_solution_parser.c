@@ -170,6 +170,8 @@ suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned int time = 0, depth = 0;
+	unsigned int gasmix_previous = 0xFFFFFFFF;
+	unsigned int gasmix = 0;
 
 	unsigned int offset = 3;
 	while (offset < size &&	data[offset] != 0x80) {
@@ -193,6 +195,13 @@ suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			}
 			sample.depth = depth * FEET;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Gas change.
+			if (gasmix != gasmix_previous) {
+				sample.gasmix = gasmix;
+				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				gasmix_previous = gasmix;
+			}
 		} else {
 			// Event.
 			sample.event.type = SAMPLE_EVENT_NONE;

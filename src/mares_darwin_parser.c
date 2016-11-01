@@ -217,7 +217,14 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	unsigned int time = 0;
 
+	unsigned int mode = abstract->data[0x0C] & 0x03;
 	unsigned int pressure = array_uint16_be (abstract->data + 0x17);
+
+	unsigned int gasmix_previous = 0xFFFFFFFF;
+	unsigned int gasmix = gasmix_previous;
+	if (mode != GAUGE) {
+		gasmix = 0;
+	}
 
 	unsigned int offset = parser->headersize;
 	while (offset + parser->samplesize <= abstract->size) {
@@ -237,6 +244,13 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Gas change.
+			if (gasmix != gasmix_previous) {
+				sample.gasmix = gasmix;
+				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				gasmix_previous = gasmix;
+			}
 
 			// Ascent rate
 			if (ascent) {

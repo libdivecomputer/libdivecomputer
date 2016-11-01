@@ -275,6 +275,10 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	sample.depth = 0;
 	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
+	// Initial gas mix.
+	sample.gasmix = 0;
+	if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+
 	unsigned int depth = 0;
 	unsigned int time = 0;
 	unsigned int interval = data[3];

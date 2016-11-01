@@ -149,6 +149,9 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	unsigned int time = 0;
 	unsigned int interval = 20;
 
+	unsigned int gasmix_previous = 0xFFFFFFFF;
+	unsigned int gasmix = 0;
+
 	unsigned int offset = SZ_HEADER;
 	while (offset + 2 <= size) {
 		dc_sample_value_t sample = {0};
@@ -165,6 +168,13 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		// Depth (1/10 m).
 		sample.depth = depth / 10.0;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+		// Gas change.
+		if (gasmix != gasmix_previous) {
+			sample.gasmix = gasmix;
+			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			gasmix_previous = gasmix;
+		}
 
 		// Ascent rate
 		if (ascent) {

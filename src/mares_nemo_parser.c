@@ -358,6 +358,13 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			pressure = array_uint16_le(p + parser->header + 4);
 		}
 
+		// Initial gas mix.
+		unsigned int gasmix_previous = 0xFFFFFFFF;
+		unsigned int gasmix = gasmix_previous;
+		if (parser->mode == AIR || parser->mode == NITROX) {
+			gasmix = 0;
+		}
+
 		unsigned int time = 0;
 		for (unsigned int i = 0; i < parser->sample_count; ++i) {
 			dc_sample_value_t sample = {0};
@@ -377,6 +384,13 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Gas change.
+			if (gasmix != gasmix_previous) {
+				sample.gasmix = gasmix;
+				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				gasmix_previous = gasmix;
+			}
 
 			// Ascent rate
 			if (ascent) {
