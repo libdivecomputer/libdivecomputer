@@ -43,6 +43,13 @@
 
 #define EPOCH 1199145600 /* 2008-01-01 00:00:00 */
 
+#define OC       0
+#define SCR      1
+#define CCR      2
+#define GAUGE    3
+#define FREEDIVE 4
+#define INVALID  0xFFFFFFFF
+
 typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
 struct divesystem_idive_parser_t {
@@ -51,6 +58,7 @@ struct divesystem_idive_parser_t {
 	unsigned int samplesize;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int divemode;
 	unsigned int divetime;
 	unsigned int maxdepth;
 	unsigned int ngasmixes;
@@ -105,6 +113,7 @@ divesystem_idive_parser_create2 (dc_parser_t **out, dc_context_t *context, unsig
 		parser->samplesize = SZ_SAMPLE_IDIVE;
 	}
 	parser->cached = 0;
+	parser->divemode = INVALID;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->ngasmixes = 0;
@@ -126,6 +135,7 @@ divesystem_idive_parser_set_data (dc_parser_t *abstract, const unsigned char *da
 
 	// Reset the cache.
 	parser->cached = 0;
+	parser->divemode = INVALID;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->ngasmixes = 0;
@@ -191,6 +201,28 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 		case DC_FIELD_ATMOSPHERIC:
 			*((double *) value) = array_uint16_le (data + 11) / 1000.0;
 			break;
+		case DC_FIELD_DIVEMODE:
+			if (parser->divemode == 0xFFFFFFFF)
+				return DC_STATUS_UNSUPPORTED;
+			switch (parser->divemode) {
+			case OC:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case SCR:
+			case CCR:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+				break;
+			case GAUGE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			case FREEDIVE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+				break;
+			default:
+				ERROR (abstract->context, "Unknown dive mode %02x.", parser->divemode);
+				return DC_STATUS_DATAFORMAT;
+			}
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
@@ -214,6 +246,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int helium[NGASMIXES];
 	unsigned int o2_previous = 0xFFFFFFFF;
 	unsigned int he_previous = 0xFFFFFFFF;
+	unsigned int mode_previous = INVALID;
+	unsigned int divemode = INVALID;
 
 	unsigned int offset = parser->headersize;
 	while (offset + parser->samplesize <= size) {
@@ -240,6 +274,18 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		signed int temperature = (signed short) array_uint16_le (data + offset + 8);
 		sample.temperature = temperature / 10.0;
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+		// Dive mode
+		unsigned int mode = data[offset + 18];
+		if (mode != mode_previous) {
+			if (mode_previous != INVALID) {
+				WARNING (abstract->context, "Dive mode changed from %02x to %02x.", mode_previous, mode);
+			}
+			mode_previous = mode;
+		}
+		if (divemode == INVALID) {
+			divemode = mode;
+		}
 
 		// Gaschange.
 		unsigned int o2 = data[offset + 10];
@@ -301,6 +347,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	parser->ngasmixes = ngasmixes;
 	parser->maxdepth = maxdepth;
 	parser->divetime = time;
+	parser->divemode = divemode;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
