@@ -201,17 +201,26 @@ cressi_leonardo_device_open (dc_device_t **out, dc_context_t *context, const cha
 		goto error_close;
 	}
 
-	// Clear the DTR line.
-	status = dc_serial_set_dtr (device->port, 0);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to clear the DTR line.");
-		goto error_close;
-	}
-
 	// Set the RTS line.
 	status = dc_serial_set_rts (device->port, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the RTS line.");
+		goto error_close;
+	}
+
+	// Set the DTR line.
+	status = dc_serial_set_dtr (device->port, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the DTR line.");
+		goto error_close;
+	}
+
+	dc_serial_sleep (device->port, 200);
+
+	// Clear the DTR line.
+	status = dc_serial_set_dtr (device->port, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the DTR line.");
 		goto error_close;
 	}
 
