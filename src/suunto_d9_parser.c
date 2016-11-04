@@ -525,14 +525,6 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			}
 			sample.gasmix = parser->gasmix;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-			unsigned int he = parser->helium[parser->gasmix];
-			unsigned int o2 = parser->oxygen[parser->gasmix];
-			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-			sample.event.time = 0;
-			sample.event.value = o2 | (he << 16);
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 		}
 
 		// Events
@@ -715,12 +707,6 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					}
 					sample.gasmix = idx;
 					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-					sample.event.type = SAMPLE_EVENT_GASCHANGE;
-					sample.event.time = seconds;
-					sample.event.value = o2;
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
@@ -747,12 +733,6 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					}
 					sample.gasmix = idx;
 					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-					sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-					sample.event.time = seconds;
-					sample.event.value = o2 | (he << 16);
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 					offset += length;
 					break;
 				default:

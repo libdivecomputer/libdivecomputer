@@ -638,16 +638,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		if (time == samplerate && parser->initial != UNDEFINED) {
 			sample.gasmix = parser->initial;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-			unsigned int idx = parser->initial;
-			unsigned int o2 = parser->gasmix[idx].oxygen;
-			unsigned int he = parser->gasmix[idx].helium;
-			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-			sample.event.time = 0;
-			sample.event.flags = 0;
-			sample.event.value = o2 | (he << 16);
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 		}
 
 		// Depth (mbar).
@@ -735,13 +725,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 			sample.gasmix = idx;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-			sample.event.time = 0;
-			sample.event.flags = 0;
-			sample.event.value = o2 | (he << 16);
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 			offset += 2;
 			length -= 2;
 		}
@@ -760,15 +743,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			idx--; /* Convert to a zero based index. */
 			sample.gasmix = idx;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-			unsigned int o2 = parser->gasmix[idx].oxygen;
-			unsigned int he = parser->gasmix[idx].helium;
-			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-			sample.event.time = 0;
-			sample.event.flags = 0;
-			sample.event.value = o2 | (he << 16);
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 			offset++;
 			length--;
 		}
@@ -808,13 +782,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 				sample.gasmix = idx;
 				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-				sample.event.time = 0;
-				sample.event.flags = 0;
-				sample.event.value = o2 | (he << 16);
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 				offset += 2;
 				length -= 2;
 			}
@@ -920,13 +887,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 				sample.gasmix = idx;
 				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-				sample.event.time = 0;
-				sample.event.flags = 0;
-				sample.event.value = o2 | (he << 16);
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 				offset += 2;
 				length -= 2;
 			}

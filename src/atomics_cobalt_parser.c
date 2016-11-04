@@ -297,15 +297,6 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 			}
 			sample.gasmix = idx;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-			unsigned int o2 = data[SZ_HEADER + SZ_GASMIX * idx + 4];
-			unsigned int he = data[SZ_HEADER + SZ_GASMIX * idx + 5];
-			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-			sample.event.time = 0;
-			sample.event.flags = 0;
-			sample.event.value = o2 | (he << 16);
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 			gasmix_previous = gasmix;
 		}
 

@@ -394,12 +394,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 				sample.gasmix = idx;
 				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-				sample.event.type = SAMPLE_EVENT_GASCHANGE;
-				sample.event.value = o2;
-#else
 				sample.event.type = SAMPLE_EVENT_NONE;
-#endif
 				break;
 			default: // Unknown
 				WARNING (abstract->context, "Unknown event");

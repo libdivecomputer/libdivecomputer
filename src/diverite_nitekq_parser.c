@@ -261,13 +261,6 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			if (gasmix != gasmix_previous) {
 				sample.gasmix = gasmix;
 				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-				sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-				sample.event.time = 0;
-				sample.event.flags = 0;
-				sample.event.value = oxygen[gasmix] | (helium[gasmix] << 16);
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 				gasmix_previous = gasmix;
 			}
 

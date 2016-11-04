@@ -218,13 +218,6 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			if (idx != gasmix) {
 				sample.gasmix = idx;
 				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-				sample.event.type = SAMPLE_EVENT_GASCHANGE;
-				sample.event.time = 0;
-				sample.event.flags = 0;
-				sample.event.value = bcd2dec(data[0x17 - idx]);
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 				gasmix = idx;
 			}
 		}

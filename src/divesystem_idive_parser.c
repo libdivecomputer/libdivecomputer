@@ -266,13 +266,6 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 			sample.gasmix = i;
 			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
-#ifdef ENABLE_DEPRECATED
-			sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-			sample.event.time = 0;
-			sample.event.flags = 0;
-			sample.event.value = o2 | (he << 16);
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
-#endif
 			o2_previous = o2;
 			he_previous = he;
 		}

@@ -613,16 +613,6 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
 
 	sample.gasmix = idx - 1;
 	if (info->callback) info->callback(DC_SAMPLE_GASMIX, sample, info->userdata);
-
-#ifdef ENABLE_DEPRECATED
-	unsigned int o2 = 100 * eon->cache.gasmix[idx-1].oxygen;
-	unsigned int he = 100 * eon->cache.gasmix[idx-1].helium;
-	sample.event.type = SAMPLE_EVENT_GASCHANGE2;
-	sample.event.time = 0;
-	sample.event.flags = 0;
-	sample.event.value = o2 | (he << 16);
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
-#endif
 }
 
 /*
