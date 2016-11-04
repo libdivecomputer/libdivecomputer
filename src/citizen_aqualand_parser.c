@@ -127,6 +127,9 @@ citizen_aqualand_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = 0;
 			break;
+		case DC_FIELD_DIVEMODE:
+			*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
