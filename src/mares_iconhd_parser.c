@@ -52,6 +52,9 @@ struct mares_iconhd_parser_t {
 	unsigned int nsamples;
 	unsigned int footer;
 	unsigned int samplesize;
+	unsigned int settings;
+	unsigned int interval;
+	unsigned int samplerate;
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 };
@@ -133,30 +136,51 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		samplesize = 14;
 	}
 
-	// Calculate the total number of bytes for this dive.
-	unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-	if (parser->model == ICONHDNET) {
-		nbytes += (nsamples / 4) * 8;
-	} else if (parser->model == SMARTAPNEA) {
-		if (length < headersize) {
-			ERROR (abstract->context, "Buffer overflow detected!");
-			return DC_STATUS_DATAFORMAT;
-		}
-
-		unsigned int settings = array_uint16_le (data + length - headersize + 0x1C);
-		unsigned int divetime = array_uint32_le (data + length - headersize + 0x24);
-		unsigned int samplerate = 1 << ((settings >> 9) & 0x03);
-
-		nbytes += divetime * samplerate * 2;
-	}
-	if (length != nbytes) {
-		ERROR (abstract->context, "Calculated and stored size are not equal.");
+	if (length < headersize) {
+		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	const unsigned char *p = data + length - headersize;
 	if (parser->model != SMART && parser->model != SMARTAPNEA) {
 		p += 4;
+	}
+
+	// Get the dive settings.
+	unsigned int settings = 0;
+	if (parser->model == SMARTAPNEA) {
+		settings = array_uint16_le (p + 0x1C);
+	} else if (parser->mode == FREEDIVE) {
+		settings = array_uint16_le (p + 0x08);
+	} else {
+		settings = array_uint16_le (p + 0x0C);
+	}
+
+	// Get the sample interval.
+	unsigned int interval = 0;
+	unsigned int samplerate = 0;
+	if (parser->model == SMARTAPNEA) {
+		unsigned int idx = (settings & 0x0600) >> 9;
+		interval = 1;
+		samplerate = 1 << idx;
+	} else {
+		const unsigned int intervals[] = {1, 5, 10, 20};
+		unsigned int idx = (settings & 0x0C00) >> 10;
+		interval = intervals[idx];
+		samplerate = 1;
+	}
+
+	// Calculate the total number of bytes for this dive.
+	unsigned int nbytes = 4 + headersize + nsamples * samplesize;
+	if (parser->model == ICONHDNET) {
+		nbytes += (nsamples / 4) * 8;
+	} else if (parser->model == SMARTAPNEA) {
+		unsigned int divetime = array_uint32_le (p + 0x24);
+		nbytes += divetime * samplerate * 2;
+	}
+	if (length != nbytes) {
+		ERROR (abstract->context, "Calculated and stored size are not equal.");
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Gas mixes
@@ -185,6 +209,9 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	parser->nsamples = nsamples;
 	parser->footer = length - headersize;
 	parser->samplesize = samplesize;
+	parser->settings = settings;
+	parser->interval = interval;
+	parser->samplerate = samplerate;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->oxygen[i] = oxygen[i];
@@ -217,6 +244,9 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->nsamples = 0;
 	parser->footer = 0;
 	parser->samplesize = 0;
+	parser->settings = 0;
+	parser->interval = 0;
+	parser->samplerate = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
@@ -239,6 +269,9 @@ mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->nsamples = 0;
 	parser->footer = 0;
 	parser->samplesize = 0;
+	parser->settings = 0;
+	parser->interval = 0;
+	parser->samplerate = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
@@ -315,7 +348,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				}
 				*((unsigned int *) value) = divetime;
 			} else {
-				*((unsigned int *) value) = parser->nsamples * 5;
+				*((unsigned int *) value) = parser->nsamples * parser->interval;
 			}
 			break;
 		case DC_FIELD_MAXDEPTH:
@@ -396,25 +429,18 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	const unsigned char *data = abstract->data;
 
-	unsigned int time = 0;
-	unsigned int interval = 5;
-	unsigned int samplerate = 1;
-	if (parser->model == SMARTAPNEA) {
-		unsigned int settings = array_uint16_le (data + parser->footer + 0x1C);
-		samplerate = 1 << ((settings >> 9) & 0x03);
-		if (samplerate > 1) {
-			// The Smart Apnea supports multiple samples per second
-			// (e.g. 2, 4 or 8). Since our smallest unit of time is one
-			// second, we can't represent this, and the extra samples
-			// will get dropped.
-			WARNING(abstract->context, "Multiple samples per second are not supported!");
-		}
-		interval = 1;
+	if (parser->samplerate > 1) {
+		// The Smart Apnea supports multiple samples per second
+		// (e.g. 2, 4 or 8). Since our smallest unit of time is one
+		// second, we can't represent this, and the extra samples
+		// will get dropped.
+		WARNING(abstract->context, "Multiple samples per second are not supported!");
 	}
 
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
+	unsigned int time = 0;
 	unsigned int offset = 4;
 	unsigned int nsamples = 0;
 	while (nsamples < parser->nsamples) {
@@ -439,7 +465,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 			for (unsigned int i = 0; i < divetime; ++i) {
 				// Time (seconds).
-				time += interval;
+				time += parser->interval;
 				sample.time = time;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
@@ -448,7 +474,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.depth = depth / 10.0;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
-				offset += 2 * samplerate;
+				offset += 2 * parser->samplerate;
 			}
 		} else if (parser->mode == FREEDIVE) {
 			unsigned int maxdepth = array_uint16_le (data + offset + 0);
@@ -477,7 +503,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			nsamples++;
 		} else {
 			// Time (seconds).
-			time += interval;
+			time += parser->interval;
 			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
