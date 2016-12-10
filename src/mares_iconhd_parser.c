@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/mares_iconhd.h>
+#include <libdivecomputer/units.h>
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -35,6 +36,7 @@
 #define ICONHDNET 0x15
 
 #define NGASMIXES 3
+#define NTANKS    NGASMIXES
 
 #define AIR       0
 #define GAUGE     1
@@ -55,6 +57,7 @@ struct mares_iconhd_parser_t {
 	unsigned int settings;
 	unsigned int interval;
 	unsigned int samplerate;
+	unsigned int ntanks;
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 };
@@ -204,6 +207,18 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		}
 	}
 
+	// Tanks
+	unsigned int ntanks = 0;
+	if (parser->model == ICONHDNET) {
+		while (ntanks < NTANKS) {
+			unsigned int beginpressure = array_uint16_le (p + 0x58 + ntanks * 4 + 0);
+			unsigned int endpressure   = array_uint16_le (p + 0x58 + ntanks * 4 + 2);
+			if (beginpressure == 0 && (endpressure == 0 || endpressure == 36000))
+				break;
+			ntanks++;
+		}
+	}
+
 	// Cache the data for later use.
 	parser->mode = mode;
 	parser->nsamples = nsamples;
@@ -212,6 +227,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	parser->settings = settings;
 	parser->interval = interval;
 	parser->samplerate = samplerate;
+	parser->ntanks = ntanks;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->oxygen[i] = oxygen[i];
@@ -247,6 +263,7 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->settings = 0;
 	parser->interval = 0;
 	parser->samplerate = 0;
+	parser->ntanks = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
@@ -272,6 +289,7 @@ mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->settings = 0;
 	parser->interval = 0;
 	parser->samplerate = 0;
+	parser->ntanks = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
@@ -332,7 +350,10 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		p += 4;
 	}
 
+	unsigned int volume = 0, workpressure = 0;
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	if (value) {
@@ -367,6 +388,32 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gasmix->oxygen = parser->oxygen[flags] / 100.0;
 			gasmix->helium = 0.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			*((unsigned int *) value) = parser->ntanks;
+			break;
+		case DC_FIELD_TANK:
+			volume = array_uint16_le (p + 0x64 + flags * 8 + 0);
+			workpressure = array_uint16_le (p + 0x64 + flags * 8 + 2);
+			if (parser->settings & 0x0100) {
+				tank->type = DC_TANKVOLUME_METRIC;
+				tank->volume = volume;
+				tank->workpressure = workpressure;
+			} else {
+				if (workpressure == 0)
+					return DC_STATUS_DATAFORMAT;
+				tank->type = DC_TANKVOLUME_IMPERIAL;
+				tank->volume = volume * CUFT * 1000.0;
+				tank->volume /= workpressure * PSI / ATM;
+				tank->workpressure = workpressure * PSI / BAR;
+			}
+			tank->beginpressure = array_uint16_le (p + 0x58 + flags * 4 + 0) / 100.0;
+			tank->endpressure   = array_uint16_le (p + 0x58 + flags * 4 + 2) / 100.0;
+			if (flags < parser->ngasmixes) {
+				tank->gasmix = flags;
+			} else {
+				tank->gasmix = DC_GASMIX_UNKNOWN;
+			}
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			// Pressure (1/8 millibar)
