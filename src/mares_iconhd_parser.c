@@ -333,6 +333,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -375,6 +376,24 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				*((double *) value) = array_uint16_le (p + 0x18) / 1000.0;
 			else
 				*((double *) value) = array_uint16_le (p + 0x22) / 8000.0;
+			break;
+		case DC_FIELD_SALINITY:
+			if (parser->model == SMARTAPNEA) {
+				unsigned int salinity = parser->settings & 0x003F;
+				if (salinity == 0) {
+					water->type = DC_WATER_FRESH;
+				} else {
+					water->type = DC_WATER_SALT;
+				}
+				water->density = 1000.0 + salinity;
+			} else {
+				if (parser->settings & 0x0010) {
+					water->type = DC_WATER_FRESH;
+				} else {
+					water->type = DC_WATER_SALT;
+				}
+				water->density = 0.0;
+			}
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			if (parser->model == SMARTAPNEA)
