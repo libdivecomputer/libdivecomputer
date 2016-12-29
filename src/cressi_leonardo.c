@@ -480,6 +480,8 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		return DC_STATUS_NOMEMORY;
 	}
 
+	unsigned int previous = 0;
+	unsigned int remaining = RB_PROFILE_END - RB_PROFILE_BEGIN;
 	for (unsigned int i = 0; i < count; ++i) {
 		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
 		unsigned int offset = RB_LOGBOOK_BEGIN + idx * RB_LOGBOOK_SIZE;
@@ -495,18 +497,11 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		// Get the same pointers from the profile.
-		unsigned int header2 = array_uint16_le (data + footer);
-		unsigned int footer2 = array_uint16_le (data + header);
-		if (header2 != header || footer2 != footer) {
-			ERROR (context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x).", header2, footer2);
+		if (previous && previous != footer + 2) {
+			ERROR (abstract->context, "Profiles are not continuous (0x%04x 0x%04x 0x%04x).", header, footer, previous);
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
-
-		// Calculate the profile address and length.
-		unsigned int address = header + 2;
-		unsigned int length = RB_PROFILE_DISTANCE (header, footer) - 2;
 
 		// Check the fingerprint data.
 		if (device && memcmp (data + offset + 8, device->fingerprint, sizeof (device->fingerprint)) == 0)
@@ -515,19 +510,42 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		// Copy the logbook entry.
 		memcpy (buffer, data + offset, RB_LOGBOOK_SIZE);
 
-		// Copy the profile data.
-		if (address + length > RB_PROFILE_END) {
-			unsigned int len_a = RB_PROFILE_END - address;
-			unsigned int len_b = length - len_a;
-			memcpy (buffer + RB_LOGBOOK_SIZE, data + address, len_a);
-			memcpy (buffer + RB_LOGBOOK_SIZE + len_a, data + RB_PROFILE_BEGIN, len_b);
+		// Calculate the profile address and length.
+		unsigned int address = header + 2;
+		unsigned int length = RB_PROFILE_DISTANCE (header, footer) - 2;
+
+		if (remaining && remaining >= length + 4) {
+			// Get the same pointers from the profile.
+			unsigned int header2 = array_uint16_le (data + footer);
+			unsigned int footer2 = array_uint16_le (data + header);
+			if (header2 != header || footer2 != footer) {
+				ERROR (context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x).", header2, footer2);
+				free (buffer);
+				return DC_STATUS_DATAFORMAT;
+			}
+
+			// Copy the profile data.
+			if (address + length > RB_PROFILE_END) {
+				unsigned int len_a = RB_PROFILE_END - address;
+				unsigned int len_b = length - len_a;
+				memcpy (buffer + RB_LOGBOOK_SIZE, data + address, len_a);
+				memcpy (buffer + RB_LOGBOOK_SIZE + len_a, data + RB_PROFILE_BEGIN, len_b);
+			} else {
+				memcpy (buffer + RB_LOGBOOK_SIZE, data + address, length);
+			}
+
+			remaining -= length + 4;
 		} else {
-			memcpy (buffer + RB_LOGBOOK_SIZE, data + address, length);
+			// No more profile data available!
+			remaining = 0;
+			length = 0;
 		}
 
 		if (callback && !callback (buffer, RB_LOGBOOK_SIZE + length, buffer + 8, sizeof (device->fingerprint), userdata)) {
 			break;
 		}
+
+		previous = header;
 	}
 
 	free (buffer);
