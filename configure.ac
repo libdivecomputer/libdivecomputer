@@ -171,6 +171,7 @@ AC_CONFIG_FILES([
    src/libdivecomputer.rc
    doc/Makefile
    doc/doxygen.cfg
+   doc/man/Makefile
    examples/Makefile
 ])
 AC_OUTPUT

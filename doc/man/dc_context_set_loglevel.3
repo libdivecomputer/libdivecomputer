@@ -1,0 +1,90 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_CONTEXT_SET_LOGLEVEL 3
+.Os
+.Sh NAME
+.Nm dc_context_set_loglevel
+.Nd set the logging level for a dive computer context
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/context.h
+.Ft dc_status_t
+.Fo dc_context_set_loglevel
+.Fa "dc_context_t *context"
+.Fa "dc_loglevel_t loglevel"
+.Fc
+.Sh DESCRIPTION
+Set the
+.Em minimum
+log level required to raise a logging event with the
+.Xr dc_context_set_logfunc 3
+callback.
+Operates on a dive computer context created with
+.Xr dc_context_new 3 .
+The log levels are ordered as follows:
+.Bl -enum
+.It
+.Dv DC_LOGLEVEL_NONE
+.It
+.Dv DC_LOGLEVEL_ERROR
+.It
+.Dv DC_LOGLEVEL_WARNING
+.It
+.Dv DC_LOGLEVEL_INFO
+.It
+.Dv DC_LOGLEVEL_DEBUG
+.It
+.Dv DC_LOGLEVEL_ALL
+.El
+.Pp
+By setting, for exammple,
+.Dv DC_LOGLEVEL_INFO ,
+all events of
+.Dv DC_LOGLEVEL_ERROR ,
+.Dv DC_LOGLEVEL_WARNING ,
+and
+.Dv DC_LOGLEVEL_INFO
+will be reported via the callback in
+.Xr dc_context_set_logfunc 3 .
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_OK
+on setting the log level,
+.Dv DC_STATUS_INVALIDARGS
+if
+.Fa context
+is
+.Dv NULL ,
+or another error code on failure.
+.Sh SEE ALSO
+.Xr dc_context_new 3 ,
+.Xr dc_context_set_logfunc 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

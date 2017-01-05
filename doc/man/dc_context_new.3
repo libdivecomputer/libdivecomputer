@@ -1,0 +1,73 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_CONTEXT_NEW 3
+.Os
+.Sh NAME
+.Nm dc_context_new
+.Nd create a new device-handling context
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/context.h
+.Ft dc_status_t
+.Fo dc_context_new
+.Fa "dc_context_t **context"
+.Fc
+.Sh DESCRIPTION
+Create a context in which dive computers may be queried.
+The
+.Dq context
+supplies logging messages and so on, and may be re-used for multiple
+dive computer query sessions.
+It is usually passed to
+.Xr dc_device_open 3
+to query a specific dive computer device.
+.Pp
+On success, the context must be freed with
+.Xr dc_context_free 3 .
+You may configure the context with
+.Xr dc_context_set_loglevel 3
+and
+.Xr dc_context_set_logfunc 3 .
+This is highly recommended as the default logging behaviour of
+.Nm
+depends upon compile-time values.
+.Sh RETURN VALUES
+This returns
+.Dv DC_STATUS_OK
+on success, in which case
+.Fa context
+is filled in, or an error code on failure.
+.Sh SEE ALSO
+.Xr dc_context_free 3 ,
+.Xr dc_context_set_logfunc 3 ,
+.Xr dc_context_set_loglevel 3 ,
+.Xr dc_device_open 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

@@ -1,0 +1,197 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_PARSER_GET_FIELD 3
+.Os
+.Sh NAME
+.Nm dc_parser_get_field
+.Nd extract a field from a parsed dive
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/parser.h
+.Ft dc_status_t
+.Fo dc_parser_get_field
+.Fa "dc_parser_t *parser"
+.Fa "dc_field_type_t type"
+.Fa "unsigned int flags"
+.Fa "void *value"
+.Fc
+.Sh DESCRIPTION
+Extract a field from a dive,
+.Fa parser ,
+previously initialised with
+.Xr dc_parser_set_data 3 .
+The
+.Fa value
+field type depends upon the
+.Fa type .
+The
+.Fa flags
+field is ignored for all types but
+.Dv DC_FIELD_GASMIX
+and
+.Dv DC_FIELD_TANK .
+.Pp
+The
+.Fa type
+may be one of the following values:
+.Bl -tag -width Ds
+.It Dv DC_FIELD_DIVETIME
+Time (duration) of dive in seconds.
+The
+.Fa value
+must be an
+.Vt unsigned int .
+.It Dv DC_FIELD_MAXDEPTH
+Maximum depth in metres.
+The
+.Fa value
+must be a
+.Vt double .
+.It Dv DC_FIELD_AVGDEPTH
+Average depth (over all samples) in metres.
+The
+.Fa value
+must be a
+.Vt double .
+.It Dv DC_FIELD_GASMIX_COUNT
+Number of different gas mixes used in this dive.
+The
+.Fa value
+must be a
+.Vt unsigned int .
+.It Dv DC_FIELD_GASMIX
+Mixture for a particular gas.
+The
+.Fa value
+must be a
+.Vt dc_gasmix_t ,
+which has
+.Vt double
+fields for
+.Va oxygen ,
+.Va helium ,
+and
+.Va nitrogen .
+These are set to the unit fraction of gas (not percentage).
+The
+.Fa flags
+value is interpreted as the gas mixture index, which must be less than the
+value of
+.Dv DC_FIELD_GASMIX_COUNT .
+.It Dv DC_FIELD_SALINITY
+The water salinity as a
+.Vt dc_salinity_t
+field, which consists of a
+.Va type ,
+.Dv DC_WATER_FRESH
+or
+.Dv DC_WATER_SALT ,
+and the salinity
+.Va density .
+.It Dv DC_FIELD_ATMOSPHERIC
+Atmospheric pressure in bar.
+The
+.Fa value
+field must be a
+.Vt double .
+.It Dv DC_FIELD_TEMPERATURE_SURFACE
+Air temperature (at the surface) in Celsius.
+The
+.Fa value
+field must be a
+.Vt double .
+.It Dv DC_FIELD_TEMPERATURE_MINIMUM
+Minimum water temperature surface in Celsius.
+The
+.Fa value
+field must be a
+.Vt double .
+.It Dv DC_FIELD_TEMPERATURE_MAXIMUM
+Maximum water temperature in Celsius.
+The
+.Fa value
+field must be a
+.Vt double .
+.It Dv DC_FIELD_TANK_COUNT
+The number of tanks as an
+.Vt unsigned int .
+.It Dv DC_FIELD_TANK
+Tank configuration as a
+.Vt dc_tank_t .
+This structure consists of a
+.Va gasmix ,
+which may be retrieved with
+.Dv DC_FIELD_GASMIX ;
+.Va type ,
+the tank volume units as
+.Dv DC_TANKVOLUME_NONE ,
+.Dv DC_TANKVOLUME_IMPERIAL ,
+or
+.Dv DC_TANKVOLUME_METRIC ;
+.Va volume ,
+the tank volume in bar or zero if the tank is
+.Dv DC_TANKVOLUME_NONE ;
+.Va workpressure ,
+the work pressure in bar or zero if
+.Dv DC_TANKVOLUME_NONE
+and maybe zero if
+.Dv DC_TANKVOLUME_METRIC ;
+.Va beginpressure
+and
+.Va endpressure
+being the pressures at start and finish in bar.
+The
+.Fa flags
+value is the tank index.
+.It Dv DC_FIELD_DIVEMODE
+Mode of the dive:
+.Dv DC_DIVEMODE_FREEDIVE
+for free-diving,
+.Dv DC_DIVEMODE_GAUGE
+for gauge (i.e., running as a record and not computing, say,
+decompression events),
+.Dv DC_DIVEMODE_OC
+for standard open-circuit diving, and
+.Dv DC_DIVEMODE_CC
+for closed-circuit
+.Dq rebreather
+diving.
+.El
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_SUCCESS
+if the field was retrieved,
+.Dv DC_STATUS_UNSUPPORTED
+if the field is not supported by the device, or other error messages on
+further failure.
+.Sh SEE ALSO
+.Xr dc_parser_set_data 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

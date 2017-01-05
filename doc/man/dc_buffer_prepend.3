@@ -1,0 +1,61 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_BUFFER_PREPEND 3
+.Os
+.Sh NAME
+.Nm dc_buffer_prepend
+.Nd prepend to a binary buffer
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/buffer.h
+.Ft int
+.Fo dc_buffer_prepend
+.Fa "dc_buffer_t *buffer"
+.Fa "const unsigned char data[]"
+.Fa "size_t size"
+.Fc
+.Sh DESCRIPTION
+Prepend
+.Fa size
+bytes of
+.Fa data
+to the beginning of
+.Fa buffer
+previously allocated with
+.Xr dc_buffer_new 3 .
+.Sh RETURN VALUES
+Returns non-zero on success or zero on memory exhaustion or if
+.Fa buffer
+is
+.Dv NULL .
+.Sh SEE ALSO
+.Xr dc_buffer_new 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

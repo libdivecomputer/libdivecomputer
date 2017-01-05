@@ -1,0 +1,196 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_PARSER_SAMPLES_FOREACH 3
+.Os
+.Sh NAME
+.Nm dc_parser_samples_foreach
+.Nd iterate over samples taken during a dive
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/parser.h
+.Ft "typedef void"
+.Fo "(*dc_sample_callback_t)"
+.Fa "dc_sample_type_t type"
+.Fa "dc_sample_value_t value"
+.Fa "void *userdata"
+.Fc
+.Ft dc_status_t
+.Fo dc_parser_samples_foreach
+.Fa "dc_parser_t *parser"
+.Fa "dc_sample_callback_t callback"
+.Fa "void *userdata"
+.Fc
+.Sh DESCRIPTION
+Extract the samples taken during a dive as previously initialised with
+.Xr dc_parser_set_data 3 .
+Each sample is passed to
+.Fa callback
+with the
+.Fa type
+of the sample and its data
+.Fa value .
+.Pp
+Samples are invoked as a sequence of sample sets.
+Each sequence begins with a
+.Dv DC_SAMPLE_TIME ,
+then a number of sample types in the set.
+When the next
+.Dv DC_SAMPLE_TIME
+is recorded, the sample set may be closed and a new one reopened.
+After all samples have been rendered, the last sample set should be
+closed.
+.Pp
+The following sample types may be raised:
+.Bl -tag -width Ds
+.It Dv DC_SAMPLE_TIME
+The time of the sample taken in seconds after the dive began.
+Set in the
+.Fa time
+field.
+.It Dv DC_SAMPLE_DEPTH
+The depth taken at the sample in metres.
+Set in the
+.Fa depth
+field.
+.It Dv DC_SAMPLE_PRESSURE
+Tank pressure taken at the sample.
+Sets the
+.Fa tank
+index (see the
+.Dv DC_FIELD_TANK_COUNT
+in
+.Xr dc_parser_get_field 3 )
+and the
+.Fa pressure
+in bar.
+.It Dv DC_SAMPLE_TEMPERATURE
+Temperature in celsius.
+Sets the
+.Fa temperature
+field.
+.It Dv DC_SAMPLE_EVENT
+An diving event raised by the computer.
+This may have the
+.Va type
+value of the
+.Va event
+structure set to
+.Dv SAMPLE_EVENT_NONE ,
+.Dv SAMPLE_EVENT_DECOSTOP ,
+.Dv SAMPLE_EVENT_RBT ,
+.Dv SAMPLE_EVENT_ASCENT ,
+.Dv SAMPLE_EVENT_CEILING ,
+.Dv SAMPLE_EVENT_WORKLOAD ,
+.Dv SAMPLE_EVENT_TRANSMITTER ,
+.Dv SAMPLE_EVENT_VIOLATION ,
+.Dv SAMPLE_EVENT_BOOKMARK ,
+.Dv SAMPLE_EVENT_SURFACE ,
+.Dv SAMPLE_EVENT_SAFETYSTOP ,
+.Dv SAMPLE_EVENT_SAFETYSTOP_VOLUNTARY ,
+.Dv SAMPLE_EVENT_SAFETYSTOP_MANDATORY ,
+.Dv SAMPLE_EVENT_DEEPSTOP ,
+.Dv SAMPLE_EVENT_CEILING_SAFETYSTOP ,
+.Dv SAMPLE_EVENT_FLOOR ,
+.Dv SAMPLE_EVENT_DIVETIME ,
+.Dv SAMPLE_EVENT_MAXDEPTH ,
+.Dv SAMPLE_EVENT_OLF ,
+.Dv SAMPLE_EVENT_PO2 ,
+.Dv SAMPLE_EVENT_AIRTIME ,
+.Dv SAMPLE_EVENT_RGBM ,
+.Dv SAMPLE_EVENT_HEADING ,
+or
+.Dv SAMPLE_EVENT_TISSUELEVEL .
+.It Dv DC_SAMPLE_RBT
+The remaining bottom time in seconds.
+Sets the
+.Fa rbt
+field.
+.It Dv DC_SAMPLE_HEARTBEAT
+The diver's heartbeet in beats per minute.
+Sets the
+.Fa heartbeat
+field.
+.It Dv DC_SAMPLE_BEARING
+The diver's bearing in degrees.
+Sets the
+.Fa bearing
+field.
+.It Dv DC_SAMPLE_VENDOR
+A vendor-specific data field.
+.It Dv DC_SAMPLE_SETPOINT
+The closed-circuit setpoint (PO2) has changed.
+Sets the
+.Fa setpoint
+value in bar.
+.It Dv DC_SAMPLE_PPO2
+The partial pressure of oxygen has changed (in bar).
+Sets the
+.Fa ppo2
+field.
+.It Dv DC_SAMPLE_CNS
+The CNS (central nervous system oxygen toxicity) value as a unit
+fraction.
+Sets the
+.Fa cns
+value.
+.It Dv DC_SAMPLE_DECO
+Decompression phase of
+.Fa type
+.Dv DC_DECO_NDL
+.Pq no decompression limit ,
+.Dv DC_DECO_SAFETYSTOP
+.Pq the safety stop ,
+.Dv DC_DECO_DECOSTOP
+.Pq a decompression stop ,
+or
+.Dv DC_DECO_DEEPSTOP
+.Pq a mandatory or suggested deep-stop .
+Also sets the
+.Fa depth
+in metres and the
+.Fa time
+in seconds.
+.It Dv DC_SAMPLE_GASMIX
+Switch to a given gas mix index (see the
+.Dv DC_FIELD_GASMIX_COUNT
+in
+.Xr dc_parser_get_field 3 ) .
+Sets the
+.Fa gasmix
+field.
+.El
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_OK
+on success and another code on failure.
+.Sh SEE ALSO
+.Xr dc_parser_set_data 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

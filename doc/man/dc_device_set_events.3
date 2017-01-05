@@ -1,0 +1,125 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_DEVICE_SET_EVENTS 3
+.Os
+.Sh NAME
+.Nm dc_device_set_events
+.Nd set events logged during device interaction
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/device.h
+.Ft "typedef void"
+.Fo "(*dc_event_callback_t)"
+.Fa "dc_device_t *device"
+.Fa "dc_event_type_t event"
+.Fa "const void *data"
+.Fa "void *userdata"
+.Fc
+.Ft dc_status_t
+.Fo dc_device_set_events
+.Fa "dc_device_t *device"
+.Fa "unsigned int events"
+.Fa "dc_event_callback_t callback"
+.Fa "void *userdata"
+.Fc
+.Sh DESCRIPTION
+Register a series of event callbacks on a device opened with
+.Xr dc_device_open 3 .
+Event callbacks are informative messages during device processing passed
+to the
+.Fa callback
+function with an optional argument
+.Fa userdata.
+.Pp
+The
+.Fa events
+value is a bit-field of events, one of which is passed to the
+.Fa callback
+as
+.Fa event .
+The
+.Fa data
+field will be cast to an event-specific type:
+.Bl -tag -width Ds
+.It Dv DC_EVENT_WAITING
+Indicate that the device is waiting for user input, such as activating
+the data transfer mode on the device.
+No
+.Fa data
+is set.
+.It Dv DC_EVENT_PROGRESS
+Progress metre of the parse.
+The
+.Fa data
+variable is set to a
+.Vt dc_event_progress_t ,
+with the
+.Va current
+and
+.Va maximum
+progress values from which one can compute a percentage.
+.It Dv DC_EVENT_DEVINFO
+Sets the
+.Fa data
+value to a
+.Vt dc_event_devinfo_t ,
+which can be used to acquire the
+.Va model ,
+.Va firmware ,
+and
+.Va serial
+numbers of the underlying device.
+.It Dv DC_EVENT_CLOCK
+Report the system (local machine) and device time in epoch seconds.
+Fills in
+.Fa data
+as a
+.Va dc_event_clock_t ,
+with
+.Va devtime
+being the device and
+.Va systime
+being the system time.
+See
+.Xr time 3 .
+.It Dv DC_EVENT_VENDOR
+A vendor-specific event filling
+.Fa data
+as a
+.Va dc_event_vendor_t .
+.El
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_SUCCESS
+on success or one of several error values on error.
+.Sh SEE ALSO
+.Xr dc_device_open 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+These manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

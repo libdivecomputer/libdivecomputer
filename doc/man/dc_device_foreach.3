@@ -1,0 +1,84 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_DEVICE_FOREACH 3
+.Os
+.Sh NAME
+.Nm dc_device_foreach
+.Nd iterate over dives in a dive computer
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/device.h
+.Ft typedef int
+.Fo (*dc_dive_callback_t)
+.Fa "const unsigned char *data"
+.Fa "unsigned int size"
+.Fa "const unsigned char *fingerprint"
+.Fa "unsigned int fsize"
+.Fa "void *userdata"
+.Fc
+.Ft dc_status_t
+.Fo dc_device_foreach
+.Fa "dc_device_t *device"
+.Fa "dc_dive_callback_t callback"
+.Fa "void *userdata"
+.Fc
+.Sh DESCRIPTION
+Iterate over all dives on
+.Fa device
+by calling
+.Fa callback
+with
+.Fa userdata .
+.Pp
+Each dive invokes
+.Fa callback
+with the dive data, which should be parsed with
+.Xr dc_parser_set_data 3 ,
+and the binary fingerprint of the dive.
+The fingerprint can be used to record the newest dive and stop
+processing (on subsequent invocations) when the same dive fingerprint is
+encountered.
+.Pp
+The
+.Fa callback
+function must return non-zero to continue downloading dives, or zero to
+stop.
+.Sh RETURN VALUES
+This returns
+.Dv DC_STATUS_SUCCESS
+on success or one of several error values on error.
+If
+.Fa callback
+returns zero, this will not be reflected in the return value (usually
+.Dv DC_STATUS_SUCCESS ) .
+.Sh SEE ALSO
+.Xr dc_parser_set_data 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

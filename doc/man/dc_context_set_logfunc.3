@@ -1,0 +1,98 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_CONTEXT_SET_LOGFUNC 3
+.Os
+.Sh NAME
+.Nm dc_context_set_logfunc
+.Nd set the logging function for a dive computer context
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/context.h
+.Ft typedef void
+.Fo (*dc_logfunc_t)
+.Fa "dc_context_t *context"
+.Fa "dc_loglevel_t loglevel"
+.Fa "const char *file"
+.Fa "unsigned int line"
+.Fa "const char *function"
+.Fa "const char *message"
+.Fa "void *userdata"
+.Fc
+.Ft dc_status_t
+.Fo dc_context_set_logfunc
+.Fa "dc_context_t *context"
+.Fa "dc_logfunc_t logfunc"
+.Fa "void *userdata"
+.Fc
+.Sh DESCRIPTION
+Set the logging function
+.Fa logfunc
+associated with a dive computer context.
+The logging function is invoked with argument
+.Fa userdata
+when the log level
+.Pq see Xr dc_context_set_loglevel 3
+has been exceeded.
+.Pp
+The
+.Fa logfunc
+accepts the following values:
+.Bl -tag -width Ds
+.It Fa context
+The context in which it was invoked.
+.It Fa loglevel
+The level of the log message.
+.It Fa file
+The source file where the message was raised.
+.It Fa line
+The source line (from 1) where the message was raised.
+.It Fa function
+The function that raised the log message.
+.It Fa message
+The log message itself.
+.It Fa userdata
+The pointer passed to
+.Nm dc_context_set_logfunc .
+.El
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_OK
+on setting the log level,
+.Dv DC_STATUS_INVALIDARGS
+if
+.Fa context
+is
+.Dv NULL ,
+or another error code on failure.
+.Sh SEE ALSO
+.Xr dc_context_new 3 ,
+.Xr dc_context_set_loglevel 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

@@ -1,0 +1,141 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DIVECOMPUTER 3
+.Os
+.Sh NAME
+.Nm divecomputer
+.Nd communicate with dive computers
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh DESCRIPTION
+The
+.Nm divecomputer
+library is a cross-platform and open source library for communication
+with dive computers from various manufacturers.
+Systems interfacing with
+.Nm divecomputer
+must link with
+.Fl l Ns Ar divecomputer .
+.Pp
+A system wishing to query dives in a dive computer generally follows
+these steps:
+.Bl -enum
+.It
+Create a new context with
+.Xr dc_context_new 3 .
+This supplies a parse context: logging, error handling, etc.
+Override the values with
+.Xr dc_context_set_logfunc 3
+and
+.Xr dc_context_set_loglevel 3 .
+.It
+Find a descriptor for their dive computer by iterating through
+.Xr dc_descriptor_iterator 3
+and searching by name, vendor, or product family.
+.It
+Open the hardware device to which the dive computer is connected with
+.Xr dc_device_open 3 ,
+then invoke
+.Xr dc_device_set_events 3 ,
+.Xr dc_device_set_fingerprint 3 ,
+and
+.Xr dc_device_set_cancel 3
+to set the logging events, last-seen fingerprint, and cancel routine,
+respectively.
+.It
+Iterate over all dives with
+.Xr dc_device_foreach 3 .
+.It
+For each iterated dive, create a new parser with
+.Xr dc_parser_new 3
+and set the parsed data with
+.Xr dc_parser_set_data 3 .
+.It
+Get attributes of the parsed dive with
+.Xr dc_parser_get_field 3 ,
+then iterate through the dive's samples (recorded data) with
+.Xr dc_parser_samples_foreach 3 .
+.El
+.Sh RETURN VALUES
+Most
+.Nm libdivecomputer
+functions return with a
+.Vt dc_status_t
+type with the following possible values:
+.Bl -tag -width Ds
+.It Dv DC_STATUS_SUCCESS
+Completion with success: not an error.
+.It Dv DC_STATUS_DONE
+End of an iterator: not an error.
+.It Dv DC_STATUS_UNSUPPORTED
+Feature not implemented or not supported by device.
+.Po
+The difference depends on the context.
+Since
+.Nm libdivecomputer
+is largely
+based on reverse engineering, we often can't even tell them apart.
+.Pc
+.It Dv DC_STATUS_INVALIDARGS
+Invalid parameter.
+Usually indicates caller bug.
+.It Dv DC_STATUS_NOMEMORY
+Out of memory.
+.It Dv DC_STATUS_NODEVICE
+Device not found.
+In this context the device refers to the low-level communication device
+(serial, bluetooth, irda, etc), not the dive computer.
+In most cases, and especially with serial communication, we can't detect
+whether the dive computer is present.
+This is always detected indirectly: no response is received, and thus a
+timeout error.
+.It Dv DC_STATUS_NOACCESS
+Access denied (again, to the low-level communication device).
+.It Dv DC_STATUS_TIMEOUT
+See
+.Dv DC_STATUS_NODEVICE .
+.It Dv DC_STATUS_IO
+Any other I/O error.
+.It Dv DC_STATUS_PROTOCOL
+Encountered unexpected data in the communication protocol data packets,
+e.g., while downloading.
+.It Dv DC_STATUS_DATAFORMAT
+Encountered unexpected data in the interpretation of data contents,
+e.g., while parsing.
+.It Dv DC_STATUS_CANCELLED
+Returned when the cancel callback requested to cancel the operation.
+Note that cancellation is only checked at specific (safe) points, so
+it's certainly possible it may not get noticed immediately and still
+return
+.Dv DC_STATUS_SUCCESS .
+.El
+.Sh SEE ALSO
+.Xr dc_buffer_new 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+These manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

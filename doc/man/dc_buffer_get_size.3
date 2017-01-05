@@ -1,0 +1,59 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_BUFFER_GET_SIZE 3
+.Os
+.Sh NAME
+.Nm dc_buffer_get_size
+.Nd get the size used by a buffer
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/buffer.h
+.Ft size_t
+.Fo dc_buffer_get_size
+.Fa "dc_buffer_t *buffer"
+.Fc
+.Sh DESCRIPTION
+Get the number of bytes currently used by
+.Fa buffer ,
+previously allocated with
+.Xr dc_buffer_new 3 .
+This shouldn't be confused with the capacity, which may be larger.
+.Pp
+The returned value is not valid after subsequent calls to change the
+buffer.
+.Sh RETURN VALUES
+Returns the number of bytes used, which may be zero, or zero if
+.Fa buffer
+is
+.Dv NULL .
+.Sh SEE ALSO
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .
+.Xr dc_buffer_new 3

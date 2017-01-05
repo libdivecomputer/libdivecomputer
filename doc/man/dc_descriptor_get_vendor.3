@@ -1,0 +1,59 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_DESCRIPTOR_GET_VENDOR 3
+.Os
+.Sh NAME
+.Nm dc_descriptor_get_vendor
+.Nd get the vendor of a dive computer descriptor
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/descriptor.h
+.Ft "const char *"
+.Fo dc_descriptor_get_vendor
+.Fa "dc_descriptor_t *descriptor"
+.Fc
+.Sh DESCRIPTION
+Gets the vendor
+.Pq e.g., Dq Suunto
+of a dive computer descriptor or
+.Dv NULL
+if none was declared.
+.Sh RETURN VALUES
+This returns the nil-terminated vendor string or
+.Dv NULL
+if none exists.
+.Pp
+The returned pointer is not valid after the
+.Fa descriptor
+has been freed.
+.Sh SEE ALSO
+.Xr dc_descriptor_get_product 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

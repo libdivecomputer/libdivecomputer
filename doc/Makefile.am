@@ -1,3 +1,5 @@
+SUBDIRS = man
+
 doxygen: doxygen.cfg
 if HAVE_DOXYGEN
 	$(DOXYGEN) $(DOXYFLAGS) $<

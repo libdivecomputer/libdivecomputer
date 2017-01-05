@@ -1,0 +1,57 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_PARSER_DESTROY 3
+.Os
+.Sh NAME
+.Nm dc_parser_destroy
+.Nd destroys a single dive parser
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/parser.h
+.Ft dc_status_t
+.Fo dc_parser_destroy
+.Fa "dc_parser_t *parser"
+.Fc
+.Sh DESCRIPTION
+Destroys a parser allocated with
+.Xr dc_parser_new 3 .
+The
+.Fa parser
+parameter may be
+.Dv NULL ,
+in which case it will return with success.
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_OK
+on success and another code on failure.
+.Sh SEE ALSO
+.Xr dc_parser_new 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

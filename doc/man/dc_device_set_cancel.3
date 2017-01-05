@@ -1,0 +1,79 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd January 5, 2017
+.Dt DC_DEVICE_SET_CANCEL 3
+.Os
+.Sh NAME
+.Nm dc_device_set_cancel
+.Nd callback to check whether processing should cancel
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/device.h
+.Ft "typedef int"
+.Fo "(*dc_cancel_callback_t)"
+.Fa "void *userdata"
+.Fc
+.Ft dc_status_t
+.Fo dc_device_set_cancel
+.Fa "dc_device_t *device"
+.Fa "dc_cancel_callback_t callback"
+.Fa "void *userdata"
+.Fc
+.Sh DESCRIPTION
+Provide a function that the underlying
+.Fa device
+will periodically call to see if it should cancel its processing.
+The
+.Fa callback
+will return zero if the operation should not be cancelled, one if it
+should be cancelled.
+.Pp
+The callback usually checks a value that is set during a signal handling
+callback.
+For example, one can invoke
+.Xr signal 3
+to a function that sets a
+.Vt "volatile sig_atomic_t"
+value checked by the
+.Fa callback
+handler.
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_UNSUPPORTED
+if the
+.Fa device
+is
+.Dv NULL ,
+or
+.Dv DC_STATUS_SUCCESS
+otherwise.
+.Sh SEE ALSO
+.Xr dc_device_open 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+These manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .
