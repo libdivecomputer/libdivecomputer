@@ -116,6 +116,7 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 	{"OCEVEO20 \0\0 512K"},
 	{"TUSAZEN \0\0  512K"},
 	{"AQUAI300 \0\0 512K"},
+	{"HOLLDG03 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
@@ -130,7 +131,6 @@ static const oceanic_common_version_t oceanic_default_version[] = {
 	{"ELITET31 \0\0 512K"},
 	{"DATAMASK \0\0 512K"},
 	{"COMPMASK \0\0 512K"},
-	{"HOLLDG03 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_proplus3_version[] = {
