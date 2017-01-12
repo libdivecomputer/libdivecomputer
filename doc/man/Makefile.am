@@ -9,6 +9,10 @@ dist_man_MANS = \
 	dc_context_new.3 \
 	dc_context_set_logfunc.3 \
 	dc_context_set_loglevel.3 \
+	dc_datetime_gmtime.3 \
+	dc_datetime_localtime.3 \
+	dc_datetime_mktime.3 \
+	dc_datetime_now.3 \
 	dc_descriptor_free.3 \
 	dc_descriptor_get_product.3 \
 	dc_descriptor_get_vendor.3 \

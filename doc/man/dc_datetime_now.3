@@ -18,46 +18,32 @@
 .\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 .\" MA 02110-1301 USA
 .\"
-.Dd January 5, 2017
-.Dt DC_PARSER_GET_DATETIME 3
+.Dd January 11, 2017
+.Dt DC_DATETIME_NOW 3
 .Os
 .Sh NAME
-.Nm dc_parser_get_datetime
-.Nd extract the date and time from a parsed dive
+.Nm dc_datetime_now
+.Nd return the current integral timestamp
 .Sh LIBRARY
 .Lb libdivecomputer
 .Sh SYNOPSIS
-.In libdivecomputer/parser.h
-.Ft dc_status_t
-.Fo dc_parser_get_datetime
-.Fa "dc_parser_t *parser"
-.Fa "dc_datetime_t *datetime"
+.In libdivecomputer/datetime.h
+.Ft dc_ticks_t
+.Fo dc_datetime_now
 .Fc
 .Sh DESCRIPTION
-Extract the date and time of a dive,
-.Fa parser ,
-previously initialised with
-.Xr dc_parser_set_data 3 .
-This returns the broken-down time-stamp of the dive in the local time of
-the dive.
+Get the current system timestamp as an integral value.
 .Pp
 The
 .Nm
-function may internally invoke
-.Xr dc_datetime_gmtime 3
-or
-.Xr dc_datetime_localtime 3 .
+function may invoke libc's
+.Xr time 3 .
 .Sh RETURN VALUES
-Returns
-.Dv DC_STATUS_SUCCESS
-if the date and time were retrieved,
-.Dv DC_STATUS_UNSUPPORTED
-if the date and time are not supported by the device, or other error
-messages on further failure.
+This always returns the system time.
 .Sh SEE ALSO
 .Xr dc_datetime_gmtime 3 ,
 .Xr dc_datetime_localtime 3 ,
-.Xr dc_parser_set_data 3
+.Xr dc_datetime_mktime 3
 .Sh AUTHORS
 The
 .Lb libdivecomputer

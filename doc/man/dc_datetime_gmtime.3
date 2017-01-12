@@ -18,46 +18,71 @@
 .\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 .\" MA 02110-1301 USA
 .\"
-.Dd January 5, 2017
-.Dt DC_PARSER_GET_DATETIME 3
+.Dd January 11, 2017
+.Dt DC_DATETIME_GMTIME 3
 .Os
 .Sh NAME
-.Nm dc_parser_get_datetime
-.Nd extract the date and time from a parsed dive
+.Nm dc_datetime_gmtime
+.Nd convert an timestamp to GMT date and time
 .Sh LIBRARY
 .Lb libdivecomputer
 .Sh SYNOPSIS
-.In libdivecomputer/parser.h
-.Ft dc_status_t
-.Fo dc_parser_get_datetime
-.Fa "dc_parser_t *parser"
-.Fa "dc_datetime_t *datetime"
+.In libdivecomputer/datetime.h
+.Ft dc_datetime_t *
+.Fo dc_datetime_gmtime
+.Fa "dc_datetime_t *result"
+.Fa "dc_ticks_t ticks"
 .Fc
 .Sh DESCRIPTION
-Extract the date and time of a dive,
-.Fa parser ,
-previously initialised with
-.Xr dc_parser_set_data 3 .
-This returns the broken-down time-stamp of the dive in the local time of
-the dive.
+Convert an integral timestamp
+.Fa ticks
+created with
+.Xr dc_datetime_now 3
+or
+.Xr dc_datetime_mktime 3
+into a broken-down GMT representation in
+.Fa result .
+The filled-in value consists of the
+.Va year ,
+.Va month ,
+.Va day ,
+.Va hour ,
+.Va minute ,
+and
+.Va second
+fields.
+.Pp
+.Em Note :
+unlike in
+.Vt "struct tm" ,
+the value for
+.Va year
+is normalised, not less 1900; moreover, the value for
+.Va month
+is from one, not zero.
 .Pp
 The
 .Nm
-function may internally invoke
-.Xr dc_datetime_gmtime 3
-or
-.Xr dc_datetime_localtime 3 .
+function may internally invoke libc's
+.Xr gmtime 3 ,
+or if available,
+.Xr gmtime_r 3 .
 .Sh RETURN VALUES
-Returns
-.Dv DC_STATUS_SUCCESS
-if the date and time were retrieved,
-.Dv DC_STATUS_UNSUPPORTED
-if the date and time are not supported by the device, or other error
-messages on further failure.
+This returns the
+.Fa result
+pointer on success.
+It returns
+.Dv NULL
+if
+.Fa ticks
+cannot be sanely converted or if
+.Fa result
+is
+.Dv NULL .
 .Sh SEE ALSO
-.Xr dc_datetime_gmtime 3 ,
 .Xr dc_datetime_localtime 3 ,
-.Xr dc_parser_set_data 3
+.Xr dc_datetime_mktime 3 ,
+.Xr dc_datetime_new 3
 .Sh AUTHORS
 The
 .Lb libdivecomputer
