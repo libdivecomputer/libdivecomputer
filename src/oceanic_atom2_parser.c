@@ -557,6 +557,41 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	return DC_STATUS_SUCCESS;
 }
 
+static void
+oceanic_atom2_parser_vendor (oceanic_atom2_parser_t *parser, const unsigned char *data, unsigned int size, unsigned int samplesize, dc_sample_callback_t callback, void *userdata)
+{
+	unsigned int offset = 0;
+	while (offset + samplesize <= size) {
+		dc_sample_value_t sample = {0};
+
+		// Ignore empty samples.
+		if ((parser->mode != FREEDIVE &&
+			array_isequal (data + offset, samplesize, 0x00)) ||
+			array_isequal (data + offset, samplesize, 0xFF)) {
+			offset += samplesize;
+			continue;
+		}
+
+		// Get the sample type.
+		unsigned int sampletype = data[offset + 0];
+		if (parser->mode == FREEDIVE)
+			sampletype = 0;
+
+		// Get the sample size.
+		unsigned int length = samplesize;
+		if (sampletype == 0xBB) {
+			length = PAGESIZE;
+		}
+
+		// Vendor specific data
+		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
+		sample.vendor.size = length;
+		sample.vendor.data = data + offset;
+		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+
+		offset += length;
+	}
+}
 
 static dc_status_t
 oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
@@ -741,10 +776,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 				// Vendor specific data
 				if (i == 0) {
-					sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
-					sample.vendor.size = (offset - previous) + length;
-					sample.vendor.data = data + previous;
-					if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+					oceanic_atom2_parser_vendor (parser,
+						data + previous,
+						(offset - previous) + length,
+						samplesize, callback, userdata);
 				}
 
 				// Depth
@@ -766,10 +801,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Vendor specific data
-			sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
-			sample.vendor.size = (offset - previous) + length;
-			sample.vendor.data = data + previous;
-			if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+			oceanic_atom2_parser_vendor (parser,
+				data + previous,
+				(offset - previous) + length,
+				samplesize, callback, userdata);
 
 			// Temperature (°F)
 			if (have_temperature) {
