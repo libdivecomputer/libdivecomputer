@@ -607,6 +607,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	if (status != DC_STATUS_SUCCESS)
 		return status;
 
+	unsigned int extratime = 0;
 	unsigned int time = 0;
 	unsigned int interval = 1;
 	unsigned int samplerate = 1;
@@ -787,6 +788,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 				complete = 1;
 			}
+
+			extratime += surftime;
 		} else {
 			// Skip the extra samples.
 			if ((count % samplerate) != 0) {
@@ -796,7 +799,23 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			}
 
 			// Time.
-			time += interval;
+			if (parser->model == I450T) {
+				unsigned int minute = bcd2dec(data[offset + 0]);
+				unsigned int hour   = bcd2dec(data[offset + 1] & 0x0F);
+				unsigned int second = bcd2dec(data[offset + 2]);
+				unsigned int timestamp = (hour * 3600) + (minute * 60 ) + second + extratime;
+				if (timestamp < time) {
+					ERROR (abstract->context, "Timestamp moved backwards.");
+					return DC_STATUS_DATAFORMAT;
+				} else 	if (timestamp == time) {
+					WARNING (abstract->context, "Unexpected sample with the same timestamp ignored.");
+					offset += length;
+					continue;
+				}
+				time = timestamp;
+			} else {
+				time += interval;
+			}
 			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
