@@ -671,6 +671,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	// Initial gas mix.
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
+	unsigned int count = 0;
 	unsigned int complete = 1;
 	unsigned int offset = parser->headersize;
 	while (offset + samplesize <= size - parser->footersize) {
@@ -700,7 +701,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 		// The sample size is usually fixed, but some sample types have a
 		// larger size. Check whether we have that many bytes available.
-		unsigned int length = samplesize * samplerate;
+		unsigned int length = samplesize;
 		if (sampletype == 0xBB) {
 			length = PAGESIZE;
 			if (offset + length > size - PAGESIZE)
@@ -751,6 +752,13 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				complete = 1;
 			}
 		} else {
+			// Skip the extra samples.
+			if ((count % samplerate) != 0) {
+				offset += samplesize;
+				count++;
+				continue;
+			}
+
 			// Temperature (°F)
 			if (have_temperature) {
 				if (parser->model == GEO || parser->model == ATOM1 ||
@@ -912,6 +920,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
 			}
 
+			count++;
 			complete = 1;
 		}
 
