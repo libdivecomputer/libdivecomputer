@@ -704,8 +704,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		unsigned int length = samplesize;
 		if (sampletype == 0xBB) {
 			length = PAGESIZE;
-			if (offset + length > size - PAGESIZE)
+			if (offset + length > size - parser->footersize) {
+				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
+			}
 		}
 
 		// Vendor specific data
