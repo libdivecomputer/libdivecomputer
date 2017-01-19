@@ -557,6 +557,41 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	return DC_STATUS_SUCCESS;
 }
 
+static void
+oceanic_atom2_parser_vendor (oceanic_atom2_parser_t *parser, const unsigned char *data, unsigned int size, unsigned int samplesize, dc_sample_callback_t callback, void *userdata)
+{
+	unsigned int offset = 0;
+	while (offset + samplesize <= size) {
+		dc_sample_value_t sample = {0};
+
+		// Ignore empty samples.
+		if ((parser->mode != FREEDIVE &&
+			array_isequal (data + offset, samplesize, 0x00)) ||
+			array_isequal (data + offset, samplesize, 0xFF)) {
+			offset += samplesize;
+			continue;
+		}
+
+		// Get the sample type.
+		unsigned int sampletype = data[offset + 0];
+		if (parser->mode == FREEDIVE)
+			sampletype = 0;
+
+		// Get the sample size.
+		unsigned int length = samplesize;
+		if (sampletype == 0xBB) {
+			length = PAGESIZE;
+		}
+
+		// Vendor specific data
+		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
+		sample.vendor.size = length;
+		sample.vendor.data = data + offset;
+		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+
+		offset += length;
+	}
+}
 
 static dc_status_t
 oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
@@ -572,6 +607,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	if (status != DC_STATUS_SUCCESS)
 		return status;
 
+	unsigned int extratime = 0;
 	unsigned int time = 0;
 	unsigned int interval = 1;
 	unsigned int samplerate = 1;
@@ -673,6 +709,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int count = 0;
 	unsigned int complete = 1;
+	unsigned int previous = 0;
 	unsigned int offset = parser->headersize;
 	while (offset + samplesize <= size - parser->footersize) {
 		dc_sample_value_t sample = {0};
@@ -685,12 +722,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			continue;
 		}
 
-		// Time.
 		if (complete) {
-			time += interval;
-			sample.time = time;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
-
+			previous = offset;
 			complete = 0;
 		}
 
@@ -709,12 +742,6 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				return DC_STATUS_DATAFORMAT;
 			}
 		}
-
-		// Vendor specific data
-		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
-		sample.vendor.size = length;
-		sample.vendor.data = data + offset;
-		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
 
 		// Check for a tank switch sample.
 		if (sampletype == 0xAA) {
@@ -743,16 +770,26 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			unsigned int nsamples = surftime / interval;
 
 			for (unsigned int i = 0; i < nsamples; ++i) {
-				if (complete) {
-					time += interval;
-					sample.time = time;
-					if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				// Time
+				time += interval;
+				sample.time = time;
+				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+				// Vendor specific data
+				if (i == 0) {
+					oceanic_atom2_parser_vendor (parser,
+						data + previous,
+						(offset - previous) + length,
+						samplesize, callback, userdata);
 				}
 
+				// Depth
 				sample.depth = 0.0;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 				complete = 1;
 			}
+
+			extratime += surftime;
 		} else {
 			// Skip the extra samples.
 			if ((count % samplerate) != 0) {
@@ -760,6 +797,33 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				count++;
 				continue;
 			}
+
+			// Time.
+			if (parser->model == I450T) {
+				unsigned int minute = bcd2dec(data[offset + 0]);
+				unsigned int hour   = bcd2dec(data[offset + 1] & 0x0F);
+				unsigned int second = bcd2dec(data[offset + 2]);
+				unsigned int timestamp = (hour * 3600) + (minute * 60 ) + second + extratime;
+				if (timestamp < time) {
+					ERROR (abstract->context, "Timestamp moved backwards.");
+					return DC_STATUS_DATAFORMAT;
+				} else 	if (timestamp == time) {
+					WARNING (abstract->context, "Unexpected sample with the same timestamp ignored.");
+					offset += length;
+					continue;
+				}
+				time = timestamp;
+			} else {
+				time += interval;
+			}
+			sample.time = time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+			// Vendor specific data
+			oceanic_atom2_parser_vendor (parser,
+				data + previous,
+				(offset - previous) + length,
+				samplesize, callback, userdata);
 
 			// Temperature (°F)
 			if (have_temperature) {
