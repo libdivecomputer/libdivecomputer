@@ -125,7 +125,11 @@ cressi_leonardo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 
 	unsigned int interval = 20;
 	if (parser->model == DRAKE) {
-		interval = 1;
+		interval = data[0x17];
+	}
+	if (interval == 0) {
+		ERROR(abstract->context, "Invalid sample interval");
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
@@ -172,7 +176,11 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	unsigned int time = 0;
 	unsigned int interval = 20;
 	if (parser->model == DRAKE) {
-		interval = 1;
+		interval = data[0x17];
+	}
+	if (interval == 0) {
+		ERROR(abstract->context, "Invalid sample interval");
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	unsigned int gasmix_previous = 0xFFFFFFFF;
