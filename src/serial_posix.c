@@ -570,7 +570,7 @@ dc_serial_read (dc_serial_t *device, void *data, size_t size, size_t *actual)
 
 	if (device == NULL) {
 		status = DC_STATUS_INVALIDARGS;
-		goto out;
+		goto out_invalidargs;
 	}
 
 	// The total timeout.
@@ -647,6 +647,7 @@ dc_serial_read (dc_serial_t *device, void *data, size_t size, size_t *actual)
 out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
 
+out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
@@ -661,7 +662,7 @@ dc_serial_write (dc_serial_t *device, const void *data, size_t size, size_t *act
 
 	if (device == NULL) {
 		status = DC_STATUS_INVALIDARGS;
-		goto out;
+		goto out_invalidargs;
 	}
 
 	struct timeval tve, tvb;
@@ -754,6 +755,7 @@ dc_serial_write (dc_serial_t *device, const void *data, size_t size, size_t *act
 out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
 
+out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 

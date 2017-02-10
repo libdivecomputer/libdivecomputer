@@ -405,7 +405,7 @@ dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 
 	if (device == NULL) {
 		status = DC_STATUS_INVALIDARGS;
-		goto out;
+		goto out_invalidargs;
 	}
 
 	struct timeval tv;
@@ -449,6 +449,7 @@ dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
 
+out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
@@ -463,7 +464,7 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 
 	if (device == NULL) {
 		status = DC_STATUS_INVALIDARGS;
-		goto out;
+		goto out_invalidargs;
 	}
 
 	while (nbytes < size) {
@@ -485,6 +486,7 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 out:
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
 
+out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
