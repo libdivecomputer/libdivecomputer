@@ -29,6 +29,7 @@
 #include "device-private.h"
 #include "serial.h"
 #include "array.h"
+#include "rbstream.h"
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
@@ -414,51 +415,46 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 static dc_status_t
 mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
-
-	dc_buffer_t *buffer = dc_buffer_new (device->layout->memsize);
-	if (buffer == NULL)
-		return DC_STATUS_NOMEMORY;
-
-	dc_status_t rc = mares_iconhd_device_dump (abstract, buffer);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_buffer_free (buffer);
-		return rc;
-	}
-
-	// Emit a device info event.
-	unsigned char *data = dc_buffer_get_data (buffer);
-	dc_event_devinfo_t devinfo;
-	devinfo.model = device->model;
-	devinfo.firmware = 0;
-	devinfo.serial = array_uint32_le (data + 0x0C);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
-
-	rc = mares_iconhd_extract_dives (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), callback, userdata);
-
-	dc_buffer_free (buffer);
-
-	return rc;
-}
-
-
-dc_status_t
-mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
-{
-	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
-	dc_context_t *context = (abstract ? abstract->context : NULL);
 
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
 	const mares_iconhd_layout_t *layout = device->layout;
 
-	if (size < layout->memsize)
-		return DC_STATUS_DATAFORMAT;
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin + 4;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
+	// Read the serial number.
+	unsigned char serial[4] = {0};
+	rc = mares_iconhd_device_read (abstract, 0x0C, serial, sizeof (serial));
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory.");
+		return rc;
+	}
+
+	// Update and emit a progress event.
+	progress.current += sizeof (serial);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = device->model;
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint32_le (serial);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Get the model code.
-	unsigned int model = device ? device->model : data[0];
+	unsigned int model = device->model;
 
 	// Get the corresponding dive header size.
 	unsigned int header = 0x5C;
@@ -473,29 +469,57 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	unsigned int eop = 0;
 	const unsigned int config[] = {0x2001, 0x3001};
 	for (unsigned int i = 0; i < sizeof (config) / sizeof (*config); ++i) {
-		eop = array_uint32_le (data + config[i]);
+		// Read the pointer.
+		unsigned char pointer[4] = {0};
+		rc = mares_iconhd_device_read (abstract, config[i], pointer, sizeof (pointer));
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the memory.");
+			return rc;
+		}
+
+		// Update and emit a progress event.
+		progress.maximum += sizeof (pointer);
+		progress.current += sizeof (pointer);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+		eop = array_uint32_le (pointer);
 		if (eop != 0xFFFFFFFF)
 			break;
 	}
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
 		if (eop == 0xFFFFFFFF)
 			return DC_STATUS_SUCCESS; // No dives available.
-		ERROR (context, "Ringbuffer pointer out of range (0x%08x).", eop);
+		ERROR (abstract->context, "Ringbuffer pointer out of range (0x%08x).", eop);
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	// Make the ringbuffer linear, to avoid having to deal with the wrap point.
+	// Create the ringbuffer stream.
+	dc_rbstream_t *rbstream = NULL;
+	rc = dc_rbstream_new (&rbstream, abstract, 1, device->packetsize, layout->rb_profile_begin, layout->rb_profile_end, eop);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
+		return rc;
+	}
+
+	// Allocate memory for the dives.
 	unsigned char *buffer = (unsigned char *) malloc (layout->rb_profile_end - layout->rb_profile_begin);
 	if (buffer == NULL) {
-		ERROR (context, "Failed to allocate memory.");
+		ERROR (abstract->context, "Failed to allocate memory.");
+		dc_rbstream_free (rbstream);
 		return DC_STATUS_NOMEMORY;
 	}
 
-	memcpy (buffer + 0, data + eop, layout->rb_profile_end - eop);
-	memcpy (buffer + layout->rb_profile_end - eop, data + layout->rb_profile_begin, eop - layout->rb_profile_begin);
-
 	unsigned int offset = layout->rb_profile_end - layout->rb_profile_begin;
 	while (offset >= header + 4) {
+		// Read the first part of the dive header.
+		rc = dc_rbstream_read (rbstream, &progress, buffer + offset - header, header);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the dive.");
+			dc_rbstream_free (rbstream);
+			free (buffer);
+			return rc;
+		}
+
 		// Get the number of samples in the profile data.
 		unsigned int type = 0, nsamples = 0;
 		if (model == SMART || model == SMARTAPNEA) {
@@ -533,6 +557,17 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 			samplesize = 14;
 			fingerprint = 0x40;
 		}
+		if (offset < headersize)
+			break;
+
+		// Read the second part of the dive header.
+		rc = dc_rbstream_read (rbstream, &progress, buffer + offset - headersize, headersize - header);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the dive.");
+			dc_rbstream_free (rbstream);
+			free (buffer);
+			return rc;
+		}
 
 		// Calculate the total number of bytes for this dive.
 		// If the buffer does not contain that much bytes, we reached the
@@ -542,9 +577,6 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		if (model == ICONHDNET) {
 			nbytes += (nsamples / 4) * 8;
 		} else if (model == SMARTAPNEA) {
-			if (offset < headersize)
-				break;
-
 			unsigned int settings = array_uint16_le (buffer + offset - headersize + 0x1C);
 			unsigned int divetime = array_uint32_le (buffer + offset - headersize + 0x24);
 			unsigned int samplerate = 1 << ((settings >> 9) & 0x03);
@@ -553,6 +585,15 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 		}
 		if (offset < nbytes)
 			break;
+
+		// Read the remainder of the dive.
+		rc = dc_rbstream_read (rbstream, &progress, buffer + offset - nbytes, nbytes - headersize);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the dive.");
+			dc_rbstream_free (rbstream);
+			free (buffer);
+			return rc;
+		}
 
 		// Move to the start of the dive.
 		offset -= nbytes;
@@ -566,17 +607,16 @@ mares_iconhd_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 
 		unsigned char *fp = buffer + offset + length - headersize + fingerprint;
 		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
-			free (buffer);
-			return DC_STATUS_SUCCESS;
+			break;
 		}
 
 		if (callback && !callback (buffer + offset, length, fp, sizeof (device->fingerprint), userdata)) {
-			free (buffer);
-			return DC_STATUS_SUCCESS;
+			break;
 		}
 	}
 
+	dc_rbstream_free (rbstream);
 	free (buffer);
 
-	return DC_STATUS_SUCCESS;
+	return rc;
 }
