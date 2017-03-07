@@ -498,7 +498,7 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		}
 
 		if (previous && previous != footer + 2) {
-			ERROR (abstract->context, "Profiles are not continuous (0x%04x 0x%04x 0x%04x).", header, footer, previous);
+			ERROR (context, "Profiles are not continuous (0x%04x 0x%04x 0x%04x).", header, footer, previous);
 			free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}

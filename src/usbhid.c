@@ -346,7 +346,7 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 
 	if (usbhid == NULL) {
 		status = DC_STATUS_INVALIDARGS;
-		goto out;
+		goto out_invalidargs;
 	}
 
 #if defined(HAVE_LIBUSB) && !defined(__APPLE__)
@@ -369,6 +369,7 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 out:
 	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
 
+out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
@@ -387,7 +388,7 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 
 	if (usbhid == NULL) {
 		status = DC_STATUS_INVALIDARGS;
-		goto out;
+		goto out_invalidargs;
 	}
 
 #if defined(HAVE_LIBUSB) && !defined(__APPLE__)
@@ -410,6 +411,7 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 out:
 	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
 
+out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
