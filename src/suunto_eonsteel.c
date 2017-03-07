@@ -140,7 +140,7 @@ static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, 
 		return -1;
 	}
 	if (transferred != PACKET_SIZE) {
-		ERROR(eon->base.context, "incomplete read interrupt transfer (got %d, expected %d)", transferred, PACKET_SIZE);
+		ERROR(eon->base.context, "incomplete read interrupt transfer (got %zu, expected %d)", transferred, PACKET_SIZE);
 		return -1;
 	}
 	if (buf[0] != 0x3f) {

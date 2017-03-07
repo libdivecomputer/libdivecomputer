@@ -239,7 +239,7 @@ static int fill_in_group_details(suunto_eonsteel_parser_t *eon, struct type_desc
 		}
 		base = eon->type_desc + index;
 		if (!base->desc) {
-			ERROR(eon->base.context, "Group type descriptor '%s' has undescribed index %d", desc->desc, index);
+			ERROR(eon->base.context, "Group type descriptor '%s' has undescribed index %ld", desc->desc, index);
 			break;
 		}
 		if (!base->size) {
@@ -267,7 +267,7 @@ static int fill_in_group_details(suunto_eonsteel_parser_t *eon, struct type_desc
 			grp = end+1;
 			continue;
 		default:
-			ERROR(eon->base.context, "Group type descriptor '%s' has unparseable index %d", desc->desc, index);
+			ERROR(eon->base.context, "Group type descriptor '%s' has unparseable index %ld", desc->desc, index);
 			return -1;
 		}
 	}
