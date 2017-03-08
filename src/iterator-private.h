@@ -22,6 +22,7 @@
 #ifndef DC_ITERATOR_PRIVATE_H
 #define DC_ITERATOR_PRIVATE_H
 
+#include <libdivecomputer/context.h>
 #include <libdivecomputer/iterator.h>
 
 #ifdef __cplusplus
@@ -32,12 +33,23 @@ typedef struct dc_iterator_vtable_t dc_iterator_vtable_t;
 
 struct dc_iterator_t {
 	const dc_iterator_vtable_t *vtable;
+	dc_context_t *context;
 };
 
 struct dc_iterator_vtable_t {
-	dc_status_t (*free) (dc_iterator_t *iterator);
+	size_t size;
 	dc_status_t (*next) (dc_iterator_t *iterator, void *item);
+	dc_status_t (*free) (dc_iterator_t *iterator);
 };
+
+dc_iterator_t *
+dc_iterator_allocate (dc_context_t *context, const dc_iterator_vtable_t *vtable);
+
+void
+dc_iterator_deallocate (dc_iterator_t *iterator);
+
+int
+dc_iterator_isinstance (dc_iterator_t *iterator, const dc_iterator_vtable_t *vtable);
 
 #ifdef __cplusplus
 }

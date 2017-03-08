@@ -48,11 +48,24 @@
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
+static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
+
 struct dc_descriptor_t {
 	const char *vendor;
 	const char *product;
 	dc_family_t type;
 	unsigned int model;
+};
+
+typedef struct dc_descriptor_iterator_t {
+	dc_iterator_t base;
+	size_t current;
+} dc_descriptor_iterator_t;
+
+static const dc_iterator_vtable_t dc_descriptor_iterator_vtable = {
+	sizeof(dc_descriptor_iterator_t),
+	dc_descriptor_iterator_next,
+	NULL,
 };
 
 /*
@@ -331,19 +344,6 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Cochran", "EMC-20H",      DC_FAMILY_COCHRAN_COMMANDER, 5},
 };
 
-typedef struct dc_descriptor_iterator_t {
-	dc_iterator_t base;
-	size_t current;
-} dc_descriptor_iterator_t;
-
-static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
-static dc_status_t dc_descriptor_iterator_free (dc_iterator_t *iterator);
-
-static const dc_iterator_vtable_t dc_descriptor_iterator_vtable = {
-	dc_descriptor_iterator_free,
-	dc_descriptor_iterator_next
-};
-
 dc_status_t
 dc_descriptor_iterator (dc_iterator_t **out)
 {
@@ -352,22 +352,13 @@ dc_descriptor_iterator (dc_iterator_t **out)
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	iterator = (dc_descriptor_iterator_t *) malloc (sizeof (dc_descriptor_iterator_t));
+	iterator = (dc_descriptor_iterator_t *) dc_iterator_allocate (NULL, &dc_descriptor_iterator_vtable);
 	if (iterator == NULL)
 		return DC_STATUS_NOMEMORY;
 
-	iterator->base.vtable = &dc_descriptor_iterator_vtable;
 	iterator->current = 0;
 
 	*out = (dc_iterator_t *) iterator;
-
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
-dc_descriptor_iterator_free (dc_iterator_t *iterator)
-{
-	free (iterator);
 
 	return DC_STATUS_SUCCESS;
 }
