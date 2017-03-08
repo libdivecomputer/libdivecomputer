@@ -47,12 +47,46 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "iostream-private.h"
+#include "iterator-private.h"
 #include "array.h"
 #include "platform.h"
 
 #define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_irda_vtable)
 
+#define DISCOVER_MAX_DEVICES 16	// Maximum number of devices.
+#define DISCOVER_MAX_RETRIES 4	// Maximum number of retries.
+
+#ifdef _WIN32
+#define DISCOVER_BUFSIZE sizeof (DEVICELIST) + \
+				sizeof (IRDA_DEVICE_INFO) * (DISCOVER_MAX_DEVICES - 1)
+#else
+#define DISCOVER_BUFSIZE sizeof (struct irda_device_list) + \
+				sizeof (struct irda_device_info) * (DISCOVER_MAX_DEVICES - 1)
+#endif
+
+struct dc_irda_device_t {
+	unsigned int address;
+	unsigned int charset;
+	unsigned int hints;
+	char name[22];
+};
+
 #ifdef IRDA
+static dc_status_t dc_irda_iterator_next (dc_iterator_t *iterator, void *item);
+
+typedef struct dc_irda_iterator_t {
+	dc_iterator_t base;
+	dc_irda_device_t items[DISCOVER_MAX_DEVICES];
+	size_t count;
+	size_t current;
+} dc_irda_iterator_t;
+
+static const dc_iterator_vtable_t dc_irda_iterator_vtable = {
+	sizeof(dc_irda_iterator_t),
+	dc_irda_iterator_next,
+	NULL,
+};
+
 static const dc_iostream_vtable_t dc_irda_vtable = {
 	sizeof(dc_socket_t),
 	dc_socket_set_timeout, /* set_timeout */
@@ -71,6 +105,180 @@ static const dc_iostream_vtable_t dc_irda_vtable = {
 	dc_socket_sleep, /* sleep */
 	dc_socket_close, /* close */
 };
+#endif
+
+unsigned int
+dc_irda_device_get_address (dc_irda_device_t *device)
+{
+	if (device == NULL)
+		return 0;
+
+	return device->address;
+}
+
+const char *
+dc_irda_device_get_name (dc_irda_device_t *device)
+{
+	if (device == NULL || device->name[0] == '\0')
+		return NULL;
+
+	return device->name;
+}
+
+void
+dc_irda_device_free (dc_irda_device_t *device)
+{
+	free (device);
+}
+
+dc_status_t
+dc_irda_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
+{
+#ifdef IRDA
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_irda_iterator_t *iterator = NULL;
+
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	iterator = (dc_irda_iterator_t *) dc_iterator_allocate (context, &dc_irda_iterator_vtable);
+	if (iterator == NULL) {
+		SYSERROR (context, S_ENOMEM);
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Initialize the socket library.
+	status = dc_socket_init (context);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error_free;
+	}
+
+	// Open the socket.
+	int fd = socket (AF_IRDA, SOCK_STREAM, 0);
+	if (fd == S_INVALID) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error_socket_exit;
+	}
+
+	unsigned char data[DISCOVER_BUFSIZE] = {0};
+#ifdef _WIN32
+	DEVICELIST *list = (DEVICELIST *) data;
+#else
+	struct irda_device_list *list = (struct irda_device_list *) data;
+#endif
+	s_socklen_t size = sizeof (data);
+
+	int rc = 0;
+	unsigned int nretries = 0;
+	while ((rc = getsockopt (fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char *) data, &size)) != 0 ||
+#ifdef _WIN32
+		list->numDevice == 0)
+#else
+		list->len == 0)
+#endif
+	{
+		// Automatically retry the discovery when no devices were found.
+		// On Linux, getsockopt fails with EAGAIN when no devices are
+		// discovered, while on Windows it succeeds and sets the number
+		// of devices to zero. Both situations are handled the same here.
+		if (rc != 0) {
+			s_errcode_t errcode = S_ERRNO;
+			if (errcode != S_EAGAIN) {
+				SYSERROR (context, errcode);
+				status = dc_socket_syserror(errcode);
+				goto error_socket_close;
+			}
+		}
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= DISCOVER_MAX_RETRIES) {
+			break;
+		}
+
+		// Restore the size parameter in case it was
+		// modified by the previous getsockopt call.
+		size = sizeof (data);
+
+#ifdef _WIN32
+		Sleep (1000);
+#else
+		sleep (1);
+#endif
+	}
+
+	S_CLOSE (fd);
+	dc_socket_exit (context);
+
+	unsigned int count = 0;
+#ifdef _WIN32
+	for (size_t i = 0; i < list->numDevice; ++i) {
+		const char *name = list->Device[i].irdaDeviceName;
+		unsigned int address = array_uint32_le (list->Device[i].irdaDeviceID);
+		unsigned int charset = list->Device[i].irdaCharSet;
+		unsigned int hints = (list->Device[i].irdaDeviceHints1 << 8) +
+								list->Device[i].irdaDeviceHints2;
+#else
+	for (size_t i = 0; i < list->len; ++i) {
+		const char *name = list->dev[i].info;
+		unsigned int address = list->dev[i].daddr;
+		unsigned int charset = list->dev[i].charset;
+		unsigned int hints = array_uint16_be (list->dev[i].hints);
+#endif
+
+		INFO (context, "Discover: address=%08x, name=%s, charset=%02x, hints=%04x",
+			address, name, charset, hints);
+
+		strncpy(iterator->items[count].name, name, sizeof(iterator->items[count].name) - 1);
+		iterator->items[count].name[sizeof(iterator->items[count].name) - 1] = '\0';
+		iterator->items[count].address = address;
+		iterator->items[count].charset = charset;
+		iterator->items[count].hints = hints;
+		count++;
+	}
+
+	iterator->current = 0;
+	iterator->count = count;
+
+	*out = (dc_iterator_t *) iterator;
+
+	return DC_STATUS_SUCCESS;
+
+error_socket_close:
+	S_CLOSE (fd);
+error_socket_exit:
+	dc_socket_exit (context);
+error_free:
+	dc_iterator_deallocate ((dc_iterator_t *) iterator);
+	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
+}
+
+#ifdef IRDA
+static dc_status_t
+dc_irda_iterator_next (dc_iterator_t *abstract, void *out)
+{
+	dc_irda_iterator_t *iterator = (dc_irda_iterator_t *) abstract;
+	dc_irda_device_t *device = NULL;
+
+	if (iterator->current >= iterator->count)
+		return DC_STATUS_DONE;
+
+	device = (dc_irda_device_t *) malloc (sizeof(dc_irda_device_t));
+	if (device == NULL) {
+		SYSERROR (abstract->context, S_ENOMEM);
+		return DC_STATUS_NOMEMORY;
+	}
+
+	*device = iterator->items[iterator->current++];
+
+	*(dc_irda_device_t **) out = device;
+
+	return DC_STATUS_SUCCESS;
+}
 #endif
 
 dc_status_t
@@ -103,101 +311,6 @@ dc_irda_open (dc_iostream_t **out, dc_context_t *context)
 error_free:
 	dc_iostream_deallocate ((dc_iostream_t *) device);
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
-}
-
-#define DISCOVER_MAX_DEVICES 16	// Maximum number of devices.
-#define DISCOVER_MAX_RETRIES 4	// Maximum number of retries.
-
-#ifdef _WIN32
-#define DISCOVER_BUFSIZE sizeof (DEVICELIST) + \
-				sizeof (IRDA_DEVICE_INFO) * (DISCOVER_MAX_DEVICES - 1)
-#else
-#define DISCOVER_BUFSIZE sizeof (struct irda_device_list) + \
-				sizeof (struct irda_device_info) * (DISCOVER_MAX_DEVICES - 1)
-#endif
-
-dc_status_t
-dc_irda_discover (dc_iostream_t *abstract, dc_irda_callback_t callback, void *userdata)
-{
-#ifdef IRDA
-	dc_socket_t *device = (dc_socket_t *) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	unsigned char data[DISCOVER_BUFSIZE] = {0};
-#ifdef _WIN32
-	DEVICELIST *list = (DEVICELIST *) data;
-	int size = sizeof (data);
-#else
-	struct irda_device_list *list = (struct irda_device_list *) data;
-	socklen_t size = sizeof (data);
-#endif
-
-	int rc = 0;
-	unsigned int nretries = 0;
-	while ((rc = getsockopt (device->fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char*) data, &size)) != 0 ||
-#ifdef _WIN32
-		list->numDevice == 0)
-#else
-		list->len == 0)
-#endif
-	{
-		// Automatically retry the discovery when no devices were found.
-		// On Linux, getsockopt fails with EAGAIN when no devices are
-		// discovered, while on Windows it succeeds and sets the number
-		// of devices to zero. Both situations are handled the same here.
-		if (rc != 0) {
-			s_errcode_t errcode = S_ERRNO;
-			if (errcode != S_EAGAIN) {
-				SYSERROR (abstract->context, errcode);
-				return dc_socket_syserror(errcode);
-			}
-		}
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= DISCOVER_MAX_RETRIES)
-			return DC_STATUS_SUCCESS;
-
-		// Restore the size parameter in case it was
-		// modified by the previous getsockopt call.
-		size = sizeof (data);
-
-#ifdef _WIN32
-		Sleep (1000);
-#else
-		sleep (1);
-#endif
-	}
-
-	if (callback) {
-#ifdef _WIN32
-		for (unsigned int i = 0; i < list->numDevice; ++i) {
-			const char *name = list->Device[i].irdaDeviceName;
-			unsigned int address = array_uint32_le (list->Device[i].irdaDeviceID);
-			unsigned int charset = list->Device[i].irdaCharSet;
-			unsigned int hints = (list->Device[i].irdaDeviceHints1 << 8) +
-									list->Device[i].irdaDeviceHints2;
-#else
-		for (unsigned int i = 0; i < list->len; ++i) {
-			const char *name = list->dev[i].info;
-			unsigned int address = list->dev[i].daddr;
-			unsigned int charset = list->dev[i].charset;
-			unsigned int hints = array_uint16_be (list->dev[i].hints);
-#endif
-
-			INFO (abstract->context,
-				"Discover: address=%08x, name=%s, charset=%02x, hints=%04x",
-				address, name, charset, hints);
-
-			callback (address, name, charset, hints, userdata);
-		}
-	}
-
-	return DC_STATUS_SUCCESS;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif

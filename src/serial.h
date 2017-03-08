@@ -25,29 +25,45 @@
 #include <libdivecomputer/common.h>
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/iostream.h>
+#include <libdivecomputer/iterator.h>
+#include <libdivecomputer/descriptor.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 /**
- * Serial enumeration callback.
- *
- * @param[in]  name      The name of the device node.
- * @param[in]  userdata  The user data pointer.
+ * Opaque object representing a serial device.
  */
-typedef void (*dc_serial_callback_t) (const char *name, void *userdata);
+typedef struct dc_serial_device_t dc_serial_device_t;
 
 /**
- * Enumerate the serial ports.
+ * Get the device node of the serial device.
  *
- * @param[in]  callback  The callback function to call.
- * @param[in]  userdata  User data to pass to the callback function.
+ * @param[in]  device  A valid serial device.
+ */
+const char *
+dc_serial_device_get_name (dc_serial_device_t *device);
+
+/**
+ * Destroy the serial device and free all resources.
+ *
+ * @param[in]  device  A valid serial device.
+ */
+void
+dc_serial_device_free (dc_serial_device_t *device);
+
+/**
+ * Create an iterator to enumerate the serial devices.
+ *
+ * @param[out] iterator    A location to store the iterator.
+ * @param[in]  context     A valid context object.
+ * @param[in]  descriptor  A valid device descriptor or NULL.
  * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
  * on failure.
  */
 dc_status_t
-dc_serial_enumerate (dc_serial_callback_t callback, void *userdata);
+dc_serial_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_descriptor_t *descriptor);
 
 /**
  * Open a serial connection.

@@ -25,6 +25,8 @@
 #include <libdivecomputer/common.h>
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/iostream.h>
+#include <libdivecomputer/iterator.h>
+#include <libdivecomputer/descriptor.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,13 +42,45 @@ typedef unsigned long long dc_bluetooth_address_t;
 #endif
 
 /**
- * Bluetooth enumeration callback.
- *
- * @param[in]  address   The bluetooth device address.
- * @param[in]  name      The bluetooth device name.
- * @param[in]  userdata  The user data pointer.
+ * Opaque object representing a bluetooth device.
  */
-typedef void (*dc_bluetooth_callback_t) (dc_bluetooth_address_t address, const char *name, void *userdata);
+typedef struct dc_bluetooth_device_t dc_bluetooth_device_t;
+
+/**
+ * Get the address of the bluetooth device.
+ *
+ * @param[in]  device  A valid bluetooth device.
+ */
+dc_bluetooth_address_t
+dc_bluetooth_device_get_address (dc_bluetooth_device_t *device);
+
+/**
+ * Get the name of the bluetooth device.
+ *
+ * @param[in]  device  A valid bluetooth device.
+ */
+const char *
+dc_bluetooth_device_get_name (dc_bluetooth_device_t *device);
+
+/**
+ * Destroy the bluetooth device and free all resources.
+ *
+ * @param[in]  device  A valid bluetooth device.
+ */
+void
+dc_bluetooth_device_free (dc_bluetooth_device_t *device);
+
+/**
+ * Create an iterator to enumerate the bluetooth devices.
+ *
+ * @param[out] iterator    A location to store the iterator.
+ * @param[in]  context     A valid context object.
+ * @param[in]  descriptor  A valid device descriptor or NULL.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_bluetooth_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_descriptor_t *descriptor);
 
 /**
  * Open an bluetooth connection.
@@ -58,18 +92,6 @@ typedef void (*dc_bluetooth_callback_t) (dc_bluetooth_address_t address, const c
  */
 dc_status_t
 dc_bluetooth_open (dc_iostream_t **iostream, dc_context_t *context);
-
-/**
- * Enumerate the bluetooth devices.
- *
- * @param[in]  iostream   A valid bluetooth connection.
- * @param[in]  callback   The callback function to call.
- * @param[in]  userdata   User data to pass to the callback function.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_bluetooth_discover (dc_iostream_t *iostream, dc_bluetooth_callback_t callback, void *userdata);
 
 /**
  * Connect to an bluetooth device.

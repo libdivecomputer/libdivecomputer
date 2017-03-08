@@ -36,7 +36,6 @@
 typedef struct uwatec_smart_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
-	unsigned int address;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -62,8 +61,8 @@ static const dc_device_vtable_t uwatec_smart_device_vtable = {
 static dc_status_t
 uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
-static void
-uwatec_smart_discovery (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata)
+static int
+uwatec_smart_filter (const char *name)
 {
 	static const char *names[] = {
 		"Aladin Smart Com",
@@ -75,16 +74,16 @@ uwatec_smart_discovery (unsigned int address, const char *name, unsigned int cha
 		"UWATEC Galileo Sol",
 	};
 
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) userdata;
-	if (device == NULL || name == NULL)
-		return;
+	if (name == NULL)
+		return 0;
 
 	for (size_t i = 0; i < C_ARRAY_SIZE(names); ++i) {
 		if (strcasecmp(name, names[i]) == 0) {
-			device->address = address;
-			return;
+			return 1;
 		}
 	}
+
+	return 0;
 }
 
 
@@ -152,6 +151,8 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_device_t *device = NULL;
+	dc_iterator_t *iterator = NULL;
+	dc_irda_device_t *dev = NULL;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -165,33 +166,48 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 
 	// Set the default values.
 	device->iostream = NULL;
-	device->address = 0;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
+
+	// Create the irda device iterator.
+	status = dc_irda_iterator_new (&iterator, context, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to create the irda iterator.");
+		goto error_free;
+	}
+
+	// Enumerate the irda devices.
+	while (1) {
+		dc_irda_device_t *current = NULL;
+		status = dc_iterator_next (iterator, &current);
+		if (status != DC_STATUS_SUCCESS) {
+			if (status == DC_STATUS_DONE) {
+				ERROR (context, "No dive computer found.");
+				status = DC_STATUS_NODEVICE;
+			} else {
+				ERROR (context, "Failed to enumerate the irda devices.");
+			}
+			goto error_iterator_free;
+		}
+
+		if (uwatec_smart_filter (dc_irda_device_get_name (current))) {
+			dev = current;
+			break;
+		}
+
+		dc_irda_device_free (current);
+	}
 
 	// Open the irda socket.
 	status = dc_irda_open (&device->iostream, context);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the irda socket.");
-		goto error_free;
-	}
-
-	// Discover the device.
-	status = dc_irda_discover (device->iostream, uwatec_smart_discovery, device);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to discover the device.");
-		goto error_close;
-	}
-
-	if (device->address == 0) {
-		ERROR (context, "No dive computer found.");
-		status = DC_STATUS_IO;
-		goto error_close;
+		goto error_device_free;
 	}
 
 	// Connect the device.
-	status = dc_irda_connect_lsap (device->iostream, device->address, 1);
+	status = dc_irda_connect_lsap (device->iostream, dc_irda_device_get_address (dev), 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to connect the device.");
 		goto error_close;
@@ -210,6 +226,10 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 
 error_close:
 	dc_iostream_close (device->iostream);
+error_device_free:
+	dc_irda_device_free (dev);
+error_iterator_free:
+	dc_iterator_free (iterator);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
