@@ -152,9 +152,12 @@ reefnet_sensus_device_close (dc_device_t *abstract)
 
 	// Safely close the connection if the last handshake was
 	// successful, but no data transfer was ever initiated.
-	if (device->waiting)
-		reefnet_sensus_cancel (device);
-
+	if (device->waiting) {
+		rc = reefnet_sensus_cancel (device);
+		if (rc != DC_STATUS_SUCCESS) {
+			dc_status_set_error(&status, rc);
+		}
+	}
 
 	// Close the device.
 	rc = dc_serial_close (device->port);

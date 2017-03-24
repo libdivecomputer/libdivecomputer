@@ -714,7 +714,10 @@ oceanic_atom2_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Send the quit command.
-	oceanic_atom2_quit (device);
+	rc = oceanic_atom2_quit (device);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
+	}
 
 	// Close the device.
 	rc = dc_serial_close (device->port);

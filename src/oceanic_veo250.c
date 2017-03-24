@@ -337,7 +337,10 @@ oceanic_veo250_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Switch the device back to surface mode.
-	oceanic_veo250_quit (device);
+	rc = oceanic_veo250_quit (device);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
+	}
 
 	// Close the device.
 	rc = dc_serial_close (device->port);

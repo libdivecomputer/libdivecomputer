@@ -115,14 +115,24 @@ error_free:
 static dc_status_t
 shearwater_petrel_device_close (dc_device_t *abstract)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Shutdown the device.
 	unsigned char request[] = {0x2E, 0x90, 0x20, 0x00};
-	shearwater_common_transfer (device, request, sizeof (request), NULL, 0, NULL);
+	rc = shearwater_common_transfer (device, request, sizeof (request), NULL, 0, NULL);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
+	}
 
 	// Close the device.
-	return shearwater_common_close (device);
+	rc = shearwater_common_close (device);
+	if (rc != DC_STATUS_SUCCESS) {
+		dc_status_set_error(&status, rc);
+	}
+
+	return status;
 }
 
 
