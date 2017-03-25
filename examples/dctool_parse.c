@@ -35,20 +35,6 @@
 #include <libdivecomputer/descriptor.h>
 #include <libdivecomputer/parser.h>
 
-#include <libdivecomputer/suunto.h>
-#include <libdivecomputer/reefnet.h>
-#include <libdivecomputer/uwatec.h>
-#include <libdivecomputer/oceanic.h>
-#include <libdivecomputer/mares.h>
-#include <libdivecomputer/hw.h>
-#include <libdivecomputer/cressi.h>
-#include <libdivecomputer/zeagle.h>
-#include <libdivecomputer/atomics.h>
-#include <libdivecomputer/shearwater.h>
-#include <libdivecomputer/diverite.h>
-#include <libdivecomputer/citizen.h>
-#include <libdivecomputer/divesystem.h>
-
 #include "dctool.h"
 #include "output.h"
 #include "common.h"
