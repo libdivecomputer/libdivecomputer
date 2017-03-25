@@ -19,13 +19,12 @@
  * MA 02110-1301 USA
  */
 
-#ifndef HW_OSTC3_H
-#define HW_OSTC3_H
+#ifndef DC_HW_OSTC3_H
+#define DC_HW_OSTC3_H
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
-#include "parser.h"
-#include "buffer.h"
+#include "datetime.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,9 +32,6 @@ extern "C" {
 
 #define HW_OSTC3_DISPLAY_SIZE    16
 #define HW_OSTC3_CUSTOMTEXT_SIZE 60
-
-dc_status_t
-hw_ostc3_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 hw_ostc3_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
@@ -64,10 +60,7 @@ hw_ostc3_device_config_reset (dc_device_t *abstract);
 dc_status_t
 hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename);
 
-dc_status_t
-hw_ostc3_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* HW_OSTC3_H */
+#endif /* DC_HW_OSTC3_H */

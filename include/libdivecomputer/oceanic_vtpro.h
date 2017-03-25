@@ -19,22 +19,15 @@
  * MA 02110-1301 USA
  */
 
-#ifndef OCEANIC_VTPRO_H
-#define OCEANIC_VTPRO_H
+#ifndef DC_OCEANIC_VTPRO_H
+#define DC_OCEANIC_VTPRO_H
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
-#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
-dc_status_t
-oceanic_vtpro_device_open (dc_device_t **device, dc_context_t *context, const char *name);
-
-dc_status_t
-oceanic_vtpro_device_open2 (dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
 
 dc_status_t
 oceanic_vtpro_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
@@ -42,13 +35,7 @@ oceanic_vtpro_device_version (dc_device_t *device, unsigned char data[], unsigne
 dc_status_t
 oceanic_vtpro_device_keepalive (dc_device_t *device);
 
-dc_status_t
-oceanic_vtpro_parser_create (dc_parser_t **parser, dc_context_t *context);
-
-dc_status_t
-oceanic_vtpro_parser_create2 (dc_parser_t **parser, dc_context_t *context, unsigned int model);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* OCEANIC_VTPRO_H */
+#endif /* DC_OCEANIC_VTPRO_H */

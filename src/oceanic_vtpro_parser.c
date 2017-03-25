@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/oceanic_vtpro.h>
 #include <libdivecomputer/units.h>
 
+#include "oceanic_vtpro.h"
 #include "oceanic_common.h"
 #include "context-private.h"
 #include "parser-private.h"

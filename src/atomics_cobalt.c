@@ -33,8 +33,7 @@
 #include <libusb-1.0/libusb.h>
 #endif
 
-#include <libdivecomputer/atomics_cobalt.h>
-
+#include "atomics_cobalt.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "checksum.h"

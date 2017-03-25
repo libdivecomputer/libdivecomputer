@@ -517,7 +517,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\atomics.h"
+				RelativePath="..\src\atomics_cobalt.h"
 				>
 			</File>
 			<File
@@ -533,19 +533,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\citizen.h"
+				RelativePath="..\src\citizen_aqualand.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\citizen_aqualand.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\cochran.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\cochran_commander.h"
+				RelativePath="..\src\cochran_commander.h"
 				>
 			</File>
 			<File
@@ -561,15 +553,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\cressi.h"
+				RelativePath="..\src\cressi_edy.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\cressi_edy.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\cressi_leonardo.h"
+				RelativePath="..\src\cressi_leonardo.h"
 				>
 			</File>
 			<File
@@ -589,23 +577,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\diverite.h"
+				RelativePath="..\src\diverite_nitekq.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\diverite_nitekq.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\divesystem.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\divesystem_idive.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\hw.h"
+				RelativePath="..\src\divesystem_idive.h"
 				>
 			</File>
 			<File
@@ -613,7 +589,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\hw_frog.h"
+				>
+			</File>
+			<File
 				RelativePath="..\include\libdivecomputer\hw_ostc.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\hw_ostc.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\hw_ostc3.h"
 				>
 			</File>
 			<File
@@ -629,11 +617,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\iterator.h"
+				RelativePath="..\src\iterator-private.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\mares.h"
+				RelativePath="..\include\libdivecomputer\iterator.h"
 				>
 			</File>
 			<File
@@ -641,23 +629,23 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\mares_darwin.h"
+				RelativePath="..\src\mares_darwin.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\mares_iconhd.h"
+				RelativePath="..\src\mares_iconhd.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\mares_nemo.h"
+				RelativePath="..\src\mares_nemo.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\mares_puck.h"
+				RelativePath="..\src\mares_puck.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\oceanic.h"
+				RelativePath="..\src\oceanic_atom2.h"
 				>
 			</File>
 			<File
@@ -669,7 +657,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\oceanic_veo250.h"
+				>
+			</File>
+			<File
 				RelativePath="..\include\libdivecomputer\oceanic_veo250.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\oceanic_vtpro.h"
 				>
 			</File>
 			<File
@@ -689,11 +685,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\reefnet.h"
+				RelativePath="..\src\reefnet_sensus.h"
 				>
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\reefnet_sensus.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\reefnet_sensuspro.h"
 				>
 			</File>
 			<File
@@ -705,6 +705,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\reefnet_sensusultra.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\revision.h"
+				>
+			</File>
+			<File
 				RelativePath="..\src\ringbuffer.h"
 				>
 			</File>
@@ -713,23 +721,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\shearwater.h"
-				>
-			</File>
-			<File
 				RelativePath="..\src\shearwater_common.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\shearwater_petrel.h"
+				RelativePath="..\src\shearwater_petrel.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\shearwater_predator.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\suunto.h"
+				RelativePath="..\src\shearwater_predator.h"
 				>
 			</File>
 			<File
@@ -745,19 +745,35 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\suunto_d9.h"
+				>
+			</File>
+			<File
 				RelativePath="..\include\libdivecomputer\suunto_eon.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\suunto_solution.h"
+				RelativePath="..\src\suunto_eon.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\suunto_vyper.h"
+				RelativePath="..\src\suunto_eonsteel.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_solution.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_vyper.h"
 				>
 			</File>
 			<File
 				RelativePath="..\include\libdivecomputer\suunto_vyper2.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\suunto_vyper2.h"
 				>
 			</File>
 			<File
@@ -769,23 +785,19 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\uwatec.h"
+				RelativePath="..\src\uwatec_aladin.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\uwatec_aladin.h"
+				RelativePath="..\src\uwatec_memomouse.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\uwatec_memomouse.h"
+				RelativePath="..\src\uwatec_meridian.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\uwatec_meridian.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\uwatec_smart.h"
+				RelativePath="..\src\uwatec_smart.h"
 				>
 			</File>
 			<File
@@ -793,11 +805,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\libdivecomputer\zeagle.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\libdivecomputer\zeagle_n2ition3.h"
+				RelativePath="..\src\zeagle_n2ition3.h"
 				>
 			</File>
 		</Filter>

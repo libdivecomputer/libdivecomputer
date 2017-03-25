@@ -24,8 +24,7 @@
 #include <ctype.h>
 #include <math.h>
 
-#include <libdivecomputer/suunto_eonsteel.h>
-
+#include "suunto_eonsteel.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

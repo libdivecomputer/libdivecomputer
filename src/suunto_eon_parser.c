@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/suunto_eon.h>
 #include <libdivecomputer/units.h>
 
+#include "suunto_eon.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

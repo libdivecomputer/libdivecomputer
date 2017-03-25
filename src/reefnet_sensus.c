@@ -22,8 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/reefnet_sensus.h>
-
+#include "reefnet_sensus.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

@@ -22,8 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/citizen_aqualand.h>
-
+#include "citizen_aqualand.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

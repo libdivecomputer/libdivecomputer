@@ -22,11 +22,10 @@
 #include <string.h> // memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/oceanic_veo250.h>
-
+#include "oceanic_veo250.h"
+#include "oceanic_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "oceanic_common.h"
 #include "serial.h"
 #include "ringbuffer.h"
 #include "checksum.h"

@@ -10,50 +10,16 @@ libdivecomputer_HEADERS = 	\
 	parser.h \
 	datetime.h \
 	units.h \
-	suunto.h \
-	suunto_solution.h \
 	suunto_eon.h \
-	suunto_eonsteel.h \
-	suunto_vyper.h \
 	suunto_vyper2.h  \
 	suunto_d9.h \
-	reefnet.h \
 	reefnet_sensus.h \
 	reefnet_sensuspro.h \
 	reefnet_sensusultra.h \
-	uwatec.h \
-	uwatec_aladin.h \
-	uwatec_memomouse.h \
-	uwatec_smart.h \
-	uwatec_meridian.h \
-	oceanic.h \
 	oceanic_atom2.h \
 	oceanic_veo250.h \
 	oceanic_vtpro.h \
-	mares.h \
-	mares_nemo.h \
-	mares_puck.h \
-	mares_darwin.h \
-	mares_iconhd.h \
-	hw.h \
 	hw_ostc.h \
 	hw_frog.h \
 	hw_ostc3.h \
-	cressi.h \
-	cressi_edy.h \
-	cressi_leonardo.h \
-	zeagle.h \
-	zeagle_n2ition3.h \
-	atomics.h \
-	atomics_cobalt.h \
-	shearwater.h \
-	shearwater_petrel.h \
-	shearwater_predator.h \
-	diverite.h \
-	diverite_nitekq.h \
-	citizen.h \
-	citizen_aqualand.h \
-	divesystem.h \
-	divesystem_idive.h \
-	cochran.h \
-	cochran_commander.h
+	atomics_cobalt.h

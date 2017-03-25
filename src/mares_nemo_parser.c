@@ -22,9 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libdivecomputer/mares_nemo.h>
 #include <libdivecomputer/units.h>
 
+#include "mares_nemo.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

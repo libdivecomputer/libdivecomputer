@@ -19,13 +19,12 @@
  * MA 02110-1301 USA
  */
 
-#ifndef HW_FROG_H
-#define HW_FROG_H
+#ifndef DC_HW_FROG_H
+#define DC_HW_FROG_H
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
-#include "parser.h"
-#include "buffer.h"
+#include "datetime.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,9 +32,6 @@ extern "C" {
 
 #define HW_FROG_DISPLAY_SIZE    15
 #define HW_FROG_CUSTOMTEXT_SIZE 13
-
-dc_status_t
-hw_frog_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 hw_frog_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
@@ -52,4 +48,4 @@ hw_frog_device_customtext (dc_device_t *device, const char *text);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* HW_FROG_H */
+#endif /* DC_HW_FROG_H */

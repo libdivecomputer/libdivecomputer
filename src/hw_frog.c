@@ -22,8 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/hw_frog.h>
-
+#include "hw_frog.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

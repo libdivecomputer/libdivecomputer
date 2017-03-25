@@ -23,8 +23,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <libdivecomputer/diverite_nitekq.h>
-
+#include "diverite_nitekq.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "checksum.h"

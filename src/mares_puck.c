@@ -23,11 +23,10 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/mares_puck.h>
-
+#include "mares_puck.h"
+#include "mares_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "mares_common.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"

@@ -23,11 +23,10 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h>
 
-#include <libdivecomputer/oceanic_vtpro.h>
-
+#include "oceanic_vtpro.h"
+#include "oceanic_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "oceanic_common.h"
 #include "serial.h"
 #include "ringbuffer.h"
 #include "checksum.h"

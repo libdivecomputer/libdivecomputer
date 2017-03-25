@@ -22,10 +22,8 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/shearwater_predator.h>
-
+#include "shearwater_predator.h"
 #include "shearwater_common.h"
-
 #include "context-private.h"
 #include "device-private.h"
 #include "array.h"

@@ -23,8 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libdivecomputer/suunto_eonsteel.h>
-
+#include "suunto_eonsteel.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "array.h"

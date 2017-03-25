@@ -23,8 +23,8 @@
 #include <math.h>
 
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/cochran.h>
 
+#include "cochran_commander.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

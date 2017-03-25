@@ -22,8 +22,7 @@
 #include <stdlib.h> // malloc, free
 #include <string.h>	// strncmp, strstr
 
-#include <libdivecomputer/uwatec_smart.h>
-
+#include "uwatec_smart.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "irda.h"

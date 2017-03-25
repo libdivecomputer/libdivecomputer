@@ -22,11 +22,10 @@
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/mares_nemo.h>
-
+#include "mares_nemo.h"
+#include "mares_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "mares_common.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"

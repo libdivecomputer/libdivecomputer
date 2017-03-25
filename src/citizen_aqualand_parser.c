@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/citizen_aqualand.h>
 #include <libdivecomputer/units.h>
 
+#include "citizen_aqualand.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

@@ -24,8 +24,7 @@
 #include <stdlib.h> // malloc, free
 #include <stdio.h>  // FILE, fopen
 
-#include <libdivecomputer/hw_ostc3.h>
-
+#include "hw_ostc3.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

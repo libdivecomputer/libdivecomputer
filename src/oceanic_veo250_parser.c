@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/oceanic_veo250.h>
 #include <libdivecomputer/units.h>
 
+#include "oceanic_veo250.h"
 #include "oceanic_common.h"
 #include "context-private.h"
 #include "parser-private.h"

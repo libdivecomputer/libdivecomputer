@@ -21,8 +21,7 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/divesystem_idive.h>
-
+#include "divesystem_idive.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

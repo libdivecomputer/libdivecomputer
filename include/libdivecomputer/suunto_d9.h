@@ -19,12 +19,11 @@
  * MA 02110-1301 USA
  */
 
-#ifndef SUUNTO_D9_H
-#define SUUNTO_D9_H
+#ifndef DC_SUUNTO_D9_H
+#define DC_SUUNTO_D9_H
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
-#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,18 +32,12 @@ extern "C" {
 #define SUUNTO_D9_VERSION_SIZE 0x04
 
 dc_status_t
-suunto_d9_device_open (dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
-
-dc_status_t
 suunto_d9_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
 suunto_d9_device_reset_maxdepth (dc_device_t *device);
 
-dc_status_t
-suunto_d9_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* SUUNTO_D9_H */
+#endif /* DC_SUUNTO_D9_H */

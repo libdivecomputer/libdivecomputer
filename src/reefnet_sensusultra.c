@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/reefnet_sensusultra.h>
-
+#include "reefnet_sensusultra.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

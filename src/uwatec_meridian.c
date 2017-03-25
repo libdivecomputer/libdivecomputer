@@ -23,8 +23,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <libdivecomputer/uwatec_meridian.h>
-
+#include "uwatec_meridian.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "checksum.h"

@@ -22,9 +22,9 @@
 #include <stdlib.h>
 #include <string.h>	// memcmp
 
-#include <libdivecomputer/reefnet_sensuspro.h>
 #include <libdivecomputer/units.h>
 
+#include "reefnet_sensuspro.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

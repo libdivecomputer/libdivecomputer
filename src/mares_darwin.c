@@ -23,12 +23,12 @@
 #include <string.h>
 #include <assert.h>
 
-#include <libdivecomputer/mares_darwin.h>
 #include <libdivecomputer/units.h>
 
+#include "mares_darwin.h"
+#include "mares_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "mares_common.h"
 #include "array.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &mares_darwin_device_vtable)

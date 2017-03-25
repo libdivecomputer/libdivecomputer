@@ -21,9 +21,9 @@
 
 #include <stdlib.h>	// malloc, free
 
-#include <libdivecomputer/reefnet_sensus.h>
 #include <libdivecomputer/units.h>
 
+#include "reefnet_sensus.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

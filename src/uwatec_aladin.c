@@ -22,8 +22,7 @@
 #include <stdlib.h> // malloc, free
 #include <memory.h> // memcpy
 
-#include <libdivecomputer/uwatec_aladin.h>
-
+#include "uwatec_aladin.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

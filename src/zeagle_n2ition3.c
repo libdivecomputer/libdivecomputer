@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/zeagle_n2ition3.h>
-
+#include "zeagle_n2ition3.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
