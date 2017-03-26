@@ -59,8 +59,7 @@
 #define FRESH 1.000
 #define SALT  1.025
 
-#define FREEDIVE1 0x00000080
-#define FREEDIVE2 0x00000200
+#define FREEDIVE  0x00000080
 #define GAUGE     0x00001000
 #define SALINITY  0x00100000
 
@@ -451,12 +450,8 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 		// Get the freedive/gauge bits.
 		unsigned int freedive = 0;
 		unsigned int gauge = (settings & GAUGE) != 0;
-		if (parser->model == ALADINTEC) {
-			freedive = 0;
-		} else if (parser->model == ALADINTEC2G) {
-			freedive = (settings & FREEDIVE2) != 0;
-		} else {
-			freedive = (settings & FREEDIVE1) != 0;
+		if (parser->model != ALADINTEC && parser->model != ALADINTEC2G) {
+			freedive = (settings & FREEDIVE) != 0;
 		}
 
 		// Get the dive mode. The freedive bit needs to be checked
