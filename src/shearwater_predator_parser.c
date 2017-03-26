@@ -104,7 +104,7 @@ shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned 
 }
 
 
-dc_status_t
+static dc_status_t
 shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int petrel)
 {
 	shearwater_predator_parser_t *parser = NULL;
