@@ -603,15 +603,13 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Some extra data.
 			if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
 				// Pressure (1/100 bar).
-				if (parser->ntanks > 0) {
-					unsigned int pressure = array_uint16_le(data + offset);
-					if (gasmix >= parser->ntanks) {
-						ERROR (abstract->context, "Invalid tank index.");
-						return DC_STATUS_DATAFORMAT;
-					}
+				unsigned int pressure = array_uint16_le(data + offset);
+				if (gasmix < parser->ntanks) {
 					sample.pressure.tank = gasmix;
 					sample.pressure.value = pressure / 100.0;
 					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				} else if (pressure != 0) {
+					WARNING (abstract->context, "Invalid tank with non-zero pressure.");
 				}
 
 				offset += 8;
