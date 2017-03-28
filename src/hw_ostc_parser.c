@@ -274,7 +274,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	return DC_STATUS_SUCCESS;
 }
 
-dc_status_t
+static dc_status_t
 hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsigned int hwos, unsigned int model)
 {
 	hw_ostc_parser_t *parser = NULL;
