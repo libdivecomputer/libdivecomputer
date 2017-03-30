@@ -412,12 +412,13 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 			// Deco stop
 			if (deco) {
-				sample.event.type = SAMPLE_EVENT_DECOSTOP;
-				sample.event.time = 0;
-				sample.event.flags = 0;
-				sample.event.value = 0;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				sample.deco.type = DC_DECO_DECOSTOP;
+			} else {
+				sample.deco.type = DC_DECO_NDL;
 			}
+			sample.deco.time = 0;
+			sample.deco.depth = 0.0;
+			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 
 			// Pressure (1 bar).
 			if (parser->sample_size == 3) {

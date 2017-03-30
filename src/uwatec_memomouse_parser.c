@@ -243,6 +243,16 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			gasmix_previous = gasmix;
 		}
 
+		// NDL / Deco
+		if (warnings & 0x01) {
+			sample.deco.type = DC_DECO_DECOSTOP;
+		} else {
+			sample.deco.type = DC_DECO_NDL;
+		}
+		sample.deco.time = 0;
+		sample.deco.depth = 0.0;
+		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+
 		// Warnings
 		for (unsigned int i = 0; i < 6; ++i) {
 			if (warnings & (1 << i)) {
@@ -251,7 +261,7 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				sample.event.value = 0;
 				switch (i) {
 				case 0: // Deco stop
-					sample.event.type = SAMPLE_EVENT_DECOSTOP;
+					sample.event.type = SAMPLE_EVENT_NONE;
 					break;
 				case 1: // Remaining bottom time too short (Air series only)
 					sample.event.type = SAMPLE_EVENT_RBT;
@@ -269,7 +279,9 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					sample.event.type = SAMPLE_EVENT_TRANSMITTER;
 					break;
 				}
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (sample.event.type != SAMPLE_EVENT_NONE) {
+					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				}
 			}
 		}
 
