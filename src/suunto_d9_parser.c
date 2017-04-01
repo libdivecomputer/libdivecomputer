@@ -576,28 +576,28 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					seconds = data[offset + 1];
 					switch (type & 0x7F) {
 					case 0x00: // Voluntary Safety Stop
-						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_VOLUNTARY;
+						sample.event.type = SAMPLE_EVENT_NONE;
 						if (type & 0x80)
 							in_deco &= ~SAFETYSTOP;
 						else
 							in_deco |= SAFETYSTOP;
 						break;
 					case 0x01: // Mandatory Safety Stop - odd concept; model as deco stop
-						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_MANDATORY;
+						sample.event.type = SAMPLE_EVENT_NONE;
 						if (type & 0x80)
 							in_deco &= ~DECOSTOP;
 						else
 							in_deco |= DECOSTOP;
 						break;
 					case 0x02: // Deep Safety Stop
-						sample.event.type = SAMPLE_EVENT_DEEPSTOP;
+						sample.event.type = SAMPLE_EVENT_NONE;
 						if (type & 0x80)
 							in_deco &= ~DEEPSTOP;
 						else
 							in_deco |= DEEPSTOP;
 						break;
 					case 0x03: // Deco
-						sample.event.type = SAMPLE_EVENT_DECOSTOP;
+						sample.event.type = SAMPLE_EVENT_NONE;
 						if (type & 0x80)
 							in_deco &= ~DECOSTOP;
 						else
@@ -647,14 +647,14 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						sample.event.type = SAMPLE_EVENT_TISSUELEVEL;
 						break;
 					case 0x13: // Deep Safety Stop
-						sample.event.type = SAMPLE_EVENT_DEEPSTOP;
+						sample.event.type = SAMPLE_EVENT_NONE;
 						if (type & 0x80)
 							in_deco &= ~DEEPSTOP;
 						else
 							in_deco |= DEEPSTOP;
 						break;
 					case 0x14: // Mandatory Safety Stop - again, model as deco stop
-						sample.event.type = SAMPLE_EVENT_SAFETYSTOP_MANDATORY;
+						sample.event.type = SAMPLE_EVENT_NONE;
 						if (type & 0x80)
 							in_deco &= ~DECOSTOP;
 						else
