@@ -156,8 +156,8 @@ shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 	unsigned char *data = dc_buffer_get_data (buffer);
 	dc_event_devinfo_t devinfo;
 	devinfo.model = data[0x2000D];
-	devinfo.firmware = data[0x2000A];
-	devinfo.serial = array_uint32_le (data + 0x20002);
+	devinfo.firmware = bcd2dec (data[0x2000A]);
+	devinfo.serial = array_uint32_be (data + 0x20002);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = shearwater_predator_extract_dives (abstract, data, SZ_MEMORY, callback, userdata);
