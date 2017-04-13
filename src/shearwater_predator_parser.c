@@ -48,10 +48,14 @@
 
 #define NGASMIXES 10
 
+#define PREDATOR 2
+#define PETREL   3
+
 typedef struct shearwater_predator_parser_t shearwater_predator_parser_t;
 
 struct shearwater_predator_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 	unsigned int petrel;
 	unsigned int samplesize;
 	// Cached fields.
@@ -106,7 +110,7 @@ shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned 
 
 
 static dc_status_t
-shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int petrel)
+shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model, unsigned int petrel)
 {
 	shearwater_predator_parser_t *parser = NULL;
 	const dc_parser_vtable_t *vtable = NULL;
@@ -131,6 +135,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	}
 
 	// Set the default values.
+	parser->model = model;
 	parser->petrel = petrel;
 	parser->samplesize = samplesize;
 	parser->cached = 0;
@@ -150,16 +155,16 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 
 
 dc_status_t
-shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context)
+shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
-	return shearwater_common_parser_create (out, context, 0);
+	return shearwater_common_parser_create (out, context, model, 0);
 }
 
 
 dc_status_t
-shearwater_petrel_parser_create (dc_parser_t **out, dc_context_t *context)
+shearwater_petrel_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
-	return shearwater_common_parser_create (out, context, 1);
+	return shearwater_common_parser_create (out, context, model, 1);
 }
 
 
@@ -290,9 +295,11 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	// to 70mV in 100% O2 at 1 atmosphere.
 	// If we add 1024 (1000?) to the calibration value, then the sensors
 	// lines up and matches the average.
-	parser->calibration[0] += 1024;
-	parser->calibration[1] += 1024;
-	parser->calibration[2] += 1024;
+	if (parser->model == PREDATOR) {
+		parser->calibration[0] += 1024;
+		parser->calibration[1] += 1024;
+		parser->calibration[2] += 1024;
+	}
 
 	// Cache the data for later use.
 	parser->headersize = headersize;

@@ -34,7 +34,7 @@ dc_status_t
 shearwater_predator_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
-shearwater_predator_parser_create (dc_parser_t **parser, dc_context_t *context);
+shearwater_predator_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);
 
 #ifdef __cplusplus
 }
