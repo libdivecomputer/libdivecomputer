@@ -148,13 +148,13 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = reefnet_sensusultra_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = oceanic_vtpro_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
-		rc = oceanic_atom2_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = oceanic_atom2_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_MARES_NEMO:
 		rc = mares_nemo_device_open (&device, context, name);
@@ -202,7 +202,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = citizen_aqualand_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = divesystem_idive_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
 		rc = cochran_commander_device_open (&device, context, name);

@@ -384,14 +384,7 @@ oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progre
 }
 
 dc_status_t
-oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char *name)
-{
-	return oceanic_vtpro_device_open2 (out, context, name, 0);
-}
-
-
-dc_status_t
-oceanic_vtpro_device_open2 (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = NULL;

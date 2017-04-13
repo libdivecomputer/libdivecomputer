@@ -110,7 +110,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = reefnet_sensusultra_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create2 (&parser, context, model);
+		rc = oceanic_vtpro_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_parser_create (&parser, context, model);
@@ -143,7 +143,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = cressi_edy_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_CRESSI_LEONARDO:
-		rc = cressi_leonardo_parser_create2 (&parser, context, model);
+		rc = cressi_leonardo_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context);
@@ -161,7 +161,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = citizen_aqualand_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_parser_create2 (&parser, context, model);
+		rc = divesystem_idive_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
 		rc = cochran_commander_parser_create (&parser, context, model);

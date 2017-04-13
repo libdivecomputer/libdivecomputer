@@ -82,14 +82,7 @@ static const dc_parser_vtable_t divesystem_idive_parser_vtable = {
 
 
 dc_status_t
-divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context)
-{
-	return divesystem_idive_parser_create2 (out, context, 0);
-}
-
-
-dc_status_t
-divesystem_idive_parser_create2 (dc_parser_t **out, dc_context_t *context, unsigned int model)
+divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	divesystem_idive_parser_t *parser = NULL;
 
