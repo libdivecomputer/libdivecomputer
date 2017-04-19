@@ -59,6 +59,8 @@ static const dc_device_vtable_t reefnet_sensuspro_device_vtable = {
 	reefnet_sensuspro_device_close /* close */
 };
 
+static dc_status_t
+reefnet_sensuspro_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 reefnet_sensuspro_device_open (dc_device_t **out, dc_context_t *context, const char *name)
@@ -361,7 +363,7 @@ reefnet_sensuspro_device_write_interval (dc_device_t *abstract, unsigned char in
 }
 
 
-dc_status_t
+static dc_status_t
 reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;

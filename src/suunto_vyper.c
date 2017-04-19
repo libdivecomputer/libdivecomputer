@@ -442,16 +442,6 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 }
 
 
-dc_status_t
-suunto_vyper_device_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init)
-{
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	return suunto_vyper_read_dive (abstract, buffer, init, NULL);
-}
-
-
 static dc_status_t
 suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
@@ -552,23 +542,4 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	dc_buffer_free (buffer);
 
 	return rc;
-}
-
-
-dc_status_t
-suunto_vyper_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
-{
-	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
-
-	if (abstract && !ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	if (size < SZ_MEMORY)
-		return DC_STATUS_DATAFORMAT;
-
-	const suunto_common_layout_t *layout = &suunto_vyper_layout;
-	if (data[HDR_DEVINFO_VYPER] == 20 || data[HDR_DEVINFO_VYPER] == 30 || data[HDR_DEVINFO_VYPER] == 60)
-		layout = &suunto_spyder_layout;
-
-	return suunto_common_extract_dives (device, layout, data, callback, userdata);
 }

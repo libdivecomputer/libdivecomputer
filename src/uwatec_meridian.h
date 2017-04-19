@@ -33,9 +33,6 @@ extern "C" {
 dc_status_t
 uwatec_meridian_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
-dc_status_t
-uwatec_meridian_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

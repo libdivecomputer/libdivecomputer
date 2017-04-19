@@ -59,6 +59,8 @@ static const dc_device_vtable_t uwatec_meridian_device_vtable = {
 	uwatec_meridian_device_close /* close */
 };
 
+static dc_status_t
+uwatec_meridian_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 uwatec_meridian_transfer (uwatec_meridian_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
@@ -462,7 +464,7 @@ uwatec_meridian_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 }
 
 
-dc_status_t
+static dc_status_t
 uwatec_meridian_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))

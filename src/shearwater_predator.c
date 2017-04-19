@@ -60,6 +60,8 @@ static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	shearwater_predator_device_close /* close */
 };
 
+static dc_status_t
+shearwater_predator_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, const char *name)
@@ -337,7 +339,7 @@ shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char d
 }
 
 
-dc_status_t
+static dc_status_t
 shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))

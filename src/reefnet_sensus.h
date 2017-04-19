@@ -35,9 +35,6 @@ dc_status_t
 reefnet_sensus_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
-reefnet_sensus_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
-
-dc_status_t
 reefnet_sensus_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int devtime, dc_ticks_t systime);
 
 #ifdef __cplusplus

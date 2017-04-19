@@ -55,6 +55,8 @@ static const dc_device_vtable_t uwatec_smart_device_vtable = {
 	uwatec_smart_device_close /* close */
 };
 
+static dc_status_t
+uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static void
 uwatec_smart_discovery (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata)
@@ -402,7 +404,7 @@ uwatec_smart_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 }
 
 
-dc_status_t
+static dc_status_t
 uwatec_smart_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))

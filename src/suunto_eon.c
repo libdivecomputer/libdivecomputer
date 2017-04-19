@@ -216,6 +216,8 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 static dc_status_t
 suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
+	suunto_common_device_t *device = (suunto_common_device_t *) abstract;
+
 	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
@@ -238,8 +240,7 @@ suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	rc = suunto_eon_extract_dives (abstract,
-		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);
+	rc = suunto_common_extract_dives (device, &suunto_eon_layout, data, callback, userdata);
 
 	dc_buffer_free (buffer);
 
@@ -290,19 +291,4 @@ suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 	}
 
 	return DC_STATUS_SUCCESS;
-}
-
-
-dc_status_t
-suunto_eon_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
-{
-	suunto_common_device_t *device = (suunto_common_device_t*) abstract;
-
-	if (abstract && !ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	if (size < SZ_MEMORY)
-		return DC_STATUS_DATAFORMAT;
-
-	return suunto_common_extract_dives (device, &suunto_eon_layout, data, callback, userdata);
 }

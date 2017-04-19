@@ -60,6 +60,8 @@ static const dc_device_vtable_t reefnet_sensus_device_vtable = {
 	reefnet_sensus_device_close /* close */
 };
 
+static dc_status_t
+reefnet_sensus_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 reefnet_sensus_cancel (reefnet_sensus_device_t *device)
@@ -368,7 +370,7 @@ reefnet_sensus_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 }
 
 
-dc_status_t
+static dc_status_t
 reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;

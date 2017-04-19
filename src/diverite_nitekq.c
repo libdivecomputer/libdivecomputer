@@ -72,6 +72,8 @@ static const dc_device_vtable_t diverite_nitekq_device_vtable = {
 	diverite_nitekq_device_close /* close */
 };
 
+static dc_status_t
+diverite_nitekq_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 diverite_nitekq_send (diverite_nitekq_device_t *device, unsigned char cmd)
@@ -352,7 +354,7 @@ diverite_nitekq_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 }
 
 
-dc_status_t
+static dc_status_t
 diverite_nitekq_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	diverite_nitekq_device_t *device = (diverite_nitekq_device_t *) abstract;

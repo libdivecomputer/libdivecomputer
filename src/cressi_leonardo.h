@@ -34,9 +34,6 @@ dc_status_t
 cressi_leonardo_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
-cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
-
-dc_status_t
 cressi_leonardo_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);
 
 #ifdef __cplusplus
