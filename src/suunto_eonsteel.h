@@ -31,7 +31,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-suunto_eonsteel_device_open(dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
+suunto_eonsteel_device_open(dc_device_t **device, dc_context_t *context);
 
 dc_status_t
 suunto_eonsteel_parser_create(dc_parser_t **parser, dc_context_t *context, unsigned int model);

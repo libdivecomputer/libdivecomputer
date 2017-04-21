@@ -124,7 +124,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = suunto_d9_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_SUUNTO_EONSTEEL:
-		rc = suunto_eonsteel_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = suunto_eonsteel_device_open (&device, context);
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 		rc = uwatec_aladin_device_open (&device, context, name);
@@ -166,7 +166,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = mares_darwin_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = mares_iconhd_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_HW_OSTC:
 		rc = hw_ostc_device_open (&device, context, name);
