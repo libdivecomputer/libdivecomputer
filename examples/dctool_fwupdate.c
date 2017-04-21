@@ -41,17 +41,26 @@
 #include "utils.h"
 
 static dc_status_t
-fwupdate (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, const char *hexfile)
+fwupdate (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const char *hexfile)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_iostream_t *iostream = NULL;
 	dc_device_t *device = NULL;
 
-	// Open the device.
-	message ("Opening the device (%s %s, %s).\n",
-		dc_descriptor_get_vendor (descriptor),
-		dc_descriptor_get_product (descriptor),
+	// Open the I/O stream.
+	message ("Opening the I/O stream (%s, %s).\n",
+		dctool_transport_name (transport),
 		devname ? devname : "null");
+	rc = dctool_iostream_open (&iostream, context, descriptor, transport, devname);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR ("Error opening the I/O stream.");
+		goto cleanup;
+	}
+
+	// Open the device.
+	message ("Opening the device (%s %s).\n",
+		dc_descriptor_get_vendor (descriptor),
+		dc_descriptor_get_product (descriptor));
 	rc = dc_device_open (&device, context, descriptor, iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error opening the device.");
@@ -95,6 +104,7 @@ fwupdate (dc_context_t *context, dc_descriptor_t *descriptor, const char *devnam
 
 cleanup:
 	dc_device_close (device);
+	dc_iostream_close (iostream);
 	return rc;
 }
 
@@ -103,6 +113,7 @@ dctool_fwupdate_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 {
 	int exitcode = EXIT_SUCCESS;
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_transport_t transport = DC_TRANSPORT_NONE;
 
 	// Default option values.
 	unsigned int help = 0;
@@ -110,10 +121,11 @@ dctool_fwupdate_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "hf:";
+	const char *optstring = "ht:f:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"transport",   required_argument, 0, 't'},
 		{"firmware",    required_argument, 0, 'f'},
 		{0,             0,                 0,  0 }
 	};
@@ -124,6 +136,9 @@ dctool_fwupdate_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		switch (opt) {
 		case 'f':
 			filename = optarg;
+			break;
+		case 't':
+			transport = dctool_transport_type (optarg);
 			break;
 		case 'h':
 			help = 1;
@@ -142,6 +157,13 @@ dctool_fwupdate_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		return EXIT_SUCCESS;
 	}
 
+	// Check the transport type.
+	if (transport == DC_TRANSPORT_NONE) {
+		message ("No valid transport type specified.\n");
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
+	}
+
 	// Check mandatory arguments.
 	if (!filename) {
 		message ("No firmware file specified.\n");
@@ -150,7 +172,7 @@ dctool_fwupdate_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	}
 
 	// Update the firmware.
-	status = fwupdate (context, descriptor, argv[0], filename);
+	status = fwupdate (context, descriptor, transport, argv[0], filename);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -172,9 +194,11 @@ const dctool_command_t dctool_fwupdate = {
 	"Options:\n"
 #ifdef HAVE_GETOPT_LONG
 	"   -h, --help                  Show help message\n"
+	"   -t, --transport <name>      Transport type\n"
 	"   -f, --firmware <filename>   Firmware filename\n"
 #else
 	"   -h              Show help message\n"
+	"   -t <transport>  Transport type\n"
 	"   -f <filename>   Firmware filename\n"
 #endif
 };

@@ -152,18 +152,27 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 }
 
 static dc_status_t
-download (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, const char *cachedir, dc_buffer_t *fingerprint, dctool_output_t *output)
+download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const char *cachedir, dc_buffer_t *fingerprint, dctool_output_t *output)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_iostream_t *iostream = NULL;
 	dc_device_t *device = NULL;
 	dc_buffer_t *ofingerprint = NULL;
 
-	// Open the device.
-	message ("Opening the device (%s %s, %s).\n",
-		dc_descriptor_get_vendor (descriptor),
-		dc_descriptor_get_product (descriptor),
+	// Open the I/O stream.
+	message ("Opening the I/O stream (%s, %s).\n",
+		dctool_transport_name (transport),
 		devname ? devname : "null");
+	rc = dctool_iostream_open (&iostream, context, descriptor, transport, devname);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR ("Error opening the I/O stream.");
+		goto cleanup;
+	}
+
+	// Open the device.
+	message ("Opening the device (%s %s).\n",
+		dc_descriptor_get_vendor (descriptor),
+		dc_descriptor_get_product (descriptor));
 	rc = dc_device_open (&device, context, descriptor, iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error opening the device.");
@@ -237,6 +246,7 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, const char *devnam
 cleanup:
 	dc_buffer_free (ofingerprint);
 	dc_device_close (device);
+	dc_iostream_close (iostream);
 	return rc;
 }
 
@@ -248,6 +258,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	dc_buffer_t *fingerprint = NULL;
 	dctool_output_t *output = NULL;
 	dctool_units_t units = DCTOOL_UNITS_METRIC;
+	dc_transport_t transport = DC_TRANSPORT_NONE;
 
 	// Default option values.
 	unsigned int help = 0;
@@ -258,10 +269,11 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ho:p:c:f:u:";
+	const char *optstring = "ht:o:p:c:f:u:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"transport",   required_argument, 0, 't'},
 		{"output",      required_argument, 0, 'o'},
 		{"fingerprint", required_argument, 0, 'p'},
 		{"cache",       required_argument, 0, 'c'},
@@ -276,6 +288,9 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		switch (opt) {
 		case 'h':
 			help = 1;
+			break;
+		case 't':
+			transport = dctool_transport_type (optarg);
 			break;
 		case 'o':
 			filename = optarg;
@@ -309,6 +324,13 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		return EXIT_SUCCESS;
 	}
 
+	// Check the transport type.
+	if (transport == DC_TRANSPORT_NONE) {
+		message ("No valid transport type specified.\n");
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
+	}
+
 	// Convert the fingerprint to binary.
 	fingerprint = dctool_convert_hex2bin (fphex);
 
@@ -329,7 +351,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	}
 
 	// Download the dives.
-	status = download (context, descriptor, argv[0], cachedir, fingerprint, output);
+	status = download (context, descriptor, transport, argv[0], cachedir, fingerprint, output);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -353,6 +375,7 @@ const dctool_command_t dctool_download = {
 	"Options:\n"
 #ifdef HAVE_GETOPT_LONG
 	"   -h, --help                 Show help message\n"
+	"   -t, --transport <name>     Transport type\n"
 	"   -o, --output <filename>    Output filename\n"
 	"   -p, --fingerprint <data>   Fingerprint data (hexadecimal)\n"
 	"   -c, --cache <directory>    Cache directory\n"
@@ -360,6 +383,7 @@ const dctool_command_t dctool_download = {
 	"   -u, --units <units>        Set units (metric or imperial)\n"
 #else
 	"   -h                 Show help message\n"
+	"   -t <transport>     Transport type\n"
 	"   -o <filename>      Output filename\n"
 	"   -p <fingerprint>   Fingerprint data (hexadecimal)\n"
 	"   -c <directory>     Cache directory\n"

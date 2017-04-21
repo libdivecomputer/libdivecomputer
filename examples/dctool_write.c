@@ -39,17 +39,26 @@
 #include "utils.h"
 
 static dc_status_t
-dowrite (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, unsigned int address, dc_buffer_t *buffer)
+dowrite (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, unsigned int address, dc_buffer_t *buffer)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_iostream_t *iostream = NULL;
 	dc_device_t *device = NULL;
 
-	// Open the device.
-	message ("Opening the device (%s %s, %s).\n",
-		dc_descriptor_get_vendor (descriptor),
-		dc_descriptor_get_product (descriptor),
+	// Open the I/O stream.
+	message ("Opening the I/O stream (%s, %s).\n",
+		dctool_transport_name (transport),
 		devname ? devname : "null");
+	rc = dctool_iostream_open (&iostream, context, descriptor, transport, devname);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR ("Error opening the I/O stream.");
+		goto cleanup;
+	}
+
+	// Open the device.
+	message ("Opening the device (%s %s).\n",
+		dc_descriptor_get_vendor (descriptor),
+		dc_descriptor_get_product (descriptor));
 	rc = dc_device_open (&device, context, descriptor, iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error opening the device.");
@@ -83,6 +92,7 @@ dowrite (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname
 
 cleanup:
 	dc_device_close (device);
+	dc_iostream_close (iostream);
 	return rc;
 }
 
@@ -92,6 +102,7 @@ dctool_write_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 	int exitcode = EXIT_SUCCESS;
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_buffer_t *buffer = NULL;
+	dc_transport_t transport = DC_TRANSPORT_NONE;
 
 	// Default option values.
 	unsigned int help = 0;
@@ -101,10 +112,11 @@ dctool_write_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ha:c:i:";
+	const char *optstring = "ht:a:c:i:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"transport",   required_argument, 0, 't'},
 		{"address",     required_argument, 0, 'a'},
 		{"count",       required_argument, 0, 'c'},
 		{"input",       required_argument, 0, 'i'},
@@ -117,6 +129,9 @@ dctool_write_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 		switch (opt) {
 		case 'h':
 			help = 1;
+			break;
+		case 't':
+			transport = dctool_transport_type (optarg);
 			break;
 		case 'a':
 			address = strtoul (optarg, NULL, 0);
@@ -143,6 +158,13 @@ dctool_write_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 		return EXIT_SUCCESS;
 	}
 
+	// Check the transport type.
+	if (transport == DC_TRANSPORT_NONE) {
+		message ("No valid transport type specified.\n");
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
+	}
+
 	// Check mandatory arguments.
 	if (!have_address) {
 		message ("No memory address specified.\n");
@@ -166,7 +188,7 @@ dctool_write_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 	}
 
 	// Write data to the internal memory.
-	status = dowrite (context, descriptor, argv[0], address, buffer);
+	status = dowrite (context, descriptor, transport, argv[0], address, buffer);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -189,11 +211,13 @@ const dctool_command_t dctool_write = {
 	"Options:\n"
 #ifdef HAVE_GETOPT_LONG
 	"   -h, --help                Show help message\n"
+	"   -t, --transport <name>    Transport type\n"
 	"   -a, --address <address>   Memory address\n"
 	"   -c, --count <count>       Number of bytes\n"
 	"   -i, --input <filename>    Input filename\n"
 #else
 	"   -h              Show help message\n"
+	"   -t <transport>  Transport type\n"
 	"   -a <address>    Memory address\n"
 	"   -c <count>      Number of bytes\n"
 	"   -i <filename>   Input filename\n"
