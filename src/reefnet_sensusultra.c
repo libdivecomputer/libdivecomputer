@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/reefnet_sensusultra.h>
-
+#include "reefnet_sensusultra.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
@@ -749,19 +748,4 @@ reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 	dc_buffer_free (buffer);
 
 	return DC_STATUS_SUCCESS;
-}
-
-
-dc_status_t
-reefnet_sensusultra_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
-{
-	reefnet_sensusultra_device_t *device = (reefnet_sensusultra_device_t *) abstract;
-
-	if (abstract && !ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	unsigned int remaining = size;
-	unsigned int previous = size;
-
-	return reefnet_sensusultra_parse (device, data, &remaining, &previous, NULL, callback, userdata);
 }

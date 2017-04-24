@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/cressi_leonardo.h>
-
+#include "cressi_leonardo.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
@@ -70,6 +69,9 @@ static const dc_device_vtable_t cressi_leonardo_device_vtable = {
 	cressi_leonardo_device_foreach, /* foreach */
 	cressi_leonardo_device_close /* close */
 };
+
+static dc_status_t
+cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static void
 cressi_leonardo_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned char ascii[], unsigned int asize)
@@ -434,7 +436,7 @@ cressi_leonardo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	return rc;
 }
 
-dc_status_t
+static dc_status_t
 cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;

@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/suunto_vyper.h>
 #include <libdivecomputer/units.h>
 
+#include "suunto_vyper.h"
 #include "context-private.h"
 #include "parser-private.h"
 

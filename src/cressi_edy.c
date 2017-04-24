@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/cressi_edy.h>
-
+#include "cressi_edy.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"

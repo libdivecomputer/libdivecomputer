@@ -19,10 +19,10 @@
  * MA 02110-1301 USA
  */
 
-#ifndef ATOMICS_COBALT_H
-#define ATOMICS_COBALT_H
+#ifndef DC_ATOMICS_COBALT_H
+#define DC_ATOMICS_COBALT_H
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
 #include "parser.h"
 
@@ -31,16 +31,10 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-atomics_cobalt_device_open (dc_device_t **device, dc_context_t *context);
-
-dc_status_t
 atomics_cobalt_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
 atomics_cobalt_device_set_simulation (dc_device_t *device, unsigned int simulation);
-
-dc_status_t
-atomics_cobalt_parser_create (dc_parser_t **parser, dc_context_t *context);
 
 dc_status_t
 atomics_cobalt_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
@@ -48,4 +42,4 @@ atomics_cobalt_parser_set_calibration (dc_parser_t *parser, double atmospheric, 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* ATOMICS_COBALT_H */
+#endif /* DC_ATOMICS_COBALT_H */

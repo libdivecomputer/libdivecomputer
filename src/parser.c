@@ -22,20 +22,40 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <libdivecomputer/suunto.h>
-#include <libdivecomputer/reefnet.h>
-#include <libdivecomputer/uwatec.h>
-#include <libdivecomputer/oceanic.h>
-#include <libdivecomputer/mares.h>
-#include <libdivecomputer/hw.h>
-#include <libdivecomputer/cressi.h>
-#include <libdivecomputer/zeagle.h>
-#include <libdivecomputer/atomics.h>
-#include <libdivecomputer/shearwater.h>
-#include <libdivecomputer/diverite.h>
-#include <libdivecomputer/citizen.h>
-#include <libdivecomputer/divesystem.h>
-#include <libdivecomputer/cochran.h>
+#include "suunto_d9.h"
+#include "suunto_eon.h"
+#include "suunto_eonsteel.h"
+#include "suunto_solution.h"
+#include "suunto_vyper2.h"
+#include "suunto_vyper.h"
+#include "reefnet_sensus.h"
+#include "reefnet_sensuspro.h"
+#include "reefnet_sensusultra.h"
+#include "uwatec_aladin.h"
+#include "uwatec_memomouse.h"
+#include "uwatec_meridian.h"
+#include "uwatec_smart.h"
+#include "oceanic_atom2.h"
+#include "oceanic_atom2.h"
+#include "oceanic_veo250.h"
+#include "oceanic_vtpro.h"
+#include "mares_darwin.h"
+#include "mares_iconhd.h"
+#include "mares_nemo.h"
+#include "mares_puck.h"
+#include "hw_frog.h"
+#include "hw_ostc.h"
+#include "hw_ostc3.h"
+#include "cressi_edy.h"
+#include "cressi_leonardo.h"
+#include "zeagle_n2ition3.h"
+#include "atomics_cobalt.h"
+#include "shearwater_petrel.h"
+#include "shearwater_predator.h"
+#include "diverite_nitekq.h"
+#include "citizen_aqualand.h"
+#include "divesystem_idive.h"
+#include "cochran_commander.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -90,7 +110,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = reefnet_sensusultra_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create2 (&parser, context, model);
+		rc = oceanic_vtpro_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_parser_create (&parser, context, model);
@@ -123,7 +143,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = cressi_edy_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_CRESSI_LEONARDO:
-		rc = cressi_leonardo_parser_create2 (&parser, context, model);
+		rc = cressi_leonardo_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context);
@@ -141,7 +161,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = citizen_aqualand_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_parser_create2 (&parser, context, model);
+		rc = divesystem_idive_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
 		rc = cochran_commander_parser_create (&parser, context, model);

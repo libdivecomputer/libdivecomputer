@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/suunto_solution.h>
 #include <libdivecomputer/units.h>
 
+#include "suunto_solution.h"
 #include "context-private.h"
 #include "parser-private.h"
 

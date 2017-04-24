@@ -23,20 +23,39 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libdivecomputer/suunto.h>
-#include <libdivecomputer/reefnet.h>
-#include <libdivecomputer/uwatec.h>
-#include <libdivecomputer/oceanic.h>
-#include <libdivecomputer/mares.h>
-#include <libdivecomputer/hw.h>
-#include <libdivecomputer/cressi.h>
-#include <libdivecomputer/zeagle.h>
-#include <libdivecomputer/atomics.h>
-#include <libdivecomputer/shearwater.h>
-#include <libdivecomputer/diverite.h>
-#include <libdivecomputer/citizen.h>
-#include <libdivecomputer/divesystem.h>
-#include <libdivecomputer/cochran.h>
+#include "suunto_d9.h"
+#include "suunto_eon.h"
+#include "suunto_eonsteel.h"
+#include "suunto_solution.h"
+#include "suunto_vyper2.h"
+#include "suunto_vyper.h"
+#include "reefnet_sensus.h"
+#include "reefnet_sensuspro.h"
+#include "reefnet_sensusultra.h"
+#include "uwatec_aladin.h"
+#include "uwatec_memomouse.h"
+#include "uwatec_meridian.h"
+#include "uwatec_smart.h"
+#include "oceanic_atom2.h"
+#include "oceanic_veo250.h"
+#include "oceanic_vtpro.h"
+#include "mares_darwin.h"
+#include "mares_iconhd.h"
+#include "mares_nemo.h"
+#include "mares_puck.h"
+#include "hw_frog.h"
+#include "hw_ostc.h"
+#include "hw_ostc3.h"
+#include "cressi_edy.h"
+#include "cressi_leonardo.h"
+#include "zeagle_n2ition3.h"
+#include "atomics_cobalt.h"
+#include "shearwater_petrel.h"
+#include "shearwater_predator.h"
+#include "diverite_nitekq.h"
+#include "citizen_aqualand.h"
+#include "divesystem_idive.h"
+#include "cochran_commander.h"
 
 #include "device-private.h"
 #include "context-private.h"
@@ -105,7 +124,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = suunto_d9_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_SUUNTO_EONSTEEL:
-		rc = suunto_eonsteel_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = suunto_eonsteel_device_open (&device, context);
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 		rc = uwatec_aladin_device_open (&device, context, name);
@@ -129,13 +148,13 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = reefnet_sensusultra_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = oceanic_vtpro_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
 		rc = oceanic_veo250_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
-		rc = oceanic_atom2_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = oceanic_atom2_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_MARES_NEMO:
 		rc = mares_nemo_device_open (&device, context, name);
@@ -147,7 +166,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = mares_darwin_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = mares_iconhd_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_HW_OSTC:
 		rc = hw_ostc_device_open (&device, context, name);
@@ -183,7 +202,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = citizen_aqualand_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_device_open2 (&device, context, name, dc_descriptor_get_model (descriptor));
+		rc = divesystem_idive_device_open (&device, context, name, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
 		rc = cochran_commander_device_open (&device, context, name);

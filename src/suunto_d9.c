@@ -23,10 +23,9 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/suunto_d9.h>
-
-#include "context-private.h"
+#include "suunto_d9.h"
 #include "suunto_common2.h"
+#include "context-private.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"

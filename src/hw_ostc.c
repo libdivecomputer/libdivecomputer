@@ -22,8 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/hw_ostc.h>
-
+#include "hw_ostc.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
@@ -84,6 +83,8 @@ static const dc_device_vtable_t hw_ostc_device_vtable = {
 	hw_ostc_device_close /* close */
 };
 
+static dc_status_t
+hw_ostc_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
@@ -633,7 +634,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 }
 
 
-dc_status_t
+static dc_status_t
 hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;

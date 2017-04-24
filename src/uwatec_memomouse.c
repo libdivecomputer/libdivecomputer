@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/uwatec_memomouse.h>
-
+#include "uwatec_memomouse.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
@@ -62,6 +61,8 @@ static const dc_device_vtable_t uwatec_memomouse_device_vtable = {
 	uwatec_memomouse_device_close /* close */
 };
 
+static dc_status_t
+uwatec_memomouse_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 uwatec_memomouse_device_open (dc_device_t **out, dc_context_t *context, const char *name)
@@ -501,7 +502,7 @@ uwatec_memomouse_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 }
 
 
-dc_status_t
+static dc_status_t
 uwatec_memomouse_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))

@@ -19,12 +19,11 @@
  * MA 02110-1301 USA
  */
 
-#ifndef SUUNTO_EON_H
-#define SUUNTO_EON_H
+#ifndef DC_SUUNTO_EON_H
+#define DC_SUUNTO_EON_H
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
-#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,21 +32,12 @@ extern "C" {
 #define SUUNTO_EON_NAME_SIZE 20
 
 dc_status_t
-suunto_eon_device_open (dc_device_t **device, dc_context_t *context, const char *name);
-
-dc_status_t
 suunto_eon_device_write_name (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
 suunto_eon_device_write_interval (dc_device_t *device, unsigned char interval);
 
-dc_status_t
-suunto_eon_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
-
-dc_status_t
-suunto_eon_parser_create (dc_parser_t **parser, dc_context_t *context, int spyder);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* SUUNTO_EON_H */
+#endif /* DC_SUUNTO_EON_H */

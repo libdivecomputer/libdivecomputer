@@ -23,8 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libdivecomputer/suunto_eonsteel.h>
-
+#include "suunto_eonsteel.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "array.h"
@@ -548,7 +547,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 }
 
 dc_status_t
-suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eonsteel_device_t *eon = NULL;

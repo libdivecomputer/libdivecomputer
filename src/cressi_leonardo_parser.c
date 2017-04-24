@@ -21,8 +21,7 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/cressi_leonardo.h>
-
+#include "cressi_leonardo.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
@@ -57,7 +56,7 @@ static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
 
 
 dc_status_t
-cressi_leonardo_parser_create2 (dc_parser_t **out, dc_context_t *context, unsigned int model)
+cressi_leonardo_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	cressi_leonardo_parser_t *parser = NULL;
 
@@ -76,13 +75,6 @@ cressi_leonardo_parser_create2 (dc_parser_t **out, dc_context_t *context, unsign
 	*out = (dc_parser_t*) parser;
 
 	return DC_STATUS_SUCCESS;
-}
-
-
-dc_status_t
-cressi_leonardo_parser_create (dc_parser_t **parser, dc_context_t *context)
-{
-	return cressi_leonardo_parser_create2 (parser, context, 0);
 }
 
 

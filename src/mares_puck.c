@@ -23,11 +23,10 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/mares_puck.h>
-
+#include "mares_puck.h"
+#include "mares_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "mares_common.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"
@@ -266,42 +265,4 @@ mares_puck_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	dc_buffer_free (buffer);
 
 	return rc;
-}
-
-
-dc_status_t
-mares_puck_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
-{
-	mares_puck_device_t *device = (mares_puck_device_t*) abstract;
-
-	if (abstract && !ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	if (size < PACKETSIZE)
-		return DC_STATUS_DATAFORMAT;
-
-	dc_context_t *context = (abstract ? abstract->context : NULL);
-	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
-
-	const mares_common_layout_t *layout = NULL;
-	switch (data[1]) {
-	case NEMOWIDE:
-		layout = &mares_nemowide_layout;
-		break;
-	case NEMOAIR:
-	case PUCKAIR:
-		layout = &mares_nemoair_layout;
-		break;
-	case PUCK:
-		layout = &mares_puck_layout;
-		break;
-	default: // Unknown, try puck
-		layout = &mares_puck_layout;
-		break;
-	}
-
-	if (size < layout->memsize)
-		return DC_STATUS_DATAFORMAT;
-
-	return mares_common_extract_dives (context, layout, fingerprint, data, callback, userdata);
 }

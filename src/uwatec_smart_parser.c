@@ -22,9 +22,9 @@
 #include <stdlib.h>
 #include <string.h>	// memcmp
 
-#include <libdivecomputer/uwatec_smart.h>
 #include <libdivecomputer/units.h>
 
+#include "uwatec_smart.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

@@ -22,10 +22,9 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/suunto_vyper2.h>
-
-#include "context-private.h"
+#include "suunto_vyper2.h"
 #include "suunto_common2.h"
+#include "context-private.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"

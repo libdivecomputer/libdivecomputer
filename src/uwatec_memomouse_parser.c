@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/uwatec_memomouse.h>
 #include <libdivecomputer/units.h>
 
+#include "uwatec_memomouse.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

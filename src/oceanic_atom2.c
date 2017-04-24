@@ -22,11 +22,10 @@
 #include <string.h> // memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/oceanic_atom2.h>
-
+#include "oceanic_atom2.h"
+#include "oceanic_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "oceanic_common.h"
 #include "serial.h"
 #include "array.h"
 #include "ringbuffer.h"
@@ -556,14 +555,7 @@ oceanic_atom2_quit (oceanic_atom2_device_t *device)
 
 
 dc_status_t
-oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char *name)
-{
-	return oceanic_atom2_device_open2 (out, context, name, 0);
-}
-
-
-dc_status_t
-oceanic_atom2_device_open2 (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_atom2_device_t *device = NULL;

@@ -22,8 +22,8 @@
 #include <stdlib.h>
 
 #include <libdivecomputer/units.h>
-#include <libdivecomputer/diverite_nitekq.h>
 
+#include "diverite_nitekq.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

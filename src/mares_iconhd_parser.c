@@ -21,9 +21,9 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/mares_iconhd.h>
 #include <libdivecomputer/units.h>
 
+#include "mares_iconhd.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

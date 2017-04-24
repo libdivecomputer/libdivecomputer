@@ -23,8 +23,7 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
-#include <libdivecomputer/mares_iconhd.h>
-
+#include "mares_iconhd.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
@@ -210,7 +209,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 
 
 dc_status_t
-mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = NULL;

@@ -21,8 +21,7 @@
 
 #include <stdlib.h>
 
-#include <libdivecomputer/cressi_edy.h>
-
+#include "cressi_edy.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"

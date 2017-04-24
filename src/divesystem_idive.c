@@ -22,8 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/divesystem_idive.h>
-
+#include "divesystem_idive.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "serial.h"
@@ -97,14 +96,7 @@ static const divesystem_idive_commands_t ix3m = {
 };
 
 dc_status_t
-divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, const char *name)
-{
-	return divesystem_idive_device_open2 (out, context, name, 0);
-}
-
-
-dc_status_t
-divesystem_idive_device_open2 (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	divesystem_idive_device_t *device = NULL;

@@ -19,20 +19,17 @@
  * MA 02110-1301 USA
  */
 
-#ifndef SUUNTO_VYPER2_H
-#define SUUNTO_VYPER2_H
+#ifndef DC_SUUNTO_VYPER2_H
+#define DC_SUUNTO_VYPER2_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#include "context.h"
+#include "common.h"
 #include "device.h"
 
 #define SUUNTO_VYPER2_VERSION_SIZE 0x04
-
-dc_status_t
-suunto_vyper2_device_open (dc_device_t **device, dc_context_t *context, const char *name);
 
 dc_status_t
 suunto_vyper2_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
@@ -43,4 +40,4 @@ suunto_vyper2_device_reset_maxdepth (dc_device_t *device);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* SUUNTO_VYPER2_H */
+#endif /* DC_SUUNTO_VYPER2_H */

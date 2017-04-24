@@ -22,11 +22,10 @@
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
 
-#include <libdivecomputer/mares_nemo.h>
-
+#include "mares_nemo.h"
+#include "mares_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "mares_common.h"
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"
@@ -283,6 +282,8 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 static dc_status_t
 mares_nemo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
+	mares_nemo_device_t *device = (mares_nemo_device_t *) abstract;
+
 	dc_buffer_t *buffer = dc_buffer_new (MEMORYSIZE);
 	if (buffer == NULL)
 		return DC_STATUS_NOMEMORY;
@@ -301,28 +302,6 @@ mares_nemo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	devinfo.serial = array_uint16_be (data + 8);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	rc = mares_nemo_extract_dives (abstract, data, MEMORYSIZE, callback, userdata);
-
-	dc_buffer_free (buffer);
-
-	return rc;
-}
-
-
-dc_status_t
-mares_nemo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
-{
-	mares_nemo_device_t *device = (mares_nemo_device_t*) abstract;
-
-	if (abstract && !ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	if (size < PACKETSIZE)
-		return DC_STATUS_DATAFORMAT;
-
-	dc_context_t *context = (abstract ? abstract->context : NULL);
-	unsigned char *fingerprint = (device ? device->fingerprint : NULL);
-
 	const mares_common_layout_t *layout = NULL;
 	switch (data[1]) {
 	case NEMO:
@@ -333,12 +312,14 @@ mares_nemo_extract_dives (dc_device_t *abstract, const unsigned char data[], uns
 		layout = &mares_nemo_apneist_layout;
 		break;
 	default: // Unknown, try nemo
+		WARNING (abstract->context, "Unsupported model %02x detected!", data[1]);
 		layout = &mares_nemo_layout;
 		break;
 	}
 
-	if (size < layout->memsize)
-		return DC_STATUS_DATAFORMAT;
+	rc = mares_common_extract_dives (abstract->context, layout, device->fingerprint, data, callback, userdata);
 
-	return mares_common_extract_dives (context, layout, fingerprint, data, callback, userdata);
+	dc_buffer_free (buffer);
+
+	return rc;
 }
