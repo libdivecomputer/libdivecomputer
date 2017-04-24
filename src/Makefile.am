@@ -10,6 +10,7 @@ libdivecomputer_la_LDFLAGS = \
 	-export-symbols libdivecomputer.exp
 
 if OS_WIN32
+libdivecomputer_la_LIBADD += -lws2_32
 libdivecomputer_la_LDFLAGS += -Wc,-static-libgcc
 endif
 
@@ -74,15 +75,7 @@ else
 libdivecomputer_la_SOURCES += serial.h serial_posix.c
 endif
 
-if IRDA
-if OS_WIN32
-libdivecomputer_la_LIBADD += -lws2_32
-endif
 libdivecomputer_la_SOURCES += irda.h irda.c
-else
-libdivecomputer_la_SOURCES += irda.h irda_dummy.c
-endif
-
 libdivecomputer_la_SOURCES += usbhid.h usbhid.c
 
 if OS_WIN32

@@ -29,6 +29,16 @@
 #define USBHID
 #endif
 
+#ifdef _WIN32
+#ifdef HAVE_AF_IRDA_H
+#define IRDA
+#endif
+#else
+#ifdef HAVE_LINUX_IRDA_H
+#define IRDA
+#endif
+#endif
+
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -100,7 +110,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Uwatec Memomouse */
 	{"Uwatec", "Memomouse", DC_FAMILY_UWATEC_MEMOMOUSE, 0},
 	/* Uwatec Smart */
-#ifdef HAVE_IRDA
+#ifdef IRDA
 	{"Uwatec", "Smart Pro",     DC_FAMILY_UWATEC_SMART, 0x10},
 	{"Uwatec", "Galileo Sol",   DC_FAMILY_UWATEC_SMART, 0x11},
 	{"Uwatec", "Galileo Luna",  DC_FAMILY_UWATEC_SMART, 0x11},

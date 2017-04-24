@@ -114,13 +114,13 @@ AS_IF([test "x$with_hidapi" != "xno"], [
 AC_SUBST([DEPENDENCIES])
 
 # Checks for IrDA support.
-AC_CHECK_HEADERS([winsock2.h af_irda.h], [irda_win32=yes], [irda_win32=no], [
+AC_CHECK_HEADERS([winsock2.h af_irda.h], , , [
 #if HAVE_WINSOCK2_H
 #   include <winsock2.h>
 # endif
 ])
 
-AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], [irda_linux=yes], [irda_linux=no], [
+AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], , , [
 #if HAVE_SYS_SOCKET_H
 #   include <sys/socket.h>
 # endif
@@ -128,12 +128,6 @@ AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], [irda_linux=yes], [i
 #   include <linux/types.h>
 # endif
 ])
-
-if test "$irda_win32" = "yes" || test "$irda_linux" = "yes"; then
-	AC_DEFINE([HAVE_IRDA], [1], [IrDA support])
-fi
-
-AM_CONDITIONAL([IRDA], [test "$irda_win32" = "yes" || test "$irda_linux" = "yes"])
 
 # Checks for header files.
 AC_CHECK_HEADERS([linux/serial.h])

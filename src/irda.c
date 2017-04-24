@@ -19,21 +19,31 @@
  * MA 02110-1301 USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h> // malloc, free
 #include <stdio.h>	// snprintf
 #ifdef _WIN32
 	#define NOGDI
 	#include <winsock2.h>
 	#include <windows.h>
+	#ifdef HAVE_AF_IRDA_H
+	#define IRDA
 	#include <af_irda.h>
+	#endif
 #else
 	#include <string.h>			// strerror
 	#include <errno.h>			// errno
 	#include <unistd.h>			// close
 	#include <sys/types.h>		// socket, getsockopt
 	#include <sys/socket.h>		// socket, getsockopt
+	#ifdef HAVE_LINUX_IRDA_H
+	#define IRDA
 	#include <linux/types.h>	// irda
 	#include <linux/irda.h>		// irda
+	#endif
 	#include <sys/select.h>		// select
 	#include <sys/ioctl.h>		// ioctl
 	#include <sys/time.h>
@@ -86,6 +96,7 @@ struct dc_irda_t {
 	int timeout;
 };
 
+#ifdef IRDA
 static dc_status_t
 syserror(s_errcode_t errcode)
 {
@@ -102,10 +113,12 @@ syserror(s_errcode_t errcode)
 		return DC_STATUS_IO;
 	}
 }
+#endif
 
 dc_status_t
 dc_irda_open (dc_irda_t **out, dc_context_t *context)
 {
+#ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_irda_t *device = NULL;
 
@@ -167,11 +180,15 @@ error_free:
 #endif
 	free (device);
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_close (dc_irda_t *device)
 {
+#ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	if (device == NULL)
@@ -200,11 +217,15 @@ dc_irda_close (dc_irda_t *device)
 	free (device);
 
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_set_timeout (dc_irda_t *device, int timeout)
 {
+#ifdef IRDA
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
@@ -213,6 +234,9 @@ dc_irda_set_timeout (dc_irda_t *device, int timeout)
 	device->timeout = timeout;
 
 	return DC_STATUS_SUCCESS;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 
@@ -230,6 +254,7 @@ dc_irda_set_timeout (dc_irda_t *device, int timeout)
 dc_status_t
 dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata)
 {
+#ifdef IRDA
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
@@ -303,11 +328,15 @@ dc_irda_discover (dc_irda_t *device, dc_irda_callback_t callback, void *userdata
 	}
 
 	return DC_STATUS_SUCCESS;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_connect_name (dc_irda_t *device, unsigned int address, const char *name)
 {
+#ifdef IRDA
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
@@ -341,11 +370,15 @@ dc_irda_connect_name (dc_irda_t *device, unsigned int address, const char *name)
 	}
 
 	return DC_STATUS_SUCCESS;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_connect_lsap (dc_irda_t *device, unsigned int address, unsigned int lsap)
 {
+#ifdef IRDA
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
@@ -374,11 +407,15 @@ dc_irda_connect_lsap (dc_irda_t *device, unsigned int address, unsigned int lsap
 	}
 
 	return DC_STATUS_SUCCESS;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_get_available (dc_irda_t *device, size_t *value)
 {
+#ifdef IRDA
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
@@ -398,11 +435,15 @@ dc_irda_get_available (dc_irda_t *device, size_t *value)
 		*value = bytes;
 
 	return DC_STATUS_SUCCESS;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_read (dc_irda_t *device, void *data, size_t size, size_t *actual)
 {
+#ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
 	size_t nbytes = 0;
 
@@ -463,11 +504,15 @@ out_invalidargs:
 		*actual = nbytes;
 
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
 
 dc_status_t
 dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 {
+#ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
 	size_t nbytes = 0;
 
@@ -520,4 +565,7 @@ out_invalidargs:
 		*actual = nbytes;
 
 	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
 }
