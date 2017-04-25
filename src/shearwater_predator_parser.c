@@ -202,6 +202,8 @@ shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *d
 	if (!dc_datetime_gmtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
 
+	datetime->timezone = DC_TIMEZONE_NONE;
+
 	return DC_STATUS_SUCCESS;
 }
 

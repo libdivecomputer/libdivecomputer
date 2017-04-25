@@ -394,6 +394,7 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	dt.hour   = p[3];
 	dt.minute = p[4];
 	dt.second = 0;
+	dt.timezone = DC_TIMEZONE_NONE;
 
 	if (version == 0x24) {
 		if (datetime)
@@ -405,8 +406,10 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 
 		ticks -= divetime;
 
-		if (!dc_datetime_localtime (datetime, ticks))
+		if (!dc_datetime_gmtime (datetime, ticks))
 			return DC_STATUS_DATAFORMAT;
+
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

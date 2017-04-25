@@ -135,6 +135,7 @@ oceanic_vtpro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		}
 		datetime->minute = bcd2dec (p[0]);
 		datetime->second = 0;
+		datetime->timezone = DC_TIMEZONE_NONE;
 
 		// Convert to a 24-hour clock.
 		datetime->hour %= 12;

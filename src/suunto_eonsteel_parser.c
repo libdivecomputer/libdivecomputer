@@ -1114,7 +1114,11 @@ suunto_eonsteel_parser_get_datetime(dc_parser_t *parser, dc_datetime_t *datetime
 	if (parser->size < 4)
 		return DC_STATUS_UNSUPPORTED;
 
-	dc_datetime_gmtime(datetime, array_uint32_le(parser->data));
+	if (!dc_datetime_gmtime(datetime, array_uint32_le(parser->data)))
+		return DC_STATUS_DATAFORMAT;
+
+	datetime->timezone = DC_TIMEZONE_NONE;
+
 	return DC_STATUS_SUCCESS;
 }
 

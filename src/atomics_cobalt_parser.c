@@ -122,6 +122,7 @@ atomics_cobalt_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dateti
 		datetime->hour   = p[0x18];
 		datetime->minute = p[0x19];
 		datetime->second = 0;
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

@@ -158,9 +158,14 @@ AC_CHECK_HEADERS([sys/param.h])
 # Checks for global variable declarations.
 AC_CHECK_DECLS([optreset])
 
+# Checks for structures.
+AC_CHECK_MEMBERS([struct tm.tm_gmtoff],,,[
+#include <time.h>
+])
+
 # Checks for library functions.
 AC_FUNC_STRERROR_R
-AC_CHECK_FUNCS([localtime_r gmtime_r])
+AC_CHECK_FUNCS([localtime_r gmtime_r timegm _mkgmtime])
 AC_CHECK_FUNCS([getopt_long])
 
 # Versioning.

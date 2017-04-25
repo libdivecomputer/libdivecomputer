@@ -230,9 +230,16 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 		goto cleanup;
 	}
 
-	fprintf (output->ostream, "<datetime>%04i-%02i-%02i %02i:%02i:%02i</datetime>\n",
-		dt.year, dt.month, dt.day,
-		dt.hour, dt.minute, dt.second);
+	if (dt.timezone == DC_TIMEZONE_NONE) {
+		fprintf (output->ostream, "<datetime>%04i-%02i-%02i %02i:%02i:%02i</datetime>\n",
+			dt.year, dt.month, dt.day,
+			dt.hour, dt.minute, dt.second);
+	} else {
+		fprintf (output->ostream, "<datetime>%04i-%02i-%02i %02i:%02i:%02i %+03i:%02i</datetime>\n",
+			dt.year, dt.month, dt.day,
+			dt.hour, dt.minute, dt.second,
+			dt.timezone / 3600, (dt.timezone % 3600) / 60);
+	}
 
 	// Parse the divetime.
 	message ("Parsing the divetime.\n");

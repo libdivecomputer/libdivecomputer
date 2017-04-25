@@ -26,6 +26,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define DC_TIMEZONE_NONE 0x80000000
+
 #if defined (_WIN32) && !defined (__GNUC__)
 typedef __int64 dc_ticks_t;
 #else
@@ -39,6 +41,7 @@ typedef struct dc_datetime_t {
 	int hour;
 	int minute;
 	int second;
+	int timezone;
 } dc_datetime_t;
 
 dc_ticks_t

@@ -118,6 +118,7 @@ diverite_nitekq_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datet
 		datetime->hour = p[3];
 		datetime->minute = p[4];
 		datetime->second = p[5];
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

@@ -95,6 +95,7 @@ citizen_aqualand_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *date
 		datetime->hour   = bcd2dec(p[0x0A]);
 		datetime->minute = bcd2dec(p[0x0B]);
 		datetime->second = bcd2dec(p[0x0C]);
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

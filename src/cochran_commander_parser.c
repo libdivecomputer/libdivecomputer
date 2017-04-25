@@ -435,6 +435,7 @@ cochran_commander_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dat
 			datetime->day = data[layout->datetime + 2];
 			datetime->month = data[layout->datetime + 5];
 			datetime->year = data[layout->datetime + 4] + (data[layout->datetime + 4] > 91 ? 1900 : 2000);
+			datetime->timezone = DC_TIMEZONE_NONE;
 			break;
 		case DATE_ENCODING_SMHDMY:
 			datetime->second = data[layout->datetime + 0];
@@ -443,6 +444,7 @@ cochran_commander_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dat
 			datetime->day = data[layout->datetime + 3];
 			datetime->month = data[layout->datetime + 4];
 			datetime->year = data[layout->datetime + 5] + (data[layout->datetime + 5] > 91 ? 1900 : 2000);
+			datetime->timezone = DC_TIMEZONE_NONE;
 			break;
 		case DATE_ENCODING_TICKS:
 			ts = array_uint32_le(data + layout->datetime) + COCHRAN_EPOCH;

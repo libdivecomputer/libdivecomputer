@@ -324,6 +324,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			break;
 		}
 		datetime->second = 0;
+		datetime->timezone = DC_TIMEZONE_NONE;
 
 		// Convert to a 24-hour clock.
 		datetime->hour %= 12;

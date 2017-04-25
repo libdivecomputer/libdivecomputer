@@ -100,6 +100,7 @@ cressi_leonardo_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datet
 		datetime->hour = p[11];
 		datetime->minute = p[12];
 		datetime->second = 0;
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

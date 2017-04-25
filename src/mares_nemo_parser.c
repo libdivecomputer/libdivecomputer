@@ -200,6 +200,7 @@ mares_nemo_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		datetime->hour   = p[3];
 		datetime->minute = p[4];
 		datetime->second = 0;
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

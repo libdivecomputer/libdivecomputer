@@ -329,6 +329,7 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 		datetime->day    = array_uint16_le (p + 4);
 		datetime->month  = array_uint16_le (p + 6) + 1;
 		datetime->year   = array_uint16_le (p + 8) + 1900;
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;

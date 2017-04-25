@@ -121,6 +121,7 @@ oceanic_veo250_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dateti
 		datetime->hour   = p[3];
 		datetime->minute = p[2];
 		datetime->second = 0;
+		datetime->timezone = DC_TIMEZONE_NONE;
 
 		if (parser->model == VEO200 || parser->model == VEO250)
 			datetime->year += 3;

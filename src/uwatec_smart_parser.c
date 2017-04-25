@@ -710,6 +710,8 @@ uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 
 		if (!dc_datetime_gmtime (datetime, ticks))
 			return DC_STATUS_DATAFORMAT;
+
+		datetime->timezone = utc_offset * 900;
 	} else {
 		// For devices without timezone support, the current timezone of
 		// the host system is used.

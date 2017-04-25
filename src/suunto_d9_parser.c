@@ -317,6 +317,7 @@ suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 			datetime->month  = p[5];
 			datetime->day    = p[6];
 		}
+		datetime->timezone = DC_TIMEZONE_NONE;
 	}
 
 	return DC_STATUS_SUCCESS;
