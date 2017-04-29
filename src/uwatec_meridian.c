@@ -228,7 +228,11 @@ uwatec_meridian_device_open (dc_device_t **out, dc_context_t *context, const cha
 	dc_serial_purge (device->port, DC_DIRECTION_ALL);
 
 	// Perform the handshaking.
-	uwatec_meridian_handshake (device);
+	status = uwatec_meridian_handshake (device);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to handshake with the device.");
+		goto error_close;
+	}
 
 	*out = (dc_device_t*) device;
 

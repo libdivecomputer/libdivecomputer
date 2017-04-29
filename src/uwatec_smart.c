@@ -191,7 +191,11 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Perform the handshaking.
-	uwatec_smart_handshake (device);
+	status = uwatec_smart_handshake (device);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to handshake with the device.");
+		goto error_close;
+	}
 
 	*out = (dc_device_t*) device;
 
