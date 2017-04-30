@@ -230,6 +230,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Puck Pro",          DC_FAMILY_MARES_ICONHD , 0x18},
 	{"Mares", "Nemo Wide 2",       DC_FAMILY_MARES_ICONHD , 0x19},
 	{"Mares", "Puck 2",            DC_FAMILY_MARES_ICONHD , 0x1F},
+	{"Mares", "Quad",              DC_FAMILY_MARES_ICONHD , 0x29},
 	/* Heinrichs Weikamp */
 	{"Heinrichs Weikamp", "OSTC",     DC_FAMILY_HW_OSTC, 0},
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1},

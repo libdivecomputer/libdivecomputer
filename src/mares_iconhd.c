@@ -42,6 +42,7 @@
 #define PUCKPRO   0x18
 #define NEMOWIDE2 0x19
 #define PUCK2     0x1F
+#define QUAD      0x29
 
 #define ACK 0xAA
 #define EOF 0xEA
@@ -125,6 +126,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 		{"Puck Pro",    PUCKPRO},
 		{"Nemo Wide 2", NEMOWIDE2},
 		{"Puck 2",      PUCK2},
+		{"Quad",        QUAD},
 	};
 
 	// Check the product name in the version packet against the list
@@ -292,6 +294,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 	case NEMOWIDE2:
 	case SMART:
 	case SMARTAPNEA:
+	case QUAD:
 		device->layout = &mares_nemowide2_layout;
 		device->packetsize = 256;
 		break;
