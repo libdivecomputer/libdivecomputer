@@ -125,6 +125,8 @@ static const unsigned char ostc3_key[16] = {
 };
 
 static dc_status_t hw_ostc3_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
+static dc_status_t hw_ostc3_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
+static dc_status_t hw_ostc3_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static dc_status_t hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t hw_ostc3_device_close (dc_device_t *abstract);
@@ -133,8 +135,8 @@ static const dc_device_vtable_t hw_ostc3_device_vtable = {
 	sizeof(hw_ostc3_device_t),
 	DC_FAMILY_HW_OSTC3,
 	hw_ostc3_device_set_fingerprint, /* set_fingerprint */
-	NULL, /* read */
-	NULL, /* write */
+	hw_ostc3_device_read, /* read */
+	hw_ostc3_device_write, /* write */
 	hw_ostc3_device_dump, /* dump */
 	hw_ostc3_device_foreach, /* foreach */
 	hw_ostc3_device_close /* close */
@@ -1181,7 +1183,7 @@ hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsi
 }
 
 static dc_status_t
-hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, unsigned char block[], unsigned int block_size)
+hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, const unsigned char block[], unsigned int block_size)
 {
 	unsigned char buffer[3 + SZ_FIRMWARE_BLOCK];
 
@@ -1444,6 +1446,87 @@ hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
 	} else {
 		return hw_ostc3_device_fwupdate3 (abstract, filename);
 	}
+}
+
+static dc_status_t
+hw_ostc3_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if ((address % SZ_FIRMWARE_BLOCK != 0) ||
+		(size % SZ_FIRMWARE_BLOCK != 0)) {
+		ERROR (abstract->context, "Address or size not aligned to the page size!");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Make sure the device is in service mode.
+	status = hw_ostc3_device_init (device, SERVICE);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	if (device->hardware == OSTC4) {
+		return DC_STATUS_UNSUPPORTED;
+	}
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		// Read a memory page.
+		status = hw_ostc3_firmware_block_read (device, address + nbytes, data + nbytes, SZ_FIRMWARE_BLOCK);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read block.");
+			return status;
+		}
+
+		nbytes += SZ_FIRMWARE_BLOCK;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+hw_ostc3_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
+
+	if ((address % SZ_FIRMWARE_BLOCK != 0) ||
+		(size % SZ_FIRMWARE_BLOCK != 0)) {
+		ERROR (abstract->context, "Address or size not aligned to the page size!");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Make sure the device is in service mode.
+	status = hw_ostc3_device_init (device, SERVICE);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	if (device->hardware == OSTC4) {
+		return DC_STATUS_UNSUPPORTED;
+	}
+
+	// Erase the memory pages.
+	status = hw_ostc3_firmware_erase (device, address, size);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to erase blocks.");
+		return status;
+	}
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		// Write a memory page.
+		status = hw_ostc3_firmware_block_write (device, address + nbytes, data + nbytes, SZ_FIRMWARE_BLOCK);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to write block.");
+			return status;
+		}
+
+		nbytes += SZ_FIRMWARE_BLOCK;
+	}
+
+	return DC_STATUS_SUCCESS;
 }
 
 static dc_status_t
