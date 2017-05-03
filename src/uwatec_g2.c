@@ -39,7 +39,7 @@
 
 typedef struct uwatec_g2_device_t {
 	dc_device_t base;
-	dc_usbhid_t *usbhid;
+	dc_iostream_t *iostream;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -74,7 +74,7 @@ receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigne
 		dc_status_t rc = DC_STATUS_SUCCESS;
 		unsigned int len = 0;
 
-		rc = dc_usbhid_read (device->usbhid, buf, sizeof(buf), &transferred);
+		rc = dc_iostream_read (device->iostream, buf, sizeof(buf), &transferred);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (device->base.context, "read interrupt transfer failed");
 			return rc;
@@ -126,7 +126,7 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 	buf[1] = csize;
 	memcpy(buf + 2, command, csize);
 	memset(buf + 2 + csize, 0, sizeof(buf) - (csize + 2));
-	status = dc_usbhid_write (device->usbhid, buf, sizeof(buf), &transferred);
+	status = dc_iostream_write (device->iostream, buf, sizeof(buf), &transferred);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to send the command.");
 		return status;
@@ -196,7 +196,7 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, unsigned int mo
 	}
 
 	// Set the default values.
-	device->usbhid = NULL;
+	device->iostream = NULL;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
@@ -210,7 +210,7 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, unsigned int mo
 		vid = 0x2e6c;
 		pid = 0x3201;
 	}
-	status = dc_usbhid_open (&device->usbhid, context, vid, pid);
+	status = dc_usbhid_open (&device->iostream, context, vid, pid);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open USB device");
 		goto error_free;
@@ -228,7 +228,7 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, unsigned int mo
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_usbhid_close (device->usbhid);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -243,7 +243,7 @@ uwatec_g2_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_usbhid_close (device->usbhid);
+	rc = dc_iostream_close (device->iostream);
 	if (status != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
