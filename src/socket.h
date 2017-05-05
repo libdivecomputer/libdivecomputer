@@ -105,13 +105,46 @@ dc_status_t
 dc_socket_set_timeout (dc_iostream_t *iostream, int timeout);
 
 dc_status_t
+dc_socket_set_latency (dc_iostream_t *iostream, unsigned int value);
+
+dc_status_t
+dc_socket_set_halfduplex (dc_iostream_t *iostream, unsigned int value);
+
+dc_status_t
+dc_socket_set_break (dc_iostream_t *iostream, unsigned int value);
+
+dc_status_t
+dc_socket_set_dtr (dc_iostream_t *iostream, unsigned int value);
+
+dc_status_t
+dc_socket_set_rts (dc_iostream_t *iostream, unsigned int value);
+
+dc_status_t
+dc_socket_get_lines (dc_iostream_t *iostream, unsigned int *value);
+
+dc_status_t
 dc_socket_get_available (dc_iostream_t *iostream, size_t *value);
+
+dc_status_t
+dc_socket_configure (dc_iostream_t *iostream, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol);
 
 dc_status_t
 dc_socket_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 
 dc_status_t
 dc_socket_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+
+dc_status_t
+dc_socket_flush (dc_iostream_t *iostream);
+
+dc_status_t
+dc_socket_purge (dc_iostream_t *iostream, dc_direction_t direction);
+
+dc_status_t
+dc_socket_sleep (dc_iostream_t *iostream, unsigned int milliseconds);
+
+dc_status_t
+dc_socket_close (dc_iostream_t *iostream);
 
 #ifdef __cplusplus
 }

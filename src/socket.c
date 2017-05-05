@@ -164,6 +164,45 @@ dc_socket_set_timeout (dc_iostream_t *abstract, int timeout)
 }
 
 dc_status_t
+dc_socket_set_latency (dc_iostream_t *iostream, unsigned int value)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_set_halfduplex (dc_iostream_t *iostream, unsigned int value)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_set_break (dc_iostream_t *iostream, unsigned int value)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_set_dtr (dc_iostream_t *iostream, unsigned int value)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_set_rts (dc_iostream_t *iostream, unsigned int value)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_get_lines (dc_iostream_t *iostream, unsigned int *value)
+{
+	if (value)
+		*value = 0;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
 dc_socket_get_available (dc_iostream_t *abstract, size_t *value)
 {
 	dc_socket_t *socket = (dc_socket_t *) abstract;
@@ -183,6 +222,12 @@ dc_socket_get_available (dc_iostream_t *abstract, size_t *value)
 	if (value)
 		*value = bytes;
 
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_configure (dc_iostream_t *abstract, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol)
+{
 	return DC_STATUS_SUCCESS;
 }
 
@@ -292,4 +337,22 @@ out:
 		*actual = nbytes;
 
 	return status;
+}
+
+dc_status_t
+dc_socket_flush (dc_iostream_t *abstract)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_purge (dc_iostream_t *abstract, dc_direction_t direction)
+{
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_socket_sleep (dc_iostream_t *abstract, unsigned int timeout)
+{
+	return DC_STATUS_SUCCESS;
 }
