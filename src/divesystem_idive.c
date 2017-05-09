@@ -372,7 +372,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_le (packet);
-	devinfo.firmware = 0;
+	devinfo.firmware = array_uint32_le (packet + 2);
 	devinfo.serial = array_uint32_le (packet + 6);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
