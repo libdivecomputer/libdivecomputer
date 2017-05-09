@@ -101,7 +101,6 @@ static const oceanic_common_version_t oceanic_atom2_version[] = {
 
 static const oceanic_common_version_t oceanic_atom2a_version[] = {
 	{"MANTA  R\0\0  512K"},
-	{"WISDOM R\0\0  512K"},
 	{"INSIGHT2 \0\0 512K"},
 	{"OCEVEO30 \0\0 512K"},
 	{"ATMOSAI R\0\0 512K"},
@@ -130,6 +129,10 @@ static const oceanic_common_version_t oceanic_default_version[] = {
 	{"ELITET31 \0\0 512K"},
 	{"DATAMASK \0\0 512K"},
 	{"COMPMASK \0\0 512K"},
+};
+
+static const oceanic_common_version_t sherwood_wisdom_version[] = {
+	{"WISDOM R\0\0  512K"},
 };
 
 static const oceanic_common_version_t oceanic_proplus3_version[] = {
@@ -283,6 +286,20 @@ static const oceanic_common_layout_t oceanic_atom2c_layout = {
 	8, /* rb_logbook_entry_size */
 	0x0A40, /* rb_profile_begin */
 	0xFFF0, /* rb_profile_end */
+	0, /* pt_mode_global */
+	0, /* pt_mode_logbook */
+	0, /* pt_mode_serial */
+};
+
+static const oceanic_common_layout_t sherwood_wisdom_layout = {
+	0xFFF0, /* memsize */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x03D0, /* rb_logbook_begin */
+	0x0A40, /* rb_logbook_end */
+	8, /* rb_logbook_entry_size */
+	0x0A40, /* rb_profile_begin */
+	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
 	0, /* pt_mode_logbook */
 	0, /* pt_mode_serial */
@@ -645,6 +662,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		device->base.layout = &oceanic_atom2b_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2c_version)) {
 		device->base.layout = &oceanic_atom2c_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, sherwood_wisdom_version)) {
+		device->base.layout = &sherwood_wisdom_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_proplus3_version)) {
 		device->base.layout = &oceanic_proplus3_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, tusa_zenair_version)) {
