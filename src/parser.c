@@ -149,10 +149,10 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = atomics_cobalt_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_SHEARWATER_PREDATOR:
-		rc = shearwater_predator_parser_create (&parser, context);
+		rc = shearwater_predator_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_SHEARWATER_PETREL:
-		rc = shearwater_petrel_parser_create (&parser, context);
+		rc = shearwater_petrel_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_DIVERITE_NITEKQ:
 		rc = diverite_nitekq_parser_create (&parser, context);
