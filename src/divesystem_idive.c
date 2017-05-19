@@ -367,7 +367,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	unsigned char packet[MAXPACKET - 2];
 
 	const divesystem_idive_commands_t *commands = &idive;
-	if (device->model >= IX3M_EASY && device->model <= IX3M_REB) {
+	if (device->model >= IX3M_EASY) {
 		commands = &ix3m;
 	}
 
@@ -393,7 +393,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	vendor.size = commands->id.size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
-	if (device->model >= IX3M_EASY && device->model <= IX3M_REB) {
+	if (device->model >= IX3M_EASY) {
 		// Detect the APOS4 firmware.
 		unsigned int apos4 = (devinfo.firmware / 10000000) >= 4;
 		if (apos4) {

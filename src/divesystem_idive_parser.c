@@ -99,7 +99,7 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 
 	// Set the default values.
 	parser->model = model;
-	if (model >= IX3M_EASY && model <= IX3M_REB) {
+	if (model >= IX3M_EASY) {
 		parser->headersize = SZ_HEADER_IX3M;
 	} else {
 		parser->headersize = SZ_HEADER_IDIVE;
@@ -243,7 +243,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 	unsigned int nsamples = array_uint16_le (data + 1);
 	unsigned int samplesize = SZ_SAMPLE_IDIVE;
-	if (parser->model >= IX3M_EASY && parser->model <= IX3M_REB) {
+	if (parser->model >= IX3M_EASY) {
 		// Detect the APOS4 firmware.
 		unsigned int firmware = array_uint32_le(data + 0x2A);
 		unsigned int apos4 = (firmware / 10000000) >= 4;
