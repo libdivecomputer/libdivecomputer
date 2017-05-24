@@ -37,6 +37,7 @@
 #define SZ_SAMPLE_IDIVE 0x2A
 #define SZ_HEADER_IX3M  0x36
 #define SZ_SAMPLE_IX3M  0x36
+#define SZ_SAMPLE_IX3M_APOS4 0x40
 
 #define NGASMIXES 8
 
@@ -53,8 +54,8 @@ typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
 struct divesystem_idive_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 	unsigned int headersize;
-	unsigned int samplesize;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int divemode;
@@ -97,12 +98,11 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 	}
 
 	// Set the default values.
-	if (model >= IX3M_EASY && model <= IX3M_REB) {
+	parser->model = model;
+	if (model >= IX3M_EASY) {
 		parser->headersize = SZ_HEADER_IX3M;
-		parser->samplesize = SZ_SAMPLE_IX3M;
 	} else {
 		parser->headersize = SZ_HEADER_IDIVE;
-		parser->samplesize = SZ_SAMPLE_IDIVE;
 	}
 	parser->cached = 0;
 	parser->divemode = INVALID;
@@ -241,8 +241,27 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int mode_previous = INVALID;
 	unsigned int divemode = INVALID;
 
+	unsigned int nsamples = array_uint16_le (data + 1);
+	unsigned int samplesize = SZ_SAMPLE_IDIVE;
+	if (parser->model >= IX3M_EASY) {
+		// Detect the APOS4 firmware.
+		unsigned int firmware = array_uint32_le(data + 0x2A);
+		unsigned int apos4 = (firmware / 10000000) >= 4;
+		if (apos4) {
+			// Dive downloaded and recorded with the APOS4 firmware.
+			samplesize = SZ_SAMPLE_IX3M_APOS4;
+		} else if (size == parser->headersize + nsamples * SZ_SAMPLE_IX3M_APOS4) {
+			// Dive downloaded with the APOS4 firmware, but recorded
+			// with an older firmware.
+			samplesize = SZ_SAMPLE_IX3M_APOS4;
+		} else {
+			// Dive downloaded and recorded with an older firmware.
+			samplesize = SZ_SAMPLE_IX3M;
+		}
+	}
+
 	unsigned int offset = parser->headersize;
-	while (offset + parser->samplesize <= size) {
+	while (offset + samplesize <= size) {
 		dc_sample_value_t sample = {0};
 
 		// Time (seconds).
@@ -328,7 +347,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		sample.cns = cns / 100.0;
 		if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 
-		offset += parser->samplesize;
+		offset += samplesize;
 	}
 
 	// Cache the data for later use.

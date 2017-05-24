@@ -57,6 +57,7 @@ typedef struct divesystem_idive_commands_t {
 	divesystem_idive_command_t range;
 	divesystem_idive_command_t header;
 	divesystem_idive_command_t sample;
+	unsigned int nsamples;
 } divesystem_idive_commands_t;
 
 typedef struct divesystem_idive_device_t {
@@ -86,6 +87,7 @@ static const divesystem_idive_commands_t idive = {
 	{0x98, 0x04},
 	{0xA0, 0x32},
 	{0xA8, 0x2A},
+	1,
 };
 
 static const divesystem_idive_commands_t ix3m = {
@@ -93,6 +95,15 @@ static const divesystem_idive_commands_t ix3m = {
 	{0x78, 0x04},
 	{0x79, 0x36},
 	{0x7A, 0x36},
+	1,
+};
+
+static const divesystem_idive_commands_t ix3m_apos4 = {
+	{0x11, 0x1A},
+	{0x78, 0x04},
+	{0x79, 0x36},
+	{0x7A, 0x40},
+	3,
 };
 
 dc_status_t
@@ -356,7 +367,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	unsigned char packet[MAXPACKET - 2];
 
 	const divesystem_idive_commands_t *commands = &idive;
-	if (device->model >= IX3M_EASY && device->model <= IX3M_REB) {
+	if (device->model >= IX3M_EASY) {
 		commands = &ix3m;
 	}
 
@@ -372,7 +383,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_le (packet);
-	devinfo.firmware = 0;
+	devinfo.firmware = array_uint32_le (packet + 2);
 	devinfo.serial = array_uint32_le (packet + 6);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
@@ -381,6 +392,14 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	vendor.data = packet;
 	vendor.size = commands->id.size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
+	if (device->model >= IX3M_EASY) {
+		// Detect the APOS4 firmware.
+		unsigned int apos4 = (devinfo.firmware / 10000000) >= 4;
+		if (apos4) {
+			commands = &ix3m_apos4;
+		}
+	}
 
 	unsigned char cmd_range[] = {commands->range.cmd, 0x8D};
 	rc = divesystem_idive_transfer (device, cmd_range, sizeof(cmd_range), packet, commands->range.size);
@@ -429,20 +448,28 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		dc_buffer_reserve(buffer, commands->header.size + commands->sample.size * nsamples);
 		dc_buffer_append(buffer, packet, commands->header.size);
 
-		for (unsigned int j = 0; j < nsamples; ++j) {
+		for (unsigned int j = 0; j < nsamples; j += commands->nsamples) {
 			unsigned int idx = j + 1;
 			unsigned char cmd_sample[] = {commands->sample.cmd,
 				(idx     ) & 0xFF,
 				(idx >> 8) & 0xFF};
-			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size);
+			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size * commands->nsamples);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
 
+			// If the number of samples is not an exact multiple of the
+			// number of samples per packet, then the last packet
+			// appears to contain garbage data. Ignore those samples.
+			unsigned int n = commands->nsamples;
+			if (j + n > nsamples) {
+				n = nsamples - j;
+			}
+
 			// Update and emit a progress event.
-			progress.current = i * NSTEPS + STEP(j + 2, nsamples + 1);
+			progress.current = i * NSTEPS + STEP(j + n + 1, nsamples + 1);
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-			dc_buffer_append(buffer, packet, commands->sample.size);
+			dc_buffer_append(buffer, packet, commands->sample.size * n);
 		}
 
 		unsigned char *data = dc_buffer_get_data(buffer);
