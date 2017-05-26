@@ -42,7 +42,7 @@ typedef enum cochran_endian_t {
 } cochran_endian_t;
 
 typedef struct cochran_commander_model_t {
-	unsigned char id[8 + 1];
+	unsigned char id[2 + 1];
 	unsigned int model;
 } cochran_commander_model_t;
 
@@ -199,10 +199,10 @@ static unsigned int
 cochran_commander_get_model (cochran_commander_device_t *device)
 {
 	const cochran_commander_model_t models[] = {
-		{"AM\x11""2212\x02", COCHRAN_MODEL_COMMANDER_AIR_NITROX},
-		{"AM7303\x8b\x43",   COCHRAN_MODEL_EMC_14},
-		{"AMA315\xC3\xC5",   COCHRAN_MODEL_EMC_16},
-		{"AM2315\xA3\x71",   COCHRAN_MODEL_EMC_20},
+		{"\x11""2", COCHRAN_MODEL_COMMANDER_AIR_NITROX},
+		{"73",      COCHRAN_MODEL_EMC_14},
+		{"A3",      COCHRAN_MODEL_EMC_16},
+		{"23",      COCHRAN_MODEL_EMC_20},
 	};
 
 	unsigned int model = 0xFFFFFFFF;
