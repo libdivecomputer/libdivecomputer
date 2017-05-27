@@ -444,11 +444,11 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 		if ((status & OC) == 0) {
 			// PPO2
-#ifdef SENSOR_AVERAGE
-			sample.ppo2 = data[offset + 6] / 100.0;
-			if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
-#else
 			if ((status & PPO2_EXTERNAL) == 0) {
+#ifdef SENSOR_AVERAGE
+				sample.ppo2 = data[offset + 6] / 100.0;
+				if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+#else
 				sample.ppo2 = data[offset + 12] * parser->calibration[0];
 				if (callback && (data[86] & 0x01)) callback (DC_SAMPLE_PPO2, sample, userdata);
 
@@ -457,8 +457,8 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 				sample.ppo2 = data[offset + 15] * parser->calibration[2];
 				if (callback && (data[86] & 0x04)) callback (DC_SAMPLE_PPO2, sample, userdata);
-			}
 #endif
+			}
 
 			// Setpoint
 			if (parser->petrel) {
