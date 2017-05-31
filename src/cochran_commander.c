@@ -32,6 +32,8 @@
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
+#define MAXRETRIES 2
+
 #define COCHRAN_MODEL_COMMANDER_AIR_NITROX 0
 #define COCHRAN_MODEL_EMC_14 1
 #define COCHRAN_MODEL_EMC_16 2
@@ -433,6 +435,31 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 		return rc;
 
 	return DC_STATUS_SUCCESS;
+}
+
+static unsigned int
+cochran_commander_read_retry (cochran_commander_device_t *device, dc_event_progress_t *progress, unsigned int address, unsigned char data[], unsigned int size)
+{
+	// Save the state of the progress events.
+	unsigned int saved = progress->current;
+
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = cochran_commander_read (device, progress, address, data, size)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Restore the state of the progress events.
+		progress->current = saved;
+	}
+
+	return rc;
 }
 
 
@@ -890,7 +917,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 				sample_end_address = cochran_commander_guess_sample_end_address(device, &data, i);
 
 			if (sample_start_address <= sample_end_address) {
-				rc = cochran_commander_read (device, &progress, sample_start_address, dive + device->layout->rb_logbook_entry_size, sample_size);
+				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + device->layout->rb_logbook_entry_size, sample_size);
 				if (rc != DC_STATUS_SUCCESS) {
 					ERROR (abstract->context, "Failed to read the sample data.");
 					status = rc;
@@ -901,14 +928,15 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 				// It wrapped the buffer, copy two sections
 				unsigned int size = device->layout->rb_profile_end - sample_start_address;
 
-				rc = cochran_commander_read (device, &progress, sample_start_address, dive + device->layout->rb_logbook_entry_size, size);
+				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + device->layout->rb_logbook_entry_size, size);
 				if (rc != DC_STATUS_SUCCESS) {
 					ERROR (abstract->context, "Failed to read the sample data.");
 					status = rc;
 					free(dive);
 					goto error;
 				}
-				rc = cochran_commander_read (device, &progress, device->layout->rb_profile_begin, dive + device->layout->rb_logbook_entry_size + size, sample_end_address - device->layout->rb_profile_begin);
+
+				rc = cochran_commander_read_retry (device, &progress, device->layout->rb_profile_begin, dive + device->layout->rb_logbook_entry_size + size, sample_end_address - device->layout->rb_profile_begin);
 				if (rc != DC_STATUS_SUCCESS) {
 					ERROR (abstract->context, "Failed to read the sample data.");
 					status = rc;
