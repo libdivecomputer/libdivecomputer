@@ -528,6 +528,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	int profile_capacity_remaining = device->layout->rb_profile_end - device->layout->rb_profile_begin;
 
 	int dive_count = -1;
+	data->fp_dive_num = -1;
 
 	// Start at end of log
 	if (data->dive_count < device->layout->rb_logbook_entry_count)
@@ -545,19 +546,32 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	if (rb_head_ptr > last_dive_end_address)
 		profile_capacity_remaining -= rb_head_ptr - last_dive_end_address;
 
+	unsigned int head_dive = 0, tail_dive = 0;
+
+	if (data->dive_count <= device->layout->rb_logbook_entry_count) {
+		head_dive = data->dive_count;
+		tail_dive = 0;
+	} else {
+		// Log wrapped
+		tail_dive = data->dive_count % device->layout->rb_logbook_entry_count;
+		head_dive = tail_dive;
+	}
+
 	// Loop through dives to find FP, Accumulate profile data size,
 	// and find the last dive with invalid profile
-	for (int i = dive_count; i > 0; i--) {
-		unsigned char *log_entry = data->logbook + i * device->layout->rb_logbook_entry_size;
+	for (unsigned int i = 0; i <= dive_count; ++i) {
+		unsigned int idx = (device->layout->rb_logbook_entry_count + head_dive - (i + 1)) % device->layout->rb_logbook_entry_count;
+
+		unsigned char *log_entry = data->logbook + idx * device->layout->rb_logbook_entry_size;
 
 		// We're done if we find the fingerprint
 		if (!memcmp(device->fingerprint, log_entry, sizeof(device->fingerprint))) {
-			data->fp_dive_num = i;
+			data->fp_dive_num = idx;
 			break;
 		}
 
-		unsigned int sample_size = cochran_commander_profile_size(device, data, i, PROFILE_SIZE_FULL);
-		unsigned int read_size = cochran_commander_profile_size(device, data, i, PROFILE_SIZE_READ);
+		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, PROFILE_SIZE_FULL);
+		unsigned int read_size = cochran_commander_profile_size(device, data, idx, PROFILE_SIZE_READ);
 
 		// Determine if sample exists
 		if (profile_capacity_remaining > 0) {
@@ -565,7 +579,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 			profile_capacity_remaining -= sample_size;
 			if (profile_capacity_remaining < 0) {
 				// Save the last dive that is missing profile data
-				data->invalid_profile_dive_num = i;
+				data->invalid_profile_dive_num = idx;
 			}
 			// Accumulate read size for progress bar
 			sample_read_size += read_size;
@@ -833,6 +847,10 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	else
 		data.dive_count = array_uint16_be (data.config + device->layout->cf_dive_count);
 
+	if (data.dive_count == 0)
+		// No dives to read
+		return DC_STATUS_SUCCESS;
+
 	if (data.dive_count > device->layout->rb_logbook_entry_count) {
 		data.logbook_size = device->layout->rb_logbook_entry_count * device->layout->rb_logbook_entry_size;
 	} else {
@@ -881,15 +899,31 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		goto error;
 	}
 
-	unsigned int dive_count = 0;
-	if (data.dive_count < device->layout->rb_logbook_entry_count)
-		dive_count = data.dive_count;
-	else
-		dive_count = device->layout->rb_logbook_entry_count;
+	unsigned int head_dive = 0, tail_dive = 0, dive_count = 0;
+
+	if (data.dive_count <= device->layout->rb_logbook_entry_count) {
+		head_dive = data.dive_count;
+		tail_dive = 0;
+	} else {
+		// Log wrapped
+		tail_dive = data.dive_count % device->layout->rb_logbook_entry_count;
+		head_dive = tail_dive;
+	}
+
+	// Change tail to dive following the fingerprint dive.
+	if (data.fp_dive_num > -1)
+		tail_dive = (data.fp_dive_num + 1) % device->layout->rb_logbook_entry_count;
+
+	// Number of dives to read
+	dive_count = (device->layout->rb_logbook_entry_count + head_dive - tail_dive) % device->layout->rb_logbook_entry_count;
+
+	int invalid_profile_flag = 0;
 
 	// Loop through each dive
-	for (int i = dive_count - 1; i > data.fp_dive_num; i--) {
-		unsigned char *log_entry = data.logbook + i * device->layout->rb_logbook_entry_size;
+	for (unsigned int i = 0; i < dive_count; ++i) {
+		unsigned int idx = (device->layout->rb_logbook_entry_count + head_dive - (i + 1)) % device->layout->rb_logbook_entry_count;
+
+		unsigned char *log_entry = data.logbook + idx * device->layout->rb_logbook_entry_size;
 
 		unsigned int sample_start_address = array_uint32_le (log_entry + device->layout->pt_profile_begin);
 		unsigned int sample_end_address = array_uint32_le (log_entry + device->layout->pt_profile_end);
@@ -897,8 +931,11 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		int sample_size = 0;
 
 		// Determine if profile exists
-		if (i > data.invalid_profile_dive_num)
-			sample_size = cochran_commander_profile_size(device, &data, i, PROFILE_SIZE_READ);
+		if (idx == data.invalid_profile_dive_num)
+			invalid_profile_flag = 1;
+
+		if (!invalid_profile_flag)
+			sample_size = cochran_commander_profile_size(device, &data, idx, PROFILE_SIZE_READ);
 
 		// Build dive blob
 		unsigned int dive_size = device->layout->rb_logbook_entry_size + sample_size;
@@ -914,7 +951,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		if (sample_size) {
 			if (sample_end_address == 0xFFFFFFFF)
 				// Corrupt dive, guess the end address
-				sample_end_address = cochran_commander_guess_sample_end_address(device, &data, i);
+				sample_end_address = cochran_commander_guess_sample_end_address(device, &data, idx);
 
 			if (sample_start_address <= sample_end_address) {
 				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + device->layout->rb_logbook_entry_size, sample_size);
