@@ -64,6 +64,9 @@ array_uint32_be (const unsigned char data[]);
 unsigned int
 array_uint32_le (const unsigned char data[]);
 
+unsigned int
+array_uint32_word_be (const unsigned char data[]);
+
 void
 array_uint32_le_set (unsigned char data[], const unsigned int input);
 

@@ -34,14 +34,16 @@
 
 #define MAXRETRIES 2
 
-#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 0
-#define COCHRAN_MODEL_EMC_14 1
-#define COCHRAN_MODEL_EMC_16 2
-#define COCHRAN_MODEL_EMC_20 3
+#define COCHRAN_MODEL_COMMANDER_PRE21000 0
+#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 1
+#define COCHRAN_MODEL_EMC_14 2
+#define COCHRAN_MODEL_EMC_16 3
+#define COCHRAN_MODEL_EMC_20 4
 
 typedef enum cochran_endian_t {
 	ENDIAN_LE,
 	ENDIAN_BE,
+	ENDIAN_WORD_BE,
 } cochran_endian_t;
 
 typedef enum cochran_profile_size_t {
@@ -50,7 +52,7 @@ typedef enum cochran_profile_size_t {
 } cochran_profile_size_t;
 
 typedef struct cochran_commander_model_t {
-	unsigned char id[2 + 1];
+	unsigned char id[3 + 1];
 	unsigned int model;
 } cochran_commander_model_t;
 
@@ -86,7 +88,9 @@ typedef struct cochran_device_layout_t {
 	// Profile ringbuffer.
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;
-	// Profile pointers.
+	// pointers.
+	unsigned int pt_fingerprint;
+	unsigned int fingerprint_size;
 	unsigned int pt_profile_pre;
 	unsigned int pt_profile_begin;
 	unsigned int pt_profile_end;
@@ -117,6 +121,30 @@ static const dc_device_vtable_t cochran_commander_device_vtable = {
 	cochran_commander_device_close /* close */
 };
 
+// Cochran Commander pre-21000 s/n
+static const cochran_device_layout_t cochran_cmdr_1_device_layout = {
+	COCHRAN_MODEL_COMMANDER_PRE21000, // model
+	24,         // address_bits
+	ENDIAN_WORD_BE,  // endian
+	115200,     // baudrate
+	0x046,      // cf_dive_count
+	0x6c,       // cf_last_log
+	0x70,       // cf_last_interdive
+	0x0AA,      // cf_serial_number
+	0x00000000, // rb_logbook_begin
+	0x00020000, // rb_logbook_end
+	256,        // rb_logbook_entry_size
+	512,        // rb_logbook_entry_count
+	0x00020000, // rb_profile_begin
+	0x00100000, // rb_profile_end
+	12,         // pt_fingerprint
+	4,          // fingerprint_size
+	28,         // pt_profile_pre
+	0,          // pt_profile_begin
+	128,        // pt_profile_end
+};
+
+
 // Cochran Commander Nitrox
 static const cochran_device_layout_t cochran_cmdr_device_layout = {
 	COCHRAN_MODEL_COMMANDER_AIR_NITROX, // model
@@ -133,6 +161,8 @@ static const cochran_device_layout_t cochran_cmdr_device_layout = {
 	512,        // rb_logbook_entry_count
 	0x00020000, // rb_profile_begin
 	0x00100000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	128,        // pt_profile_end
@@ -154,6 +184,8 @@ static const cochran_device_layout_t cochran_emc14_device_layout = {
 	256,        // rb_logbook_entry_count
 	0x00022000, // rb_profile_begin
 	0x00200000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	256,        // pt_profile_end
@@ -175,6 +207,8 @@ static const cochran_device_layout_t cochran_emc16_device_layout = {
 	1024,       // rb_logbook_entry_count
 	0x00094000, // rb_profile_begin
 	0x00800000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	256,        // pt_profile_end
@@ -196,6 +230,8 @@ static const cochran_device_layout_t cochran_emc20_device_layout = {
 	1024,       // rb_logbook_entry_count
 	0x00094000, // rb_profile_begin
 	0x01000000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	256,        // pt_profile_end
@@ -207,10 +243,14 @@ static unsigned int
 cochran_commander_get_model (cochran_commander_device_t *device)
 {
 	const cochran_commander_model_t models[] = {
-		{"\x11""2", COCHRAN_MODEL_COMMANDER_AIR_NITROX},
-		{"73",      COCHRAN_MODEL_EMC_14},
-		{"A3",      COCHRAN_MODEL_EMC_16},
-		{"23",      COCHRAN_MODEL_EMC_20},
+		{"\x11""21", COCHRAN_MODEL_COMMANDER_PRE21000},
+		{"\x11""22", COCHRAN_MODEL_COMMANDER_AIR_NITROX},
+		{"730",      COCHRAN_MODEL_EMC_14},
+		{"731",      COCHRAN_MODEL_EMC_14},
+		{"A30",      COCHRAN_MODEL_EMC_16},
+		{"A31",      COCHRAN_MODEL_EMC_16},
+		{"230",      COCHRAN_MODEL_EMC_20},
+		{"231",      COCHRAN_MODEL_EMC_20},
 	};
 
 	unsigned int model = 0xFFFFFFFF;
@@ -541,7 +581,11 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	data->invalid_profile_dive_num = -1;
 
 	// Remove the pre-dive events that occur after the last dive
-	unsigned int rb_head_ptr = (array_uint32_le(data->config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
+	unsigned int rb_head_ptr = 0;
+	if (device->layout->endian == ENDIAN_WORD_BE)
+		rb_head_ptr = (array_uint32_word_be(data->config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
+	else
+		rb_head_ptr = (array_uint32_le(data->config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
 	unsigned int last_dive_end_address = array_uint32_le(data->logbook + dive_count * device->layout->rb_logbook_entry_size + device->layout->pt_profile_end);
 	if (rb_head_ptr > last_dive_end_address)
 		profile_capacity_remaining -= rb_head_ptr - last_dive_end_address;
@@ -565,7 +609,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 		unsigned char *log_entry = data->logbook + idx * device->layout->rb_logbook_entry_size;
 
 		// We're done if we find the fingerprint
-		if (!memcmp(device->fingerprint, log_entry, sizeof(device->fingerprint))) {
+		if (!memcmp(device->fingerprint, log_entry + device->layout->pt_fingerprint, device->layout->fingerprint_size)) {
 			data->fp_dive_num = idx;
 			break;
 		}
@@ -694,6 +738,9 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 
 	unsigned int model = cochran_commander_get_model(device);
 	switch (model) {
+	case COCHRAN_MODEL_COMMANDER_PRE21000:
+		device->layout = &cochran_cmdr_1_device_layout;
+		break;
 	case COCHRAN_MODEL_COMMANDER_AIR_NITROX:
 		device->layout = &cochran_cmdr_device_layout;
 		break;
@@ -744,13 +791,13 @@ cochran_commander_device_set_fingerprint (dc_device_t *abstract, const unsigned 
 {
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
 
-	if (size && size != sizeof (device->fingerprint))
+	if (size && size != device->layout->fingerprint_size)
 		return DC_STATUS_INVALIDARGS;
 
 	if (size)
-		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+		memcpy (device->fingerprint, data, device->layout->fingerprint_size);
 	else
-		memset (device->fingerprint, 0xFF, sizeof (device->fingerprint));
+		memset (device->fingerprint, 0xFF, sizeof(device->fingerprint));
 
 	return DC_STATUS_SUCCESS;
 }
@@ -887,12 +934,21 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	dc_event_devinfo_t devinfo;
 	devinfo.model = device->layout->model;
 	devinfo.firmware = 0; // unknown
-	devinfo.serial = array_uint32_le(data.config + device->layout->cf_serial_number);
+	if (device->layout->endian == ENDIAN_WORD_BE)
+		devinfo.serial = array_uint32_word_be(data.config + device->layout->cf_serial_number);
+	else
+		devinfo.serial = array_uint32_le(data.config + device->layout->cf_serial_number);
+
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Calculate profile RB effective head pointer
 	// Cochran seems to erase 8K chunks so round up.
-	unsigned int last_start_address = (array_uint32_le(data.config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
+	unsigned int last_start_address;
+	if (device->layout->endian == ENDIAN_WORD_BE)
+		last_start_address = (array_uint32_word_be(data.config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
+	else
+		last_start_address = (array_uint32_le(data.config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
+
 	if (last_start_address < device->layout->rb_profile_begin || last_start_address > device->layout->rb_profile_end) {
 		ERROR(abstract->context, "Invalid profile ringbuffer head pointer in Cochran config block.");
 		status = DC_STATUS_DATAFORMAT;
@@ -983,7 +1039,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			}
 		}
 
-		if (callback && !callback (dive, dive_size, dive, sizeof(device->fingerprint), userdata)) {
+		if (callback && !callback (dive, dive_size, dive + device->layout->pt_fingerprint, device->layout->fingerprint_size, userdata)) {
 			free(dive);
 			break;
 		}

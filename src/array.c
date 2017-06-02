@@ -198,6 +198,13 @@ array_uint32_le (const unsigned char data[])
 }
 
 
+unsigned int
+array_uint32_word_be (const unsigned char data[])
+{
+	return data[1] + (data[0] << 8) + (data[3] << 16) + (data[2] << 24);
+}
+
+
 void
 array_uint32_le_set (unsigned char data[], const unsigned int input)
 {
