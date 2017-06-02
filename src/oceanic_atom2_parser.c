@@ -397,7 +397,8 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 	} else if (parser->model == T3B || parser->model == VT3 ||
 		parser->model == DG03) {
 		mode = (data[2] & 0xC0) >> 6;
-	} else if (parser->model == VEO20 || parser->model == VEO30) {
+	} else if (parser->model == VEO20 || parser->model == VEO30 ||
+		parser->model == OCS) {
 		mode = (data[1] & 0x60) >> 5;
 	}
 
