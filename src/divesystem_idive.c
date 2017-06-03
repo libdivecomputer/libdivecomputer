@@ -354,7 +354,7 @@ error:
 
 
 static dc_status_t
-divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int *errorcode)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	unsigned int errcode = 0;
@@ -378,6 +378,10 @@ divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned cha
 		dc_serial_sleep (device->port, 100);
 	}
 
+	if (errorcode) {
+		*errorcode = errcode;
+	}
+
 	return status;
 }
 
@@ -387,6 +391,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	divesystem_idive_device_t *device = (divesystem_idive_device_t *) abstract;
 	unsigned char packet[MAXPACKET - 2];
+	unsigned int errcode = 0;
 
 	const divesystem_idive_commands_t *commands = &idive;
 	if (device->model >= IX3M_EASY) {
@@ -398,7 +403,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	unsigned char cmd_id[] = {commands->id.cmd, 0xED};
-	rc = divesystem_idive_transfer (device, cmd_id, sizeof(cmd_id), packet, commands->id.size);
+	rc = divesystem_idive_transfer (device, cmd_id, sizeof(cmd_id), packet, commands->id.size, &errcode);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -424,7 +429,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	}
 
 	unsigned char cmd_range[] = {commands->range.cmd, 0x8D};
-	rc = divesystem_idive_transfer (device, cmd_range, sizeof(cmd_range), packet, commands->range.size);
+	rc = divesystem_idive_transfer (device, cmd_range, sizeof(cmd_range), packet, commands->range.size, &errcode);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -453,7 +458,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		unsigned char cmd_header[] = {commands->header.cmd,
 			(number     ) & 0xFF,
 			(number >> 8) & 0xFF};
-		rc = divesystem_idive_transfer (device, cmd_header, sizeof(cmd_header), packet, commands->header.size);
+		rc = divesystem_idive_transfer (device, cmd_header, sizeof(cmd_header), packet, commands->header.size, &errcode);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
@@ -475,7 +480,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 			unsigned char cmd_sample[] = {commands->sample.cmd,
 				(idx     ) & 0xFF,
 				(idx >> 8) & 0xFF};
-			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size * commands->nsamples);
+			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size * commands->nsamples, &errcode);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
 
