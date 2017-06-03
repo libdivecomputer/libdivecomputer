@@ -42,7 +42,14 @@
 #define START     0x55
 #define ACK       0x06
 #define NAK       0x15
-#define BUSY      0x60
+
+#define ERR_INVALID_CMD    0x10
+#define ERR_INVALID_LENGTH 0x20
+#define ERR_INVALID_DATA   0x30
+#define ERR_UNSUPPORTED    0x40
+#define ERR_UNAVAILABLE    0x58
+#define ERR_UNREADABLE     0x5F
+#define ERR_BUSY           0x60
 
 #define NSTEPS    1000
 #define STEP(i,n) (NSTEPS * (i) / (n))
@@ -367,7 +374,7 @@ divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned cha
 			break;
 
 		// Abort if the device reports a fatal error.
-		if (errcode && errcode != BUSY)
+		if (errcode && errcode != ERR_BUSY)
 			break;
 
 		// Abort if the maximum number of retries is reached.
