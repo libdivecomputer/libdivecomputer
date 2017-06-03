@@ -471,8 +471,14 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 			(number     ) & 0xFF,
 			(number >> 8) & 0xFF};
 		rc = divesystem_idive_transfer (device, cmd_header, sizeof(cmd_header), packet, commands->header.size, &errcode);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+		if (rc != DC_STATUS_SUCCESS) {
+			if (errcode == ERR_UNREADABLE) {
+				WARNING(abstract->context, "Skipped unreadable dive!");
+				continue;
+			} else {
+				return rc;
+			}
+		}
 
 		if (memcmp(packet + 7, device->fingerprint, sizeof(device->fingerprint)) == 0)
 			break;
