@@ -251,6 +251,7 @@ cochran_commander_get_model (cochran_commander_device_t *device)
 		{"A31",      COCHRAN_MODEL_EMC_16},
 		{"230",      COCHRAN_MODEL_EMC_20},
 		{"231",      COCHRAN_MODEL_EMC_20},
+		{"\x40""30", COCHRAN_MODEL_EMC_20},
 	};
 
 	unsigned int model = 0xFFFFFFFF;
