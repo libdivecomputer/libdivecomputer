@@ -291,72 +291,94 @@ divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answe
 
 
 static dc_status_t
-divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+divesystem_idive_packet (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int *errorcode)
 {
-	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[MAXPACKET] = {0};
-	unsigned int length = 0;
-	unsigned int nretries = 0;
+	unsigned int length = sizeof(packet);
+	unsigned int errcode = 0;
 
-	while (1) {
-		// Send the command.
-		rc = divesystem_idive_send (device, command, csize);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+	// Send the command.
+	status = divesystem_idive_send (device, command, csize);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error;
+	}
 
-		// Receive the answer.
-		length = sizeof(packet);
-		rc = divesystem_idive_receive (device, packet, &length);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+	// Receive the answer.
+	status = divesystem_idive_receive (device, packet, &length);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error;
+	}
 
-		// Verify the command byte.
-		if (packet[0] != command[0]) {
-			ERROR (abstract->context, "Unexpected packet header.");
-			return DC_STATUS_PROTOCOL;
-		}
+	// Verify the command byte.
+	if (packet[0] != command[0]) {
+		ERROR (abstract->context, "Unexpected packet header.");
+		status = DC_STATUS_PROTOCOL;
+		goto error;
+	}
 
-		// Check the ACK byte.
-		if (packet[length - 1] == ACK)
-			break;
-
-		// Verify the NAK byte.
-		if (packet[length - 1] != NAK) {
-			ERROR (abstract->context, "Unexpected ACK/NAK byte.");
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Verify the length of the packet.
-		if (length != 3) {
-			ERROR (abstract->context, "Unexpected packet length.");
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Verify the error code.
-		unsigned int errcode = packet[1];
-		if (errcode != BUSY) {
-			ERROR (abstract->context, "Received NAK packet with error code %02x.", errcode);
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
-			return DC_STATUS_PROTOCOL;
-
-		// Delay the next attempt.
-		dc_serial_sleep(device->port, 100);
+	// Verify the ACK/NAK byte.
+	unsigned int type = packet[length - 1];
+	if (type != ACK && type != NAK) {
+		ERROR (abstract->context, "Unexpected ACK/NAK byte.");
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	}
 
 	// Verify the length of the packet.
-	if (asize != length - 2) {
+	unsigned int expected = (type == ACK ? asize : 1) + 2;
+	if (length != expected) {
 		ERROR (abstract->context, "Unexpected packet length.");
-		return DC_STATUS_PROTOCOL;
+		status = DC_STATUS_PROTOCOL;
+		goto error;
+	}
+
+	// Get the error code from a NAK packet.
+	if (type == NAK) {
+		errcode = packet[1];
+		ERROR (abstract->context, "Received NAK packet with error code %02x.", errcode);
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	}
 
 	memcpy(answer, packet + 1, length - 2);
 
-	return DC_STATUS_SUCCESS;
+error:
+	if (errorcode) {
+		*errorcode = errcode;
+	}
+
+	return status;
+}
+
+
+static dc_status_t
+divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned int errcode = 0;
+
+	unsigned int nretries = 0;
+	while ((status = divesystem_idive_packet (device, command, csize, answer, asize, &errcode)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (status != DC_STATUS_PROTOCOL && status != DC_STATUS_TIMEOUT)
+			break;
+
+		// Abort if the device reports a fatal error.
+		if (errcode && errcode != BUSY)
+			break;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			break;
+
+		// Delay the next attempt.
+		dc_serial_sleep (device->port, 100);
+	}
+
+	return status;
 }
 
 static dc_status_t
