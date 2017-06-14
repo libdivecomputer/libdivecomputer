@@ -125,6 +125,43 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 }
 
 
+static dc_status_t
+uwatec_g2_handshake (uwatec_g2_device_t *device)
+{
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	// Command template.
+	unsigned char answer[1] = {0};
+	unsigned char command[5] = {0x00, 0x10, 0x27, 0, 0};
+
+	// Handshake (stage 1).
+	command[0] = 0x1B;
+	dc_status_t rc = uwatec_g2_transfer (device, command, 1, answer, 1);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Verify the answer.
+	if (answer[0] != 0x01) {
+		ERROR (abstract->context, "Unexpected answer byte(s).");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Handshake (stage 2).
+	command[0] = 0x1C;
+	rc = uwatec_g2_transfer (device, command, 5, answer, 1);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Verify the answer.
+	if (answer[0] != 0x01) {
+		ERROR (abstract->context, "Unexpected answer byte(s).");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+
 dc_status_t
 uwatec_g2_device_open (dc_device_t **out, dc_context_t *context)
 {
@@ -154,10 +191,19 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context)
 		goto error_free;
 	}
 
+	// Perform the handshaking.
+	status = uwatec_g2_handshake (device);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to handshake with the device.");
+		goto error_close;
+	}
+
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
+error_close:
+	dc_usbhid_close (device->usbhid);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
