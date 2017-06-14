@@ -108,6 +108,8 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "cmd", command, csize);
+
 	buf[0] = csize;
 	memcpy(buf + 1, command, csize);
 	status = dc_usbhid_write (device->usbhid, buf, csize + 1, &transferred);
