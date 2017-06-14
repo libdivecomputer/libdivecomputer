@@ -36,7 +36,6 @@
 typedef struct uwatec_g2_device_t {
 	dc_device_t base;
 	dc_usbhid_t *usbhid;
-	unsigned int address;
 	unsigned int timestamp;
 	unsigned int devtime;
 	dc_ticks_t systime;
@@ -144,7 +143,6 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context)
 
 	// Set the default values.
 	device->usbhid = NULL;
-	device->address = 0;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
