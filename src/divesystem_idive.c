@@ -42,7 +42,14 @@
 #define START     0x55
 #define ACK       0x06
 #define NAK       0x15
-#define BUSY      0x60
+
+#define ERR_INVALID_CMD    0x10
+#define ERR_INVALID_LENGTH 0x20
+#define ERR_INVALID_DATA   0x30
+#define ERR_UNSUPPORTED    0x40
+#define ERR_UNAVAILABLE    0x58
+#define ERR_UNREADABLE     0x5F
+#define ERR_BUSY           0x60
 
 #define NSTEPS    1000
 #define STEP(i,n) (NSTEPS * (i) / (n))
@@ -291,72 +298,98 @@ divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answe
 
 
 static dc_status_t
-divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+divesystem_idive_packet (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int *errorcode)
 {
-	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[MAXPACKET] = {0};
-	unsigned int length = 0;
-	unsigned int nretries = 0;
+	unsigned int length = sizeof(packet);
+	unsigned int errcode = 0;
 
-	while (1) {
-		// Send the command.
-		rc = divesystem_idive_send (device, command, csize);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+	// Send the command.
+	status = divesystem_idive_send (device, command, csize);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error;
+	}
 
-		// Receive the answer.
-		length = sizeof(packet);
-		rc = divesystem_idive_receive (device, packet, &length);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+	// Receive the answer.
+	status = divesystem_idive_receive (device, packet, &length);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error;
+	}
 
-		// Verify the command byte.
-		if (packet[0] != command[0]) {
-			ERROR (abstract->context, "Unexpected packet header.");
-			return DC_STATUS_PROTOCOL;
-		}
+	// Verify the command byte.
+	if (packet[0] != command[0]) {
+		ERROR (abstract->context, "Unexpected packet header.");
+		status = DC_STATUS_PROTOCOL;
+		goto error;
+	}
 
-		// Check the ACK byte.
-		if (packet[length - 1] == ACK)
-			break;
-
-		// Verify the NAK byte.
-		if (packet[length - 1] != NAK) {
-			ERROR (abstract->context, "Unexpected ACK/NAK byte.");
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Verify the length of the packet.
-		if (length != 3) {
-			ERROR (abstract->context, "Unexpected packet length.");
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Verify the error code.
-		unsigned int errcode = packet[1];
-		if (errcode != BUSY) {
-			ERROR (abstract->context, "Received NAK packet with error code %02x.", errcode);
-			return DC_STATUS_PROTOCOL;
-		}
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
-			return DC_STATUS_PROTOCOL;
-
-		// Delay the next attempt.
-		dc_serial_sleep(device->port, 100);
+	// Verify the ACK/NAK byte.
+	unsigned int type = packet[length - 1];
+	if (type != ACK && type != NAK) {
+		ERROR (abstract->context, "Unexpected ACK/NAK byte.");
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	}
 
 	// Verify the length of the packet.
-	if (asize != length - 2) {
+	unsigned int expected = (type == ACK ? asize : 1) + 2;
+	if (length != expected) {
 		ERROR (abstract->context, "Unexpected packet length.");
-		return DC_STATUS_PROTOCOL;
+		status = DC_STATUS_PROTOCOL;
+		goto error;
+	}
+
+	// Get the error code from a NAK packet.
+	if (type == NAK) {
+		errcode = packet[1];
+		ERROR (abstract->context, "Received NAK packet with error code %02x.", errcode);
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	}
 
 	memcpy(answer, packet + 1, length - 2);
 
-	return DC_STATUS_SUCCESS;
+error:
+	if (errorcode) {
+		*errorcode = errcode;
+	}
+
+	return status;
+}
+
+
+static dc_status_t
+divesystem_idive_transfer (divesystem_idive_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int *errorcode)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned int errcode = 0;
+
+	unsigned int nretries = 0;
+	while ((status = divesystem_idive_packet (device, command, csize, answer, asize, &errcode)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (status != DC_STATUS_PROTOCOL && status != DC_STATUS_TIMEOUT)
+			break;
+
+		// Abort if the device reports a fatal error.
+		if (errcode && errcode != ERR_BUSY)
+			break;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			break;
+
+		// Delay the next attempt.
+		dc_serial_sleep (device->port, 100);
+	}
+
+	if (errorcode) {
+		*errorcode = errcode;
+	}
+
+	return status;
 }
 
 static dc_status_t
@@ -365,6 +398,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	divesystem_idive_device_t *device = (divesystem_idive_device_t *) abstract;
 	unsigned char packet[MAXPACKET - 2];
+	unsigned int errcode = 0;
 
 	const divesystem_idive_commands_t *commands = &idive;
 	if (device->model >= IX3M_EASY) {
@@ -376,7 +410,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	unsigned char cmd_id[] = {commands->id.cmd, 0xED};
-	rc = divesystem_idive_transfer (device, cmd_id, sizeof(cmd_id), packet, commands->id.size);
+	rc = divesystem_idive_transfer (device, cmd_id, sizeof(cmd_id), packet, commands->id.size, &errcode);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -402,9 +436,14 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	}
 
 	unsigned char cmd_range[] = {commands->range.cmd, 0x8D};
-	rc = divesystem_idive_transfer (device, cmd_range, sizeof(cmd_range), packet, commands->range.size);
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
+	rc = divesystem_idive_transfer (device, cmd_range, sizeof(cmd_range), packet, commands->range.size, &errcode);
+	if (rc != DC_STATUS_SUCCESS) {
+		if (errcode == ERR_UNAVAILABLE) {
+			return DC_STATUS_SUCCESS; // No dives found.
+		} else {
+			return rc;
+		}
+	}
 
 	// Get the range of the available dive numbers.
 	unsigned int first = array_uint16_le (packet + 0);
@@ -431,9 +470,15 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		unsigned char cmd_header[] = {commands->header.cmd,
 			(number     ) & 0xFF,
 			(number >> 8) & 0xFF};
-		rc = divesystem_idive_transfer (device, cmd_header, sizeof(cmd_header), packet, commands->header.size);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+		rc = divesystem_idive_transfer (device, cmd_header, sizeof(cmd_header), packet, commands->header.size, &errcode);
+		if (rc != DC_STATUS_SUCCESS) {
+			if (errcode == ERR_UNREADABLE) {
+				WARNING(abstract->context, "Skipped unreadable dive!");
+				continue;
+			} else {
+				return rc;
+			}
+		}
 
 		if (memcmp(packet + 7, device->fingerprint, sizeof(device->fingerprint)) == 0)
 			break;
@@ -453,7 +498,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 			unsigned char cmd_sample[] = {commands->sample.cmd,
 				(idx     ) & 0xFF,
 				(idx >> 8) & 0xFF};
-			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size * commands->nsamples);
+			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size * commands->nsamples, &errcode);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
 
