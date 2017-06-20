@@ -61,7 +61,7 @@ static dc_status_t
 uwatec_g2_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
-receive_data (uwatec_g2_device_t *device, unsigned char *data, unsigned int size)
+receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigned char *data, unsigned int size)
 {
 	while (size) {
 		unsigned char buf[PACKET_SIZE];
@@ -88,6 +88,13 @@ receive_data (uwatec_g2_device_t *device, unsigned char *data, unsigned int size
 			ERROR (device->base.context, "receive result buffer too small");
 			return DC_STATUS_PROTOCOL;
 		}
+
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += len;
+			device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
+		}
+
 		memcpy(data, buf + 1, len);
 		size -= len;
 		data += len;
@@ -118,7 +125,7 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 		return status;
 	}
 
-	status = receive_data (device, answer, asize);
+	status = receive_data (device, NULL, answer, asize);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to receive the answer.");
 		return status;
@@ -358,15 +365,11 @@ uwatec_g2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_PROTOCOL;
 	}
 
-	rc = receive_data (device, data, length);
+	rc = receive_data (device, &progress, data, length);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return rc;
 	}
-
-	// Update and emit a progress event.
-	progress.current += length;
-	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	return DC_STATUS_SUCCESS;
 }
