@@ -60,7 +60,7 @@ static const dc_device_vtable_t uwatec_g2_device_vtable = {
 static dc_status_t
 uwatec_g2_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
-static int
+static dc_status_t
 receive_data (uwatec_g2_device_t *device, unsigned char *data, unsigned int size)
 {
 	while (size) {
@@ -72,16 +72,16 @@ receive_data (uwatec_g2_device_t *device, unsigned char *data, unsigned int size
 		rc = dc_usbhid_read (device->usbhid, buf, PACKET_SIZE, &transferred);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (device->base.context, "read interrupt transfer failed");
-			return -1;
+			return rc;
 		}
 		if (transferred != PACKET_SIZE) {
 			ERROR (device->base.context, "incomplete read interrupt transfer (got %zu, expected %d)", transferred, PACKET_SIZE);
-			return -1;
+			return DC_STATUS_PROTOCOL;
 		}
 		len = buf[0];
 		if (len >= PACKET_SIZE) {
 			ERROR (device->base.context, "read interrupt transfer returns impossible packet size (%d)", len);
-			return -1;
+			return DC_STATUS_PROTOCOL;
 		}
 		HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf + 1, len);
 		if (len > size) {
@@ -92,7 +92,7 @@ receive_data (uwatec_g2_device_t *device, unsigned char *data, unsigned int size
 		size -= len;
 		data += len;
 	}
-	return 0;
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -118,9 +118,10 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 		return status;
 	}
 
-	if (receive_data (device, answer, asize) < 0) {
+	status = receive_data (device, answer, asize);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to receive the answer.");
-		return DC_STATUS_IO;
+		return status;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -357,9 +358,10 @@ uwatec_g2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_PROTOCOL;
 	}
 
-	if (receive_data (device, data, length)) {
+	rc = receive_data (device, data, length);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return DC_STATUS_IO;
+		return rc;
 	}
 
 	// Update and emit a progress event.
