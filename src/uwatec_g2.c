@@ -85,8 +85,8 @@ receive_data (uwatec_g2_device_t *device, unsigned char *data, unsigned int size
 		}
 		HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf + 1, len);
 		if (len > size) {
-			ERROR (device->base.context, "receive result buffer too small - truncating");
-			len = size;
+			ERROR (device->base.context, "receive result buffer too small");
+			return DC_STATUS_PROTOCOL;
 		}
 		memcpy(data, buf + 1, len);
 		size -= len;
