@@ -207,7 +207,7 @@ cochran_commander_get_model (cochran_commander_device_t *device)
 
 	unsigned int model = 0xFFFFFFFF;
 	for (unsigned int i = 0; i < C_ARRAY_SIZE(models); ++i) {
-		if (memcmp (device->id + 0x3B, models[i].id, sizeof(models[i].id) - 1) == 0) {
+		if (memcmp (device->id + 0x3D, models[i].id, sizeof(models[i].id) - 1) == 0) {
 			model = models[i].model;
 			break;
 		}
