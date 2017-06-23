@@ -440,6 +440,8 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 			parser->events[2] = uwatec_smart_galileo_events_2;
 			parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_galileo_events_2);
 		}
+	} else if (parser->model == G2) {
+		trimix = 1;
 	}
 
 	// Get the settings.
