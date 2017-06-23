@@ -98,10 +98,8 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_UWATEC_SMART:
 	case DC_FAMILY_UWATEC_MERIDIAN:
-		rc = uwatec_smart_parser_create (&parser, context, model, devtime, systime);
-		break;
 	case DC_FAMILY_UWATEC_G2:
-		rc = uwatec_smart_parser_create (&parser, context, 0x11, devtime, systime);
+		rc = uwatec_smart_parser_create (&parser, context, model, devtime, systime);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
 		rc = reefnet_sensus_parser_create (&parser, context, devtime, systime);
