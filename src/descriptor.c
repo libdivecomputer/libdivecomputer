@@ -135,6 +135,10 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "Mantis",      DC_FAMILY_UWATEC_MERIDIAN, 0x20},
 	{"Scubapro", "Chromis",     DC_FAMILY_UWATEC_MERIDIAN, 0x24},
 	{"Scubapro", "Mantis 2",    DC_FAMILY_UWATEC_MERIDIAN, 0x26},
+	/* Scubapro G2 */
+#ifdef USBHID
+	{"Scubapro", "G2",          DC_FAMILY_UWATEC_G2, 0x32},
+#endif
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2},
@@ -428,6 +432,8 @@ dc_descriptor_get_transport (dc_descriptor_t *descriptor)
 	if (descriptor->type == DC_FAMILY_ATOMICS_COBALT)
 		return DC_TRANSPORT_USB;
 	else if (descriptor->type == DC_FAMILY_SUUNTO_EONSTEEL)
+		return DC_TRANSPORT_USBHID;
+	else if (descriptor->type == DC_FAMILY_UWATEC_G2)
 		return DC_TRANSPORT_USBHID;
 	else if (descriptor->type == DC_FAMILY_UWATEC_SMART)
 		return DC_TRANSPORT_IRDA;

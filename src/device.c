@@ -33,6 +33,7 @@
 #include "reefnet_sensuspro.h"
 #include "reefnet_sensusultra.h"
 #include "uwatec_aladin.h"
+#include "uwatec_g2.h"
 #include "uwatec_memomouse.h"
 #include "uwatec_meridian.h"
 #include "uwatec_smart.h"
@@ -137,6 +138,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_UWATEC_MERIDIAN:
 		rc = uwatec_meridian_device_open (&device, context, name);
+		break;
+	case DC_FAMILY_UWATEC_G2:
+		rc = uwatec_g2_device_open (&device, context);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
 		rc = reefnet_sensus_device_open (&device, context, name);

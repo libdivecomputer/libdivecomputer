@@ -47,6 +47,7 @@
 #define MERIDIAN      0x20
 #define CHROMIS       0x24
 #define MANTIS2       0x26
+#define G2            0x32
 
 #define UNSUPPORTED 0xFFFFFFFF
 
@@ -439,6 +440,8 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 			parser->events[2] = uwatec_smart_galileo_events_2;
 			parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_galileo_events_2);
 		}
+	} else if (parser->model == G2) {
+		trimix = 1;
 	}
 
 	// Get the settings.
@@ -500,7 +503,8 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 				divemode != DC_DIVEMODE_FREEDIVE) {
 				if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
 					parser->model == ALADIN2G || parser->model == MERIDIAN ||
-					parser->model == CHROMIS || parser->model == MANTIS2) {
+					parser->model == CHROMIS || parser->model == MANTIS2 ||
+					parser->model == G2) {
 					unsigned int offset = header->tankpressure + 2 * i;
 					endpressure   = array_uint16_le(data + offset);
 					beginpressure = array_uint16_le(data + offset + 2 * header->ngases);
@@ -578,6 +582,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	case MERIDIAN:
 	case CHROMIS:
 	case MANTIS2:
+	case G2:
 		parser->headersize = 152;
 		parser->header = &uwatec_smart_galileo_header;
 		parser->samples = uwatec_smart_galileo_samples;
@@ -928,7 +933,8 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		unsigned int id = 0;
 		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
 			parser->model == ALADIN2G || parser->model == MERIDIAN ||
-			parser->model == CHROMIS || parser->model == MANTIS2) {
+			parser->model == CHROMIS || parser->model == MANTIS2 ||
+			parser->model == G2) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {
