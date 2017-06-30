@@ -147,8 +147,8 @@ static const cochran_device_layout_t cochran_cmdr_device_layout = {
 	ENDIAN_WORD_BE,  // endian
 	115200,     // baudrate
 	0x046,      // cf_dive_count
-	0x070,      // cf_last_log
-	0x06C,      // cf_last_interdive
+	0x06C,      // cf_last_log
+	0x070,      // cf_last_interdive
 	0x0AA,      // cf_serial_number
 	0x00000000, // rb_logbook_begin
 	0x00020000, // rb_logbook_end
@@ -566,12 +566,9 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	// Remove the pre-dive events that occur after the last dive
 	unsigned int rb_head_ptr = 0;
 	if (device->layout->endian == ENDIAN_WORD_BE)
-		rb_head_ptr = (array_uint32_word_be(data->config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
+		rb_head_ptr = (array_uint32_word_be(data->config + device->layout->cf_last_log) & 0xfffff000) + 0x2000;
 	else
-		rb_head_ptr = (array_uint32_le(data->config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
-	unsigned int last_dive_end_address = array_uint32_le(data->logbook + dive_count * device->layout->rb_logbook_entry_size + device->layout->pt_profile_end);
-	if (rb_head_ptr > last_dive_end_address)
-		profile_capacity_remaining -= rb_head_ptr - last_dive_end_address;
+		rb_head_ptr = (array_uint32_le(data->config + device->layout->cf_last_log) & 0xfffff000) + 0x2000;
 
 	unsigned int head_dive = 0, tail_dive = 0;
 
@@ -583,6 +580,18 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 		tail_dive = data->dive_count % device->layout->rb_logbook_entry_count;
 		head_dive = tail_dive;
 	}
+
+	unsigned int last_profile_idx = (device->layout->rb_logbook_entry_count + head_dive - 1) % device->layout->rb_logbook_entry_count;
+	unsigned int last_profile_end = array_uint32_le(data->logbook + last_profile_idx * device->layout->rb_logbook_entry_size + device->layout->pt_profile_end);
+	unsigned int last_profile_pre = 0xFFFFFFFF;
+
+	if (device->layout->endian == ENDIAN_WORD_BE)
+		last_profile_pre = array_uint32_word_be(data->config + device->layout->cf_last_log);
+	else
+		last_profile_pre = array_uint32_le(data->config + device->layout->cf_last_log);
+
+	if (rb_head_ptr > last_profile_end)
+		profile_capacity_remaining -= rb_head_ptr - last_profile_end;
 
 	// Loop through dives to find FP, Accumulate profile data size,
 	// and find the last dive with invalid profile
@@ -601,8 +610,9 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 		unsigned int profile_begin = array_uint32_le(log_entry + device->layout->pt_profile_begin);
 		unsigned int profile_end = array_uint32_le(log_entry + device->layout->pt_profile_end);
 
-		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, profile_pre, profile_end);
+		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, profile_pre, last_profile_pre);
 		unsigned int read_size = cochran_commander_profile_size(device, data, idx, profile_begin, profile_end);
+		last_profile_pre = profile_pre;
 
 		// Determine if sample exists
 		if (profile_capacity_remaining > 0) {
