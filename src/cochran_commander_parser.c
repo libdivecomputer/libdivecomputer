@@ -601,45 +601,42 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 		if (s[0] & 0x80) {
 			offset += cochran_commander_handle_event(parser, s[0], callback, userdata);
 
-			if (layout->format == SAMPLE_EMC) {
-				// EMC models have events indicating change in deco status
-				// Commander may have them but I don't have example data
-				switch (s[0]) {
-				case 0xC5:  // Deco obligation begins
-					deco_obligation = 1;
-					break;
-				case 0xD8:  // Deco obligation ends
-					deco_obligation = 0;
-					break;
-				case 0xAB:  // Decrement ceiling (deeper)
-					deco_ceiling += 10; // feet
+			// Events indicating change in deco status
+			switch (s[0]) {
+			case 0xC5:  // Deco obligation begins
+				deco_obligation = 1;
+				break;
+			case 0xD8:  // Deco obligation ends
+				deco_obligation = 0;
+				break;
+			case 0xAB:  // Decrement ceiling (deeper)
+				deco_ceiling += 10; // feet
 
-					sample.deco.type = DC_DECO_DECOSTOP;
-					sample.deco.time = (array_uint16_le(s + layout->samplesize) + 1) * 60;
-					sample.deco.depth = deco_ceiling * FEET;
-					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
-					break;
-				case 0xAD:  // Increment ceiling (shallower)
-					deco_ceiling -= 10; // feet
+				sample.deco.type = DC_DECO_DECOSTOP;
+				sample.deco.time = (array_uint16_le(s + 3) + 1) * 60;
+				sample.deco.depth = deco_ceiling * FEET;
+				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+				break;
+			case 0xAD:  // Increment ceiling (shallower)
+				deco_ceiling -= 10; // feet
 
-					sample.deco.type = DC_DECO_DECOSTOP;
-					sample.deco.depth = deco_ceiling * FEET;
-					sample.deco.time = (array_uint16_le(s + layout->samplesize) + 1) * 60;
-					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
-					break;
-				case 0xC0:  // Switched to FO2 21% mode (surface)
-					// Event seen upon surfacing
-					break;
-				case 0xCD:  // Switched to deco blend
-				case 0xEF:  // Switched to gas blend 2
-					sample.gasmix = 1;
-					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
-					break;
-				case 0xF3:  // Switched to gas blend 1
-					sample.gasmix = 0;
-					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
-					break;
-				}
+				sample.deco.type = DC_DECO_DECOSTOP;
+				sample.deco.depth = deco_ceiling * FEET;
+				sample.deco.time = (array_uint16_le(s + 3) + 1) * 60;
+				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+				break;
+			case 0xC0:  // Switched to FO2 21% mode (surface)
+				// Event seen upon surfacing
+				break;
+			case 0xCD:  // Switched to deco blend
+			case 0xEF:  // Switched to gas blend 2
+				sample.gasmix = 1;
+				if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+				break;
+			case 0xF3:  // Switched to gas blend 1
+				sample.gasmix = 0;
+				if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+				break;
 			}
 
 			continue;
