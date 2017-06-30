@@ -149,11 +149,11 @@ static const cochran_device_layout_t cochran_cmdr_1_device_layout = {
 static const cochran_device_layout_t cochran_cmdr_device_layout = {
 	COCHRAN_MODEL_COMMANDER_AIR_NITROX, // model
 	24,         // address_bits
-	ENDIAN_BE,  // endian
+	ENDIAN_WORD_BE,  // endian
 	115200,     // baudrate
 	0x046,      // cf_dive_count
-	0x06E,      // cf_last_log
-	0x200,      // cf_last_interdive
+	0x070,      // cf_last_log
+	0x06C,      // cf_last_interdive
 	0x0AA,      // cf_serial_number
 	0x00000000, // rb_logbook_begin
 	0x00020000, // rb_logbook_end
