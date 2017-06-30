@@ -46,11 +46,6 @@ typedef enum cochran_endian_t {
 	ENDIAN_WORD_BE,
 } cochran_endian_t;
 
-typedef enum cochran_profile_size_t {
-	PROFILE_SIZE_FULL,
-	PROFILE_SIZE_READ,
-} cochran_profile_size_t;
-
 typedef struct cochran_commander_model_t {
 	unsigned char id[3 + 1];
 	unsigned int model;
@@ -524,21 +519,8 @@ cochran_commander_guess_sample_end_address(cochran_commander_device_t *device, c
 
 
 static unsigned int
-cochran_commander_profile_size(cochran_commander_device_t *device, cochran_data_t *data, int dive_num, cochran_profile_size_t type)
+cochran_commander_profile_size(cochran_commander_device_t *device, cochran_data_t *data, int dive_num, unsigned int sample_start_address, unsigned int sample_end_address)
 {
-
-	const unsigned char *log_entry = data->logbook + dive_num * device->layout->rb_logbook_entry_size;
-	unsigned int sample_start_address = 0xFFFFFFFF;
-	unsigned int sample_end_address = array_uint32_le (log_entry + device->layout->pt_profile_end);
-
-	if (type == PROFILE_SIZE_FULL) {
-		// actual size, includes pre-dive events
-		sample_start_address = array_uint32_le (log_entry + device->layout->pt_profile_pre);
-	} else if (type == PROFILE_SIZE_READ) {
-		// read size, only include dive profile
-		sample_start_address = array_uint32_le (log_entry + device->layout->pt_profile_begin);
-	}
-
 	// Validate addresses
 	if (sample_start_address < device->layout->rb_profile_begin ||
 		sample_start_address > device->layout->rb_profile_end ||
@@ -615,8 +597,12 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 			break;
 		}
 
-		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, PROFILE_SIZE_FULL);
-		unsigned int read_size = cochran_commander_profile_size(device, data, idx, PROFILE_SIZE_READ);
+		unsigned int profile_pre = array_uint32_le(log_entry + device->layout->pt_profile_pre);
+		unsigned int profile_begin = array_uint32_le(log_entry + device->layout->pt_profile_begin);
+		unsigned int profile_end = array_uint32_le(log_entry + device->layout->pt_profile_end);
+
+		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, profile_pre, profile_end);
+		unsigned int read_size = cochran_commander_profile_size(device, data, idx, profile_begin, profile_end);
 
 		// Determine if sample exists
 		if (profile_capacity_remaining > 0) {
@@ -993,7 +979,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			invalid_profile_flag = 1;
 
 		if (!invalid_profile_flag)
-			sample_size = cochran_commander_profile_size(device, &data, idx, PROFILE_SIZE_READ);
+			sample_size = cochran_commander_profile_size(device, &data, idx, sample_start_address, sample_end_address);
 
 		// Build dive blob
 		unsigned int dive_size = layout->rb_logbook_entry_size + sample_size;
