@@ -567,6 +567,7 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 
 	sample.gasmix = 0;
 	if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+	unsigned int last_gasmix = sample.gasmix;
 
 	while (offset < size) {
 		const unsigned char *s = samples + offset;
@@ -630,12 +631,18 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 				break;
 			case 0xCD:  // Switched to deco blend
 			case 0xEF:  // Switched to gas blend 2
-				sample.gasmix = 1;
-				if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+				if (last_gasmix != 1) {
+					sample.gasmix = 1;
+					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+					last_gasmix = sample.gasmix;
+				}
 				break;
 			case 0xF3:  // Switched to gas blend 1
-				sample.gasmix = 0;
-				if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+				if (last_gasmix != 0) {
+					sample.gasmix = 0;
+					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+					last_gasmix = sample.gasmix;
+				}
 				break;
 			}
 
