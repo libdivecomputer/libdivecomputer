@@ -29,6 +29,7 @@
 #include "serial.h"
 #include "array.h"
 #include "ringbuffer.h"
+#include "rbstream.h"
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
@@ -473,31 +474,6 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 	return DC_STATUS_SUCCESS;
 }
 
-static unsigned int
-cochran_commander_read_retry (cochran_commander_device_t *device, dc_event_progress_t *progress, unsigned int address, unsigned char data[], unsigned int size)
-{
-	// Save the state of the progress events.
-	unsigned int saved = progress->current;
-
-	unsigned int nretries = 0;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-	while ((rc = cochran_commander_read (device, progress, address, data, size)) != DC_STATUS_SUCCESS) {
-		// Automatically discard a corrupted packet,
-		// and request a new one.
-		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
-			return rc;
-
-		// Abort if the maximum number of retries is reached.
-		if (nretries++ >= MAXRETRIES)
-			return rc;
-
-		// Restore the state of the progress events.
-		progress->current = saved;
-	}
-
-	return rc;
-}
-
 
 /*
  *  For corrupt dives the end-of-samples pointer is 0xFFFFFFFF
@@ -607,11 +583,8 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 		}
 
 		unsigned int profile_pre = array_uint32_le(log_entry + device->layout->pt_profile_pre);
-		unsigned int profile_begin = array_uint32_le(log_entry + device->layout->pt_profile_begin);
-		unsigned int profile_end = array_uint32_le(log_entry + device->layout->pt_profile_end);
 
 		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, profile_pre, last_profile_pre);
-		unsigned int read_size = cochran_commander_profile_size(device, data, idx, profile_begin, profile_end);
 		last_profile_pre = profile_pre;
 
 		// Determine if sample exists
@@ -623,7 +596,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 				data->invalid_profile_dive_num = idx;
 			}
 			// Accumulate read size for progress bar
-			sample_read_size += read_size;
+			sample_read_size += sample_size;
 		}
 	}
 
@@ -860,6 +833,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
 	const cochran_device_layout_t *layout = device->layout;
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_rbstream_t *rbstream = NULL;
 
 	cochran_data_t data;
 	data.logbook = NULL;
@@ -957,6 +931,14 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	// Number of dives to read
 	dive_count = (layout->rb_logbook_entry_count + head_dive - tail_dive) % layout->rb_logbook_entry_count;
 
+	// Create the ringbuffer stream.
+	unsigned int last_start_address = array_uint32_le (data.logbook + ((head_dive - 1) * layout->rb_logbook_entry_size) + layout->pt_profile_end);
+	status = dc_rbstream_new (&rbstream, abstract, 1, 131072, layout->rb_profile_begin, layout->rb_profile_end, last_start_address);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
+		goto error;
+	}
+
 	int invalid_profile_flag = 0;
 
 	// Loop through each dive
@@ -968,14 +950,17 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		unsigned int sample_start_address = array_uint32_le (log_entry + layout->pt_profile_begin);
 		unsigned int sample_end_address = array_uint32_le (log_entry + layout->pt_profile_end);
 
-		int sample_size = 0;
+		int sample_size = 0, pre_size = 0;
 
 		// Determine if profile exists
 		if (idx == data.invalid_profile_dive_num)
 			invalid_profile_flag = 1;
 
-		if (!invalid_profile_flag)
+		if (!invalid_profile_flag) {
 			sample_size = cochran_commander_profile_size(device, &data, idx, sample_start_address, sample_end_address);
+			pre_size = cochran_commander_profile_size(device, &data, idx, sample_end_address, last_start_address);
+			last_start_address = sample_start_address;
+		}
 
 		// Build dive blob
 		unsigned int dive_size = layout->rb_logbook_entry_size + sample_size;
@@ -989,37 +974,29 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		// Read profile data
 		if (sample_size) {
-			if (sample_end_address == 0xFFFFFFFF)
-				// Corrupt dive, guess the end address
-				sample_end_address = cochran_commander_guess_sample_end_address(device, &data, idx);
-
-			if (sample_start_address <= sample_end_address) {
-				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + layout->rb_logbook_entry_size, sample_size);
+			if (pre_size) {
+				// Read throwaway sample data, pre-dive events and post-dive surface sample
+				unsigned char *pre = (unsigned char *) malloc (pre_size);
+				if (pre == NULL) {
+					status = DC_STATUS_NOMEMORY;
+					goto error;
+				}
+				rc = dc_rbstream_read(rbstream, &progress, pre, pre_size);
+				free(pre);
 				if (rc != DC_STATUS_SUCCESS) {
-					ERROR (abstract->context, "Failed to read the sample data.");
+					ERROR (abstract->context, "Failed to read the pre-dive event data.");
 					status = rc;
 					free(dive);
 					goto error;
 				}
-			} else {
-				// It wrapped the buffer, copy two sections
-				unsigned int size = layout->rb_profile_end - sample_start_address;
-
-				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + layout->rb_logbook_entry_size, size);
-				if (rc != DC_STATUS_SUCCESS) {
-					ERROR (abstract->context, "Failed to read the sample data.");
-					status = rc;
-					free(dive);
-					goto error;
-				}
-
-				rc = cochran_commander_read_retry (device, &progress, layout->rb_profile_begin, dive + layout->rb_logbook_entry_size + size, sample_end_address - layout->rb_profile_begin);
-				if (rc != DC_STATUS_SUCCESS) {
-					ERROR (abstract->context, "Failed to read the sample data.");
-					status = rc;
-					free(dive);
-					goto error;
-				}
+			}
+			// read sample data
+			rc = dc_rbstream_read(rbstream, &progress, dive + layout->rb_logbook_entry_size, sample_size);
+			if (rc != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to read the sample data.");
+				status = rc;
+				free(dive);
+				goto error;
 			}
 		}
 
@@ -1032,6 +1009,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	}
 
 error:
+	dc_rbstream_free(rbstream);
 	free(data.logbook);
 	return status;
 }
