@@ -939,20 +939,6 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	// Calculate profile RB effective head pointer
-	// Cochran seems to erase 8K chunks so round up.
-	unsigned int last_start_address;
-	if (layout->endian == ENDIAN_WORD_BE)
-		last_start_address = (array_uint32_word_be(data.config + layout->cf_last_interdive) & 0xfffff000) + 0x2000;
-	else
-		last_start_address = (array_uint32_le(data.config + layout->cf_last_interdive) & 0xfffff000) + 0x2000;
-
-	if (last_start_address < layout->rb_profile_begin || last_start_address > layout->rb_profile_end) {
-		ERROR(abstract->context, "Invalid profile ringbuffer head pointer in Cochran config block.");
-		status = DC_STATUS_DATAFORMAT;
-		goto error;
-	}
-
 	unsigned int head_dive = 0, tail_dive = 0, dive_count = 0;
 
 	if (data.dive_count <= layout->rb_logbook_entry_count) {
