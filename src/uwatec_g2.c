@@ -92,7 +92,7 @@ receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigne
 		// Update and emit a progress event.
 		if (progress) {
 			progress->current += len;
-			device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
+			device_event_emit (&device->base, DC_EVENT_PROGRESS, progress);
 		}
 
 		memcpy(data, buf + 1, len);
