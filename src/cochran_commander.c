@@ -28,31 +28,36 @@
 #include "device-private.h"
 #include "serial.h"
 #include "array.h"
+#include "ringbuffer.h"
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
-#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 0
-#define COCHRAN_MODEL_EMC_14 1
-#define COCHRAN_MODEL_EMC_16 2
-#define COCHRAN_MODEL_EMC_20 3
+#define MAXRETRIES 2
+
+#define COCHRAN_MODEL_COMMANDER_PRE21000 0
+#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 1
+#define COCHRAN_MODEL_EMC_14 2
+#define COCHRAN_MODEL_EMC_16 3
+#define COCHRAN_MODEL_EMC_20 4
 
 typedef enum cochran_endian_t {
 	ENDIAN_LE,
 	ENDIAN_BE,
+	ENDIAN_WORD_BE,
 } cochran_endian_t;
 
 typedef struct cochran_commander_model_t {
-	unsigned char id[2 + 1];
+	unsigned char id[3 + 1];
 	unsigned int model;
 } cochran_commander_model_t;
 
 typedef struct cochran_data_t {
 	unsigned char config[1024];
 	unsigned char *logbook;
-	unsigned char *sample;
 
 	unsigned short int dive_count;
 	int fp_dive_num;
+	int invalid_profile_dive_num;
 
 	unsigned int logbook_size;
 
@@ -78,7 +83,9 @@ typedef struct cochran_device_layout_t {
 	// Profile ringbuffer.
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;
-	// Profile pointers.
+	// pointers.
+	unsigned int pt_fingerprint;
+	unsigned int fingerprint_size;
 	unsigned int pt_profile_pre;
 	unsigned int pt_profile_begin;
 	unsigned int pt_profile_end;
@@ -109,15 +116,15 @@ static const dc_device_vtable_t cochran_commander_device_vtable = {
 	cochran_commander_device_close /* close */
 };
 
-// Cochran Commander Nitrox
-static const cochran_device_layout_t cochran_cmdr_device_layout = {
-	COCHRAN_MODEL_COMMANDER_AIR_NITROX, // model
+// Cochran Commander pre-21000 s/n
+static const cochran_device_layout_t cochran_cmdr_1_device_layout = {
+	COCHRAN_MODEL_COMMANDER_PRE21000, // model
 	24,         // address_bits
-	ENDIAN_BE,  // endian
+	ENDIAN_WORD_BE,  // endian
 	115200,     // baudrate
 	0x046,      // cf_dive_count
-	0x06E,      // cf_last_log
-	0x200,      // cf_last_interdive
+	0x6c,       // cf_last_log
+	0x70,       // cf_last_interdive
 	0x0AA,      // cf_serial_number
 	0x00000000, // rb_logbook_begin
 	0x00020000, // rb_logbook_end
@@ -125,6 +132,32 @@ static const cochran_device_layout_t cochran_cmdr_device_layout = {
 	512,        // rb_logbook_entry_count
 	0x00020000, // rb_profile_begin
 	0x00100000, // rb_profile_end
+	12,         // pt_fingerprint
+	4,          // fingerprint_size
+	28,         // pt_profile_pre
+	0,          // pt_profile_begin
+	128,        // pt_profile_end
+};
+
+
+// Cochran Commander Nitrox
+static const cochran_device_layout_t cochran_cmdr_device_layout = {
+	COCHRAN_MODEL_COMMANDER_AIR_NITROX, // model
+	24,         // address_bits
+	ENDIAN_WORD_BE,  // endian
+	115200,     // baudrate
+	0x046,      // cf_dive_count
+	0x06C,      // cf_last_log
+	0x070,      // cf_last_interdive
+	0x0AA,      // cf_serial_number
+	0x00000000, // rb_logbook_begin
+	0x00020000, // rb_logbook_end
+	256,        // rb_logbook_entry_size
+	512,        // rb_logbook_entry_count
+	0x00020000, // rb_profile_begin
+	0x00100000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	128,        // pt_profile_end
@@ -146,6 +179,8 @@ static const cochran_device_layout_t cochran_emc14_device_layout = {
 	256,        // rb_logbook_entry_count
 	0x00022000, // rb_profile_begin
 	0x00200000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	256,        // pt_profile_end
@@ -167,6 +202,8 @@ static const cochran_device_layout_t cochran_emc16_device_layout = {
 	1024,       // rb_logbook_entry_count
 	0x00094000, // rb_profile_begin
 	0x00800000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	256,        // pt_profile_end
@@ -188,6 +225,8 @@ static const cochran_device_layout_t cochran_emc20_device_layout = {
 	1024,       // rb_logbook_entry_count
 	0x00094000, // rb_profile_begin
 	0x01000000, // rb_profile_end
+	0,          // pt_fingerprint
+	6,          // fingerprint_size
 	30,         // pt_profile_pre
 	6,          // pt_profile_begin
 	256,        // pt_profile_end
@@ -199,15 +238,20 @@ static unsigned int
 cochran_commander_get_model (cochran_commander_device_t *device)
 {
 	const cochran_commander_model_t models[] = {
-		{"\x11""2", COCHRAN_MODEL_COMMANDER_AIR_NITROX},
-		{"73",      COCHRAN_MODEL_EMC_14},
-		{"A3",      COCHRAN_MODEL_EMC_16},
-		{"23",      COCHRAN_MODEL_EMC_20},
+		{"\x11""21", COCHRAN_MODEL_COMMANDER_PRE21000},
+		{"\x11""22", COCHRAN_MODEL_COMMANDER_AIR_NITROX},
+		{"730",      COCHRAN_MODEL_EMC_14},
+		{"731",      COCHRAN_MODEL_EMC_14},
+		{"A30",      COCHRAN_MODEL_EMC_16},
+		{"A31",      COCHRAN_MODEL_EMC_16},
+		{"230",      COCHRAN_MODEL_EMC_20},
+		{"231",      COCHRAN_MODEL_EMC_20},
+		{"\x40""30", COCHRAN_MODEL_EMC_20},
 	};
 
 	unsigned int model = 0xFFFFFFFF;
 	for (unsigned int i = 0; i < C_ARRAY_SIZE(models); ++i) {
-		if (memcmp (device->id + 0x3B, models[i].id, sizeof(models[i].id) - 1) == 0) {
+		if (memcmp (device->id + 0x3D, models[i].id, sizeof(models[i].id) - 1) == 0) {
 			model = models[i].model;
 			break;
 		}
@@ -429,22 +473,163 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 	return DC_STATUS_SUCCESS;
 }
 
+static unsigned int
+cochran_commander_read_retry (cochran_commander_device_t *device, dc_event_progress_t *progress, unsigned int address, unsigned char data[], unsigned int size)
+{
+	// Save the state of the progress events.
+	unsigned int saved = progress->current;
 
-static void
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = cochran_commander_read (device, progress, address, data, size)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Restore the state of the progress events.
+		progress->current = saved;
+	}
+
+	return rc;
+}
+
+
+/*
+ *  For corrupt dives the end-of-samples pointer is 0xFFFFFFFF
+ *  search for a reasonable size, e.g. using next dive start sample
+ *  or end-of-samples to limit searching for recoverable samples
+ */
+static unsigned int
+cochran_commander_guess_sample_end_address(cochran_commander_device_t *device, cochran_data_t *data, unsigned int log_num)
+{
+	const unsigned char *log_entry = data->logbook + device->layout->rb_logbook_entry_size * log_num;
+
+	if (log_num == data->dive_count)
+		// Return next usable address from config page
+		return array_uint32_le(data->config + device->layout->rb_profile_end);
+
+	// Next log's start address
+	return array_uint32_le(log_entry + device->layout->rb_logbook_entry_size + device->layout->pt_profile_begin);
+}
+
+
+static unsigned int
+cochran_commander_profile_size(cochran_commander_device_t *device, cochran_data_t *data, int dive_num, unsigned int sample_start_address, unsigned int sample_end_address)
+{
+	// Validate addresses
+	if (sample_start_address < device->layout->rb_profile_begin ||
+		sample_start_address > device->layout->rb_profile_end ||
+		sample_end_address < device->layout->rb_profile_begin ||
+		(sample_end_address > device->layout->rb_profile_end &&
+		sample_end_address != 0xFFFFFFFF)) {
+		return 0;
+	}
+
+	if (sample_end_address == 0xFFFFFFFF)
+		// Corrupt dive, guess the end address
+		sample_end_address = cochran_commander_guess_sample_end_address(device, data, dive_num);
+
+	return ringbuffer_distance(sample_start_address, sample_end_address, 0, device->layout->rb_profile_begin, device->layout->rb_profile_end);
+}
+
+
+/*
+ * Do several things. Find the log that matches the fingerprint,
+ * calculate the total read size for progress indicator,
+ * Determine the most recent dive without profile data.
+ */
+
+static unsigned int
 cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_data_t *data)
 {
-	// Skip to fingerprint to reduce time
-	if (data->dive_count < device->layout->rb_logbook_entry_count)
-		data->fp_dive_num = data->dive_count;
-	else
-		data->fp_dive_num = device->layout->rb_logbook_entry_count;
-	data->fp_dive_num--;
+	// We track profile ringbuffer usage to determine which dives have profile data
+	int profile_capacity_remaining = device->layout->rb_profile_end - device->layout->rb_profile_begin;
 
-	while (data->fp_dive_num >= 0 && memcmp(device->fingerprint,
-			data->logbook + data->fp_dive_num * device->layout->rb_logbook_entry_size,
-			sizeof(device->fingerprint)))
-		data->fp_dive_num--;
+	int dive_count = -1;
+	data->fp_dive_num = -1;
+
+	// Start at end of log
+	if (data->dive_count < device->layout->rb_logbook_entry_count)
+		dive_count = data->dive_count;
+	else
+		dive_count = device->layout->rb_logbook_entry_count;
+	dive_count--;
+
+	unsigned int sample_read_size = 0;
+	data->invalid_profile_dive_num = -1;
+
+	// Remove the pre-dive events that occur after the last dive
+	unsigned int rb_head_ptr = 0;
+	if (device->layout->endian == ENDIAN_WORD_BE)
+		rb_head_ptr = (array_uint32_word_be(data->config + device->layout->cf_last_log) & 0xfffff000) + 0x2000;
+	else
+		rb_head_ptr = (array_uint32_le(data->config + device->layout->cf_last_log) & 0xfffff000) + 0x2000;
+
+	unsigned int head_dive = 0, tail_dive = 0;
+
+	if (data->dive_count <= device->layout->rb_logbook_entry_count) {
+		head_dive = data->dive_count;
+		tail_dive = 0;
+	} else {
+		// Log wrapped
+		tail_dive = data->dive_count % device->layout->rb_logbook_entry_count;
+		head_dive = tail_dive;
+	}
+
+	unsigned int last_profile_idx = (device->layout->rb_logbook_entry_count + head_dive - 1) % device->layout->rb_logbook_entry_count;
+	unsigned int last_profile_end = array_uint32_le(data->logbook + last_profile_idx * device->layout->rb_logbook_entry_size + device->layout->pt_profile_end);
+	unsigned int last_profile_pre = 0xFFFFFFFF;
+
+	if (device->layout->endian == ENDIAN_WORD_BE)
+		last_profile_pre = array_uint32_word_be(data->config + device->layout->cf_last_log);
+	else
+		last_profile_pre = array_uint32_le(data->config + device->layout->cf_last_log);
+
+	if (rb_head_ptr > last_profile_end)
+		profile_capacity_remaining -= rb_head_ptr - last_profile_end;
+
+	// Loop through dives to find FP, Accumulate profile data size,
+	// and find the last dive with invalid profile
+	for (unsigned int i = 0; i <= dive_count; ++i) {
+		unsigned int idx = (device->layout->rb_logbook_entry_count + head_dive - (i + 1)) % device->layout->rb_logbook_entry_count;
+
+		unsigned char *log_entry = data->logbook + idx * device->layout->rb_logbook_entry_size;
+
+		// We're done if we find the fingerprint
+		if (!memcmp(device->fingerprint, log_entry + device->layout->pt_fingerprint, device->layout->fingerprint_size)) {
+			data->fp_dive_num = idx;
+			break;
+		}
+
+		unsigned int profile_pre = array_uint32_le(log_entry + device->layout->pt_profile_pre);
+		unsigned int profile_begin = array_uint32_le(log_entry + device->layout->pt_profile_begin);
+		unsigned int profile_end = array_uint32_le(log_entry + device->layout->pt_profile_end);
+
+		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, profile_pre, last_profile_pre);
+		unsigned int read_size = cochran_commander_profile_size(device, data, idx, profile_begin, profile_end);
+		last_profile_pre = profile_pre;
+
+		// Determine if sample exists
+		if (profile_capacity_remaining > 0) {
+			// Subtract this dive's profile size including post-dive events
+			profile_capacity_remaining -= sample_size;
+			if (profile_capacity_remaining < 0) {
+				// Save the last dive that is missing profile data
+				data->invalid_profile_dive_num = idx;
+			}
+			// Accumulate read size for progress bar
+			sample_read_size += read_size;
+		}
+	}
+
+	return sample_read_size;
 }
+
 
 
 static void
@@ -509,103 +694,6 @@ cochran_commander_get_sample_parms(cochran_commander_device_t *device, cochran_d
 }
 
 
-/*
- *  For corrupt dives the end-of-samples pointer is 0xFFFFFFFF
- *  search for a reasonable size, e.g. using next dive start sample
- *  or end-of-samples to limit searching for recoverable samples
- */
-static unsigned int
-cochran_commander_guess_sample_end_address(cochran_commander_device_t *device, cochran_data_t *data, unsigned int log_num)
-{
-	const unsigned char *log_entry = data->logbook + device->layout->rb_logbook_entry_size * log_num;
-
-	if (log_num == data->dive_count)
-		// Return next usable address from config page
-		return array_uint32_le(data->config + device->layout->rb_profile_end);
-
-	// Next log's start address
-	return array_uint32_le(log_entry + device->layout->rb_logbook_entry_size + device->layout->pt_profile_begin);
-}
-
-
-static dc_status_t
-cochran_commander_read_all (cochran_commander_device_t *device, cochran_data_t *data)
-{
-	dc_device_t *abstract = (dc_device_t *) device;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Calculate max data sizes
-	unsigned int max_config = sizeof(data->config);
-	unsigned int max_logbook = device->layout->rb_logbook_end - device->layout->rb_logbook_begin;
-	unsigned int max_sample = device->layout->rb_profile_end - device->layout->rb_profile_begin;
-
-	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = max_config + max_logbook + max_sample;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-	// Emit ID block
-	dc_event_vendor_t vendor;
-	vendor.data = device->id;
-	vendor.size = sizeof (device->id);
-	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
-
-	// Read config
-	rc = cochran_commander_read_config(device, &progress, data->config, sizeof(data->config));
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
-
-	// Determine size of dive list to read.
-	if (device->layout->endian == ENDIAN_LE)
-		data->dive_count = array_uint16_le (data->config + device->layout->cf_dive_count);
-	else
-		data->dive_count = array_uint16_be (data->config + device->layout->cf_dive_count);
-
-	if (data->dive_count > device->layout->rb_logbook_entry_count) {
-		data->logbook_size = device->layout->rb_logbook_entry_count * device->layout->rb_logbook_entry_size;
-	} else {
-		data->logbook_size = data->dive_count * device->layout->rb_logbook_entry_size;
-	}
-
-	progress.maximum -= max_logbook - data->logbook_size;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-	// Allocate space for log book.
-	data->logbook = (unsigned char *) malloc(data->logbook_size);
-	if (data->logbook == NULL) {
-		ERROR (abstract->context, "Failed to allocate memory.");
-		return DC_STATUS_NOMEMORY;
-	}
-
-	// Request log book
-	rc = cochran_commander_read(device, &progress, 0, data->logbook, data->logbook_size);
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
-
-	// Determine sample memory to read
-	cochran_commander_find_fingerprint(device, data);
-	cochran_commander_get_sample_parms(device, data);
-
-	progress.maximum -= max_sample - data->sample_size;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-	if (data->sample_size > 0) {
-		data->sample = (unsigned char *) malloc(data->sample_size);
-		if (data->sample == NULL) {
-			ERROR (abstract->context, "Failed to allocate memory.");
-			return DC_STATUS_NOMEMORY;
-		}
-
-		// Read the sample data
-		rc = cochran_commander_read (device, &progress, data->sample_data_offset, data->sample, data->sample_size);
-		if (rc != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to read the sample data.");
-			return rc;
-		}
-	}
-
-	return DC_STATUS_SUCCESS;
-}
-
 dc_status_t
 cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
@@ -647,6 +735,9 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 
 	unsigned int model = cochran_commander_get_model(device);
 	switch (model) {
+	case COCHRAN_MODEL_COMMANDER_PRE21000:
+		device->layout = &cochran_cmdr_1_device_layout;
+		break;
 	case COCHRAN_MODEL_COMMANDER_AIR_NITROX:
 		device->layout = &cochran_cmdr_device_layout;
 		break;
@@ -697,13 +788,13 @@ cochran_commander_device_set_fingerprint (dc_device_t *abstract, const unsigned 
 {
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
 
-	if (size && size != sizeof (device->fingerprint))
+	if (size && size != device->layout->fingerprint_size)
 		return DC_STATUS_INVALIDARGS;
 
 	if (size)
-		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+		memcpy (device->fingerprint, data, device->layout->fingerprint_size);
 	else
-		memset (device->fingerprint, 0xFF, sizeof (device->fingerprint));
+		memset (device->fingerprint, 0xFF, sizeof(device->fingerprint));
 
 	return DC_STATUS_SUCCESS;
 }
@@ -767,111 +858,172 @@ static dc_status_t
 cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
+	const cochran_device_layout_t *layout = device->layout;
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	cochran_data_t data;
 	data.logbook = NULL;
-	data.sample = NULL;
-	status = cochran_commander_read_all (device, &data);
-	if (status != DC_STATUS_SUCCESS)
-		goto error;
 
-	// Emit a device info event.
-	dc_event_devinfo_t devinfo;
-	devinfo.model = device->layout->model;
-	devinfo.firmware = 0; // unknown
-	devinfo.serial = array_uint32_le(data.config + device->layout->cf_serial_number);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+	// Calculate max data sizes
+	unsigned int max_config = sizeof(data.config);
+	unsigned int max_logbook = layout->rb_logbook_end - layout->rb_logbook_begin;
+	unsigned int max_sample = layout->rb_profile_end - layout->rb_profile_begin;
 
-	// Calculate profile RB effective head pointer
-	// Cochran seems to erase 8K chunks so round up.
-	unsigned int last_start_address = (array_uint32_le(data.config + device->layout->cf_last_interdive) & 0xfffff000) + 0x2000;
-	if (last_start_address < device->layout->rb_profile_begin || last_start_address > device->layout->rb_profile_end) {
-		ERROR(abstract->context, "Invalid profile ringbuffer head pointer in Cochran config block.");
-		status = DC_STATUS_DATAFORMAT;
+	// setup progress indication
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.maximum = max_config + max_logbook + max_sample;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Emit ID block
+	dc_event_vendor_t vendor;
+	vendor.data = device->id;
+	vendor.size = sizeof (device->id);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
+	// Read config
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	rc = cochran_commander_read_config(device, &progress, data.config, sizeof(data.config));
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Determine size of dive list to read.
+	if (layout->endian == ENDIAN_LE)
+		data.dive_count = array_uint16_le (data.config + layout->cf_dive_count);
+	else
+		data.dive_count = array_uint16_be (data.config + layout->cf_dive_count);
+
+	if (data.dive_count == 0)
+		// No dives to read
+		return DC_STATUS_SUCCESS;
+
+	if (data.dive_count > layout->rb_logbook_entry_count) {
+		data.logbook_size = layout->rb_logbook_entry_count * layout->rb_logbook_entry_size;
+	} else {
+		data.logbook_size = data.dive_count * layout->rb_logbook_entry_size;
+	}
+
+	// Update progress indicator with new maximum
+	progress.maximum -= max_logbook - data.logbook_size;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Allocate space for log book.
+	data.logbook = (unsigned char *) malloc(data.logbook_size);
+	if (data.logbook == NULL) {
+		ERROR (abstract->context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Request log book
+	rc = cochran_commander_read(device, &progress, 0, data.logbook, data.logbook_size);
+	if (rc != DC_STATUS_SUCCESS) {
+		status = rc;
 		goto error;
 	}
 
-	// We track profile ringbuffer usage to determine which dives have profile data
-	int profile_capacity_remaining = device->layout->rb_profile_end - device->layout->rb_profile_begin;
+	// Locate fingerprint, recent dive with invalid profile and calc read size
+	unsigned int profile_read_size = cochran_commander_find_fingerprint(device, &data);
+	// Update progress indicator with new maximum
+	progress.maximum -= (max_sample - profile_read_size);
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	unsigned int dive_count = 0;
-	if (data.dive_count < device->layout->rb_logbook_entry_count)
-		dive_count = data.dive_count;
+	cochran_commander_get_sample_parms(device, &data);
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = layout->model;
+	devinfo.firmware = 0; // unknown
+	if (layout->endian == ENDIAN_WORD_BE)
+		devinfo.serial = array_uint32_word_be(data.config + layout->cf_serial_number);
 	else
-		dive_count = device->layout->rb_logbook_entry_count;
+		devinfo.serial = array_uint32_le(data.config + layout->cf_serial_number);
+
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	unsigned int head_dive = 0, tail_dive = 0, dive_count = 0;
+
+	if (data.dive_count <= layout->rb_logbook_entry_count) {
+		head_dive = data.dive_count;
+		tail_dive = 0;
+	} else {
+		// Log wrapped
+		tail_dive = data.dive_count % layout->rb_logbook_entry_count;
+		head_dive = tail_dive;
+	}
+
+	// Change tail to dive following the fingerprint dive.
+	if (data.fp_dive_num > -1)
+		tail_dive = (data.fp_dive_num + 1) % layout->rb_logbook_entry_count;
+
+	// Number of dives to read
+	dive_count = (layout->rb_logbook_entry_count + head_dive - tail_dive) % layout->rb_logbook_entry_count;
+
+	int invalid_profile_flag = 0;
 
 	// Loop through each dive
-	for (int i = dive_count - 1; i > data.fp_dive_num; i--) {
-		unsigned char *log_entry = data.logbook + i * device->layout->rb_logbook_entry_size;
+	for (unsigned int i = 0; i < dive_count; ++i) {
+		unsigned int idx = (layout->rb_logbook_entry_count + head_dive - (i + 1)) % layout->rb_logbook_entry_count;
 
-		unsigned int sample_start_address = array_uint32_le (log_entry + device->layout->pt_profile_begin);
-		unsigned int sample_end_address = array_uint32_le (log_entry + device->layout->pt_profile_end);
+		unsigned char *log_entry = data.logbook + idx * layout->rb_logbook_entry_size;
 
-		// Validate
-		if (sample_start_address < device->layout->rb_profile_begin ||
-			sample_start_address > device->layout->rb_profile_end ||
-			sample_end_address < device->layout->rb_profile_begin ||
-			(sample_end_address > device->layout->rb_profile_end &&
-			sample_end_address != 0xFFFFFFFF)) {
-			continue;
-		}
+		unsigned int sample_start_address = array_uint32_le (log_entry + layout->pt_profile_begin);
+		unsigned int sample_end_address = array_uint32_le (log_entry + layout->pt_profile_end);
 
-		if (sample_end_address == 0xFFFFFFFF)
-			// Corrupt dive, guess the end address
-			sample_end_address = cochran_commander_guess_sample_end_address(device, &data, i);
-
-		// Determine if sample exists
-		if (profile_capacity_remaining > 0) {
-			// Subtract this dive's profile size including post-dive events
-			profile_capacity_remaining -= (last_start_address - sample_start_address);
-			// Adjust for a dive that wraps the buffer
-			if (sample_start_address > last_start_address)
-				profile_capacity_remaining -= device->layout->rb_profile_end - device->layout->rb_profile_begin;
-		}
-		last_start_address = sample_start_address;
-
-		unsigned char *sample = NULL;
 		int sample_size = 0;
-		if (profile_capacity_remaining < 0) {
-			// There is no profile for this dive
-			sample = NULL;
-			sample_size = 0;
-		} else {
-			// Calculate the size of the profile only
-			sample = data.sample + sample_start_address - data.sample_data_offset;
-			sample_size = sample_end_address - sample_start_address;
 
-			if (sample_size < 0)
-				// Adjust for ring buffer wrap-around
-				sample_size += device->layout->rb_profile_end - device->layout->rb_profile_begin;
-		}
+		// Determine if profile exists
+		if (idx == data.invalid_profile_dive_num)
+			invalid_profile_flag = 1;
+
+		if (!invalid_profile_flag)
+			sample_size = cochran_commander_profile_size(device, &data, idx, sample_start_address, sample_end_address);
 
 		// Build dive blob
-		unsigned int dive_size = device->layout->rb_logbook_entry_size + sample_size;
+		unsigned int dive_size = layout->rb_logbook_entry_size + sample_size;
 		unsigned char *dive = (unsigned char *) malloc(dive_size);
 		if (dive == NULL) {
 			status = DC_STATUS_NOMEMORY;
 			goto error;
 		}
 
-		memcpy(dive, log_entry, device->layout->rb_logbook_entry_size); // log
+		memcpy(dive, log_entry, layout->rb_logbook_entry_size); // log
 
-		// Copy profile data
+		// Read profile data
 		if (sample_size) {
+			if (sample_end_address == 0xFFFFFFFF)
+				// Corrupt dive, guess the end address
+				sample_end_address = cochran_commander_guess_sample_end_address(device, &data, idx);
+
 			if (sample_start_address <= sample_end_address) {
-				memcpy(dive + device->layout->rb_logbook_entry_size, sample, sample_size);
+				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + layout->rb_logbook_entry_size, sample_size);
+				if (rc != DC_STATUS_SUCCESS) {
+					ERROR (abstract->context, "Failed to read the sample data.");
+					status = rc;
+					free(dive);
+					goto error;
+				}
 			} else {
 				// It wrapped the buffer, copy two sections
-				unsigned int size = device->layout->rb_profile_end - sample_start_address;
+				unsigned int size = layout->rb_profile_end - sample_start_address;
 
-				memcpy(dive + device->layout->rb_logbook_entry_size, sample, size);
-				memcpy(dive + device->layout->rb_logbook_entry_size + size,
-					data.sample, sample_end_address - device->layout->rb_profile_begin);
+				rc = cochran_commander_read_retry (device, &progress, sample_start_address, dive + layout->rb_logbook_entry_size, size);
+				if (rc != DC_STATUS_SUCCESS) {
+					ERROR (abstract->context, "Failed to read the sample data.");
+					status = rc;
+					free(dive);
+					goto error;
+				}
+
+				rc = cochran_commander_read_retry (device, &progress, layout->rb_profile_begin, dive + layout->rb_logbook_entry_size + size, sample_end_address - layout->rb_profile_begin);
+				if (rc != DC_STATUS_SUCCESS) {
+					ERROR (abstract->context, "Failed to read the sample data.");
+					status = rc;
+					free(dive);
+					goto error;
+				}
 			}
 		}
 
-		if (callback && !callback (dive, dive_size, dive, sizeof(device->fingerprint), userdata)) {
+		if (callback && !callback (dive, dive_size, dive + layout->pt_fingerprint, layout->fingerprint_size, userdata)) {
 			free(dive);
 			break;
 		}
@@ -881,6 +1033,5 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 error:
 	free(data.logbook);
-	free(data.sample);
 	return status;
 }

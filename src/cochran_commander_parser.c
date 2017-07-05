@@ -31,10 +31,14 @@
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
-#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 0
-#define COCHRAN_MODEL_EMC_14 1
-#define COCHRAN_MODEL_EMC_16 2
-#define COCHRAN_MODEL_EMC_20 3
+#define COCHRAN_MODEL_COMMANDER_PRE21000 0
+#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 1
+#define COCHRAN_MODEL_EMC_14 2
+#define COCHRAN_MODEL_EMC_16 3
+#define COCHRAN_MODEL_EMC_20 4
+
+// Cochran time stamps start at Jan 1, 1992
+#define COCHRAN_EPOCH 694242000
 
 #define UNSUPPORTED 0xFFFFFFFF
 
@@ -43,11 +47,19 @@ typedef enum cochran_sample_format_t {
 	SAMPLE_EMC,
 } cochran_sample_format_t;
 
+
+typedef enum cochran_date_encoding_t {
+	DATE_ENCODING_MSDHYM,
+	DATE_ENCODING_SMHDMY,
+	DATE_ENCODING_TICKS,
+} cochran_date_encoding_t;
+
 typedef struct cochran_parser_layout_t {
 	cochran_sample_format_t format;
 	unsigned int headersize;
 	unsigned int samplesize;
-	unsigned int second, minute, hour, day, month, year;
+	cochran_date_encoding_t date_encoding;
+	unsigned int datetime;
 	unsigned int pt_profile_begin;
 	unsigned int water_conductivity;
 	unsigned int pt_profile_pre;
@@ -101,11 +113,36 @@ static const dc_parser_vtable_t cochran_commander_parser_vtable = {
 	NULL /* destroy */
 };
 
+static const cochran_parser_layout_t cochran_cmdr_1_parser_layout = {
+	SAMPLE_CMDR, // type
+	256,         // headersize
+	2,           // samplesize
+	DATE_ENCODING_TICKS, // date_encoding
+	8,           // datetime, 4 bytes
+	0,           // pt_profile_begin, 4 bytes
+	24,          // water_conductivity, 1 byte, 0=low(fresh), 2=high(sea)
+	28,          // pt_profile_pre, 4 bytes
+	43,          // start_temp, 1 byte, F
+	54,          // start_depth, 2 bytes, /4=ft
+	68,          // dive_number, 2 bytes
+	73,          // altitude, 1 byte, /4=kilofeet
+	128,         // pt_profile_end, 4 bytes
+	153,         // end_temp, 1 byte F
+	166,         // divetime, 2 bytes, minutes
+	168,         // max_depth, 2 bytes, /4=ft
+	170,         // avg_depth, 2 bytes, /4=ft
+	210,         // oxygen, 4 bytes (2 of) 2 bytes, /256=%
+	UNSUPPORTED, // helium, 4 bytes (2 of) 2 bytes, /256=%
+	232,         // min_temp, 1 byte, /2+20=F
+	233,         // max_temp, 1 byte, /2+20=F
+};
+
 static const cochran_parser_layout_t cochran_cmdr_parser_layout = {
 	SAMPLE_CMDR, // type
 	256,         // headersize
 	2,           // samplesize
-	1, 0, 3, 2, 5, 4, // second, minute, hour, day, month, year, 1 byte each
+	DATE_ENCODING_MSDHYM, // date_encoding
+	0,           // datetime, 6 bytes
 	6,           // pt_profile_begin, 4 bytes
 	24,          // water_conductivity, 1 byte, 0=low(fresh), 2=high(sea)
 	30,          // pt_profile_pre, 4 bytes
@@ -128,7 +165,8 @@ static const cochran_parser_layout_t cochran_emc_parser_layout = {
 	SAMPLE_EMC,  // type
 	512,         // headersize
 	3,           // samplesize
-	0, 1, 2, 3, 4, 5, // second, minute, hour, day, month, year, 1 byte each
+	DATE_ENCODING_SMHDMY, // date_encoding
+	0,           // datetime, 6 bytes
 	6,           // pt_profile_begin, 4 bytes
 	24,          // water_conductivity, 1 byte 0=low(fresh), 2=high(sea)
 	30,          // pt_profile_pre, 4 bytes
@@ -296,6 +334,11 @@ cochran_commander_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	parser->model = model;
 
 	switch (model) {
+	case COCHRAN_MODEL_COMMANDER_PRE21000:
+		parser->layout = &cochran_cmdr_1_parser_layout;
+		parser->events = cochran_cmdr_event_bytes;
+		parser->nevents = C_ARRAY_SIZE(cochran_cmdr_event_bytes);
+		break;
 	case COCHRAN_MODEL_COMMANDER_AIR_NITROX:
 		parser->layout = &cochran_cmdr_parser_layout;
 		parser->events = cochran_cmdr_event_bytes;
@@ -340,13 +383,32 @@ cochran_commander_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dat
 	if (abstract->size < layout->headersize)
 		return DC_STATUS_DATAFORMAT;
 
+	dc_ticks_t ts = 0;
+
 	if (datetime) {
-		datetime->second = data[layout->second];
-		datetime->minute = data[layout->minute];
-		datetime->hour = data[layout->hour];
-		datetime->day = data[layout->day];
-		datetime->month = data[layout->month];
-		datetime->year = data[layout->year] + (data[layout->year] > 91 ? 1900 : 2000);
+		switch (layout->date_encoding)
+		{
+		case DATE_ENCODING_MSDHYM:
+			datetime->second = data[layout->datetime + 1];
+			datetime->minute = data[layout->datetime + 0];
+			datetime->hour = data[layout->datetime + 3];
+			datetime->day = data[layout->datetime + 2];
+			datetime->month = data[layout->datetime + 5];
+			datetime->year = data[layout->datetime + 4] + (data[layout->datetime + 4] > 91 ? 1900 : 2000);
+			break;
+		case DATE_ENCODING_SMHDMY:
+			datetime->second = data[layout->datetime + 0];
+			datetime->minute = data[layout->datetime + 1];
+			datetime->hour = data[layout->datetime + 2];
+			datetime->day = data[layout->datetime + 3];
+			datetime->month = data[layout->datetime + 4];
+			datetime->year = data[layout->datetime + 5] + (data[layout->datetime + 5] > 91 ? 1900 : 2000);
+			break;
+		case DATE_ENCODING_TICKS:
+			ts = array_uint32_le(data + layout->datetime) + COCHRAN_EPOCH;
+			dc_datetime_localtime(datetime, ts);
+			break;
+		}
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -471,10 +533,11 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 	// know what the dive summary values are (i.e. max depth, min temp)
 	if (array_uint32_le(data + layout->pt_profile_end) == 0xFFFFFFFF) {
 		corrupt_dive = 1;
+		dc_datetime_t d;
+		cochran_commander_parser_get_datetime(abstract, &d);
 
 		WARNING(abstract->context, "Incomplete dive on %02d/%02d/%02d at %02d:%02d:%02d, trying to parse samples",
-				data[layout->year], data[layout->month], data[layout->day],
-				data[layout->hour], data[layout->minute], data[layout->second]);
+				d.year, d.month, d.day, d.hour, d.minute, d.second);
 
 		// Eliminate inter-dive events
 		size = cochran_commander_backparse(parser, samples, size);
@@ -484,7 +547,8 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 	// and temp every other second.
 
 	// Prime values from the dive log section
-	if (parser->model == COCHRAN_MODEL_COMMANDER_AIR_NITROX) {
+	if (parser->model == COCHRAN_MODEL_COMMANDER_AIR_NITROX ||
+		parser->model == COCHRAN_MODEL_COMMANDER_PRE21000) {
 		// Commander stores start depth in quarter-feet
 		start_depth = array_uint16_le (data + layout->start_depth) / 4.0;
 	} else {
@@ -503,6 +567,7 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 
 	sample.gasmix = 0;
 	if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+	unsigned int last_gasmix = sample.gasmix;
 
 	while (offset < size) {
 		const unsigned char *s = samples + offset;
@@ -537,45 +602,48 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 		if (s[0] & 0x80) {
 			offset += cochran_commander_handle_event(parser, s[0], callback, userdata);
 
-			if (layout->format == SAMPLE_EMC) {
-				// EMC models have events indicating change in deco status
-				// Commander may have them but I don't have example data
-				switch (s[0]) {
-				case 0xC5:  // Deco obligation begins
-					deco_obligation = 1;
-					break;
-				case 0xD8:  // Deco obligation ends
-					deco_obligation = 0;
-					break;
-				case 0xAB:  // Decrement ceiling (deeper)
-					deco_ceiling += 10; // feet
+			// Events indicating change in deco status
+			switch (s[0]) {
+			case 0xC5:  // Deco obligation begins
+				deco_obligation = 1;
+				break;
+			case 0xD8:  // Deco obligation ends
+				deco_obligation = 0;
+				break;
+			case 0xAB:  // Decrement ceiling (deeper)
+				deco_ceiling += 10; // feet
 
-					sample.deco.type = DC_DECO_DECOSTOP;
-					sample.deco.time = (array_uint16_le(s + layout->samplesize) + 1) * 60;
-					sample.deco.depth = deco_ceiling * FEET;
-					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
-					break;
-				case 0xAD:  // Increment ceiling (shallower)
-					deco_ceiling -= 10; // feet
+				sample.deco.type = DC_DECO_DECOSTOP;
+				sample.deco.time = (array_uint16_le(s + 3) + 1) * 60;
+				sample.deco.depth = deco_ceiling * FEET;
+				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+				break;
+			case 0xAD:  // Increment ceiling (shallower)
+				deco_ceiling -= 10; // feet
 
-					sample.deco.type = DC_DECO_DECOSTOP;
-					sample.deco.depth = deco_ceiling * FEET;
-					sample.deco.time = (array_uint16_le(s + layout->samplesize) + 1) * 60;
-					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
-					break;
-				case 0xC0:  // Switched to FO2 21% mode (surface)
-					// Event seen upon surfacing
-					break;
-				case 0xCD:  // Switched to deco blend
-				case 0xEF:  // Switched to gas blend 2
+				sample.deco.type = DC_DECO_DECOSTOP;
+				sample.deco.depth = deco_ceiling * FEET;
+				sample.deco.time = (array_uint16_le(s + 3) + 1) * 60;
+				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+				break;
+			case 0xC0:  // Switched to FO2 21% mode (surface)
+				// Event seen upon surfacing
+				break;
+			case 0xCD:  // Switched to deco blend
+			case 0xEF:  // Switched to gas blend 2
+				if (last_gasmix != 1) {
 					sample.gasmix = 1;
 					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
-					break;
-				case 0xF3:  // Switched to gas blend 1
+					last_gasmix = sample.gasmix;
+				}
+				break;
+			case 0xF3:  // Switched to gas blend 1
+				if (last_gasmix != 0) {
 					sample.gasmix = 0;
 					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
-					break;
+					last_gasmix = sample.gasmix;
 				}
+				break;
 			}
 
 			continue;
