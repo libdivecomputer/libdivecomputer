@@ -60,6 +60,7 @@ struct shearwater_predator_parser_t {
 	unsigned int samplesize;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int logversion;
 	unsigned int headersize;
 	unsigned int footersize;
 	unsigned int ngasmixes;
@@ -139,6 +140,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	parser->petrel = petrel;
 	parser->samplesize = samplesize;
 	parser->cached = 0;
+	parser->logversion = 0;
 	parser->headersize = 0;
 	parser->footersize = 0;
 	parser->ngasmixes = 0;
@@ -175,6 +177,7 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 
 	// Reset the cache.
 	parser->cached = 0;
+	parser->logversion = 0;
 	parser->headersize = 0;
 	parser->footersize = 0;
 	parser->ngasmixes = 0;
@@ -225,6 +228,12 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		ERROR (abstract->context, "Invalid data length.");
 		return DC_STATUS_DATAFORMAT;
 	}
+
+	// Log versions before 6 weren't reliably stored in the data, but
+	// 6 is also the oldest version that we assume in our code
+	unsigned int logversion = 6;
+	if (data[127] > 6)
+		logversion = data[127];
 
 	// Adjust the footersize for the final block.
 	if (parser->petrel || array_uint16_be (data + size - footersize) == 0xFFFD) {
@@ -304,6 +313,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	}
 
 	// Cache the data for later use.
+	parser->logversion = logversion;
 	parser->headersize = headersize;
 	parser->footersize = footersize;
 	parser->ngasmixes = ngasmixes;
