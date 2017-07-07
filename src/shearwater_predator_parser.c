@@ -548,6 +548,18 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				sample.pressure.value = pressure * 2 * PSI / BAR;
 				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 			}
+
+			// Gas time remaining in minutes
+			// Values above 0xF0 are special codes:
+			//    0xFF Not paired
+			//    0xFE No communication
+			//    0xFD Not available in current mode
+			//    0xFC Not available because of DECO
+			//    0xFB Tank size or max pressure haven’t been set up
+			if (data[offset + 21] < 0xF0) {
+				sample.rbt = data[offset + 21];
+				if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
+			}
 		}
 
 		offset += parser->samplesize;
