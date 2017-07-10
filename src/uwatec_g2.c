@@ -110,16 +110,17 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 	dc_status_t status = DC_STATUS_SUCCESS;
 	size_t transferred = 0;
 
-	if (csize >= PACKET_SIZE) {
+	if (csize + 2 > PACKET_SIZE) {
 		ERROR (device->base.context, "command too big (%d)", csize);
 		return DC_STATUS_INVALIDARGS;
 	}
 
 	HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "cmd", command, csize);
 
-	buf[0] = csize;
-	memcpy(buf + 1, command, csize);
-	status = dc_usbhid_write (device->usbhid, buf, csize + 1, &transferred);
+	buf[0] = 0;
+	buf[1] = csize;
+	memcpy(buf + 2, command, csize);
+	status = dc_usbhid_write (device->usbhid, buf, csize + 2, &transferred);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to send the command.");
 		return status;
