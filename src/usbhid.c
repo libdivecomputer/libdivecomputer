@@ -391,13 +391,31 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 		goto out_invalidargs;
 	}
 
+	if (size == 0) {
+		goto out;
+	}
+
 #if defined(HAVE_LIBUSB) && !defined(__APPLE__)
-	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_out, (void *) data, size, &nbytes, 0);
+	const unsigned char *buffer = (const unsigned char *) data;
+	size_t length = size;
+
+	// Skip a report id of zero.
+	unsigned char report = buffer[0];
+	if (report == 0) {
+		buffer++;
+		length--;
+	}
+
+	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_out, (void *) buffer, length, &nbytes, 0);
 	if (rc != LIBUSB_SUCCESS) {
 		ERROR (usbhid->context, "Usb write interrupt transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
 		goto out;
+	}
+
+	if (report == 0) {
+		nbytes++;
 	}
 #elif defined(HAVE_HIDAPI)
 	nbytes = hid_write(usbhid->handle, data, size);
