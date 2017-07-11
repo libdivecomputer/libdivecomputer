@@ -426,6 +426,12 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 		nbytes = 0;
 		goto out;
 	}
+
+#ifdef _WIN32
+	if (nbytes > size) {
+		nbytes = size;
+	}
+#endif
 #endif
 
 out:
