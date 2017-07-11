@@ -362,6 +362,7 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 	if (nbytes < 0) {
 		ERROR (usbhid->context, "Usb read interrupt transfer failed.");
 		status = DC_STATUS_IO;
+		nbytes = 0;
 		goto out;
 	}
 #endif
@@ -422,6 +423,7 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 	if (nbytes < 0) {
 		ERROR (usbhid->context, "Usb write interrupt transfer failed.");
 		status = DC_STATUS_IO;
+		nbytes = 0;
 		goto out;
 	}
 #endif
