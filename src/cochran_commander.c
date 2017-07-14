@@ -71,6 +71,7 @@ typedef struct cochran_device_layout_t {
 	unsigned int address_bits;
 	cochran_endian_t endian;
 	unsigned int baudrate;
+	unsigned int rbstream_size;
 	// Config data.
 	unsigned int cf_dive_count;
 	unsigned int cf_last_log;
@@ -123,6 +124,7 @@ static const cochran_device_layout_t cochran_cmdr_1_device_layout = {
 	24,         // address_bits
 	ENDIAN_WORD_BE,  // endian
 	115200,     // baudrate
+	32768,      // rbstream_size
 	0x046,      // cf_dive_count
 	0x6c,       // cf_last_log
 	0x70,       // cf_last_interdive
@@ -147,6 +149,7 @@ static const cochran_device_layout_t cochran_cmdr_device_layout = {
 	24,         // address_bits
 	ENDIAN_WORD_BE,  // endian
 	115200,     // baudrate
+	32768,      // rbstream_size
 	0x046,      // cf_dive_count
 	0x06C,      // cf_last_log
 	0x070,      // cf_last_interdive
@@ -170,6 +173,7 @@ static const cochran_device_layout_t cochran_emc14_device_layout = {
 	32,         // address_bits
 	ENDIAN_LE,  // endian
 	806400,     // baudrate
+	65536,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -193,6 +197,7 @@ static const cochran_device_layout_t cochran_emc16_device_layout = {
 	32,         // address_bits
 	ENDIAN_LE,  // endian
 	806400,     // baudrate
+	65536,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -216,6 +221,7 @@ static const cochran_device_layout_t cochran_emc20_device_layout = {
 	32,         // address_bits
 	ENDIAN_LE,  // endian
 	806400,     // baudrate
+	65536,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -933,7 +939,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 	// Create the ringbuffer stream.
 	unsigned int last_start_address = array_uint32_le (data.logbook + ((head_dive - 1) * layout->rb_logbook_entry_size) + layout->pt_profile_end);
-	status = dc_rbstream_new (&rbstream, abstract, 1, 131072, layout->rb_profile_begin, layout->rb_profile_end, last_start_address);
+	status = dc_rbstream_new (&rbstream, abstract, 1, layout->rbstream_size, layout->rb_profile_begin, layout->rb_profile_end, last_start_address);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		goto error;
