@@ -728,6 +728,7 @@ cochran_commander_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char config[1024];
+	unsigned int size = device->layout->rb_profile_end - device->layout->rb_logbook_begin;
 
 	// Make sure buffer is good.
 	if (!dc_buffer_clear(buffer)) {
@@ -736,14 +737,14 @@ cochran_commander_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Reserve space
-	if (!dc_buffer_resize(buffer, device->layout->rb_profile_end)) {
+	if (!dc_buffer_resize(buffer, size)) {
 		ERROR(abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
 	// Determine size for progress
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = sizeof(config) + device->layout->rb_profile_end;
+	progress.maximum = sizeof(config) + size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit ID block
@@ -757,7 +758,7 @@ cochran_commander_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 
 	// Read the sample data, from 0 to sample end will include logbook
-	rc = cochran_commander_read (device, &progress, 0, dc_buffer_get_data(buffer), device->layout->rb_profile_end);
+	rc = cochran_commander_read (device, &progress, device->layout->rb_logbook_begin, dc_buffer_get_data(buffer), device->layout->rb_profile_end);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the sample data.");
 		return rc;
