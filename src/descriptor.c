@@ -314,11 +314,12 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"DiveSystem", "iDive2 Deep",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x44},
 	{"DiveSystem", "iDive2 Tech+",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x45},
 	/* Cochran Commander */
-	{"Cochran", "Commander I",	DC_FAMILY_COCHRAN_COMMANDER, 0},
-	{"Cochran", "Commander II",	DC_FAMILY_COCHRAN_COMMANDER, 1},
-	{"Cochran", "EMC-14",		DC_FAMILY_COCHRAN_COMMANDER, 2},
-	{"Cochran", "EMC-16",		DC_FAMILY_COCHRAN_COMMANDER, 3},
-	{"Cochran", "EMC-20H",		DC_FAMILY_COCHRAN_COMMANDER, 4},
+	{"Cochran", "Commander TM", DC_FAMILY_COCHRAN_COMMANDER, 0},
+	{"Cochran", "Commander I",  DC_FAMILY_COCHRAN_COMMANDER, 1},
+	{"Cochran", "Commander II", DC_FAMILY_COCHRAN_COMMANDER, 2},
+	{"Cochran", "EMC-14",       DC_FAMILY_COCHRAN_COMMANDER, 3},
+	{"Cochran", "EMC-16",       DC_FAMILY_COCHRAN_COMMANDER, 4},
+	{"Cochran", "EMC-20H",      DC_FAMILY_COCHRAN_COMMANDER, 5},
 };
 
 typedef struct dc_descriptor_iterator_t {
