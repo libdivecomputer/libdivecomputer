@@ -61,9 +61,6 @@ typedef struct cochran_data_t {
 	int invalid_profile_dive_num;
 
 	unsigned int logbook_size;
-
-	unsigned int sample_data_offset;
-	unsigned int sample_size;
 } cochran_data_t;
 
 typedef struct cochran_device_layout_t {
@@ -610,69 +607,6 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 }
 
 
-
-static void
-cochran_commander_get_sample_parms(cochran_commander_device_t *device, cochran_data_t *data)
-{
-	dc_device_t *abstract = (dc_device_t *) device;
-	unsigned int pre_dive_offset = 0, end_dive_offset = 0;
-
-	unsigned int dive_count = 0;
-	if (data->dive_count < device->layout->rb_logbook_entry_count)
-		dive_count = data->dive_count;
-	else
-		dive_count = device->layout->rb_logbook_entry_count;
-
-	// Find lowest and highest offsets into sample data
-	unsigned int low_offset = 0xFFFFFFFF;
-	unsigned int high_offset = 0;
-
-	for (int i = data->fp_dive_num + 1; i < dive_count; i++) {
-		pre_dive_offset = array_uint32_le (data->logbook + i * device->layout->rb_logbook_entry_size
-				+ device->layout->pt_profile_pre);
-		end_dive_offset = array_uint32_le (data->logbook + i * device->layout->rb_logbook_entry_size
-				+ device->layout->pt_profile_end);
-
-		// Validate offsets, allow 0xFFFFFFF for end_dive_offset
-		// because we handle that as a special case.
-		if (pre_dive_offset < device->layout->rb_profile_begin ||
-			pre_dive_offset > device->layout->rb_profile_end) {
-			ERROR(abstract->context, "Invalid pre-dive offset (%08x) on dive %d.", pre_dive_offset, i);
-			continue;
-		}
-
-		if (end_dive_offset < device->layout->rb_profile_begin ||
-			(end_dive_offset > device->layout->rb_profile_end &&
-			end_dive_offset != 0xFFFFFFFF)) {
-			ERROR(abstract->context, "Invalid end-dive offset (%08x) on dive %d.", end_dive_offset, i);
-			continue;
-		}
-
-		// Check for ring buffer wrap-around.
-		if (pre_dive_offset > end_dive_offset)
-			break;
-
-		if (pre_dive_offset < low_offset)
-			low_offset = pre_dive_offset;
-		if (end_dive_offset > high_offset && end_dive_offset != 0xFFFFFFFF )
-			high_offset = end_dive_offset;
-	}
-
-	if (pre_dive_offset > end_dive_offset) {
-		high_offset = device->layout->rb_profile_end;
-		low_offset = device->layout->rb_profile_begin;
-		data->sample_data_offset = low_offset;
-		data->sample_size = high_offset - low_offset;
-	} else if (low_offset < 0xFFFFFFFF && high_offset > 0) {
-		data->sample_data_offset = low_offset;
-		data->sample_size = high_offset - data->sample_data_offset;
-	} else {
-		data->sample_data_offset = 0;
-		data->sample_size = 0;
-	}
-}
-
-
 dc_status_t
 cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 {
@@ -905,8 +839,6 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	// Update progress indicator with new maximum
 	progress.maximum -= (max_sample - profile_read_size);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-	cochran_commander_get_sample_parms(device, &data);
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
