@@ -51,6 +51,7 @@
 #include "context-private.h"
 #include "iostream-private.h"
 #include "iterator-private.h"
+#include "descriptor-private.h"
 
 #ifdef _WIN32
 #define DC_ADDRESS_FORMAT "%012I64X"
@@ -76,6 +77,7 @@ static dc_status_t dc_bluetooth_iterator_free (dc_iterator_t *iterator);
 
 typedef struct dc_bluetooth_iterator_t {
 	dc_iterator_t base;
+	dc_filter_t filter;
 #ifdef _WIN32
 	HANDLE hLookup;
 #else
@@ -318,6 +320,7 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 	iterator->count = ndevices;
 	iterator->current = 0;
 #endif
+	iterator->filter = dc_descriptor_get_filter (descriptor);
 
 	*out = (dc_iterator_t *) iterator;
 
@@ -394,6 +397,10 @@ dc_bluetooth_iterator_next (dc_iterator_t *abstract, void *out)
 
 		INFO (abstract->context, "Discover: address=" DC_ADDRESS_FORMAT ", name=%s",
 			address, name ? name : "");
+
+		if (iterator->filter && !iterator->filter (DC_TRANSPORT_BLUETOOTH, name)) {
+			continue;
+		}
 
 		device = (dc_bluetooth_device_t *) malloc (sizeof(dc_bluetooth_device_t));
 		if (device == NULL) {

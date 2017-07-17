@@ -59,6 +59,7 @@
 #include "context-private.h"
 #include "iostream-private.h"
 #include "iterator-private.h"
+#include "descriptor-private.h"
 
 #define DIRNAME "/dev"
 
@@ -87,6 +88,7 @@ struct dc_serial_device_t {
 
 typedef struct dc_serial_iterator_t {
 	dc_iterator_t base;
+	dc_filter_t filter;
 	DIR *dp;
 } dc_serial_iterator_t;
 
@@ -190,6 +192,8 @@ dc_serial_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 		goto error_free;
 	}
 
+	iterator->filter = dc_descriptor_get_filter (descriptor);
+
 	*out = (dc_iterator_t *) iterator;
 
 	return DC_STATUS_SUCCESS;
@@ -227,6 +231,10 @@ dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
 			int n = snprintf (filename, sizeof (filename), "%s/%s", DIRNAME, ep->d_name);
 			if (n < 0 || (size_t) n >= sizeof (filename)) {
 				return DC_STATUS_NOMEMORY;
+			}
+
+			if (iterator->filter && !iterator->filter (DC_TRANSPORT_SERIAL, filename)) {
+				continue;
 			}
 
 			device = (dc_serial_device_t *) malloc (sizeof(dc_serial_device_t));

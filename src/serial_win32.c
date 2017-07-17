@@ -30,6 +30,7 @@
 #include "context-private.h"
 #include "iostream-private.h"
 #include "iterator-private.h"
+#include "descriptor-private.h"
 
 static dc_status_t dc_serial_iterator_next (dc_iterator_t *iterator, void *item);
 static dc_status_t dc_serial_iterator_free (dc_iterator_t *iterator);
@@ -56,6 +57,7 @@ struct dc_serial_device_t {
 
 typedef struct dc_serial_iterator_t {
 	dc_iterator_t base;
+	dc_filter_t filter;
 	HKEY hKey;
 	DWORD count;
 	DWORD current;
@@ -177,6 +179,7 @@ dc_serial_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 		}
 	}
 
+	iterator->filter = dc_descriptor_get_filter (descriptor);
 	iterator->hKey = hKey;
 	iterator->count = count;
 	iterator->current = 0;
@@ -221,6 +224,10 @@ dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
 
 		// Null terminate the string.
 		data[data_len] = 0;
+
+		if (iterator->filter && !iterator->filter (DC_TRANSPORT_SERIAL, data)) {
+			continue;
+		}
 
 		device = (dc_serial_device_t *) malloc (sizeof(dc_serial_device_t));
 		if (device == NULL) {

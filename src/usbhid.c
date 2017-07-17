@@ -54,6 +54,7 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "iostream-private.h"
+#include "descriptor-private.h"
 #include "iterator-private.h"
 #include "platform.h"
 
@@ -82,6 +83,7 @@ static dc_status_t dc_usbhid_close (dc_iostream_t *iostream);
 
 typedef struct dc_usbhid_iterator_t {
 	dc_iterator_t base;
+	dc_filter_t filter;
 #if defined(USE_LIBUSB)
 	struct libusb_device **devices;
 	size_t count;
@@ -306,6 +308,7 @@ dc_usbhid_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 	iterator->devices = devices;
 	iterator->current = devices;
 #endif
+	iterator->filter = dc_descriptor_get_filter (descriptor);
 
 	*out = (dc_iterator_t *) iterator;
 
@@ -339,6 +342,11 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 			ERROR (abstract->context, "Failed to get the device descriptor (%s).",
 				libusb_error_name (rc));
 			return syserror (rc);
+		}
+
+		dc_usb_desc_t usb = {dev.idVendor, dev.idProduct};
+		if (iterator->filter && !iterator->filter (DC_TRANSPORT_USBHID, &usb)) {
+			continue;
 		}
 
 		// Get the active configuration descriptor.
@@ -413,6 +421,11 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 	while (iterator->current) {
 		struct hid_device_info *current = iterator->current;
 		iterator->current = current->next;
+
+		dc_usb_desc_t usb = {current->vendor_id, current->product_id};
+		if (iterator->filter && !iterator->filter (DC_TRANSPORT_USBHID, &usb)) {
+			continue;
+		}
 
 		device = (dc_usbhid_device_t *) malloc (sizeof(dc_usbhid_device_t));
 		if (device == NULL) {
