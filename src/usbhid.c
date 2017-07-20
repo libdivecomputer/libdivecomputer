@@ -68,8 +68,16 @@ typedef pthread_mutex_t dc_mutex_t;
 
 #define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_usbhid_vtable)
 
+typedef struct dc_usbhid_session_t {
+	size_t refcount;
+#if defined(USE_LIBUSB)
+	libusb_context *handle;
+#endif
+} dc_usbhid_session_t;
+
 struct dc_usbhid_device_t {
 	unsigned short vid, pid;
+	dc_usbhid_session_t *session;
 };
 
 #ifdef USBHID
@@ -84,6 +92,7 @@ static dc_status_t dc_usbhid_close (dc_iostream_t *iostream);
 typedef struct dc_usbhid_iterator_t {
 	dc_iterator_t base;
 	dc_filter_t filter;
+	dc_usbhid_session_t *session;
 #if defined(USE_LIBUSB)
 	struct libusb_device **devices;
 	size_t count;
@@ -97,6 +106,7 @@ typedef struct dc_usbhid_t {
 	/* Base class. */
 	dc_iostream_t base;
 	/* Internal state. */
+	dc_usbhid_session_t *session;
 #if defined(USE_LIBUSB)
 	libusb_device_handle *handle;
 	int interface;
@@ -133,10 +143,9 @@ static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	dc_usbhid_close, /* close */
 };
 
+#ifdef USE_HIDAPI
 static dc_mutex_t g_usbhid_mutex = DC_MUTEX_INIT;
-static size_t g_usbhid_refcount = 0;
-#ifdef USE_LIBUSB
-static libusb_context *g_usbhid_ctx = NULL;
+static dc_usbhid_session_t *g_usbhid_session = NULL;
 #endif
 
 #if defined(USE_LIBUSB)
@@ -162,6 +171,7 @@ syserror(int errcode)
 }
 #endif
 
+#ifdef USE_HIDAPI
 static void
 dc_mutex_lock (dc_mutex_t *mutex)
 {
@@ -183,55 +193,113 @@ dc_mutex_unlock (dc_mutex_t *mutex)
 	pthread_mutex_unlock (mutex);
 #endif
 }
+#endif
 
 static dc_status_t
-dc_usbhid_init (dc_context_t *context)
+dc_usbhid_session_new (dc_usbhid_session_t **out, dc_context_t *context)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_usbhid_session_t *session = NULL;
 
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+#ifdef USE_HIDAPI
 	dc_mutex_lock (&g_usbhid_mutex);
 
-	if (g_usbhid_refcount == 0) {
-#if defined(USE_LIBUSB)
-		int rc = libusb_init (&g_usbhid_ctx);
-		if (rc != LIBUSB_SUCCESS) {
-			ERROR (context, "Failed to initialize usb support (%s).",
-				libusb_error_name (rc));
-			status = syserror (rc);
-			goto error;
-		}
-#elif defined(USE_HIDAPI)
-		int rc = hid_init();
-		if (rc < 0) {
-			ERROR (context, "Failed to initialize usb support.");
-			status = DC_STATUS_IO;
-			goto error;
-		}
+	if (g_usbhid_session) {
+		g_usbhid_session->refcount++;
+		*out = g_usbhid_session;
+		dc_mutex_unlock (&g_usbhid_mutex);
+		return DC_STATUS_SUCCESS;
+	}
 #endif
+
+	session = (dc_usbhid_session_t *) malloc (sizeof(dc_usbhid_session_t));
+	if (session == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		status = DC_STATUS_NOMEMORY;
+		goto error_unlock;
 	}
 
-	g_usbhid_refcount++;
+	session->refcount = 1;
 
-error:
+#if defined(USE_LIBUSB)
+	int rc = libusb_init (&session->handle);
+	if (rc != LIBUSB_SUCCESS) {
+		ERROR (context, "Failed to initialize usb support (%s).",
+			libusb_error_name (rc));
+		status = syserror (rc);
+		goto error_free;
+	}
+#elif defined(USE_HIDAPI)
+	int rc = hid_init();
+	if (rc < 0) {
+		ERROR (context, "Failed to initialize usb support.");
+		status = DC_STATUS_IO;
+		goto error_free;
+	}
+
+	g_usbhid_session = session;
+
 	dc_mutex_unlock (&g_usbhid_mutex);
+#endif
+
+	*out = session;
+
+	return status;
+
+error_free:
+	free (session);
+error_unlock:
+#ifdef USE_HIDAPI
+	dc_mutex_unlock (&g_usbhid_mutex);
+#endif
 	return status;
 }
 
-static dc_status_t
-dc_usbhid_exit (void)
+static dc_usbhid_session_t *
+dc_usbhid_session_ref (dc_usbhid_session_t *session)
 {
-	dc_mutex_lock (&g_usbhid_mutex);
+	if (session == NULL)
+		return NULL;
 
-	if (--g_usbhid_refcount == 0) {
+#ifdef USE_HIDAPI
+	dc_mutex_lock (&g_usbhid_mutex);
+#endif
+
+	session->refcount++;
+
+#ifdef USE_HIDAPI
+	dc_mutex_unlock (&g_usbhid_mutex);
+#endif
+
+	return session;
+}
+
+static dc_status_t
+dc_usbhid_session_unref (dc_usbhid_session_t *session)
+{
+	if (session == NULL)
+		return DC_STATUS_SUCCESS;
+
+#ifdef USE_HIDAPI
+	dc_mutex_lock (&g_usbhid_mutex);
+#endif
+
+	if (--session->refcount == 0) {
 #if defined(USE_LIBUSB)
-		libusb_exit (g_usbhid_ctx);
-		g_usbhid_ctx = NULL;
+		libusb_exit (session->handle);
 #elif defined(USE_HIDAPI)
 		hid_exit ();
+		g_usbhid_session = NULL;
 #endif
+		free (session);
 	}
 
+#ifdef USE_HIDAPI
 	dc_mutex_unlock (&g_usbhid_mutex);
+#endif
 
 	return DC_STATUS_SUCCESS;
 }
@@ -258,6 +326,12 @@ dc_usbhid_device_get_pid (dc_usbhid_device_t *device)
 void
 dc_usbhid_device_free(dc_usbhid_device_t *device)
 {
+	if (device == NULL)
+		return;
+
+#ifdef USBHID
+	dc_usbhid_session_unref (device->session);
+#endif
 	free (device);
 }
 
@@ -278,7 +352,7 @@ dc_usbhid_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 	}
 
 	// Initialize the usb library.
-	status = dc_usbhid_init (context);
+	status = dc_usbhid_session_new (&iterator->session, context);
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
@@ -286,12 +360,12 @@ dc_usbhid_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 #if defined(USE_LIBUSB)
 	// Enumerate the USB devices.
 	struct libusb_device **devices = NULL;
-	ssize_t ndevices = libusb_get_device_list (g_usbhid_ctx, &devices);
+	ssize_t ndevices = libusb_get_device_list (iterator->session->handle, &devices);
 	if (ndevices < 0) {
 		ERROR (context, "Failed to enumerate the usb devices (%s).",
 			libusb_error_name (ndevices));
 		status = syserror (ndevices);
-		goto error_usb_exit;
+		goto error_session_unref;
 	}
 
 	iterator->devices = devices;
@@ -301,7 +375,7 @@ dc_usbhid_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 	struct hid_device_info *devices = hid_enumerate(0x0, 0x0);
 	if (devices == NULL) {
 		status = DC_STATUS_IO;
-		goto error_usb_exit;
+		goto error_session_unref;
 	}
 
 	iterator->devices = devices;
@@ -313,8 +387,8 @@ dc_usbhid_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 
 	return DC_STATUS_SUCCESS;
 
-error_usb_exit:
-	dc_usbhid_exit ();
+error_session_unref:
+	dc_usbhid_session_unref (iterator->session);
 error_free:
 	dc_iterator_deallocate ((dc_iterator_t *) iterator);
 	return status;
@@ -407,6 +481,7 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 			return DC_STATUS_NOMEMORY;
 		}
 
+		device->session = dc_usbhid_session_ref (iterator->session);
 		device->vid = dev.idVendor;
 		device->pid = dev.idProduct;
 
@@ -432,6 +507,7 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 			return DC_STATUS_NOMEMORY;
 		}
 
+		device->session = dc_usbhid_session_ref (iterator->session);
 		device->vid = current->vendor_id;
 		device->pid = current->product_id;
 
@@ -454,7 +530,7 @@ dc_usbhid_iterator_free (dc_iterator_t *abstract)
 #elif defined(USE_HIDAPI)
 	hid_free_enumeration (iterator->devices);
 #endif
-	dc_usbhid_exit ();
+	dc_usbhid_session_unref (iterator->session);
 
 	return DC_STATUS_SUCCESS;
 }
@@ -480,7 +556,7 @@ dc_usbhid_open (dc_iostream_t **out, dc_context_t *context, unsigned int vid, un
 	}
 
 	// Initialize the usb library.
-	status = dc_usbhid_init (context);
+	status = dc_usbhid_session_new (&usbhid->session, context);
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
@@ -491,12 +567,12 @@ dc_usbhid_open (dc_iostream_t **out, dc_context_t *context, unsigned int vid, un
 	int rc = 0;
 
 	// Enumerate the USB devices.
-	ssize_t ndevices = libusb_get_device_list (g_usbhid_ctx, &devices);
+	ssize_t ndevices = libusb_get_device_list (usbhid->session->handle, &devices);
 	if (ndevices < 0) {
 		ERROR (context, "Failed to enumerate the usb devices (%s).",
 			libusb_error_name (ndevices));
 		status = syserror (ndevices);
-		goto error_usb_exit;
+		goto error_session_unref;
 	}
 
 	// Find the first device matching the VID/PID.
@@ -615,7 +691,7 @@ dc_usbhid_open (dc_iostream_t **out, dc_context_t *context, unsigned int vid, un
 	if (usbhid->handle == NULL) {
 		ERROR (context, "Failed to open the usb device.");
 		status = DC_STATUS_IO;
-		goto error_usb_exit;
+		goto error_session_unref;
 	}
 
 	usbhid->timeout = -1;
@@ -633,8 +709,8 @@ error_usb_free_config:
 error_usb_free_list:
 	libusb_free_device_list (devices, 1);
 #endif
-error_usb_exit:
-	dc_usbhid_exit ();
+error_session_unref:
+	dc_usbhid_session_unref (usbhid->session);
 error_free:
 	dc_iostream_deallocate ((dc_iostream_t *) usbhid);
 	return status;
@@ -656,7 +732,7 @@ dc_usbhid_close (dc_iostream_t *abstract)
 #elif defined(USE_HIDAPI)
 	hid_close(usbhid->handle);
 #endif
-	dc_usbhid_exit();
+	dc_usbhid_session_unref (usbhid->session);
 
 	return status;
 }
