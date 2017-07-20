@@ -51,23 +51,29 @@ struct directory_entry {
 };
 
 // EON Steel command numbers and other magic field values
-#define INIT_CMD   0x00
-#define INIT_MAGIC 0x0001
-#define INIT_SEQ   0
+#define CMD_INIT	0x0000
+#define INIT_MAGIC	0x0001
+#define INIT_SEQ	0
 
-#define READ_STRING_CMD 0x0411
+#define CMD_READ_STRING	0x0411
 
-#define FILE_LOOKUP_CMD 0x0010
-#define FILE_READ_CMD   0x0110
-#define FILE_STAT_CMD   0x0710
-#define FILE_CLOSE_CMD  0x0510
+#define CMD_FILE_OPEN	0x0010
+#define CMD_FILE_READ	0x0110
+#define CMD_FILE_STAT	0x0710
+#define CMD_FILE_CLOSE	0x0510
 
-#define DIR_LOOKUP_CMD 0x0810
-#define READDIR_CMD    0x0910
-#define DIR_CLOSE_CMD  0x0a10
+#define CMD_DIR_OPEN	0x0810
+#define CMD_DIR_READDIR	0x0910
+#define CMD_DIR_CLOSE	0x0a10
+
+#define CMD_SET_TIME	0x0003
+#define CMD_GET_TIME	0x0103
+#define CMD_SET_DATE	0x0203
+#define CMD_GET_DATE	0x0303
 
 static dc_status_t suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const dc_datetime_t *datetime);
 static dc_status_t suunto_eonsteel_device_close(dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
@@ -78,7 +84,7 @@ static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	suunto_eonsteel_device_foreach, /* foreach */
-	NULL, /* timesync */
+	suunto_eonsteel_device_timesync, /* timesync */
 	suunto_eonsteel_device_close /* close */
 };
 
@@ -345,7 +351,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 		return -1;
 	}
 	memcpy(cmdbuf+4, filename, len);
-	rc = send_receive(eon, FILE_LOOKUP_CMD,
+	rc = send_receive(eon, CMD_FILE_OPEN,
 		len+4, cmdbuf,
 		sizeof(result), result);
 	if (rc < 0) {
@@ -354,7 +360,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 	}
 	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "lookup", result, rc);
 
-	rc = send_receive(eon, FILE_STAT_CMD,
+	rc = send_receive(eon, CMD_FILE_STAT,
 		0, NULL,
 		sizeof(result), result);
 	if (rc < 0) {
@@ -374,7 +380,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 			ask = 1024;
 		put_le32(1234, cmdbuf+0);	// Not file offset, after all
 		put_le32(ask, cmdbuf+4);	// Size of read
-		rc = send_receive(eon, FILE_READ_CMD,
+		rc = send_receive(eon, CMD_FILE_READ,
 			8, cmdbuf,
 			sizeof(result), result);
 		if (rc < 0) {
@@ -409,11 +415,11 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 		size -= got;
 	}
 
-	rc = send_receive(eon, FILE_CLOSE_CMD,
+	rc = send_receive(eon, CMD_FILE_CLOSE,
 		0, NULL,
 		sizeof(result), result);
 	if (rc < 0) {
-		ERROR(eon->base.context, "cmd FILE_CLOSE_CMD failed");
+		ERROR(eon->base.context, "cmd CMD_FILE_CLOSE failed");
 		return -1;
 	}
 	HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "close", result, rc);
@@ -465,7 +471,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 	put_le32(0, cmd);
 	memcpy(cmd + 4, dive_directory, sizeof(dive_directory));
 	cmdlen = 4 + sizeof(dive_directory);
-	rc = send_receive(eon, DIR_LOOKUP_CMD,
+	rc = send_receive(eon, CMD_DIR_OPEN,
 		cmdlen, cmd,
 		sizeof(result), result);
 	if (rc < 0) {
@@ -476,7 +482,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 	for (;;) {
 		unsigned int nr, last;
 
-		rc = send_receive(eon, READDIR_CMD,
+		rc = send_receive(eon, CMD_DIR_READDIR,
 			0, NULL,
 			sizeof(result), result);
 		if (rc < 0) {
@@ -496,7 +502,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 			break;
 	}
 
-	rc = send_receive(eon, DIR_CLOSE_CMD,
+	rc = send_receive(eon, CMD_DIR_CLOSE,
 		0, NULL,
 		sizeof(result), result);
 	if (rc < 0) {
@@ -528,7 +534,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 
 	dc_usbhid_set_timeout(eon->usbhid, 5000);
 
-	if (send_cmd(eon, INIT_CMD, sizeof(init), init)) {
+	if (send_cmd(eon, CMD_INIT, sizeof(init), init)) {
 		ERROR(eon->base.context, "Failed to send initialization command");
 		return -1;
 	}
@@ -697,6 +703,38 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	dc_buffer_free(file);
 
 	return device_is_cancelled(abstract) ? DC_STATUS_CANCELLED : DC_STATUS_SUCCESS;
+}
+
+static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
+	unsigned char result[64], cmd[8];
+	unsigned int year, month, day;
+	unsigned int hour, min, msec;
+	int rc;
+
+	year = datetime->year;
+	month = datetime->month;
+	day = datetime->day;
+	hour = datetime->hour;
+	min = datetime->minute;
+	msec = datetime->second * 1000;
+
+	cmd[0] = year & 0xFF;
+	cmd[1] = year >> 8;
+	cmd[2] = month;
+	cmd[3] = day;
+	cmd[4] = hour;
+	cmd[5] = min;
+	cmd[6] = msec & 0xFF;
+	cmd[7] = msec >> 8;
+
+	rc = send_receive(eon, CMD_SET_TIME, sizeof(cmd), cmd, sizeof(result), result);
+	if (rc < 0) {
+		return DC_STATUS_IO;
+	}
+
+	return DC_STATUS_SUCCESS;
 }
 
 static dc_status_t
