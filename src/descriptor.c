@@ -41,11 +41,18 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "descriptor-private.h"
 #include "iterator-private.h"
+#include "platform.h"
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
+static int dc_filter_uwatec (dc_transport_t transport, const void *userdata);
+static int dc_filter_suunto (dc_transport_t transport, const void *userdata);
+static int dc_filter_shearwater (dc_transport_t transport, const void *userdata);
+static int dc_filter_hw (dc_transport_t transport, const void *userdata);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -111,8 +118,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "D4f",        DC_FAMILY_SUUNTO_D9, 0x20, NULL},
 	/* Suunto EON Steel */
 #ifdef USBHID
-	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0, NULL},
-	{"Suunto", "EON Core",  DC_FAMILY_SUUNTO_EONSTEEL, 1, NULL},
+	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0, dc_filter_suunto},
+	{"Suunto", "EON Core",  DC_FAMILY_SUUNTO_EONSTEEL, 1, dc_filter_suunto},
 #endif
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C, NULL},
@@ -126,24 +133,24 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec", "Memomouse", DC_FAMILY_UWATEC_MEMOMOUSE, 0, NULL},
 	/* Uwatec Smart */
 #ifdef IRDA
-	{"Uwatec", "Smart Pro",     DC_FAMILY_UWATEC_SMART, 0x10, NULL},
-	{"Uwatec", "Galileo Sol",   DC_FAMILY_UWATEC_SMART, 0x11, NULL},
-	{"Uwatec", "Galileo Luna",  DC_FAMILY_UWATEC_SMART, 0x11, NULL},
-	{"Uwatec", "Galileo Terra", DC_FAMILY_UWATEC_SMART, 0x11, NULL},
-	{"Uwatec", "Aladin Tec",    DC_FAMILY_UWATEC_SMART, 0x12, NULL},
-	{"Uwatec", "Aladin Prime",  DC_FAMILY_UWATEC_SMART, 0x12, NULL},
-	{"Uwatec", "Aladin Tec 2G", DC_FAMILY_UWATEC_SMART, 0x13, NULL},
-	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x13, NULL},
-	{"Subgear","XP-10",         DC_FAMILY_UWATEC_SMART, 0x13, NULL},
-	{"Uwatec", "Smart Com",     DC_FAMILY_UWATEC_SMART, 0x14, NULL},
-	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x15, NULL},
-	{"Uwatec", "Aladin Tec 3G", DC_FAMILY_UWATEC_SMART, 0x15, NULL},
-	{"Uwatec", "Aladin Sport",  DC_FAMILY_UWATEC_SMART, 0x15, NULL},
-	{"Subgear","XP-3G",         DC_FAMILY_UWATEC_SMART, 0x15, NULL},
-	{"Uwatec", "Smart Tec",     DC_FAMILY_UWATEC_SMART, 0x18, NULL},
-	{"Uwatec", "Galileo Trimix",DC_FAMILY_UWATEC_SMART, 0x19, NULL},
-	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C, NULL},
-	{"Subgear","XP Air",        DC_FAMILY_UWATEC_SMART, 0x1C, NULL},
+	{"Uwatec", "Smart Pro",     DC_FAMILY_UWATEC_SMART, 0x10, dc_filter_uwatec},
+	{"Uwatec", "Galileo Sol",   DC_FAMILY_UWATEC_SMART, 0x11, dc_filter_uwatec},
+	{"Uwatec", "Galileo Luna",  DC_FAMILY_UWATEC_SMART, 0x11, dc_filter_uwatec},
+	{"Uwatec", "Galileo Terra", DC_FAMILY_UWATEC_SMART, 0x11, dc_filter_uwatec},
+	{"Uwatec", "Aladin Tec",    DC_FAMILY_UWATEC_SMART, 0x12, dc_filter_uwatec},
+	{"Uwatec", "Aladin Prime",  DC_FAMILY_UWATEC_SMART, 0x12, dc_filter_uwatec},
+	{"Uwatec", "Aladin Tec 2G", DC_FAMILY_UWATEC_SMART, 0x13, dc_filter_uwatec},
+	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x13, dc_filter_uwatec},
+	{"Subgear","XP-10",         DC_FAMILY_UWATEC_SMART, 0x13, dc_filter_uwatec},
+	{"Uwatec", "Smart Com",     DC_FAMILY_UWATEC_SMART, 0x14, dc_filter_uwatec},
+	{"Uwatec", "Aladin 2G",     DC_FAMILY_UWATEC_SMART, 0x15, dc_filter_uwatec},
+	{"Uwatec", "Aladin Tec 3G", DC_FAMILY_UWATEC_SMART, 0x15, dc_filter_uwatec},
+	{"Uwatec", "Aladin Sport",  DC_FAMILY_UWATEC_SMART, 0x15, dc_filter_uwatec},
+	{"Subgear","XP-3G",         DC_FAMILY_UWATEC_SMART, 0x15, dc_filter_uwatec},
+	{"Uwatec", "Smart Tec",     DC_FAMILY_UWATEC_SMART, 0x18, dc_filter_uwatec},
+	{"Uwatec", "Galileo Trimix",DC_FAMILY_UWATEC_SMART, 0x19, dc_filter_uwatec},
+	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C, dc_filter_uwatec},
+	{"Subgear","XP Air",        DC_FAMILY_UWATEC_SMART, 0x1C, dc_filter_uwatec},
 #endif
 	/* Scubapro/Uwatec Meridian */
 	{"Scubapro", "Meridian",    DC_FAMILY_UWATEC_MERIDIAN, 0x20, NULL},
@@ -152,9 +159,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "Mantis 2",    DC_FAMILY_UWATEC_MERIDIAN, 0x26, NULL},
 	/* Scubapro G2 */
 #ifdef USBHID
-	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_G2, 0x17, NULL},
-	{"Scubapro", "Aladin Square",       DC_FAMILY_UWATEC_G2, 0x22, NULL},
-	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_G2, 0x32, NULL},
+	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_G2, 0x17, dc_filter_uwatec},
+	{"Scubapro", "Aladin Square",       DC_FAMILY_UWATEC_G2, 0x22, dc_filter_uwatec},
+	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_G2, 0x32, dc_filter_uwatec},
 #endif
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1, NULL},
@@ -269,18 +276,18 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1, NULL},
 	{"Heinrichs Weikamp", "OSTC 2N",  DC_FAMILY_HW_OSTC, 2, NULL},
 	{"Heinrichs Weikamp", "OSTC 2C",  DC_FAMILY_HW_OSTC, 3, NULL},
-	{"Heinrichs Weikamp", "Frog",     DC_FAMILY_HW_FROG, 0, NULL},
-	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0x11, NULL},
-	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0x13, NULL},
-	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0x1B, NULL},
-	{"Heinrichs Weikamp", "OSTC 3",     DC_FAMILY_HW_OSTC3, 0x0A, NULL},
-	{"Heinrichs Weikamp", "OSTC Plus",  DC_FAMILY_HW_OSTC3, 0x13, NULL},
-	{"Heinrichs Weikamp", "OSTC Plus",  DC_FAMILY_HW_OSTC3, 0x1A, NULL},
-	{"Heinrichs Weikamp", "OSTC 4",     DC_FAMILY_HW_OSTC3, 0x3B, NULL},
-	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0x05, NULL},
-	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0x07, NULL},
-	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x12, NULL},
-	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x13, NULL},
+	{"Heinrichs Weikamp", "Frog",     DC_FAMILY_HW_FROG, 0, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0x11, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0x13, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0x1B, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC 3",     DC_FAMILY_HW_OSTC3, 0x0A, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC Plus",  DC_FAMILY_HW_OSTC3, 0x13, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC Plus",  DC_FAMILY_HW_OSTC3, 0x1A, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC 4",     DC_FAMILY_HW_OSTC3, 0x3B, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0x05, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0x07, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x12, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x13, dc_filter_hw},
 	/* Cressi Edy */
 	{"Tusa",   "IQ-700", DC_FAMILY_CRESSI_EDY, 0x05, NULL},
 	{"Cressi", "Edy",    DC_FAMILY_CRESSI_EDY, 0x08, NULL},
@@ -300,14 +307,14 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Atomic Aquatics", "Cobalt 2", DC_FAMILY_ATOMICS_COBALT, 2, NULL},
 #endif
 	/* Shearwater Predator */
-	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2, NULL},
+	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2, dc_filter_shearwater},
 	/* Shearwater Petrel */
-	{"Shearwater", "Petrel",    DC_FAMILY_SHEARWATER_PETREL, 3, NULL},
-	{"Shearwater", "Petrel 2",  DC_FAMILY_SHEARWATER_PETREL, 3, NULL},
-	{"Shearwater", "Nerd",      DC_FAMILY_SHEARWATER_PETREL, 4, NULL},
-	{"Shearwater", "Perdix",    DC_FAMILY_SHEARWATER_PETREL, 5, NULL},
-	{"Shearwater", "Perdix AI", DC_FAMILY_SHEARWATER_PETREL, 6, NULL},
-	{"Shearwater", "Nerd 2",    DC_FAMILY_SHEARWATER_PETREL, 7, NULL},
+	{"Shearwater", "Petrel",    DC_FAMILY_SHEARWATER_PETREL, 3, dc_filter_shearwater},
+	{"Shearwater", "Petrel 2",  DC_FAMILY_SHEARWATER_PETREL, 3, dc_filter_shearwater},
+	{"Shearwater", "Nerd",      DC_FAMILY_SHEARWATER_PETREL, 4, dc_filter_shearwater},
+	{"Shearwater", "Perdix",    DC_FAMILY_SHEARWATER_PETREL, 5, dc_filter_shearwater},
+	{"Shearwater", "Perdix AI", DC_FAMILY_SHEARWATER_PETREL, 6, dc_filter_shearwater},
+	{"Shearwater", "Nerd 2",    DC_FAMILY_SHEARWATER_PETREL, 7, dc_filter_shearwater},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0, NULL},
 	/* Citizen Hyper Aqualand */
@@ -343,6 +350,102 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Cochran", "EMC-16",       DC_FAMILY_COCHRAN_COMMANDER, 4, NULL},
 	{"Cochran", "EMC-20H",      DC_FAMILY_COCHRAN_COMMANDER, 5, NULL},
 };
+
+static int
+dc_filter_internal_name (const char *name, const char *values[], size_t count)
+{
+	if (name == NULL)
+		return 0;
+
+	for (size_t i = 0; i < count; ++i) {
+		if (strcasecmp (name, values[i]) == 0) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int
+dc_filter_internal_usb (const dc_usb_desc_t *desc, const dc_usb_desc_t values[], size_t count)
+{
+	if (desc == NULL)
+		return 0;
+
+	for (size_t i = 0; i < count; ++i) {
+		if (desc->vid == values[i].vid &&
+			desc->pid == values[i].pid) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
+{
+	static const char *irda[] = {
+		"Aladin Smart Com",
+		"Aladin Smart Pro",
+		"Aladin Smart Tec",
+		"Aladin Smart Z",
+		"Uwatec Aladin",
+		"UWATEC Galileo",
+		"UWATEC Galileo Sol",
+	};
+	static const dc_usb_desc_t usbhid[] = {
+		{0x2e6c, 0x3201}, // G2
+		{0xc251, 0x2006}, // Aladin Square
+	};
+
+	if (transport == DC_TRANSPORT_IRDA) {
+		return dc_filter_internal_name ((const char *) userdata, irda, C_ARRAY_SIZE(irda));
+	} else if (transport == DC_TRANSPORT_USBHID) {
+		return dc_filter_internal_usb ((const dc_usb_desc_t *) userdata, usbhid, C_ARRAY_SIZE(usbhid));
+	}
+
+	return 1;
+}
+
+static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
+{
+	static const dc_usb_desc_t usbhid[] = {
+		{0x1493, 0x0030}, // Eon Steel
+		{0x1493, 0x0033}, // Eon Core
+	};
+
+	if (transport == DC_TRANSPORT_USBHID) {
+		return dc_filter_internal_usb ((const dc_usb_desc_t *) userdata, usbhid, C_ARRAY_SIZE(usbhid));
+	}
+
+	return 1;
+}
+
+static int dc_filter_hw (dc_transport_t transport, const void *userdata)
+{
+	if (transport == DC_TRANSPORT_BLUETOOTH) {
+		return strncasecmp ((const char *) userdata, "OSTC", 4) == 0 ||
+			strncasecmp ((const char *) userdata, "FROG", 4) == 0;
+	}
+
+	return 1;
+}
+
+static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
+{
+	static const char *bluetooth[] = {
+		"Predator",
+		"Petrel",
+		"Nerd",
+		"Perdix",
+	};
+
+	if (transport == DC_TRANSPORT_BLUETOOTH) {
+		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+	}
+
+	return 1;
+}
 
 dc_status_t
 dc_descriptor_iterator (dc_iterator_t **out)
