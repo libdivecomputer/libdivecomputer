@@ -27,7 +27,6 @@
 #include "suunto_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "checksum.h"
 #include "array.h"
 
@@ -53,7 +52,6 @@ static dc_status_t suunto_vyper_device_read (dc_device_t *abstract, unsigned int
 static dc_status_t suunto_vyper_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static dc_status_t suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t suunto_vyper_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_vyper_device_vtable = {
 	sizeof(suunto_vyper_device_t),
@@ -64,7 +62,7 @@ static const dc_device_vtable_t suunto_vyper_device_vtable = {
 	suunto_vyper_device_dump, /* dump */
 	suunto_vyper_device_foreach, /* foreach */
 	NULL, /* timesync */
-	suunto_vyper_device_close /* close */
+	NULL /* close */
 };
 
 static const suunto_common_layout_t suunto_vyper_layout = {
@@ -85,7 +83,7 @@ static const suunto_common_layout_t suunto_spyder_layout = {
 
 
 dc_status_t
-suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_vyper_device_t *device = NULL;
@@ -104,34 +102,27 @@ suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *
 	suunto_common_device_init (&device->base);
 
 	// Set the default values.
-	device->iostream = NULL;
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
+	device->iostream = iostream;
 
 	// Set the serial communication protocol (2400 8O1).
 	status = dc_iostream_configure (device->iostream, 2400, 8, DC_PARITY_ODD, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the DTR line (power supply for the interface).
 	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -144,27 +135,8 @@ suunto_vyper_device_open (dc_device_t **out, dc_context_t *context, const char *
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-
-static dc_status_t
-suunto_vyper_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	suunto_vyper_device_t *device = (suunto_vyper_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

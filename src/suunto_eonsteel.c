@@ -27,7 +27,6 @@
 #include "context-private.h"
 #include "device-private.h"
 #include "array.h"
-#include "usbhid.h"
 #include "platform.h"
 
 #define EONSTEEL 0
@@ -81,7 +80,6 @@ struct directory_entry {
 static dc_status_t suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const dc_datetime_t *datetime);
-static dc_status_t suunto_eonsteel_device_close(dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
 	sizeof(suunto_eonsteel_device_t),
@@ -92,7 +90,7 @@ static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
 	NULL, /* dump */
 	suunto_eonsteel_device_foreach, /* foreach */
 	suunto_eonsteel_device_timesync, /* timesync */
-	suunto_eonsteel_device_close /* close */
+	NULL /* close */
 };
 
 static const char dive_directory[] = "0:/dives";
@@ -534,7 +532,7 @@ get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 }
 
 dc_status_t
-suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned int model)
+suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eonsteel_device_t *eon = NULL;
@@ -547,28 +545,17 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned i
 		return DC_STATUS_NOMEMORY;
 
 	// Set up the magic handshake fields
+	eon->iostream = iostream;
 	eon->model = model;
 	eon->magic = INIT_MAGIC;
 	eon->seq = INIT_SEQ;
 	memset (eon->version, 0, sizeof (eon->version));
 	memset (eon->fingerprint, 0, sizeof (eon->fingerprint));
 
-	unsigned int vid = 0x1493, pid = 0;
-	if (model == EONCORE) {
-		pid = 0x0033;
-	} else {
-		pid = 0x0030;
-	}
-	status = dc_usbhid_open(&eon->iostream, context, vid, pid);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR(context, "unable to open device");
-		goto error_free;
-	}
-
 	status = dc_iostream_set_timeout(eon->iostream, 5000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	const unsigned char init[] = {0x02, 0x00, 0x2a, 0x00};
@@ -576,15 +563,13 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned i
 		init, sizeof(init), eon->version, sizeof(eon->version), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "unable to initialize device");
-		goto error_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t *) eon;
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close(eon->iostream);
 error_free:
 	free(eon);
 	return status;
@@ -774,16 +759,6 @@ static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const 
 	if (rc != DC_STATUS_SUCCESS) {
 		return rc;
 	}
-
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
-suunto_eonsteel_device_close(dc_device_t *abstract)
-{
-	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
-
-	dc_iostream_close(eon->iostream);
 
 	return DC_STATUS_SUCCESS;
 }

@@ -26,7 +26,6 @@
 #include "oceanic_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "array.h"
 #include "ringbuffer.h"
 #include "checksum.h"
@@ -574,7 +573,7 @@ oceanic_atom2_quit (oceanic_atom2_device_t *device)
 
 
 dc_status_t
-oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_atom2_device_t *device = NULL;
@@ -593,18 +592,11 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	oceanic_common_device_init (&device->base);
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->delay = 0;
 	device->bigpage = 1; // no big pages
 	device->cached = INVALID;
 	memset(device->cache, 0, sizeof(device->cache));
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	// Get the correct baudrate.
 	unsigned int baudrate = 38400;
@@ -616,14 +608,14 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	status = dc_iostream_configure (device->iostream, baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -649,7 +641,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// by connecting the device), or already in download mode.
 	status = oceanic_atom2_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Override the base class values.
@@ -719,8 +711,6 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -736,12 +726,6 @@ oceanic_atom2_device_close (dc_device_t *abstract)
 
 	// Send the quit command.
 	rc = oceanic_atom2_quit (device);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

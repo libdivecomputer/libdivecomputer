@@ -77,7 +77,7 @@ str2num (unsigned char data[], unsigned int size, unsigned int offset)
 
 
 dc_status_t
-shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	shearwater_petrel_device_t *device = NULL;
@@ -95,8 +95,8 @@ shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, const c
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	// Open the device.
-	status = shearwater_common_open (&device->base, context, name);
+	// Setup the device.
+	status = shearwater_common_setup (&device->base, context, iostream);
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
@@ -121,12 +121,6 @@ shearwater_petrel_device_close (dc_device_t *abstract)
 	// Shutdown the device.
 	unsigned char request[] = {0x2E, 0x90, 0x20, 0x00};
 	rc = shearwater_common_transfer (device, request, sizeof (request), NULL, 0, NULL);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
-	// Close the device.
-	rc = shearwater_common_close (device);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

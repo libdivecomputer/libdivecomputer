@@ -26,7 +26,6 @@
 #include "oceanic_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "ringbuffer.h"
 #include "checksum.h"
 
@@ -226,7 +225,7 @@ oceanic_veo250_quit (oceanic_veo250_device_t *device)
 
 
 dc_status_t
-oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_veo250_device_t *device = NULL;
@@ -248,42 +247,35 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	device->base.multipage = MULTIPAGE;
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->last = 0;
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	// Set the serial communication protocol (9600 8N1).
 	status = dc_iostream_configure (device->iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the DTR line.
 	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the RTS line.
 	status = dc_iostream_set_rts (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the RTS line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -295,7 +287,7 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	// Initialize the data cable (PPS mode).
 	status = oceanic_veo250_init (device);
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Delay the sending of the version command.
@@ -306,7 +298,7 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 	// the user), or already in download mode.
 	status = oceanic_veo250_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Override the base class values.
@@ -321,8 +313,6 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, const char
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -338,12 +328,6 @@ oceanic_veo250_device_close (dc_device_t *abstract)
 
 	// Switch the device back to surface mode.
 	rc = oceanic_veo250_quit (device);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

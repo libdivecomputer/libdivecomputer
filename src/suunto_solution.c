@@ -27,7 +27,6 @@
 #include "context-private.h"
 #include "device-private.h"
 #include "ringbuffer.h"
-#include "serial.h"
 #include "array.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &suunto_solution_device_vtable)
@@ -44,7 +43,6 @@ typedef struct suunto_solution_device_t {
 
 static dc_status_t suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t suunto_solution_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t suunto_solution_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t suunto_solution_device_vtable = {
 	sizeof(suunto_solution_device_t),
@@ -55,14 +53,14 @@ static const dc_device_vtable_t suunto_solution_device_vtable = {
 	suunto_solution_device_dump, /* dump */
 	suunto_solution_device_foreach, /* foreach */
 	NULL, /* timesync */
-	suunto_solution_device_close /* close */
+	NULL /* close */
 };
 
 static dc_status_t
 suunto_solution_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+suunto_solution_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_solution_device_t *device = NULL;
@@ -78,61 +76,35 @@ suunto_solution_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
+	device->iostream = iostream;
 
 	// Set the serial communication protocol (1200 8N2).
 	status = dc_iostream_configure (device->iostream, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Clear the RTS line.
 	status = dc_iostream_set_rts (device->iostream, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR/RTS line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-
-static dc_status_t
-suunto_solution_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	suunto_solution_device_t *device = (suunto_solution_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

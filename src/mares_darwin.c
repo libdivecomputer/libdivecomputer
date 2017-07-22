@@ -60,7 +60,6 @@ typedef struct mares_darwin_device_t {
 static dc_status_t mares_darwin_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t mares_darwin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t mares_darwin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t mares_darwin_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t mares_darwin_device_vtable = {
 	sizeof(mares_darwin_device_t),
@@ -71,7 +70,7 @@ static const dc_device_vtable_t mares_darwin_device_vtable = {
 	mares_darwin_device_dump, /* dump */
 	mares_darwin_device_foreach, /* foreach */
 	NULL, /* timesync */
-	mares_darwin_device_close /* close */
+	NULL /* close */
 };
 
 static const mares_darwin_layout_t mares_darwin_layout = {
@@ -98,7 +97,7 @@ static dc_status_t
 mares_darwin_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+mares_darwin_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_darwin_device_t *device = NULL;
@@ -114,7 +113,7 @@ mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *
 	}
 
 	// Initialize the base class.
-	mares_common_device_init (&device->base);
+	mares_common_device_init (&device->base, iostream);
 
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
@@ -124,39 +123,32 @@ mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *
 	else
 		device->layout = &mares_darwin_layout;
 
-	// Open the device.
-	status = dc_serial_open (&device->base.iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
-
 	// Set the serial communication protocol (9600 8N1).
 	status = dc_iostream_configure (device->base.iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
 	status = dc_iostream_set_timeout (device->base.iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the DTR line.
 	status = dc_iostream_set_dtr (device->base.iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the RTS line.
 	status = dc_iostream_set_rts (device->base.iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the RTS line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
@@ -171,26 +163,8 @@ mares_darwin_device_open (dc_device_t **out, dc_context_t *context, const char *
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->base.iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-static dc_status_t
-mares_darwin_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->base.iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

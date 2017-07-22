@@ -27,7 +27,6 @@
 #include "oceanic_common.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "ringbuffer.h"
 #include "checksum.h"
 #include "array.h"
@@ -389,7 +388,7 @@ oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progre
 }
 
 dc_status_t
-oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = NULL;
@@ -411,7 +410,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	device->base.multipage = MULTIPAGE;
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->model = model;
 	if (model == AERIS500AI) {
 		device->protocol = INTR;
@@ -419,39 +418,32 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 		device->protocol = MOD;
 	}
 
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
-
 	// Set the serial communication protocol (9600 8N1).
 	status = dc_iostream_configure (device->iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the DTR line.
 	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the RTS line.
 	status = dc_iostream_set_rts (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the RTS line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -463,7 +455,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Initialize the data cable (MOD mode).
 	status = oceanic_vtpro_init (device);
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Switch the device from surface mode into download mode. Before sending
@@ -471,7 +463,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// the user), or already in download mode.
 	status = oceanic_vtpro_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Calibrate the device. Although calibration is optional, it's highly
@@ -479,7 +471,7 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// when processing the command itself is quite slow.
 	status = oceanic_vtpro_calibrate (device);
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Override the base class values.
@@ -498,8 +490,6 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -515,12 +505,6 @@ oceanic_vtpro_device_close (dc_device_t *abstract)
 
 	// Switch the device back to surface mode.
 	rc = oceanic_vtpro_quit (device);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

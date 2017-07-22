@@ -23,6 +23,7 @@
 #define HW_FROG_H
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
 #include <libdivecomputer/hw_frog.h>
@@ -32,7 +33,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-hw_frog_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+hw_frog_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 #ifdef __cplusplus
 }

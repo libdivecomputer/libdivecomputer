@@ -23,6 +23,7 @@
 #define REEFNET_SENSUSPRO_H
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
 #include <libdivecomputer/reefnet_sensuspro.h>
@@ -32,7 +33,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-reefnet_sensuspro_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+reefnet_sensuspro_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 dc_status_t
 reefnet_sensuspro_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int devtime, dc_ticks_t systime);

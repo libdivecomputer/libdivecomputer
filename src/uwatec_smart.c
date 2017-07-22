@@ -25,9 +25,7 @@
 #include "uwatec_smart.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "irda.h"
 #include "array.h"
-#include "platform.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_smart_device_vtable)
 
@@ -44,7 +42,6 @@ typedef struct uwatec_smart_device_t {
 static dc_status_t uwatec_smart_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
 static dc_status_t uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t uwatec_smart_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t uwatec_smart_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t uwatec_smart_device_vtable = {
 	sizeof(uwatec_smart_device_t),
@@ -55,37 +52,11 @@ static const dc_device_vtable_t uwatec_smart_device_vtable = {
 	uwatec_smart_device_dump, /* dump */
 	uwatec_smart_device_foreach, /* foreach */
 	NULL, /* timesync */
-	uwatec_smart_device_close /* close */
+	NULL /* close */
 };
 
 static dc_status_t
 uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
-
-static int
-uwatec_smart_filter (const char *name)
-{
-	static const char *names[] = {
-		"Aladin Smart Com",
-		"Aladin Smart Pro",
-		"Aladin Smart Tec",
-		"Aladin Smart Z",
-		"Uwatec Aladin",
-		"UWATEC Galileo",
-		"UWATEC Galileo Sol",
-	};
-
-	if (name == NULL)
-		return 0;
-
-	for (size_t i = 0; i < C_ARRAY_SIZE(names); ++i) {
-		if (strcasecmp(name, names[i]) == 0) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 
 static dc_status_t
 uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
@@ -147,12 +118,10 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 
 
 dc_status_t
-uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
+uwatec_smart_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_device_t *device = NULL;
-	dc_iterator_t *iterator = NULL;
-	dc_irda_device_t *dev = NULL;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -165,77 +134,25 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
-
-	// Create the irda device iterator.
-	status = dc_irda_iterator_new (&iterator, context, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to create the irda iterator.");
-		goto error_free;
-	}
-
-	// Enumerate the irda devices.
-	while (1) {
-		dc_irda_device_t *current = NULL;
-		status = dc_iterator_next (iterator, &current);
-		if (status != DC_STATUS_SUCCESS) {
-			if (status == DC_STATUS_DONE) {
-				ERROR (context, "No dive computer found.");
-				status = DC_STATUS_NODEVICE;
-			} else {
-				ERROR (context, "Failed to enumerate the irda devices.");
-			}
-			goto error_iterator_free;
-		}
-
-		if (uwatec_smart_filter (dc_irda_device_get_name (current))) {
-			dev = current;
-			break;
-		}
-
-		dc_irda_device_free (current);
-	}
-
-	// Open the irda socket.
-	status = dc_irda_open (&device->iostream, context, dc_irda_device_get_address (dev), 1);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the irda socket.");
-		goto error_device_free;
-	}
 
 	// Perform the handshaking.
 	status = uwatec_smart_handshake (device);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to handshake with the device.");
-		goto error_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
-error_device_free:
-	dc_irda_device_free (dev);
-error_iterator_free:
-	dc_iterator_free (iterator);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
-}
-
-
-static dc_status_t
-uwatec_smart_device_close (dc_device_t *abstract)
-{
-	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-
-	// Close the device and pass up the return code.
-	return dc_iostream_close (device->iostream);
 }
 
 

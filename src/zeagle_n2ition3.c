@@ -26,7 +26,6 @@
 #include "zeagle_n2ition3.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "checksum.h"
 #include "array.h"
 #include "ringbuffer.h"
@@ -54,7 +53,6 @@ static dc_status_t zeagle_n2ition3_device_set_fingerprint (dc_device_t *abstract
 static dc_status_t zeagle_n2ition3_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t zeagle_n2ition3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t zeagle_n2ition3_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t zeagle_n2ition3_device_vtable = {
 	sizeof(zeagle_n2ition3_device_t),
@@ -65,7 +63,7 @@ static const dc_device_vtable_t zeagle_n2ition3_device_vtable = {
 	zeagle_n2ition3_device_dump, /* dump */
 	zeagle_n2ition3_device_foreach, /* foreach */
 	NULL, /* timesync */
-	zeagle_n2ition3_device_close /* close */
+	NULL /* close */
 };
 
 
@@ -133,7 +131,7 @@ zeagle_n2ition3_init (zeagle_n2ition3_device_t *device)
 }
 
 dc_status_t
-zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	zeagle_n2ition3_device_t *device = NULL;
@@ -149,28 +147,21 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	// Set the serial communication protocol (4800 8N1).
 	status = dc_iostream_configure (device->iostream, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
@@ -183,27 +174,8 @@ zeagle_n2ition3_device_open (dc_device_t **out, dc_context_t *context, const cha
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-
-static dc_status_t
-zeagle_n2ition3_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	zeagle_n2ition3_device_t *device = (zeagle_n2ition3_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

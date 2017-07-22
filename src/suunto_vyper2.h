@@ -27,11 +27,12 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/suunto_vyper2.h>
 
 dc_status_t
-suunto_vyper2_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+suunto_vyper2_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 #ifdef __cplusplus
 }

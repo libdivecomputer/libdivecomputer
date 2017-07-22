@@ -43,6 +43,7 @@ static dc_status_t
 dump (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, dc_buffer_t *fingerprint, dc_buffer_t *buffer)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
 	dc_device_t *device = NULL;
 
 	// Open the device.
@@ -50,7 +51,7 @@ dump (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, d
 		dc_descriptor_get_vendor (descriptor),
 		dc_descriptor_get_product (descriptor),
 		devname ? devname : "null");
-	rc = dc_device_open (&device, context, descriptor, devname);
+	rc = dc_device_open (&device, context, descriptor, iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error opening the device.");
 		goto cleanup;
