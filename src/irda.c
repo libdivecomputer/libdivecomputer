@@ -42,7 +42,7 @@
 #endif
 #endif
 
-#include "irda.h"
+#include <libdivecomputer/irda.h>
 
 #include "common-private.h"
 #include "context-private.h"

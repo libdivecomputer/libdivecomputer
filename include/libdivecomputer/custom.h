@@ -22,9 +22,9 @@
 #ifndef DC_CUSTOM_H
 #define DC_CUSTOM_H
 
-#include <libdivecomputer/common.h>
-#include <libdivecomputer/context.h>
-#include <libdivecomputer/iostream.h>
+#include "common.h"
+#include "context.h"
+#include "iostream.h"
 
 #ifdef __cplusplus
 extern "C" {

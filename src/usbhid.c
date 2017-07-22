@@ -49,7 +49,7 @@
 #include <hidapi/hidapi.h>
 #endif
 
-#include "usbhid.h"
+#include <libdivecomputer/usbhid.h>
 
 #include "common-private.h"
 #include "context-private.h"

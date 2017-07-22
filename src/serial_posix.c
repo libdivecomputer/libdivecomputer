@@ -52,7 +52,7 @@
 #define NOPTY 1
 #endif
 
-#include "serial.h"
+#include <libdivecomputer/serial.h>
 
 #include "common-private.h"
 #include "context-private.h"

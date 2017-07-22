@@ -71,19 +71,18 @@ libdivecomputer_la_SOURCES = \
 	checksum.h checksum.c \
 	array.h array.c \
 	buffer.c \
-	cochran_commander.h cochran_commander.c cochran_commander_parser.c
+	cochran_commander.h cochran_commander.c cochran_commander_parser.c \
+	socket.h socket.c \
+	irda.c \
+	usbhid.c \
+	bluetooth.c \
+	custom.c
 
 if OS_WIN32
-libdivecomputer_la_SOURCES += serial.h serial_win32.c
+libdivecomputer_la_SOURCES += serial_win32.c
 else
-libdivecomputer_la_SOURCES += serial.h serial_posix.c
+libdivecomputer_la_SOURCES += serial_posix.c
 endif
-
-libdivecomputer_la_SOURCES += socket.h socket.c
-libdivecomputer_la_SOURCES += irda.h irda.c
-libdivecomputer_la_SOURCES += usbhid.h usbhid.c
-libdivecomputer_la_SOURCES += bluetooth.h bluetooth.c
-libdivecomputer_la_SOURCES += custom.h custom.c
 
 if OS_WIN32
 libdivecomputer_la_SOURCES += libdivecomputer.rc

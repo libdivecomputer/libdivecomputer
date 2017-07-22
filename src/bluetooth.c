@@ -46,7 +46,7 @@
 #endif
 #endif
 
-#include "bluetooth.h"
+#include <libdivecomputer/bluetooth.h>
 
 #include "common-private.h"
 #include "context-private.h"

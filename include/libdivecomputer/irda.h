@@ -22,11 +22,11 @@
 #ifndef DC_IRDA_H
 #define DC_IRDA_H
 
-#include <libdivecomputer/common.h>
-#include <libdivecomputer/context.h>
-#include <libdivecomputer/iostream.h>
-#include <libdivecomputer/iterator.h>
-#include <libdivecomputer/descriptor.h>
+#include "common.h"
+#include "context.h"
+#include "iostream.h"
+#include "iterator.h"
+#include "descriptor.h"
 
 #ifdef __cplusplus
 extern "C" {

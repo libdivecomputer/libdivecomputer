@@ -24,7 +24,7 @@
 #define NOGDI
 #include <windows.h>
 
-#include "serial.h"
+#include <libdivecomputer/serial.h>
 
 #include "common-private.h"
 #include "context-private.h"

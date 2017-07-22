@@ -21,7 +21,7 @@
 
 #include <stdlib.h> // malloc, free
 
-#include "custom.h"
+#include <libdivecomputer/custom.h>
 
 #include "iostream-private.h"
 #include "common-private.h"
