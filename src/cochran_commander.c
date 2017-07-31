@@ -970,7 +970,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		// Build dive blob
 		unsigned int dive_size = layout->rb_logbook_entry_size + sample_size;
-		unsigned char *dive = (unsigned char *) malloc(dive_size);
+		unsigned char *dive = (unsigned char *) malloc(dive_size + pre_size);
 		if (dive == NULL) {
 			status = DC_STATUS_NOMEMORY;
 			goto error;
@@ -980,24 +980,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		// Read profile data
 		if (sample_size) {
-			if (pre_size) {
-				// Read throwaway sample data, pre-dive events and post-dive surface sample
-				unsigned char *pre = (unsigned char *) malloc (pre_size);
-				if (pre == NULL) {
-					status = DC_STATUS_NOMEMORY;
-					goto error;
-				}
-				rc = dc_rbstream_read(rbstream, &progress, pre, pre_size);
-				free(pre);
-				if (rc != DC_STATUS_SUCCESS) {
-					ERROR (abstract->context, "Failed to read the pre-dive event data.");
-					status = rc;
-					free(dive);
-					goto error;
-				}
-			}
-			// read sample data
-			rc = dc_rbstream_read(rbstream, &progress, dive + layout->rb_logbook_entry_size, sample_size);
+			rc = dc_rbstream_read(rbstream, &progress, dive + layout->rb_logbook_entry_size, sample_size + pre_size);
 			if (rc != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to read the sample data.");
 				status = rc;
