@@ -63,6 +63,7 @@ static const dctool_command_t *g_commands[] = {
 	&dctool_parse,
 	&dctool_read,
 	&dctool_write,
+	&dctool_timesync,
 	&dctool_fwupdate,
 	NULL
 };

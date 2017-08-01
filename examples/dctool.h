@@ -50,6 +50,7 @@ extern const dctool_command_t dctool_dump;
 extern const dctool_command_t dctool_parse;
 extern const dctool_command_t dctool_read;
 extern const dctool_command_t dctool_write;
+extern const dctool_command_t dctool_timesync;
 extern const dctool_command_t dctool_fwupdate;
 
 const dctool_command_t *
