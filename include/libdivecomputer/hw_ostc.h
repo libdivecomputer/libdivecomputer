@@ -44,9 +44,6 @@ dc_status_t
 hw_ostc_device_md2hash (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
-hw_ostc_device_clock (dc_device_t *device, const dc_datetime_t *datetime);
-
-dc_status_t
 hw_ostc_device_eeprom_read (dc_device_t *device, unsigned int bank, unsigned char data[], unsigned int size);
 
 dc_status_t
