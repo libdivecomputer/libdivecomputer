@@ -46,7 +46,7 @@ static dc_status_t cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract
 
 static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
 	sizeof(cressi_leonardo_parser_t),
-	DC_FAMILY_CRESSI_EDY,
+	DC_FAMILY_CRESSI_LEONARDO,
 	cressi_leonardo_parser_set_data, /* set_data */
 	cressi_leonardo_parser_get_datetime, /* datetime */
 	cressi_leonardo_parser_get_field, /* fields */
