@@ -57,6 +57,7 @@ static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	NULL, /* write */
 	shearwater_predator_device_dump, /* dump */
 	shearwater_predator_device_foreach, /* foreach */
+	NULL, /* timesync */
 	shearwater_predator_device_close /* close */
 };
 

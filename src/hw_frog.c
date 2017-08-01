@@ -71,6 +71,7 @@ static const dc_device_vtable_t hw_frog_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	hw_frog_device_foreach, /* foreach */
+	NULL, /* timesync */
 	hw_frog_device_close /* close */
 };
 

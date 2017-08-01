@@ -56,6 +56,7 @@ dc_device_read
 dc_device_set_cancel
 dc_device_set_events
 dc_device_set_fingerprint
+dc_device_timesync
 dc_device_write
 
 oceanic_atom2_device_version

@@ -68,6 +68,7 @@ static const oceanic_common_device_vtable_t oceanic_vtpro_device_vtable = {
 		NULL, /* write */
 		oceanic_common_device_dump, /* dump */
 		oceanic_common_device_foreach, /* foreach */
+		NULL, /* timesync */
 		oceanic_vtpro_device_close /* close */
 	},
 	oceanic_vtpro_device_logbook,

@@ -75,6 +75,7 @@ static const dc_device_vtable_t atomics_cobalt_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	atomics_cobalt_device_foreach, /* foreach */
+	NULL, /* timesync */
 	atomics_cobalt_device_close /* close */
 };
 

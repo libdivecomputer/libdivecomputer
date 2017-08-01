@@ -52,6 +52,7 @@ static const dc_device_vtable_t uwatec_smart_device_vtable = {
 	NULL, /* write */
 	uwatec_smart_device_dump, /* dump */
 	uwatec_smart_device_foreach, /* foreach */
+	NULL, /* timesync */
 	uwatec_smart_device_close /* close */
 };
 

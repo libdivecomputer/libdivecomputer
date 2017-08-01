@@ -67,6 +67,7 @@ static const dc_device_vtable_t cressi_leonardo_device_vtable = {
 	NULL, /* write */
 	cressi_leonardo_device_dump, /* dump */
 	cressi_leonardo_device_foreach, /* foreach */
+	NULL, /* timesync */
 	cressi_leonardo_device_close /* close */
 };
 

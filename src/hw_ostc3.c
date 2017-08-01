@@ -139,6 +139,7 @@ static const dc_device_vtable_t hw_ostc3_device_vtable = {
 	hw_ostc3_device_write, /* write */
 	hw_ostc3_device_dump, /* dump */
 	hw_ostc3_device_foreach, /* foreach */
+	NULL, /* timesync */
 	hw_ostc3_device_close /* close */
 };
 

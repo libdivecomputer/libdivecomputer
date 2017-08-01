@@ -51,6 +51,7 @@ static const dc_device_vtable_t citizen_aqualand_device_vtable = {
 	NULL, /* write */
 	citizen_aqualand_device_dump, /* dump */
 	citizen_aqualand_device_foreach, /* foreach */
+	NULL, /* timesync */
 	citizen_aqualand_device_close /* close */
 };
 

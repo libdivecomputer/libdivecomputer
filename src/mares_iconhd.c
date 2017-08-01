@@ -87,6 +87,7 @@ static const dc_device_vtable_t mares_iconhd_device_vtable = {
 	NULL, /* write */
 	mares_iconhd_device_dump, /* dump */
 	mares_iconhd_device_foreach, /* foreach */
+	NULL, /* timesync */
 	mares_iconhd_device_close /* close */
 };
 

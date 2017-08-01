@@ -80,6 +80,7 @@ static const dc_device_vtable_t hw_ostc_device_vtable = {
 	NULL, /* write */
 	hw_ostc_device_dump, /* dump */
 	hw_ostc_device_foreach, /* foreach */
+	NULL, /* timesync */
 	hw_ostc_device_close /* close */
 };
 

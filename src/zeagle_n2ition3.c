@@ -64,6 +64,7 @@ static const dc_device_vtable_t zeagle_n2ition3_device_vtable = {
 	NULL, /* write */
 	zeagle_n2ition3_device_dump, /* dump */
 	zeagle_n2ition3_device_foreach, /* foreach */
+	NULL, /* timesync */
 	zeagle_n2ition3_device_close /* close */
 };
 

@@ -56,6 +56,7 @@ static const dc_device_vtable_t uwatec_meridian_device_vtable = {
 	NULL, /* write */
 	uwatec_meridian_device_dump, /* dump */
 	uwatec_meridian_device_foreach, /* foreach */
+	NULL, /* timesync */
 	uwatec_meridian_device_close /* close */
 };
 

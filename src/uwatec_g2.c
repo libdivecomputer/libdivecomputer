@@ -54,6 +54,7 @@ static const dc_device_vtable_t uwatec_g2_device_vtable = {
 	NULL, /* write */
 	uwatec_g2_device_dump, /* dump */
 	uwatec_g2_device_foreach, /* foreach */
+	NULL, /* timesync */
 	uwatec_g2_device_close /* close */
 };
 
