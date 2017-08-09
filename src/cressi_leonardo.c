@@ -448,32 +448,25 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 	if (size < SZ_MEMORY)
 		return DC_STATUS_DATAFORMAT;
 
-	// Locate the most recent dive.
-	// The device maintains an internal counter which is incremented for every
-	// dive, and the current value at the time of the dive is stored in the
-	// dive header. Thus the most recent dive will have the highest value.
-	unsigned int count = 0;
-	unsigned int latest = 0;
-	unsigned int maximum = 0;
-	for (unsigned int i = 0; i < RB_LOGBOOK_COUNT; ++i) {
-		unsigned int offset = RB_LOGBOOK_BEGIN + i * RB_LOGBOOK_SIZE;
+	// Get the number of dives.
+	//unsigned int ndives = array_uint16_le(data + 0x62);
 
-		// Ignore uninitialized header entries.
-		if (array_isequal (data + offset, RB_LOGBOOK_SIZE, 0xFF))
-			break;
+	// Get the logbook pointer.
+	unsigned int last = array_uint16_le(data + 0x64);
+	if (last < RB_LOGBOOK_BEGIN || last > RB_LOGBOOK_END ||
+		((last - RB_LOGBOOK_BEGIN) % RB_LOGBOOK_SIZE) != 0) {
+		ERROR (context, "Invalid logbook pointer (0x%04x).", last);
+		return DC_STATUS_DATAFORMAT;
+	}
 
-		// Get the internal dive number.
-		unsigned int current = array_uint16_le (data + offset);
-		if (current == 0xFFFF) {
-			WARNING (context, "Unexpected internal dive number found.");
-			break;
-		}
-		if (current > maximum) {
-			maximum = current;
-			latest = i;
-		}
+	// Convert to an index.
+	unsigned int latest = (last - RB_LOGBOOK_BEGIN) / RB_LOGBOOK_SIZE;
 
-		count++;
+	// Get the profile pointer.
+	unsigned int eop = array_uint16_le(data + 0x66);
+	if (eop < RB_PROFILE_BEGIN || last > RB_PROFILE_END) {
+		ERROR (context, "Invalid profile pointer (0x%04x).", eop);
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	unsigned char *buffer = (unsigned char *) malloc (RB_LOGBOOK_SIZE + RB_PROFILE_END - RB_PROFILE_BEGIN);
@@ -482,11 +475,15 @@ cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		return DC_STATUS_NOMEMORY;
 	}
 
-	unsigned int previous = 0;
+	unsigned int previous = eop;
 	unsigned int remaining = RB_PROFILE_END - RB_PROFILE_BEGIN;
-	for (unsigned int i = 0; i < count; ++i) {
+	for (unsigned int i = 0; i < RB_LOGBOOK_COUNT; ++i) {
 		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
 		unsigned int offset = RB_LOGBOOK_BEGIN + idx * RB_LOGBOOK_SIZE;
+
+		// Ignore uninitialized header entries.
+		if (array_isequal (data + offset, RB_LOGBOOK_SIZE, 0xFF))
+			break;
 
 		// Get the ringbuffer pointers.
 		unsigned int header = array_uint16_le (data + offset + 2);
