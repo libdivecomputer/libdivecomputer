@@ -107,6 +107,7 @@ static const oceanic_common_version_t oceanic_atom2a_version[] = {
 	{"PROPLUS2 \0\0 512K"},
 	{"OCEGEO20 \0\0 512K"},
 	{"OCE GEO R\0\0 512K"},
+	{"AQUAI200 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2b_version[] = {
