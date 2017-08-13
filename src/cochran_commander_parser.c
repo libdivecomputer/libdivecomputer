@@ -221,7 +221,9 @@ static const cochran_events_t cochran_events[] = {
 	{0xA9, 1, SAMPLE_EVENT_SURFACE,  SAMPLE_FLAGS_END},   // Exited PDI mode
 	{0xAB, 5, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Ceiling decrease
 	{0xAD, 5, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Ceiling increase
+	{0xB5, 1, SAMPLE_EVENT_AIRTIME,  SAMPLE_FLAGS_BEGIN}, // Air < 5 mins deco
 	{0xBD, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Switched to nomal PO2 setting
+	{0xBE, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Ceiling > 60 ft
 	{0xC0, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Switched to FO2 21% mode
 	{0xC1, 1, SAMPLE_EVENT_ASCENT,   SAMPLE_FLAGS_BEGIN}, // Ascent rate greater than limit
 	{0xC2, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Low battery warning
@@ -232,6 +234,7 @@ static const cochran_events_t cochran_events[] = {
 	{0xC8, 1, SAMPLE_EVENT_PO2,      SAMPLE_FLAGS_BEGIN}, // PO2 too high
 	{0xCC, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_BEGIN}, // Low Cylinder 1 pressure
 	{0xCE, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_BEGIN}, // Non-decompression warning
+	{0xCF, 1, SAMPLE_EVENT_OLF,      SAMPLE_FLAGS_BEGIN}, // O2 Toxicity
 	{0xCD, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Switched to deco blend
 	{0xD0, 1, SAMPLE_EVENT_WORKLOAD, SAMPLE_FLAGS_BEGIN}, // Breathing rate alarm
 	{0xD3, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Low gas 1 flow rate
