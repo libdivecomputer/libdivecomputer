@@ -622,6 +622,9 @@ cochran_commander_parser_samples_foreach_tm (dc_parser_t *abstract, dc_sample_ca
 					sample.deco.time = 60; // We don't know the duration
 					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
 					break;
+				default:
+					cochran_commander_handle_event(parser, s[0], callback, userdata);
+					break;
 				}
 			} else {
 				// Temp change
