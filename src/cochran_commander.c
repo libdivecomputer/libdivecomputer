@@ -129,11 +129,11 @@ static const cochran_device_layout_t cochran_cmdr_tm_device_layout = {
 	0xffffff,   // cf_last_interdive
 	0x15c,      // cf_serial_number
 	0x010000,   // rb_logbook_begin
-	0x012328,   // rb_logbook_end
+	0x01232b,   // rb_logbook_end
 	90,         // rb_logbook_entry_size
 	100,        // rb_logbook_entry_count
-	0x012328,   // rb_profile_begin
-	0x020000,   // rb_profile_end
+	0x01232b,   // rb_profile_begin
+	0x018000,   // rb_profile_end
 	15,         // pt_fingerprint
 	4,          // fingerprint_size
 	0,          // pt_profile_pre
@@ -608,7 +608,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	unsigned int rb_head_ptr = 0;
 	if (device->layout->model == COCHRAN_MODEL_COMMANDER_TM)
 		// TM uses SRAM and does not need to erase pages
-		rb_head_ptr = base + array_uint32_word_be(data->config + device->layout->cf_last_log);
+		rb_head_ptr = base + array_uint16_be(data->config + device->layout->cf_last_log);
 	else if (device->layout->endian == ENDIAN_WORD_BE)
 		rb_head_ptr = base + (array_uint32_word_be(data->config + device->layout->cf_last_log) & 0xfffff000) + 0x2000;
 	else
@@ -626,9 +626,16 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	}
 
 	unsigned int last_profile_idx = (device->layout->rb_logbook_entry_count + head_dive - 1) % device->layout->rb_logbook_entry_count;
-	unsigned int last_profile_end = base + array_uint32_le(data->logbook + last_profile_idx * device->layout->rb_logbook_entry_size + device->layout->pt_profile_end);
-	unsigned int last_profile_pre = 0xFFFFFFFF;
+	unsigned int last_profile_end = 0;
+	if (device->layout->model == COCHRAN_MODEL_COMMANDER_TM)
+		// There is no end pointer in this model and no inter-dive
+		// events. We could use profile_begin from the next dive but
+		// since this is the last dive, we'll use rb_head_ptr
+		last_profile_end = rb_head_ptr;
+	else
+		last_profile_end = base + array_uint32_le(data->logbook + last_profile_idx * device->layout->rb_logbook_entry_size + device->layout->pt_profile_end);
 
+	unsigned int last_profile_pre = 0xFFFFFFFF;
 	if (device->layout->endian == ENDIAN_WORD_BE)
 		last_profile_pre = base + array_uint32_word_be(data->config + device->layout->cf_last_log);
 	else
@@ -650,7 +657,11 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 			break;
 		}
 
-		unsigned int profile_pre = base + array_uint32_le(log_entry + device->layout->pt_profile_pre);
+		unsigned int profile_pre = 0;
+		if (device->layout->model == COCHRAN_MODEL_COMMANDER_TM)
+			profile_pre = base + array_uint16_le(log_entry + device->layout->pt_profile_pre);
+		else
+			profile_pre = base + array_uint32_le(log_entry + device->layout->pt_profile_pre);
 
 		unsigned int sample_size = cochran_commander_profile_size(device, data, idx, profile_pre, last_profile_pre);
 		last_profile_pre = profile_pre;
@@ -973,7 +984,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		unsigned int sample_start_address = 0;
 		unsigned int sample_end_address = 0;
 		if (layout->model == COCHRAN_MODEL_COMMANDER_TM) {
-			sample_start_address = base + array_uint24_le (log_entry + layout->pt_profile_begin);
+			sample_start_address = base + array_uint16_le (log_entry + layout->pt_profile_begin);
 			sample_end_address = last_start_address;
 			// Commander TM has SRAM which seems to randomize when they lose power for too long
 			// Check for bad entries.
