@@ -31,11 +31,12 @@
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
-#define COCHRAN_MODEL_COMMANDER_PRE21000 0
-#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 1
-#define COCHRAN_MODEL_EMC_14 2
-#define COCHRAN_MODEL_EMC_16 3
-#define COCHRAN_MODEL_EMC_20 4
+#define COCHRAN_MODEL_COMMANDER_TM 0
+#define COCHRAN_MODEL_COMMANDER_PRE21000 1
+#define COCHRAN_MODEL_COMMANDER_AIR_NITROX 2
+#define COCHRAN_MODEL_EMC_14 3
+#define COCHRAN_MODEL_EMC_16 4
+#define COCHRAN_MODEL_EMC_20 5
 
 // Cochran time stamps start at Jan 1, 1992
 #define COCHRAN_EPOCH 694242000
@@ -43,6 +44,7 @@
 #define UNSUPPORTED 0xFFFFFFFF
 
 typedef enum cochran_sample_format_t {
+	SAMPLE_TM,
 	SAMPLE_CMDR,
 	SAMPLE_EMC,
 } cochran_sample_format_t;
@@ -58,6 +60,7 @@ typedef struct cochran_parser_layout_t {
 	cochran_sample_format_t format;
 	unsigned int headersize;
 	unsigned int samplesize;
+	unsigned int pt_sample_interval;
 	cochran_date_encoding_t date_encoding;
 	unsigned int datetime;
 	unsigned int pt_profile_begin;
@@ -113,10 +116,36 @@ static const dc_parser_vtable_t cochran_commander_parser_vtable = {
 	NULL /* destroy */
 };
 
+static const cochran_parser_layout_t cochran_cmdr_tm_parser_layout = {
+	SAMPLE_TM,   // format
+	90,          // headersize
+	1,           // samplesize
+	72,          // pt_sample_interval
+	DATE_ENCODING_TICKS, // date_encoding
+	15,          // datetime, 4 bytes
+	0,           // pt_profile_begin, 4 bytes
+	UNSUPPORTED, // water_conductivity, 1 byte, 0=low(fresh), 2=high(sea)
+	0,           // pt_profile_pre, 4 bytes
+	83,          // start_temp, 1 byte, F
+	UNSUPPORTED, // start_depth, 2 bytes, /4=ft
+	20,          // dive_number, 2 bytes
+	UNSUPPORTED, // altitude, 1 byte, /4=kilofeet
+	UNSUPPORTED, // pt_profile_end, 4 bytes
+	UNSUPPORTED, // end_temp, 1 byte F
+	57,          // divetime, 2 bytes, minutes
+	49,          // max_depth, 2 bytes, /4=ft
+	51,          // avg_depth, 2 bytes, /4=ft
+	74,          // oxygen, 4 bytes (2 of) 2 bytes, /256=%
+	UNSUPPORTED, // helium, 4 bytes (2 of) 2 bytes, /256=%
+	82,          // min_temp, 1 byte, /2+20=F
+	UNSUPPORTED, // max_temp, 1 byte, /2+20=F
+};
+
 static const cochran_parser_layout_t cochran_cmdr_1_parser_layout = {
-	SAMPLE_CMDR, // type
+	SAMPLE_CMDR, // format
 	256,         // headersize
 	2,           // samplesize
+	UNSUPPORTED, // pt_sample_interval
 	DATE_ENCODING_TICKS, // date_encoding
 	8,           // datetime, 4 bytes
 	0,           // pt_profile_begin, 4 bytes
@@ -138,9 +167,10 @@ static const cochran_parser_layout_t cochran_cmdr_1_parser_layout = {
 };
 
 static const cochran_parser_layout_t cochran_cmdr_parser_layout = {
-	SAMPLE_CMDR, // type
+	SAMPLE_CMDR, // format
 	256,         // headersize
 	2,           // samplesize
+	UNSUPPORTED, // pt_sample_interval
 	DATE_ENCODING_MSDHYM, // date_encoding
 	0,           // datetime, 6 bytes
 	6,           // pt_profile_begin, 4 bytes
@@ -162,9 +192,10 @@ static const cochran_parser_layout_t cochran_cmdr_parser_layout = {
 };
 
 static const cochran_parser_layout_t cochran_emc_parser_layout = {
-	SAMPLE_EMC,  // type
+	SAMPLE_EMC,  // format
 	512,         // headersize
 	3,           // samplesize
+	UNSUPPORTED, // pt_sample_interval
 	DATE_ENCODING_SMHDMY, // date_encoding
 	0,           // datetime, 6 bytes
 	6,           // pt_profile_begin, 4 bytes
@@ -190,16 +221,20 @@ static const cochran_events_t cochran_events[] = {
 	{0xA9, 1, SAMPLE_EVENT_SURFACE,  SAMPLE_FLAGS_END},   // Exited PDI mode
 	{0xAB, 5, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Ceiling decrease
 	{0xAD, 5, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Ceiling increase
+	{0xB5, 1, SAMPLE_EVENT_AIRTIME,  SAMPLE_FLAGS_BEGIN}, // Air < 5 mins deco
 	{0xBD, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Switched to nomal PO2 setting
+	{0xBE, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Ceiling > 60 ft
 	{0xC0, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Switched to FO2 21% mode
 	{0xC1, 1, SAMPLE_EVENT_ASCENT,   SAMPLE_FLAGS_BEGIN}, // Ascent rate greater than limit
 	{0xC2, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Low battery warning
 	{0xC3, 1, SAMPLE_EVENT_OLF,      SAMPLE_FLAGS_NONE},  // CNS Oxygen toxicity warning
 	{0xC4, 1, SAMPLE_EVENT_MAXDEPTH, SAMPLE_FLAGS_NONE},  // Depth exceeds user set point
 	{0xC5, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_BEGIN}, // Entered decompression mode
+	{0xC7, 1, SAMPLE_EVENT_VIOLATION,SAMPLE_FLAGS_BEGIN}, // Entered Gauge mode (e.g. locked out)
 	{0xC8, 1, SAMPLE_EVENT_PO2,      SAMPLE_FLAGS_BEGIN}, // PO2 too high
 	{0xCC, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_BEGIN}, // Low Cylinder 1 pressure
 	{0xCE, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_BEGIN}, // Non-decompression warning
+	{0xCF, 1, SAMPLE_EVENT_OLF,      SAMPLE_FLAGS_BEGIN}, // O2 Toxicity
 	{0xCD, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Switched to deco blend
 	{0xD0, 1, SAMPLE_EVENT_WORKLOAD, SAMPLE_FLAGS_BEGIN}, // Breathing rate alarm
 	{0xD3, 1, SAMPLE_EVENT_NONE,     SAMPLE_FLAGS_NONE},  // Low gas 1 flow rate
@@ -334,6 +369,11 @@ cochran_commander_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	parser->model = model;
 
 	switch (model) {
+	case COCHRAN_MODEL_COMMANDER_TM:
+		parser->layout = &cochran_cmdr_tm_parser_layout;
+		parser->events = NULL;	// No inter-dive events on this model
+		parser->nevents = 0;
+		break;
 	case COCHRAN_MODEL_COMMANDER_PRE21000:
 		parser->layout = &cochran_cmdr_1_parser_layout;
 		parser->events = cochran_cmdr_event_bytes;
@@ -440,6 +480,8 @@ cochran_commander_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 			*((unsigned int*) value) = (data[layout->min_temp] / 2.0 + 20 - 32) / 1.8;
 			break;
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
+			if (layout->max_temp == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
 			if (data[layout->max_temp] == 0xFF)
 				return DC_STATUS_UNSUPPORTED;
 			*((unsigned int*) value) = (data[layout->max_temp] / 2.0 + 20 - 32) / 1.8;
@@ -484,6 +526,8 @@ cochran_commander_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 			// for density assume
 			//  0 = 1000kg/m³, 2 = 1025kg/m³
 			// and other values are linear
+			if (layout->water_conductivity == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
 			if ((data[layout->water_conductivity] & 0x3) == 0)
 				water->type = DC_WATER_FRESH;
 			else
@@ -493,6 +537,8 @@ cochran_commander_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 		case DC_FIELD_ATMOSPHERIC:
 			// Cochran measures air pressure and stores it as altitude.
 			// Convert altitude (measured in 1/4 kilofeet) back to pressure.
+			if (layout->altitude == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
 			*(double *) value = ATM / BAR * pow(1 - 0.0000225577 * data[layout->altitude] * 250.0 * FEET, 5.25588);
 			break;
 		default:
@@ -504,8 +550,117 @@ cochran_commander_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 }
 
 
+/*
+ * Parse early Commander computers
+ */
 static dc_status_t
-cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
+cochran_commander_parser_samples_foreach_tm (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
+{
+	cochran_commander_parser_t *parser = (cochran_commander_parser_t *) abstract;
+	const cochran_parser_layout_t *layout = parser->layout;
+	const unsigned char *data = abstract->data;
+	const unsigned char *samples = data + layout->headersize;
+
+	if (abstract->size < layout->headersize)
+		return DC_STATUS_DATAFORMAT;
+
+	unsigned int size = abstract->size - layout->headersize;
+	unsigned int sample_interval = data[layout->pt_sample_interval];
+
+	dc_sample_value_t sample = {0};
+	unsigned int time = 0, last_sample_time = 0;
+	unsigned int offset = 2;
+	unsigned int deco_ceiling = 0;
+
+	unsigned int temp = samples[0];	// Half degrees F
+	unsigned int depth = samples[1];	// Half feet
+
+	last_sample_time = sample.time = time;
+	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+
+	sample.depth = (depth / 2.0) * FEET;
+	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+	sample.temperature = (temp / 2.0 - 32.0) / 1.8;
+	if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+	sample.gasmix = 0;
+	if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+
+	while (offset < size) {
+		const unsigned char *s = samples + offset;
+
+		sample.time = time;
+		if (last_sample_time != sample.time) {
+			// We haven't issued this time yet.
+			last_sample_time = sample.time;
+			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		}
+
+		if (*s & 0x80) {
+			// Event or temperate change byte
+			if (*s & 0x60) {
+				// Event byte
+				switch (*s) {
+				case 0xC5:  // Deco obligation begins
+					break;
+				case 0xD8:  // Deco obligation ends
+					break;
+				case 0xAB:  // Decrement ceiling (deeper)
+					deco_ceiling += 10; // feet
+
+					sample.deco.type = DC_DECO_DECOSTOP;
+					sample.deco.time = 60; // We don't know the duration
+					sample.deco.depth = deco_ceiling * FEET;
+					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+					break;
+				case 0xAD:  // Increment ceiling (shallower)
+					deco_ceiling -= 10; // feet
+
+					sample.deco.type = DC_DECO_DECOSTOP;
+					sample.deco.depth = deco_ceiling * FEET;
+					sample.deco.time = 60; // We don't know the duration
+					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+					break;
+				default:
+					cochran_commander_handle_event(parser, s[0], callback, userdata);
+					break;
+				}
+			} else {
+				// Temp change
+				if (*s & 0x10)
+					temp -= (*s & 0x0f);
+				else
+					temp += (*s & 0x0f);
+				sample.temperature = (temp / 2.0 - 32.0) / 1.8;
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+			}
+
+			offset++;
+			continue;
+		}
+
+		// Depth sample
+		if (s[0] & 0x40)
+			depth -= s[0] & 0x3f;
+		else
+			depth += s[0] & 0x3f;
+
+		sample.depth = (depth / 2.0) * FEET;
+		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+		offset++;
+		time += sample_interval;
+	}
+	return DC_STATUS_SUCCESS;
+}
+
+
+/*
+ * Parse Commander I (Pre-21000 s/n), II and EMC computers
+ */
+static dc_status_t
+cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	cochran_commander_parser_t *parser = (cochran_commander_parser_t *) abstract;
 	const cochran_parser_layout_t *layout = parser->layout;
@@ -719,4 +874,16 @@ cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 	}
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+cochran_commander_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
+{
+	cochran_commander_parser_t *parser = (cochran_commander_parser_t *) abstract;
+
+	if (parser->model == COCHRAN_MODEL_COMMANDER_TM)
+		return cochran_commander_parser_samples_foreach_tm (abstract, callback, userdata);
+	else
+		return cochran_commander_parser_samples_foreach_emc (abstract, callback, userdata);
 }
