@@ -37,9 +37,6 @@ dc_status_t
 hw_frog_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 
 dc_status_t
-hw_frog_device_clock (dc_device_t *device, const dc_datetime_t *datetime);
-
-dc_status_t
 hw_frog_device_display (dc_device_t *device, const char *text);
 
 dc_status_t

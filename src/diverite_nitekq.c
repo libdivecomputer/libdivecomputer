@@ -69,6 +69,7 @@ static const dc_device_vtable_t diverite_nitekq_device_vtable = {
 	NULL, /* write */
 	diverite_nitekq_device_dump, /* dump */
 	diverite_nitekq_device_foreach, /* foreach */
+	NULL, /* timesync */
 	diverite_nitekq_device_close /* close */
 };
 

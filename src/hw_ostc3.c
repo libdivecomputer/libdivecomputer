@@ -129,6 +129,7 @@ static dc_status_t hw_ostc3_device_read (dc_device_t *abstract, unsigned int add
 static dc_status_t hw_ostc3_device_write (dc_device_t *abstract, unsigned int address, const unsigned char data[], unsigned int size);
 static dc_status_t hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t hw_ostc3_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 static dc_status_t hw_ostc3_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t hw_ostc3_device_vtable = {
@@ -139,6 +140,7 @@ static const dc_device_vtable_t hw_ostc3_device_vtable = {
 	hw_ostc3_device_write, /* write */
 	hw_ostc3_device_dump, /* dump */
 	hw_ostc3_device_foreach, /* foreach */
+	hw_ostc3_device_timesync, /* timesync */
 	hw_ostc3_device_close /* close */
 };
 
@@ -801,13 +803,10 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 }
 
 
-dc_status_t
-hw_ostc3_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
+static dc_status_t
+hw_ostc3_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if (datetime == NULL) {
 		ERROR (abstract->context, "Invalid parameter specified.");

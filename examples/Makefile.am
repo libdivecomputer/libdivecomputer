@@ -17,6 +17,7 @@ dctool_SOURCES = \
 	dctool_parse.c \
 	dctool_read.c \
 	dctool_write.c \
+	dctool_timesync.c \
 	dctool_fwupdate.c \
 	output.h \
 	output-private.h \

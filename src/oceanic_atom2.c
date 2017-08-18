@@ -74,6 +74,7 @@ static const oceanic_common_device_vtable_t oceanic_atom2_device_vtable = {
 		oceanic_atom2_device_write, /* write */
 		oceanic_common_device_dump, /* dump */
 		oceanic_common_device_foreach, /* foreach */
+		NULL, /* timesync */
 		oceanic_atom2_device_close /* close */
 	},
 	oceanic_common_device_logbook,

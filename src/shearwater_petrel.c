@@ -56,6 +56,7 @@ static const dc_device_vtable_t shearwater_petrel_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	shearwater_petrel_device_foreach, /* foreach */
+	NULL, /* timesync */
 	shearwater_petrel_device_close /* close */
 };
 

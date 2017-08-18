@@ -114,6 +114,7 @@ static const dc_device_vtable_t cochran_commander_device_vtable = {
 	NULL, /* write */
 	cochran_commander_device_dump, /* dump */
 	cochran_commander_device_foreach, /* foreach */
+	NULL, /* timesync */
 	cochran_commander_device_close /* close */
 };
 

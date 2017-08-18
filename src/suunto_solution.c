@@ -54,6 +54,7 @@ static const dc_device_vtable_t suunto_solution_device_vtable = {
 	NULL, /* write */
 	suunto_solution_device_dump, /* dump */
 	suunto_solution_device_foreach, /* foreach */
+	NULL, /* timesync */
 	suunto_solution_device_close /* close */
 };
 

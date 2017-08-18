@@ -61,6 +61,7 @@ typedef struct hw_frog_device_t {
 
 static dc_status_t hw_frog_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t hw_frog_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 static dc_status_t hw_frog_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t hw_frog_device_vtable = {
@@ -71,6 +72,7 @@ static const dc_device_vtable_t hw_frog_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	hw_frog_device_foreach, /* foreach */
+	hw_frog_device_timesync, /* timesync */
 	hw_frog_device_close /* close */
 };
 
@@ -482,13 +484,10 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 }
 
 
-dc_status_t
-hw_frog_device_clock (dc_device_t *abstract, const dc_datetime_t *datetime)
+static dc_status_t
+hw_frog_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
 
 	if (datetime == NULL) {
 		ERROR (abstract->context, "Invalid parameter specified.");

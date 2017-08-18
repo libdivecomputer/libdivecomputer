@@ -86,6 +86,7 @@ static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	divesystem_idive_device_foreach, /* foreach */
+	NULL, /* timesync */
 	divesystem_idive_device_close /* close */
 };
 

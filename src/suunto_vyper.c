@@ -63,6 +63,7 @@ static const dc_device_vtable_t suunto_vyper_device_vtable = {
 	suunto_vyper_device_write, /* write */
 	suunto_vyper_device_dump, /* dump */
 	suunto_vyper_device_foreach, /* foreach */
+	NULL, /* timesync */
 	suunto_vyper_device_close /* close */
 };
 

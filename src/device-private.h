@@ -71,6 +71,8 @@ struct dc_device_vtable_t {
 
 	dc_status_t (*foreach) (dc_device_t *device, dc_dive_callback_t callback, void *userdata);
 
+	dc_status_t (*timesync) (dc_device_t *device, const dc_datetime_t *datetime);
+
 	dc_status_t (*close) (dc_device_t *device);
 };
 

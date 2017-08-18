@@ -62,6 +62,7 @@ static const dc_device_vtable_t uwatec_aladin_device_vtable = {
 	NULL, /* write */
 	uwatec_aladin_device_dump, /* dump */
 	uwatec_aladin_device_foreach, /* foreach */
+	NULL, /* timesync */
 	uwatec_aladin_device_close /* close */
 };
 

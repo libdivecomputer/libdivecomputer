@@ -371,6 +371,19 @@ dc_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userd
 
 
 dc_status_t
+dc_device_timesync (dc_device_t *device, const dc_datetime_t *datetime)
+{
+	if (device == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	if (device->vtable->timesync == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	return device->vtable->timesync (device, datetime);
+}
+
+
+dc_status_t
 dc_device_close (dc_device_t *device)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;

@@ -65,6 +65,7 @@ static const dc_device_vtable_t reefnet_sensusultra_device_vtable = {
 	NULL, /* write */
 	reefnet_sensusultra_device_dump, /* dump */
 	reefnet_sensusultra_device_foreach, /* foreach */
+	NULL, /* timesync */
 	reefnet_sensusultra_device_close /* close */
 };
 
