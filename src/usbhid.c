@@ -25,14 +25,20 @@
 
 #include <stdlib.h>
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(HAVE_HIDAPI)
+#define USE_HIDAPI
 #define USBHID
+#elif defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#define USE_LIBUSB
+#define USBHID
+#endif
+
+#if defined(USE_LIBUSB)
 #ifdef _WIN32
 #define NOGDI
 #endif
 #include <libusb-1.0/libusb.h>
-#elif defined(HAVE_HIDAPI)
-#define USBHID
+#elif defined(USE_HIDAPI)
 #include <hidapi/hidapi.h>
 #endif
 
@@ -44,20 +50,20 @@ struct dc_usbhid_t {
 	/* Library context. */
 	dc_context_t *context;
 	/* Internal state. */
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 	libusb_context *ctx;
 	libusb_device_handle *handle;
 	int interface;
 	unsigned char endpoint_in;
 	unsigned char endpoint_out;
 	unsigned int timeout;
-#elif defined(HAVE_HIDAPI)
+#elif defined(USE_HIDAPI)
 	hid_device *handle;
 	int timeout;
 #endif
 };
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 static dc_status_t
 syserror(int errcode)
 {
@@ -103,7 +109,7 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 	// Library context.
 	usbhid->context = context;
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 	struct libusb_device **devices = NULL;
 	struct libusb_config_descriptor *config = NULL;
 
@@ -235,7 +241,7 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 	libusb_free_config_descriptor (config);
 	libusb_free_device_list (devices, 1);
 
-#elif defined(HAVE_HIDAPI)
+#elif defined(USE_HIDAPI)
 
 	// Initialize the hidapi library.
 	rc = hid_init();
@@ -260,7 +266,7 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 
 	return DC_STATUS_SUCCESS;
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 error_usb_close:
 	libusb_close (usbhid->handle);
 error_usb_free_config:
@@ -269,7 +275,7 @@ error_usb_free_list:
 	libusb_free_device_list (devices, 1);
 error_usb_exit:
 	libusb_exit (usbhid->ctx);
-#elif defined(HAVE_HIDAPI)
+#elif defined(USE_HIDAPI)
 error_hid_exit:
 	hid_exit ();
 #endif
@@ -290,11 +296,11 @@ dc_usbhid_close (dc_usbhid_t *usbhid)
 	if (usbhid == NULL)
 		return DC_STATUS_SUCCESS;
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 	libusb_release_interface (usbhid->handle, usbhid->interface);
 	libusb_close (usbhid->handle);
 	libusb_exit (usbhid->ctx);
-#elif defined(HAVE_HIDAPI)
+#elif defined(USE_HIDAPI)
 	hid_close(usbhid->handle);
 	hid_exit();
 #endif
@@ -315,7 +321,7 @@ dc_usbhid_set_timeout (dc_usbhid_t *usbhid, int timeout)
 
 	INFO (usbhid->context, "Timeout: value=%i", timeout);
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 	if (timeout < 0) {
 		usbhid->timeout = 0;
 	} else if (timeout == 0) {
@@ -323,7 +329,7 @@ dc_usbhid_set_timeout (dc_usbhid_t *usbhid, int timeout)
 	} else {
 		usbhid->timeout = timeout;
 	}
-#elif defined(HAVE_HIDAPI)
+#elif defined(USE_HIDAPI)
 	if (timeout < 0) {
 		usbhid->timeout = -1;
 	} else {
@@ -349,7 +355,7 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 		goto out_invalidargs;
 	}
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(USE_LIBUSB)
 	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_in, data, size, &nbytes, usbhid->timeout);
 	if (rc != LIBUSB_SUCCESS) {
 		ERROR (usbhid->context, "Usb read interrupt transfer failed (%s).",
@@ -357,11 +363,12 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 		status = syserror (rc);
 		goto out;
 	}
-#elif defined(HAVE_HIDAPI)
+#elif defined(USE_HIDAPI)
 	nbytes = hid_read_timeout(usbhid->handle, data, size, usbhid->timeout);
 	if (nbytes < 0) {
 		ERROR (usbhid->context, "Usb read interrupt transfer failed.");
 		status = DC_STATUS_IO;
+		nbytes = 0;
 		goto out;
 	}
 #endif
@@ -391,21 +398,46 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 		goto out_invalidargs;
 	}
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
-	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_out, (void *) data, size, &nbytes, 0);
+	if (size == 0) {
+		goto out;
+	}
+
+#if defined(USE_LIBUSB)
+	const unsigned char *buffer = (const unsigned char *) data;
+	size_t length = size;
+
+	// Skip a report id of zero.
+	unsigned char report = buffer[0];
+	if (report == 0) {
+		buffer++;
+		length--;
+	}
+
+	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_out, (void *) buffer, length, &nbytes, 0);
 	if (rc != LIBUSB_SUCCESS) {
 		ERROR (usbhid->context, "Usb write interrupt transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
 		goto out;
 	}
-#elif defined(HAVE_HIDAPI)
+
+	if (report == 0) {
+		nbytes++;
+	}
+#elif defined(USE_HIDAPI)
 	nbytes = hid_write(usbhid->handle, data, size);
 	if (nbytes < 0) {
 		ERROR (usbhid->context, "Usb write interrupt transfer failed.");
 		status = DC_STATUS_IO;
+		nbytes = 0;
 		goto out;
 	}
+
+#ifdef _WIN32
+	if (nbytes > size) {
+		nbytes = size;
+	}
+#endif
 #endif
 
 out:

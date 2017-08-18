@@ -23,9 +23,9 @@
 #include "config.h"
 #endif
 
-#if defined(HAVE_LIBUSB) && !defined(__APPLE__)
+#if defined(HAVE_HIDAPI)
 #define USBHID
-#elif defined(HAVE_HIDAPI)
+#elif defined(HAVE_LIBUSB) && !defined(__APPLE__)
 #define USBHID
 #endif
 
