@@ -479,6 +479,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\uwatec_g2.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\uwatec_memomouse.c"
 				>
 			</File>
@@ -794,6 +798,10 @@
 			</File>
 			<File
 				RelativePath="..\src\uwatec_aladin.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\uwatec_g2.h"
 				>
 			</File>
 			<File
