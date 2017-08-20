@@ -960,7 +960,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				decostop = (data[offset + 5] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 4) & 0x03FF;
 				have_deco = 1;
-			} else if (parser->model == I200) {
+			} else if (parser->model == I200 || parser->model == I300) {
 				decostop = (data[offset + 7] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 6) & 0x0FFF;
 				have_deco = 1;
