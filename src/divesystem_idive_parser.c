@@ -307,6 +307,13 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			divemode = mode;
 		}
 
+		// Setpoint
+		if (mode == SCR || mode == CCR) {
+			unsigned int setpoint = array_uint16_le (data + offset + 19);
+			sample.setpoint = setpoint / 1000.0;
+			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+		}
+
 		// Gaschange.
 		unsigned int o2 = data[offset + 10];
 		unsigned int he = data[offset + 11];
