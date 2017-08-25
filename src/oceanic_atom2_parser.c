@@ -960,7 +960,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				decostop = (data[offset + 5] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 4) & 0x03FF;
 				have_deco = 1;
-			} else if (parser->model == I200 || parser->model == I300) {
+			} else if (parser->model == I200 || parser->model == I300 ||
+				parser->model == OC1A || parser->model == OC1B ||
+				parser->model == OC1C || parser->model == OCI) {
 				decostop = (data[offset + 7] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 6) & 0x0FFF;
 				have_deco = 1;
@@ -982,7 +984,9 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (parser->model == ATOM31) {
 				rbt = array_uint16_le(data + offset + 6) & 0x01FF;
 				have_rbt = 1;
-			} else if (parser->model == I450T) {
+			} else if (parser->model == I450T || parser->model == OC1A ||
+				parser->model == OC1B || parser->model == OC1C ||
+				parser->model == OCI) {
 				rbt = array_uint16_le(data + offset + 8) & 0x01FF;
 				have_rbt = 1;
 			} else if (parser->model == VISION || parser->model == XPAIR ||
@@ -993,6 +997,20 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			if (have_rbt) {
 				sample.rbt = rbt;
 				if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
+			}
+
+			// Bookmarks
+			unsigned int have_bookmark = 0;
+			if (parser->model == OC1A || parser->model == OC1B ||
+				parser->model == OC1C || parser->model == OCI) {
+				have_bookmark = data[offset + 12] & 0x80;
+			}
+			if (have_bookmark) {
+				sample.event.type = SAMPLE_EVENT_BOOKMARK;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = 0;
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			}
 
 			count++;
