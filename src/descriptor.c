@@ -19,26 +19,6 @@
  * MA 02110-1301 USA
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#if defined(HAVE_HIDAPI)
-#define USBHID
-#elif defined(HAVE_LIBUSB) && !defined(__APPLE__)
-#define USBHID
-#endif
-
-#ifdef _WIN32
-#ifdef HAVE_AF_IRDA_H
-#define IRDA
-#endif
-#else
-#ifdef HAVE_LINUX_IRDA_H
-#define IRDA
-#endif
-#endif
-
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,10 +98,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "Zoop Novo",  DC_FAMILY_SUUNTO_D9, 0x1E, DC_TRANSPORT_SERIAL, NULL},
 	{"Suunto", "D4f",        DC_FAMILY_SUUNTO_D9, 0x20, DC_TRANSPORT_SERIAL, NULL},
 	/* Suunto EON Steel */
-#ifdef USBHID
 	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0, DC_TRANSPORT_USBHID, dc_filter_suunto},
 	{"Suunto", "EON Core",  DC_FAMILY_SUUNTO_EONSTEEL, 1, DC_TRANSPORT_USBHID, dc_filter_suunto},
-#endif
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C, DC_TRANSPORT_SERIAL, NULL},
 	{"Uwatec", "Aladin Sport Plus",   DC_FAMILY_UWATEC_ALADIN, 0x3E, DC_TRANSPORT_SERIAL, NULL},
@@ -133,7 +111,6 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Uwatec Memomouse */
 	{"Uwatec", "Memomouse", DC_FAMILY_UWATEC_MEMOMOUSE, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Uwatec Smart */
-#ifdef IRDA
 	{"Uwatec", "Smart Pro",     DC_FAMILY_UWATEC_SMART, 0x10, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Uwatec", "Galileo Sol",   DC_FAMILY_UWATEC_SMART, 0x11, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Uwatec", "Galileo Luna",  DC_FAMILY_UWATEC_SMART, 0x11, DC_TRANSPORT_IRDA, dc_filter_uwatec},
@@ -152,18 +129,15 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec", "Galileo Trimix",DC_FAMILY_UWATEC_SMART, 0x19, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Uwatec", "Smart Z",       DC_FAMILY_UWATEC_SMART, 0x1C, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Subgear","XP Air",        DC_FAMILY_UWATEC_SMART, 0x1C, DC_TRANSPORT_IRDA, dc_filter_uwatec},
-#endif
 	/* Scubapro/Uwatec Meridian */
 	{"Scubapro", "Meridian",    DC_FAMILY_UWATEC_MERIDIAN, 0x20, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro", "Mantis",      DC_FAMILY_UWATEC_MERIDIAN, 0x20, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro", "Chromis",     DC_FAMILY_UWATEC_MERIDIAN, 0x24, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro", "Mantis 2",    DC_FAMILY_UWATEC_MERIDIAN, 0x26, DC_TRANSPORT_SERIAL, NULL},
 	/* Scubapro G2 */
-#ifdef USBHID
 	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_G2, 0x17, DC_TRANSPORT_NONE, dc_filter_uwatec},
 	{"Scubapro", "Aladin Square",       DC_FAMILY_UWATEC_G2, 0x22, DC_TRANSPORT_USBHID, dc_filter_uwatec},
 	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_G2, 0x32, DC_TRANSPORT_USBHID, dc_filter_uwatec},
-#endif
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1, DC_TRANSPORT_SERIAL, NULL},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2, DC_TRANSPORT_SERIAL, NULL},
@@ -304,10 +278,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Dive Rite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro",  "XTender 5",  DC_FAMILY_ZEAGLE_N2ITION3, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Atomic Aquatics Cobalt */
-#ifdef HAVE_LIBUSB
 	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0, DC_TRANSPORT_USB, NULL},
 	{"Atomic Aquatics", "Cobalt 2", DC_FAMILY_ATOMICS_COBALT, 2, DC_TRANSPORT_USB, NULL},
-#endif
 	/* Shearwater Predator */
 	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_shearwater},
 	/* Shearwater Petrel */
