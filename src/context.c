@@ -19,6 +19,10 @@
  * MA 02110-1301 USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -312,4 +316,36 @@ dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *f
 #endif
 
 	return DC_STATUS_SUCCESS;
+}
+
+unsigned int
+dc_context_get_transports (dc_context_t *context)
+{
+	UNUSED(context);
+
+	return DC_TRANSPORT_SERIAL
+#if defined(HAVE_LIBUSB)
+		| DC_TRANSPORT_USB
+#endif
+#if defined(HAVE_HIDAPI)
+		| DC_TRANSPORT_USBHID
+#elif defined(HAVE_LIBUSB) && !defined(__APPLE__)
+		| DC_TRANSPORT_USBHID
+#endif
+#ifdef _WIN32
+#ifdef HAVE_AF_IRDA_H
+		| DC_TRANSPORT_IRDA
+#endif
+#ifdef HAVE_WS2BTH_H
+		| DC_TRANSPORT_BLUETOOTH
+#endif
+#else /* _WIN32 */
+#ifdef HAVE_LINUX_IRDA_H
+		| DC_TRANSPORT_IRDA
+#endif
+#ifdef HAVE_BLUEZ
+		| DC_TRANSPORT_BLUETOOTH
+#endif
+#endif /* _WIN32 */
+	;
 }
