@@ -49,9 +49,6 @@ dc_descriptor_get_type (dc_descriptor_t *descriptor);
 unsigned int
 dc_descriptor_get_model (dc_descriptor_t *descriptor);
 
-dc_transport_t
-dc_descriptor_get_transport (dc_descriptor_t *descriptor);
-
 unsigned int
 dc_descriptor_get_transports (dc_descriptor_t *descriptor);
 
