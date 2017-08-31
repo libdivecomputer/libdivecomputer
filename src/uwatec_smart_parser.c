@@ -142,9 +142,9 @@ struct uwatec_smart_parser_t {
 	unsigned int nsamples;
 	const uwatec_smart_event_info_t *events[NEVENTS];
 	unsigned int nevents[NEVENTS];
+	unsigned int trimix;
 	// Cached fields.
 	unsigned int cached;
-	unsigned int trimix;
 	unsigned int ngasmixes;
 	uwatec_smart_gasmix_t gasmix[NGASMIXES];
 	unsigned int ntanks;
@@ -192,6 +192,19 @@ uwatec_smart_header_info_t uwatec_smart_galileo_header = {
 	50, /* tankpressure */
 	16, /* timezone */
 	92, /* settings */
+};
+
+static const
+uwatec_smart_header_info_t uwatec_smart_trimix_header = {
+	22, /* maxdepth */
+	26, /* divetime */
+	UNSUPPORTED, 0, /* gasmixes */
+	30, /* temp_minimum */
+	28, /* temp_maximum */
+	32, /* temp_surface */
+	UNSUPPORTED, /* tankpressure */
+	16, /* timezone */
+	68, /* settings */
 };
 
 static const
@@ -418,31 +431,31 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 {
 	const unsigned char *data = parser->base.data;
 	unsigned int size = parser->base.size;
-	const uwatec_smart_header_info_t *header = parser->header;
 
 	if (parser->cached) {
 		return DC_STATUS_SUCCESS;
 	}
 
-	unsigned int trimix = 0;
 	if (parser->model == GALILEO || parser->model == GALILEOTRIMIX) {
 		if (size < 44)
 			return DC_STATUS_DATAFORMAT;
 
 		if (data[43] & 0x80) {
-			trimix = 1;
-		}
-
-		if (trimix) {
+			parser->trimix = 1;
+			parser->headersize = 84;
+			parser->header = &uwatec_smart_trimix_header;
 			parser->events[2] = uwatec_smart_trimix_events_2;
 			parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_trimix_events_2);
 		} else {
+			parser->trimix = 0;
+			parser->headersize = 152;
+			parser->header = &uwatec_smart_galileo_header;
 			parser->events[2] = uwatec_smart_galileo_events_2;
 			parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_galileo_events_2);
 		}
-	} else if (parser->model == G2) {
-		trimix = 1;
 	}
+
+	const uwatec_smart_header_info_t *header = parser->header;
 
 	// Get the settings.
 	dc_divemode_t divemode = DC_DIVEMODE_OC;
@@ -479,7 +492,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 	unsigned int ngasmixes = 0;
 	uwatec_smart_tank_t tank[NGASMIXES] = {{0}};
 	uwatec_smart_gasmix_t gasmix[NGASMIXES] = {{0}};
-	if (!trimix) {
+	if (header->gasmix != UNSUPPORTED) {
 		for (unsigned int i = 0; i < header->ngases; ++i) {
 			unsigned int idx = DC_GASMIX_UNKNOWN;
 			unsigned int o2 = 0;
@@ -526,7 +539,6 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 	}
 
 	// Cache the data for later use.
-	parser->trimix = trimix;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->gasmix[i] = gasmix[i];
@@ -563,6 +575,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->model = model;
 	parser->devtime = devtime;
 	parser->systime = systime;
+	parser->trimix = 0;
 	for (unsigned int i = 0; i < NEVENTS; ++i) {
 		parser->events[i] = NULL;
 		parser->nevents[i] = 0;
@@ -582,7 +595,6 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	case MERIDIAN:
 	case CHROMIS:
 	case MANTIS2:
-	case G2:
 		parser->headersize = 152;
 		parser->header = &uwatec_smart_galileo_header;
 		parser->samples = uwatec_smart_galileo_samples;
@@ -593,6 +605,19 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->nevents[0] = C_ARRAY_SIZE (uwatec_smart_galileo_events_0);
 		parser->nevents[1] = C_ARRAY_SIZE (uwatec_smart_galileo_events_1);
 		parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_galileo_events_2);
+		break;
+	case G2:
+		parser->headersize = 84;
+		parser->header = &uwatec_smart_trimix_header;
+		parser->samples = uwatec_smart_galileo_samples;
+		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_galileo_samples);
+		parser->events[0] = uwatec_smart_galileo_events_0;
+		parser->events[1] = uwatec_smart_galileo_events_1;
+		parser->events[2] = uwatec_smart_trimix_events_2;
+		parser->nevents[0] = C_ARRAY_SIZE (uwatec_smart_galileo_events_0);
+		parser->nevents[1] = C_ARRAY_SIZE (uwatec_smart_galileo_events_1);
+		parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_trimix_events_2);
+		parser->trimix = 1;
 		break;
 	case ALADINTEC:
 		parser->headersize = 108;
@@ -635,7 +660,6 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	}
 
 	parser->cached = 0;
-	parser->trimix = 0;
 	parser->ngasmixes = 0;
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
@@ -667,7 +691,6 @@ uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 
 	// Reset the cache.
 	parser->cached = 0;
-	parser->trimix = 0;
 	parser->ngasmixes = 0;
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
@@ -728,9 +751,6 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 {
 	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
 
-	const unsigned char *data = abstract->data;
-	const uwatec_smart_header_info_t *table = parser->header;
-
 	// Cache the parser data.
 	dc_status_t rc = uwatec_smart_parser_cache (parser);
 	if (rc != DC_STATUS_SUCCESS)
@@ -742,6 +762,9 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 	}
+
+	const uwatec_smart_header_info_t *table = parser->header;
+	const unsigned char *data = abstract->data;
 
 	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
@@ -766,13 +789,9 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_TANK_COUNT:
-			if (table->tankpressure == UNSUPPORTED)
-				return DC_STATUS_UNSUPPORTED;
 			*((unsigned int *) value) = parser->ntanks;
 			break;
 		case DC_FIELD_TANK:
-			if (table->tankpressure == UNSUPPORTED)
-				return DC_STATUS_UNSUPPORTED;
 			tank->type = DC_TANKVOLUME_NONE;
 			tank->volume = 0.0;
 			tank->workpressure = 0.0;
@@ -885,10 +904,6 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	const uwatec_smart_sample_info_t *table = parser->samples;
 	unsigned int entries = parser->nsamples;
-	unsigned int header = parser->headersize;
-	if (parser->trimix) {
-		header = 0xB1;
-	}
 
 	// Get the maximum number of alarm bytes.
 	unsigned int nalarms = 0;
@@ -927,7 +942,7 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	int have_depth = 0, have_temperature = 0, have_pressure = 0, have_rbt = 0,
 		have_heartrate = 0, have_bearing = 0;
 
-	unsigned int offset = header;
+	unsigned int offset = parser->headersize;
 	while (offset < size) {
 		dc_sample_value_t sample = {0};
 
