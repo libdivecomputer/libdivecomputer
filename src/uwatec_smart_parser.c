@@ -158,6 +158,8 @@ static dc_status_t uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_d
 static dc_status_t uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
 
+static dc_status_t uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback, void *userdata);
+
 static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 	sizeof(uwatec_smart_parser_t),
 	DC_FAMILY_UWATEC_SMART,
@@ -758,7 +760,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 
 	// Cache the profile data.
 	if (parser->cached < PROFILE) {
-		rc = uwatec_smart_parser_samples_foreach (abstract, NULL, NULL);
+		rc = uwatec_smart_parse (parser, NULL, NULL);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 	}
@@ -890,17 +892,12 @@ uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
 
 
 static dc_status_t
-uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
+uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback, void *userdata)
 {
-	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t*) abstract;
+	dc_parser_t *abstract = (dc_parser_t *) parser;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
-
-	// Cache the parser data.
-	dc_status_t rc = uwatec_smart_parser_cache (parser);
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
 
 	const uwatec_smart_sample_info_t *table = parser->samples;
 	unsigned int entries = parser->nsamples;
@@ -1225,4 +1222,25 @@ uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	parser->cached = PROFILE;
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
+{
+	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
+
+	// Cache the parser data.
+	dc_status_t rc = uwatec_smart_parser_cache (parser);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Cache the profile data.
+	if (parser->cached < PROFILE) {
+		rc = uwatec_smart_parse (parser, NULL, NULL);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+	}
+
+	return uwatec_smart_parse (parser, callback, userdata);
 }
