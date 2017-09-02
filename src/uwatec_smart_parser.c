@@ -74,8 +74,8 @@ typedef enum {
 	BEARING,
 	ALARMS,
 	TIME,
-	UNKNOWN1,
-	UNKNOWN2,
+	APNEA,
+	MISC,
 } uwatec_smart_sample_t;
 
 typedef enum {
@@ -292,8 +292,8 @@ uwatec_smart_sample_info_t uwatec_smart_galileo_samples[] = {
 	{HEARTRATE,      1, 0, 8, 0, 1}, // 1111 0111 dddddddd
 	{BEARING,        1, 0, 8, 0, 2}, // 1111 1000 dddddddd dddddddd
 	{ALARMS,         1, 2, 8, 0, 1}, // 1111 1001 dddddddd
-	{UNKNOWN1,       1, 0, 8, 0, 0}, // 1111 1010 (8 bytes)
-	{UNKNOWN2,       1, 0, 8, 0, 1}, // 1111 1011 dddddddd (n-1 bytes)
+	{APNEA,          1, 0, 8, 0, 0}, // 1111 1010 (8 bytes)
+	{MISC,           1, 0, 8, 0, 1}, // 1111 1011 dddddddd (n-1 bytes)
 };
 
 
@@ -1091,14 +1091,14 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 		case TIME:
 			complete = value;
 			break;
-		case UNKNOWN1:
+		case APNEA:
 			if (offset + 8 > size) {
 				ERROR (abstract->context, "Incomplete sample data.");
 				return DC_STATUS_DATAFORMAT;
 			}
 			offset += 8;
 			break;
-		case UNKNOWN2:
+		case MISC:
 			if (value < 1 || offset + value - 1 > size) {
 				ERROR (abstract->context, "Incomplete sample data.");
 				return DC_STATUS_DATAFORMAT;
