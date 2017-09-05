@@ -64,6 +64,8 @@ struct divesystem_idive_parser_t {
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
+	unsigned int beginpressure;
+	unsigned int endpressure;
 };
 
 static dc_status_t divesystem_idive_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -113,6 +115,8 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->beginpressure = 0;
+	parser->endpressure = 0;
 
 	*out = (dc_parser_t*) parser;
 
@@ -135,6 +139,8 @@ divesystem_idive_parser_set_data (dc_parser_t *abstract, const unsigned char *da
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->beginpressure = 0;
+	parser->endpressure = 0;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -173,6 +179,7 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 
 	if (value) {
@@ -190,6 +197,19 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			gasmix->helium = parser->helium[flags] / 100.0;
 			gasmix->oxygen = parser->oxygen[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_TANK_COUNT:
+			if (parser->beginpressure == 0 && parser->endpressure == 0)
+				return DC_STATUS_UNSUPPORTED;
+			*((unsigned int *) value) = 1;
+			break;
+		case DC_FIELD_TANK:
+			tank->type = DC_TANKVOLUME_NONE;
+			tank->volume = 0.0;
+			tank->workpressure = 0.0;
+			tank->beginpressure = parser->beginpressure;
+			tank->endpressure   = parser->endpressure;
+			tank->gasmix = DC_GASMIX_UNKNOWN;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			if (parser->model >= IX3M_EASY) {
@@ -249,6 +269,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int he_previous = 0xFFFFFFFF;
 	unsigned int mode_previous = INVALID;
 	unsigned int divemode = INVALID;
+	unsigned int beginpressure = 0;
+	unsigned int endpressure = 0;
 
 	unsigned int nsamples = array_uint16_le (data + 1);
 	unsigned int samplesize = SZ_SAMPLE_IDIVE;
@@ -363,10 +385,26 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		sample.cns = cns / 100.0;
 		if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 
+		// Tank Pressure
+		if (samplesize == SZ_SAMPLE_IX3M_APOS4) {
+			unsigned int pressure = data[offset + 49];
+			if (beginpressure == 0 && pressure != 0) {
+				beginpressure = pressure;
+			}
+			if (beginpressure) {
+				sample.pressure.tank = 0;
+				sample.pressure.value = pressure;
+				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				endpressure = pressure;
+			}
+		}
+
 		offset += samplesize;
 	}
 
 	// Cache the data for later use.
+	parser->beginpressure = beginpressure;
+	parser->endpressure = endpressure;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->helium[i] = helium[i];
 		parser->oxygen[i] = oxygen[i];
