@@ -199,8 +199,8 @@ static const cochran_device_layout_t cochran_emc14_device_layout = {
 	COCHRAN_MODEL_EMC_14, // model
 	32,         // address_bits
 	ENDIAN_LE,  // endian
-	806400,     // baudrate
-	65536,      // rbstream_size
+	850000,     // baudrate
+	32768,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -224,8 +224,8 @@ static const cochran_device_layout_t cochran_emc16_device_layout = {
 	COCHRAN_MODEL_EMC_16, // model
 	32,         // address_bits
 	ENDIAN_LE,  // endian
-	806400,     // baudrate
-	65536,      // rbstream_size
+	850000,     // baudrate
+	32768,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -249,8 +249,8 @@ static const cochran_device_layout_t cochran_emc20_device_layout = {
 	COCHRAN_MODEL_EMC_20, // model
 	32,         // address_bits
 	ENDIAN_LE,  // endian
-	806400,     // baudrate
-	65536,      // rbstream_size
+	850000,     // baudrate
+	32768,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -372,7 +372,7 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 		// Give the DC time to process the command.
 		dc_serial_sleep(device->port, 45);
 
-		// Rates are odd, like 806400 for the EMC, 115200 for commander
+		// Rates are odd, like 850400 for the EMC, 115200 for commander
 		status = dc_serial_configure(device->port, device->layout->baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to set the high baud rate.");
@@ -523,7 +523,7 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 		return DC_STATUS_UNSUPPORTED;
 	}
 
-	dc_serial_sleep(device->port, 800);
+	dc_serial_sleep(device->port, 550);
 
 	// set back to 9600 baud
 	rc = cochran_commander_serial_setup(device);
