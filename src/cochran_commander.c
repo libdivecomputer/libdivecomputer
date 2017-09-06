@@ -539,6 +539,37 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 }
 
 
+static unsigned int
+cochran_commander_read_retry (cochran_commander_device_t *device, dc_event_progress_t *progress, unsigned int address, unsigned char data[], unsigned int size)
+{
+	// Save the state of the progress events.
+	unsigned int saved = 0;
+	if (progress) {
+		saved = progress->current;
+	}
+
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = cochran_commander_read (device, progress, address, data, size)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Restore the state of the progress events.
+		if (progress) {
+			progress->current = saved;
+		}
+	}
+
+	return rc;
+}
+
+
 /*
  *  For corrupt dives the end-of-samples pointer is 0xFFFFFFFF
  *  search for a reasonable size, e.g. using next dive start sample
@@ -798,7 +829,7 @@ cochran_commander_device_read (dc_device_t *abstract, unsigned int address, unsi
 {
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
 
-	return cochran_commander_read(device, NULL, address, data, size);
+	return cochran_commander_read_retry(device, NULL, address, data, size);
 }
 
 
@@ -842,7 +873,7 @@ cochran_commander_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 
 	// Read the sample data, logbook and sample data are contiguous
-	rc = cochran_commander_read (device, &progress, device->layout->rb_logbook_begin, dc_buffer_get_data(buffer), size);
+	rc = cochran_commander_read_retry (device, &progress, device->layout->rb_logbook_begin, dc_buffer_get_data(buffer), size);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the sample data.");
 		return rc;
@@ -919,7 +950,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	}
 
 	// Request log book
-	rc = cochran_commander_read(device, &progress, layout->rb_logbook_begin, data.logbook, data.logbook_size);
+	rc = cochran_commander_read_retry(device, &progress, layout->rb_logbook_begin, data.logbook, data.logbook_size);
 	if (rc != DC_STATUS_SUCCESS) {
 		status = rc;
 		goto error;
