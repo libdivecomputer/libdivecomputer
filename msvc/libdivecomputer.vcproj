@@ -427,6 +427,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\socket.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\suunto_common.c"
 				>
 			</File>
@@ -766,6 +770,10 @@
 			</File>
 			<File
 				RelativePath="..\src\shearwater_predator.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\socket.h"
 				>
 			</File>
 			<File

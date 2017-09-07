@@ -78,6 +78,7 @@ else
 libdivecomputer_la_SOURCES += serial.h serial_posix.c
 endif
 
+libdivecomputer_la_SOURCES += socket.h socket.c
 libdivecomputer_la_SOURCES += irda.h irda.c
 libdivecomputer_la_SOURCES += usbhid.h usbhid.c
 libdivecomputer_la_SOURCES += bluetooth.h bluetooth.c

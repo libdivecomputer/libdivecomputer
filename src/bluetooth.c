@@ -25,22 +25,14 @@
 
 #include <stdlib.h> // malloc, free
 
+#include "socket.h"
+
 #ifdef _WIN32
-#define NOGDI
-#include <winsock2.h>
-#include <windows.h>
 #ifdef HAVE_WS2BTH_H
 #define BLUETOOTH
 #include <ws2bth.h>
 #endif
 #else
-#include <errno.h>      // errno
-#include <unistd.h>     // close
-#include <sys/types.h>  // socket, getsockopt
-#include <sys/socket.h> // socket, getsockopt
-#include <sys/select.h> // select
-#include <sys/ioctl.h>  // ioctl
-#include <sys/time.h>
 #ifdef HAVE_BLUEZ
 #define BLUETOOTH
 #include <bluetooth/bluetooth.h>
@@ -57,34 +49,6 @@
 #include "iostream-private.h"
 
 #ifdef _WIN32
-typedef int s_ssize_t;
-typedef DWORD s_errcode_t;
-#define S_ERRNO WSAGetLastError ()
-#define S_EINTR WSAEINTR
-#define S_EAGAIN WSAEWOULDBLOCK
-#define S_ENOMEM WSA_NOT_ENOUGH_MEMORY
-#define S_EINVAL WSAEINVAL
-#define S_EACCES WSAEACCES
-#define S_EAFNOSUPPORT WSAEAFNOSUPPORT
-#define S_INVALID INVALID_SOCKET
-#define S_IOCTL ioctlsocket
-#define S_CLOSE closesocket
-#else
-typedef ssize_t s_ssize_t;
-typedef int s_errcode_t;
-#define S_ERRNO errno
-#define S_EINTR EINTR
-#define S_EAGAIN EAGAIN
-#define S_ENOMEM ENOMEM
-#define S_EINVAL EINVAL
-#define S_EACCES EACCES
-#define S_EAFNOSUPPORT EAFNOSUPPORT
-#define S_INVALID -1
-#define S_IOCTL ioctl
-#define S_CLOSE close
-#endif
-
-#ifdef _WIN32
 #define DC_ADDRESS_FORMAT "%012I64X"
 #else
 #define DC_ADDRESS_FORMAT "%012llX"
@@ -98,57 +62,24 @@ typedef int s_errcode_t;
 #define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_bluetooth_vtable)
 
 #ifdef BLUETOOTH
-static dc_status_t dc_bluetooth_set_timeout (dc_iostream_t *iostream, int timeout);
-static dc_status_t dc_bluetooth_get_available (dc_iostream_t *iostream, size_t *value);
-static dc_status_t dc_bluetooth_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
-static dc_status_t dc_bluetooth_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
-static dc_status_t dc_bluetooth_close (dc_iostream_t *iostream);
-
-typedef struct dc_bluetooth_t {
-	dc_iostream_t base;
-#ifdef _WIN32
-	SOCKET fd;
-#else
-	int fd;
-#endif
-	int timeout;
-} dc_bluetooth_t;
-
 static const dc_iostream_vtable_t dc_bluetooth_vtable = {
-	sizeof(dc_bluetooth_t),
-	dc_bluetooth_set_timeout, /* set_timeout */
+	sizeof(dc_socket_t),
+	dc_socket_set_timeout, /* set_timeout */
 	NULL, /* set_latency */
 	NULL, /* set_halfduplex */
 	NULL, /* set_break */
 	NULL, /* set_dtr */
 	NULL, /* set_rts */
 	NULL, /* get_lines */
-	dc_bluetooth_get_available, /* get_received */
+	dc_socket_get_available, /* get_received */
 	NULL, /* configure */
-	dc_bluetooth_read, /* read */
-	dc_bluetooth_write, /* write */
+	dc_socket_read, /* read */
+	dc_socket_write, /* write */
 	NULL, /* flush */
 	NULL, /* purge */
 	NULL, /* sleep */
-	dc_bluetooth_close, /* close */
+	dc_socket_close, /* close */
 };
-
-static dc_status_t
-syserror(s_errcode_t errcode)
-{
-	switch (errcode) {
-	case S_EINVAL:
-		return DC_STATUS_INVALIDARGS;
-	case S_ENOMEM:
-		return DC_STATUS_NOMEMORY;
-	case S_EACCES:
-		return DC_STATUS_NOACCESS;
-	case S_EAFNOSUPPORT:
-		return DC_STATUS_UNSUPPORTED;
-	default:
-		return DC_STATUS_IO;
-	}
-}
 
 #ifdef HAVE_BLUEZ
 static dc_bluetooth_address_t
@@ -182,111 +113,39 @@ dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context)
 {
 #ifdef BLUETOOTH
 	dc_status_t status = DC_STATUS_SUCCESS;
-	dc_bluetooth_t *device = NULL;
+	dc_socket_t *device = NULL;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	device = (dc_bluetooth_t *) dc_iostream_allocate (context, &dc_bluetooth_vtable);
+	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_bluetooth_vtable);
 	if (device == NULL) {
 		SYSERROR (context, S_ENOMEM);
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// Default to blocking reads.
-	device->timeout = -1;
-
-#ifdef _WIN32
-	// Initialize the winsock dll.
-	WSADATA wsaData;
-	WORD wVersionRequested = MAKEWORD (2, 2);
-	int rc = WSAStartup (wVersionRequested, &wsaData);
-	if (rc != 0) {
-		SYSERROR (context, rc);
-		status = DC_STATUS_UNSUPPORTED;
-		goto error_free;
-	}
-
-	// Confirm that the winsock dll supports version 2.2.
-	// Note that if the dll supports versions greater than 2.2 in addition to
-	// 2.2, it will still return 2.2 since that is the version we requested.
-	if (LOBYTE (wsaData.wVersion) != 2 ||
-		HIBYTE (wsaData.wVersion) != 2) {
-		ERROR (context, "Incorrect winsock version.");
-		status = DC_STATUS_UNSUPPORTED;
-		goto error_wsacleanup;
-	}
-#endif
-
 	// Open the socket.
 #ifdef _WIN32
-	device->fd = socket (AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
+	status = dc_socket_open (&device->base, AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
 #else
-	device->fd = socket (AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
+	status = dc_socket_open (&device->base, AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
 #endif
-	if (device->fd == S_INVALID) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (context, errcode);
-		status = syserror(errcode);
-		goto error_wsacleanup;
+	if (status != DC_STATUS_SUCCESS) {
+		goto error_free;
 	}
 
 	*out = (dc_iostream_t *) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_wsacleanup:
-#ifdef _WIN32
-	WSACleanup ();
 error_free:
-#endif
 	dc_iostream_deallocate ((dc_iostream_t *) device);
 	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif
 }
-
-#ifdef BLUETOOTH
-static dc_status_t
-dc_bluetooth_close (dc_iostream_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	dc_bluetooth_t *device = (dc_bluetooth_t *) abstract;
-
-	// Terminate all send and receive operations.
-	shutdown (device->fd, 0);
-
-	// Close the socket.
-	if (S_CLOSE (device->fd) != 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		dc_status_set_error(&status, syserror(errcode));
-	}
-
-#ifdef _WIN32
-	// Terminate the winsock dll.
-	if (WSACleanup () != 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		dc_status_set_error(&status, syserror(errcode));
-	}
-#endif
-
-	return status;
-}
-
-static dc_status_t
-dc_bluetooth_set_timeout (dc_iostream_t *abstract, int timeout)
-{
-	dc_bluetooth_t *device = (dc_bluetooth_t *) abstract;
-
-	device->timeout = timeout;
-
-	return DC_STATUS_SUCCESS;
-}
-#endif
 
 dc_status_t
 dc_bluetooth_discover (dc_iostream_t *abstract, dc_bluetooth_callback_t callback, void *userdata)
@@ -312,7 +171,7 @@ dc_bluetooth_discover (dc_iostream_t *abstract, dc_bluetooth_callback_t callback
 			status = DC_STATUS_SUCCESS;
 		} else {
 			SYSERROR (abstract->context, errcode);
-			status = syserror(errcode);
+			status = dc_socket_syserror(errcode);
 		}
 		goto error_exit;
 	}
@@ -332,7 +191,7 @@ dc_bluetooth_discover (dc_iostream_t *abstract, dc_bluetooth_callback_t callback
 				break; // No more results.
 			}
 			SYSERROR (abstract->context, errcode);
-			status = syserror(errcode);
+			status = dc_socket_syserror(errcode);
 			goto error_close;
 		}
 
@@ -362,7 +221,7 @@ error_close:
 	if (dev < 0) {
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (abstract->context, errcode);
-		status = syserror(errcode);
+		status = dc_socket_syserror(errcode);
 		goto error_exit;
 	}
 
@@ -371,7 +230,7 @@ error_close:
 	if (fd < 0) {
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (abstract->context, errcode);
-		status = syserror(errcode);
+		status = dc_socket_syserror(errcode);
 		goto error_exit;
 	}
 
@@ -380,7 +239,7 @@ error_close:
 	if (devices == NULL) {
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (abstract->context, errcode);
-		status = syserror(errcode);
+		status = dc_socket_syserror(errcode);
 		goto error_close;
 	}
 
@@ -391,7 +250,7 @@ error_close:
 	if (ndevices < 0) {
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (abstract->context, errcode);
-		status = syserror(errcode);
+		status = dc_socket_syserror(errcode);
 		goto error_free;
 	}
 
@@ -427,7 +286,7 @@ dc_status_t
 dc_bluetooth_connect (dc_iostream_t *abstract, dc_bluetooth_address_t address, unsigned int port)
 {
 #ifdef BLUETOOTH
-	dc_bluetooth_t *device = (dc_bluetooth_t *) abstract;
+	dc_socket_t *device = (dc_socket_t *) abstract;
 
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -447,147 +306,8 @@ dc_bluetooth_connect (dc_iostream_t *abstract, dc_bluetooth_address_t address, u
 	dc_address_set (&sa.rc_bdaddr, address);
 #endif
 
-	if (connect (device->fd, (struct sockaddr *) &sa, sizeof (sa)) != 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		return syserror(errcode);
-	}
-
-	return DC_STATUS_SUCCESS;
+	return dc_socket_connect (&device->base, (struct sockaddr *) &sa, sizeof (sa));
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif
 }
-
-#ifdef BLUETOOTH
-static dc_status_t
-dc_bluetooth_get_available (dc_iostream_t *abstract, size_t *value)
-{
-	dc_bluetooth_t *device = (dc_bluetooth_t *) abstract;
-
-#ifdef _WIN32
-	unsigned long bytes = 0;
-#else
-	int bytes = 0;
-#endif
-
-	if (S_IOCTL (device->fd, FIONREAD, &bytes) != 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		return syserror(errcode);
-	}
-
-	if (value)
-		*value = bytes;
-
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
-dc_bluetooth_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	dc_bluetooth_t *device = (dc_bluetooth_t *) abstract;
-	size_t nbytes = 0;
-
-	while (nbytes < size) {
-		fd_set fds;
-		FD_ZERO (&fds);
-		FD_SET (device->fd, &fds);
-
-		struct timeval tvt;
-		if (device->timeout > 0) {
-			tvt.tv_sec  = (device->timeout / 1000);
-			tvt.tv_usec = (device->timeout % 1000) * 1000;
-		} else if (device->timeout == 0) {
-			timerclear (&tvt);
-		}
-
-		int rc = select (device->fd + 1, &fds, NULL, NULL, device->timeout >= 0 ? &tvt : NULL);
-		if (rc < 0) {
-			s_errcode_t errcode = S_ERRNO;
-			if (errcode == S_EINTR)
-				continue; // Retry.
-			SYSERROR (abstract->context, errcode);
-			status = syserror(errcode);
-			goto out;
-		} else if (rc == 0) {
-			break; // Timeout.
-		}
-
-		s_ssize_t n = recv (device->fd, (char*) data + nbytes, size - nbytes, 0);
-		if (n < 0) {
-			s_errcode_t errcode = S_ERRNO;
-			if (errcode == S_EINTR || errcode == S_EAGAIN)
-				continue; // Retry.
-			SYSERROR (abstract->context, errcode);
-			status = syserror(errcode);
-			goto out;
-		} else if (n == 0) {
-			break; // EOF reached.
-		}
-
-		nbytes += n;
-	}
-
-	if (nbytes != size) {
-		status = DC_STATUS_TIMEOUT;
-	}
-
-out:
-	if (actual)
-		*actual = nbytes;
-
-	return status;
-}
-
-static dc_status_t
-dc_bluetooth_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *actual)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	dc_bluetooth_t *device = (dc_bluetooth_t *) abstract;
-	size_t nbytes = 0;
-
-	while (nbytes < size) {
-		fd_set fds;
-		FD_ZERO (&fds);
-		FD_SET (device->fd, &fds);
-
-		int rc = select (device->fd + 1, NULL, &fds, NULL, NULL);
-		if (rc < 0) {
-			s_errcode_t errcode = S_ERRNO;
-			if (errcode == S_EINTR)
-				continue; // Retry.
-			SYSERROR (abstract->context, errcode);
-			status = syserror(errcode);
-			goto out;
-		} else if (rc == 0) {
-			break; // Timeout.
-		}
-
-		s_ssize_t n = send (device->fd, (const char *) data + nbytes, size - nbytes, 0);
-		if (n < 0) {
-			s_errcode_t errcode = S_ERRNO;
-			if (errcode == S_EINTR || errcode == S_EAGAIN)
-				continue; // Retry.
-			SYSERROR (abstract->context, errcode);
-			status = syserror(errcode);
-			goto out;
-		} else if (n == 0) {
-			break; // EOF.
-		}
-
-		nbytes += n;
-	}
-
-	if (nbytes != size) {
-		status = DC_STATUS_TIMEOUT;
-	}
-
-out:
-	if (actual)
-		*actual = nbytes;
-
-	return status;
-}
-#endif
