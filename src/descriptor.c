@@ -95,6 +95,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "DX",   DC_FAMILY_SUUNTO_D9, 0x1C},
 	{"Suunto", "Vyper Novo", DC_FAMILY_SUUNTO_D9, 0x1D},
 	{"Suunto", "Zoop Novo",  DC_FAMILY_SUUNTO_D9, 0x1E},
+	{"Suunto", "D4f",        DC_FAMILY_SUUNTO_D9, 0x20},
 	/* Suunto EON Steel */
 #ifdef USBHID
 	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0},

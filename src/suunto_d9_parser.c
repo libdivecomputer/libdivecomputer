@@ -46,6 +46,7 @@
 #define DX       0x1C
 #define VYPERNOVO 0x1D
 #define ZOOPNOVO  0x1E
+#define D4F       0x20
 
 #define ID_D6I_V1_MIX2 0x1871C062
 #define ID_D6I_V1_MIX3 0x1871C063
@@ -138,7 +139,8 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		gasmode_offset = 0x1F;
 		gasmix_offset = 0x54;
 		gasmix_count = 8;
-	} else if (parser->model == D4i || parser->model == ZOOPNOVO) {
+	} else if (parser->model == D4i || parser->model == ZOOPNOVO ||
+		parser->model == D4F) {
 		gasmode_offset = 0x1D;
 		if (id == ID_D4I_V2)
 			gasmix_offset = 0x67;
@@ -175,7 +177,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 	} else if (parser->model == HELO2 || parser->model == D4i ||
 		parser->model == D6i || parser->model == D9tx ||
 		parser->model == DX || parser->model == ZOOPNOVO ||
-		parser->model == VYPERNOVO) {
+		parser->model == VYPERNOVO || parser->model == D4F) {
 		config = gasmix_offset + gasmix_count * 6;
 	}
 	if (config + 1 > size)
@@ -196,7 +198,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 			if (parser->model == HELO2 || parser->model == D4i ||
 				parser->model == D6i || parser->model == D9tx ||
 				parser->model == DX || parser->model == ZOOPNOVO ||
-				parser->model == VYPERNOVO) {
+				parser->model == VYPERNOVO || parser->model == D4F) {
 				parser->oxygen[i] = data[gasmix_offset + 6 * i + 1];
 				parser->helium[i] = data[gasmix_offset + 6 * i + 2];
 			} else {
@@ -214,7 +216,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 			parser->gasmix = data[0x26];
 		} else if (parser->model == D4i || parser->model == D6i ||
 			parser->model == D9tx || parser->model == ZOOPNOVO ||
-			parser->model == VYPERNOVO) {
+			parser->model == VYPERNOVO || parser->model == D4F) {
 			if (id == ID_D4I_V2 || id == ID_D6I_V2) {
 				parser->gasmix = data[0x2D];
 			} else {
@@ -291,7 +293,7 @@ suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 		offset = 0x17;
 	else if (parser->model == D4i || parser->model == D6i ||
 		parser->model == D9tx || parser->model == ZOOPNOVO ||
-		parser->model == VYPERNOVO)
+		parser->model == VYPERNOVO || parser->model == D4F)
 		offset = 0x13;
 
 	if (abstract->size < offset + 7)
@@ -302,7 +304,8 @@ suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	if (datetime) {
 		if (parser->model == D4i || parser->model == D6i ||
 			parser->model == D9tx || parser->model == DX ||
-			parser->model == ZOOPNOVO || parser->model == VYPERNOVO) {
+			parser->model == ZOOPNOVO || parser->model == VYPERNOVO ||
+			parser->model == D4F) {
 			datetime->year   = p[0] + (p[1] << 8);
 			datetime->month  = p[2];
 			datetime->day    = p[3];
@@ -346,7 +349,8 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 				*((unsigned int *) value) = array_uint16_le (data + 0x0B);
 			else if (parser->model == D4i || parser->model == D6i ||
 				parser->model == D9tx || parser->model == DX ||
-				parser->model == ZOOPNOVO || parser->model == VYPERNOVO)
+				parser->model == ZOOPNOVO || parser->model == VYPERNOVO ||
+				parser->model == D4F)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0D);
 			else if (parser->model == HELO2)
 				*((unsigned int *) value) = array_uint16_le (data + 0x0D) * 60;
@@ -457,7 +461,8 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 	unsigned int interval_sample_offset = 0x18;
 	if (parser->model == HELO2 || parser->model == D4i ||
 		parser->model == D6i || parser->model == D9tx ||
-		parser->model == ZOOPNOVO || parser->model == VYPERNOVO)
+		parser->model == ZOOPNOVO || parser->model == VYPERNOVO ||
+		parser->model == D4F)
 		interval_sample_offset = 0x1E;
 	else if (parser->model == DX)
 		interval_sample_offset = 0x22;
