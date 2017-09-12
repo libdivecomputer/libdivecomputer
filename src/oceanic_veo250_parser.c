@@ -249,7 +249,8 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		// Temperature (°F)
 		unsigned int temperature;
-		if (parser->model == REACTPRO || parser->model == REACTPROWHITE) {
+		if (parser->model == REACTPRO || parser->model == REACTPROWHITE ||
+			parser->model == INSIGHT) {
 			temperature = data[offset + 6];
 		} else {
 			temperature = data[offset + 7];
