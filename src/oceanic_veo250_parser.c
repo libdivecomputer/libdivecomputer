@@ -34,6 +34,7 @@
 #define REACTPRO 0x4247
 #define VEO200   0x424B
 #define VEO250   0x424C
+#define INSIGHT  0x425A
 #define REACTPROWHITE 0x4354
 
 typedef struct oceanic_veo250_parser_t oceanic_veo250_parser_t;
@@ -255,6 +256,31 @@ oceanic_veo250_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		}
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+		// NDL / Deco
+		unsigned int have_deco = 0;
+		unsigned int decostop = 0, decotime = 0;
+		if (parser->model == REACTPRO || parser->model == REACTPROWHITE ||
+			parser->model == INSIGHT) {
+			decostop = (data[offset + 7] & 0xF0) >> 4;
+			decotime = ((data[offset + 3] & 0xC0) << 2) | data[offset + 4];
+			have_deco = 1;
+		} else {
+			decostop = (data[offset + 5] & 0xF0) >> 4;
+			decotime = array_uint16_le(data + offset + 4) & 0x0FFF;
+			have_deco = 1;
+		}
+		if (have_deco) {
+			if (decostop) {
+				sample.deco.type = DC_DECO_DECOSTOP;
+				sample.deco.depth = decostop * 10 * FEET;
+			} else {
+				sample.deco.type = DC_DECO_NDL;
+				sample.deco.depth = 0.0;
+			}
+			sample.deco.time = decotime * 60;
+			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		}
 
 		offset += PAGESIZE / 2;
 	}
