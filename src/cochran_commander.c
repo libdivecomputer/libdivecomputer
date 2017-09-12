@@ -199,8 +199,8 @@ static const cochran_device_layout_t cochran_emc14_device_layout = {
 	COCHRAN_MODEL_EMC_14, // model
 	32,         // address_bits
 	ENDIAN_LE,  // endian
-	806400,     // baudrate
-	65536,      // rbstream_size
+	850000,     // baudrate
+	32768,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -224,8 +224,8 @@ static const cochran_device_layout_t cochran_emc16_device_layout = {
 	COCHRAN_MODEL_EMC_16, // model
 	32,         // address_bits
 	ENDIAN_LE,  // endian
-	806400,     // baudrate
-	65536,      // rbstream_size
+	850000,     // baudrate
+	32768,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -249,8 +249,8 @@ static const cochran_device_layout_t cochran_emc20_device_layout = {
 	COCHRAN_MODEL_EMC_20, // model
 	32,         // address_bits
 	ENDIAN_LE,  // endian
-	806400,     // baudrate
-	65536,      // rbstream_size
+	850000,     // baudrate
+	32768,      // rbstream_size
 	0x0D2,      // cf_dive_count
 	0x13E,      // cf_last_log
 	0x142,      // cf_last_interdive
@@ -372,7 +372,7 @@ cochran_commander_packet (cochran_commander_device_t *device, dc_event_progress_
 		// Give the DC time to process the command.
 		dc_serial_sleep(device->port, 45);
 
-		// Rates are odd, like 806400 for the EMC, 115200 for commander
+		// Rates are odd, like 850400 for the EMC, 115200 for commander
 		status = dc_serial_configure(device->port, device->layout->baudrate, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to set the high baud rate.");
@@ -523,7 +523,7 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 		return DC_STATUS_UNSUPPORTED;
 	}
 
-	dc_serial_sleep(device->port, 800);
+	dc_serial_sleep(device->port, 550);
 
 	// set back to 9600 baud
 	rc = cochran_commander_serial_setup(device);
@@ -536,6 +536,37 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 		return rc;
 
 	return DC_STATUS_SUCCESS;
+}
+
+
+static unsigned int
+cochran_commander_read_retry (cochran_commander_device_t *device, dc_event_progress_t *progress, unsigned int address, unsigned char data[], unsigned int size)
+{
+	// Save the state of the progress events.
+	unsigned int saved = 0;
+	if (progress) {
+		saved = progress->current;
+	}
+
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = cochran_commander_read (device, progress, address, data, size)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Restore the state of the progress events.
+		if (progress) {
+			progress->current = saved;
+		}
+	}
+
+	return rc;
 }
 
 
@@ -798,7 +829,7 @@ cochran_commander_device_read (dc_device_t *abstract, unsigned int address, unsi
 {
 	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
 
-	return cochran_commander_read(device, NULL, address, data, size);
+	return cochran_commander_read_retry(device, NULL, address, data, size);
 }
 
 
@@ -842,7 +873,7 @@ cochran_commander_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 
 	// Read the sample data, logbook and sample data are contiguous
-	rc = cochran_commander_read (device, &progress, device->layout->rb_logbook_begin, dc_buffer_get_data(buffer), size);
+	rc = cochran_commander_read_retry (device, &progress, device->layout->rb_logbook_begin, dc_buffer_get_data(buffer), size);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the sample data.");
 		return rc;
@@ -919,7 +950,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	}
 
 	// Request log book
-	rc = cochran_commander_read(device, &progress, layout->rb_logbook_begin, data.logbook, data.logbook_size);
+	rc = cochran_commander_read_retry(device, &progress, layout->rb_logbook_begin, data.logbook, data.logbook_size);
 	if (rc != DC_STATUS_SUCCESS) {
 		status = rc;
 		goto error;
