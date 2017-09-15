@@ -287,10 +287,12 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Shearwater Predator */
 	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2},
 	/* Shearwater Petrel */
-	{"Shearwater", "Petrel",   DC_FAMILY_SHEARWATER_PETREL, 3},
-	{"Shearwater", "Petrel 2", DC_FAMILY_SHEARWATER_PETREL, 3},
-	{"Shearwater", "Nerd",     DC_FAMILY_SHEARWATER_PETREL, 3},
-	{"Shearwater", "Perdix",   DC_FAMILY_SHEARWATER_PETREL, 3},
+	{"Shearwater", "Petrel",    DC_FAMILY_SHEARWATER_PETREL, 3},
+	{"Shearwater", "Petrel 2",  DC_FAMILY_SHEARWATER_PETREL, 3},
+	{"Shearwater", "Nerd",      DC_FAMILY_SHEARWATER_PETREL, 4},
+	{"Shearwater", "Nerd 2",    DC_FAMILY_SHEARWATER_PETREL, 4},
+	{"Shearwater", "Perdix",    DC_FAMILY_SHEARWATER_PETREL, 5},
+	{"Shearwater", "Perdix AI", DC_FAMILY_SHEARWATER_PETREL, 6},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0},
 	/* Citizen Hyper Aqualand */

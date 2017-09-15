@@ -200,9 +200,41 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	// Convert to a number.
 	unsigned int firmware = str2num (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), 1);
 
+	// Read the hardware type.
+	rc = shearwater_common_identifier (&device->base, buffer, ID_HARDWARE);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the hardware type.");
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return rc;
+	}
+
+	// Convert and map to the model number.
+	unsigned int hardware = array_uint_be (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
+	unsigned int model = 0;
+	switch (hardware) {
+	case 0x0808: // Petrel 2
+	case 0x0909: // Petrel 1
+	case 0x0B0B: // Petrel 1 (newer hardware)
+		model = PETREL;
+		break;
+	case 0x0A0A: // Nerd 1
+	case 0x0E0D: // Nerd 2
+		model = NERD;
+		break;
+	case 0x0707:
+		model = PERDIX;
+		break;
+	case 0x0C0D:
+		model = PERDIXAI;
+		break;
+	default:
+		WARNING (abstract->context, "Unknown hardware type %04x.", hardware);
+	}
+
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 3;
+	devinfo.model = model;
 	devinfo.firmware = firmware;
 	devinfo.serial = array_uint32_be (serial);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);

@@ -30,9 +30,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &shearwater_predator_device_vtable)
 
-#define PREDATOR 2
-#define PETREL   3
-
 #define SZ_BLOCK   0x80
 #define SZ_MEMORY  0x20080
 
