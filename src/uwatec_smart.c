@@ -27,8 +27,11 @@
 #include "device-private.h"
 #include "irda.h"
 #include "array.h"
+#include "platform.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_smart_device_vtable)
+
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
 typedef struct uwatec_smart_device_t {
 	dc_device_t base;
@@ -62,22 +65,25 @@ uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], uns
 static void
 uwatec_smart_discovery (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata)
 {
+	static const char *names[] = {
+		"Aladin Smart Com",
+		"Aladin Smart Pro",
+		"Aladin Smart Tec",
+		"Aladin Smart Z",
+		"Uwatec Aladin",
+		"UWATEC Galileo",
+		"UWATEC Galileo Sol",
+	};
+
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) userdata;
-	if (device == NULL)
+	if (device == NULL || name == NULL)
 		return;
 
-	if (strncmp (name, "UWATEC Galileo Sol", 18) == 0 ||
-		strncmp (name, "Uwatec Smart", 12) == 0 ||
-		strstr (name, "Uwatec") != NULL ||
-		strstr (name, "UWATEC") != NULL ||
-		strstr (name, "Aladin") != NULL ||
-		strstr (name, "ALADIN") != NULL ||
-		strstr (name, "Smart") != NULL ||
-		strstr (name, "SMART") != NULL ||
-		strstr (name, "Galileo") != NULL ||
-		strstr (name, "GALILEO") != NULL)
-	{
-		device->address = address;
+	for (size_t i = 0; i < C_ARRAY_SIZE(names); ++i) {
+		if (strcasecmp(name, names[i]) == 0) {
+			device->address = address;
+			return;
+		}
 	}
 }
 
