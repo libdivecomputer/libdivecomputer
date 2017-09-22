@@ -71,17 +71,17 @@ receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigne
 		dc_status_t rc = DC_STATUS_SUCCESS;
 		unsigned int len = 0;
 
-		rc = dc_usbhid_read (device->usbhid, buf, PACKET_SIZE, &transferred);
+		rc = dc_usbhid_read (device->usbhid, buf, sizeof(buf), &transferred);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (device->base.context, "read interrupt transfer failed");
 			return rc;
 		}
-		if (transferred != PACKET_SIZE) {
-			ERROR (device->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE  ", expected %d)", transferred, PACKET_SIZE);
+		if (transferred != sizeof(buf)) {
+			ERROR (device->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE ", expected " DC_PRINTF_SIZE ")", transferred, sizeof(buf));
 			return DC_STATUS_PROTOCOL;
 		}
 		len = buf[0];
-		if (len >= PACKET_SIZE) {
+		if (len >= sizeof(buf)) {
 			ERROR (device->base.context, "read interrupt transfer returns impossible packet size (%d)", len);
 			return DC_STATUS_PROTOCOL;
 		}
@@ -112,7 +112,7 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 	dc_status_t status = DC_STATUS_SUCCESS;
 	size_t transferred = 0;
 
-	if (csize + 2 > PACKET_SIZE) {
+	if (csize + 2 > sizeof(buf)) {
 		ERROR (device->base.context, "command too big (%d)", csize);
 		return DC_STATUS_INVALIDARGS;
 	}
