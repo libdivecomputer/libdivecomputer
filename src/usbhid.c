@@ -45,6 +45,7 @@
 #include "usbhid.h"
 #include "common-private.h"
 #include "context-private.h"
+#include "platform.h"
 
 struct dc_usbhid_t {
 	/* Library context. */
@@ -432,15 +433,16 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 		nbytes = 0;
 		goto out;
 	}
-
-#ifdef _WIN32
-	if (nbytes > size) {
-		nbytes = size;
-	}
-#endif
 #endif
 
 out:
+#ifdef _WIN32
+	if (nbytes > size) {
+		WARNING (usbhid->context, "Number of bytes exceeds the buffer size (" DC_PRINTF_SIZE " > " DC_PRINTF_SIZE ")!", nbytes, size);
+		nbytes = size;
+	}
+#endif
+
 	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
 
 out_invalidargs:
