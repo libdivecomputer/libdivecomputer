@@ -52,7 +52,6 @@ struct dc_usbhid_t {
 	dc_context_t *context;
 	/* Internal state. */
 #if defined(USE_LIBUSB)
-	libusb_context *ctx;
 	libusb_device_handle *handle;
 	int interface;
 	unsigned char endpoint_in;
@@ -87,13 +86,65 @@ syserror(int errcode)
 }
 #endif
 
+#ifdef USBHID
+static size_t g_usbhid_refcount = 0;
+#ifdef USE_LIBUSB
+static libusb_context *g_usbhid_ctx = NULL;
+#endif
+
+static dc_status_t
+dc_usbhid_init (dc_context_t *context)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+
+	if (g_usbhid_refcount == 0) {
+#if defined(USE_LIBUSB)
+		int rc = libusb_init (&g_usbhid_ctx);
+		if (rc != LIBUSB_SUCCESS) {
+			ERROR (context, "Failed to initialize usb support (%s).",
+				libusb_error_name (rc));
+			status = syserror (rc);
+			goto error;
+		}
+#elif defined(USE_HIDAPI)
+		int rc = hid_init();
+		if (rc < 0) {
+			ERROR (context, "Failed to initialize usb support.");
+			status = DC_STATUS_IO;
+			goto error;
+		}
+#endif
+	}
+
+	g_usbhid_refcount++;
+
+error:
+	return status;
+}
+
+static dc_status_t
+dc_usbhid_exit (void)
+{
+
+	if (--g_usbhid_refcount == 0) {
+#if defined(USE_LIBUSB)
+		libusb_exit (g_usbhid_ctx);
+		g_usbhid_ctx = NULL;
+#elif defined(USE_HIDAPI)
+		hid_exit ();
+#endif
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+#endif
+
 dc_status_t
 dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsigned int pid)
 {
 #ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_usbhid_t *usbhid = NULL;
-	int rc = 0;
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -110,21 +161,19 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 	// Library context.
 	usbhid->context = context;
 
-#if defined(USE_LIBUSB)
-	struct libusb_device **devices = NULL;
-	struct libusb_config_descriptor *config = NULL;
-
-	// Initialize the libusb library.
-	rc = libusb_init (&usbhid->ctx);
-	if (rc != LIBUSB_SUCCESS) {
-		ERROR (context, "Failed to initialize usb support (%s).",
-			libusb_error_name (rc));
-		status = syserror (rc);
+	// Initialize the usb library.
+	status = dc_usbhid_init (context);
+	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
 
+#if defined(USE_LIBUSB)
+	struct libusb_device **devices = NULL;
+	struct libusb_config_descriptor *config = NULL;
+	int rc = 0;
+
 	// Enumerate the USB devices.
-	ssize_t ndevices = libusb_get_device_list (usbhid->ctx, &devices);
+	ssize_t ndevices = libusb_get_device_list (g_usbhid_ctx, &devices);
 	if (ndevices < 0) {
 		ERROR (context, "Failed to enumerate the usb devices (%s).",
 			libusb_error_name (ndevices));
@@ -243,21 +292,12 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 	libusb_free_device_list (devices, 1);
 
 #elif defined(USE_HIDAPI)
-
-	// Initialize the hidapi library.
-	rc = hid_init();
-	if (rc < 0) {
-		ERROR (context, "Failed to initialize usb support.");
-		status = DC_STATUS_IO;
-		goto error_free;
-	}
-
 	// Open the USB device.
 	usbhid->handle = hid_open (vid, pid, NULL);
 	if (usbhid->handle == NULL) {
 		ERROR (context, "Failed to open the usb device.");
 		status = DC_STATUS_IO;
-		goto error_hid_exit;
+		goto error_usb_exit;
 	}
 
 	usbhid->timeout = -1;
@@ -274,12 +314,9 @@ error_usb_free_config:
 	libusb_free_config_descriptor (config);
 error_usb_free_list:
 	libusb_free_device_list (devices, 1);
-error_usb_exit:
-	libusb_exit (usbhid->ctx);
-#elif defined(USE_HIDAPI)
-error_hid_exit:
-	hid_exit ();
 #endif
+error_usb_exit:
+	dc_usbhid_exit ();
 error_free:
 	free (usbhid);
 	return status;
@@ -300,11 +337,10 @@ dc_usbhid_close (dc_usbhid_t *usbhid)
 #if defined(USE_LIBUSB)
 	libusb_release_interface (usbhid->handle, usbhid->interface);
 	libusb_close (usbhid->handle);
-	libusb_exit (usbhid->ctx);
 #elif defined(USE_HIDAPI)
 	hid_close(usbhid->handle);
-	hid_exit();
 #endif
+	dc_usbhid_exit();
 	free (usbhid);
 
 	return status;
