@@ -24,6 +24,13 @@
 #endif
 
 #include <stdlib.h>
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
+#ifdef _WIN32
+#define NOGDI
+#include <windows.h>
+#endif
 
 #if defined(HAVE_HIDAPI)
 #define USE_HIDAPI
@@ -46,6 +53,14 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "platform.h"
+
+#ifdef _WIN32
+typedef LONG dc_mutex_t;
+#define DC_MUTEX_INIT 0
+#else
+typedef pthread_mutex_t dc_mutex_t;
+#define DC_MUTEX_INIT PTHREAD_MUTEX_INITIALIZER
+#endif
 
 struct dc_usbhid_t {
 	/* Library context. */
@@ -87,15 +102,40 @@ syserror(int errcode)
 #endif
 
 #ifdef USBHID
+static dc_mutex_t g_usbhid_mutex = DC_MUTEX_INIT;
 static size_t g_usbhid_refcount = 0;
 #ifdef USE_LIBUSB
 static libusb_context *g_usbhid_ctx = NULL;
 #endif
 
+static void
+dc_mutex_lock (dc_mutex_t *mutex)
+{
+#ifdef _WIN32
+	while (InterlockedCompareExchange (mutex, 1, 0) == 1) {
+		SleepEx (0, TRUE);
+	}
+#else
+	pthread_mutex_lock (mutex);
+#endif
+}
+
+static void
+dc_mutex_unlock (dc_mutex_t *mutex)
+{
+#ifdef _WIN32
+	InterlockedExchange (mutex, 0);
+#else
+	pthread_mutex_unlock (mutex);
+#endif
+}
+
 static dc_status_t
 dc_usbhid_init (dc_context_t *context)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
+
+	dc_mutex_lock (&g_usbhid_mutex);
 
 	if (g_usbhid_refcount == 0) {
 #if defined(USE_LIBUSB)
@@ -119,12 +159,14 @@ dc_usbhid_init (dc_context_t *context)
 	g_usbhid_refcount++;
 
 error:
+	dc_mutex_unlock (&g_usbhid_mutex);
 	return status;
 }
 
 static dc_status_t
 dc_usbhid_exit (void)
 {
+	dc_mutex_lock (&g_usbhid_mutex);
 
 	if (--g_usbhid_refcount == 0) {
 #if defined(USE_LIBUSB)
@@ -134,6 +176,8 @@ dc_usbhid_exit (void)
 		hid_exit ();
 #endif
 	}
+
+	dc_mutex_unlock (&g_usbhid_mutex);
 
 	return DC_STATUS_SUCCESS;
 }
