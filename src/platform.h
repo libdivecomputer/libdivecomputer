@@ -26,6 +26,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef _WIN32
+#define DC_PRINTF_SIZE "%Iu"
+#else
+#define DC_PRINTF_SIZE "%zu"
+#endif
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define strcasecmp _stricmp
