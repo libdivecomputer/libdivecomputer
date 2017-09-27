@@ -28,10 +28,7 @@
 #include "device-private.h"
 #include "array.h"
 #include "usbhid.h"
-
-#ifdef _MSC_VER
-#define snprintf _snprintf
-#endif
+#include "platform.h"
 
 typedef struct suunto_eonsteel_device_t {
 	dc_device_t base;

@@ -30,10 +30,7 @@
 #include "serial.h"
 #include "array.h"
 #include "aes.h"
-
-#ifdef _MSC_VER
-#define snprintf _snprintf
-#endif
+#include "platform.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc3_device_vtable)
 
