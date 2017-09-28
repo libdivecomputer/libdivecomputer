@@ -32,7 +32,8 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_g2_device_vtable)
 
-#define PACKET_SIZE 64
+#define RX_PACKET_SIZE 64
+#define TX_PACKET_SIZE 32
 
 typedef struct uwatec_g2_device_t {
 	dc_device_t base;
@@ -66,22 +67,22 @@ static dc_status_t
 receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigned char *data, unsigned int size)
 {
 	while (size) {
-		unsigned char buf[PACKET_SIZE];
+		unsigned char buf[RX_PACKET_SIZE];
 		size_t transferred = 0;
 		dc_status_t rc = DC_STATUS_SUCCESS;
 		unsigned int len = 0;
 
-		rc = dc_usbhid_read (device->usbhid, buf, PACKET_SIZE, &transferred);
+		rc = dc_usbhid_read (device->usbhid, buf, sizeof(buf), &transferred);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (device->base.context, "read interrupt transfer failed");
 			return rc;
 		}
-		if (transferred != PACKET_SIZE) {
-			ERROR (device->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE  ", expected %d)", transferred, PACKET_SIZE);
+		if (transferred != sizeof(buf)) {
+			ERROR (device->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE ", expected " DC_PRINTF_SIZE ")", transferred, sizeof(buf));
 			return DC_STATUS_PROTOCOL;
 		}
 		len = buf[0];
-		if (len >= PACKET_SIZE) {
+		if (len >= sizeof(buf)) {
 			ERROR (device->base.context, "read interrupt transfer returns impossible packet size (%d)", len);
 			return DC_STATUS_PROTOCOL;
 		}
@@ -108,11 +109,11 @@ receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigne
 static dc_status_t
 uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
-	unsigned char buf[PACKET_SIZE];
+	unsigned char buf[TX_PACKET_SIZE + 1];
 	dc_status_t status = DC_STATUS_SUCCESS;
 	size_t transferred = 0;
 
-	if (csize + 2 > PACKET_SIZE) {
+	if (csize + 2 > sizeof(buf)) {
 		ERROR (device->base.context, "command too big (%d)", csize);
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -122,7 +123,8 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 	buf[0] = 0;
 	buf[1] = csize;
 	memcpy(buf + 2, command, csize);
-	status = dc_usbhid_write (device->usbhid, buf, csize + 2, &transferred);
+	memset(buf + 2 + csize, 0, sizeof(buf) - (csize + 2));
+	status = dc_usbhid_write (device->usbhid, buf, sizeof(buf), &transferred);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to send the command.");
 		return status;
