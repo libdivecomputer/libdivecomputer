@@ -539,7 +539,7 @@ cochran_commander_read (cochran_commander_device_t *device, dc_event_progress_t 
 }
 
 
-static unsigned int
+static dc_status_t
 cochran_commander_read_retry (cochran_commander_device_t *device, dc_event_progress_t *progress, unsigned int address, unsigned char data[], unsigned int size)
 {
 	// Save the state of the progress events.
