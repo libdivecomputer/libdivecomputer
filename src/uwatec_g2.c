@@ -28,6 +28,7 @@
 #include "device-private.h"
 #include "usbhid.h"
 #include "array.h"
+#include "platform.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_g2_device_vtable)
 
@@ -76,7 +77,7 @@ receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigne
 			return rc;
 		}
 		if (transferred != PACKET_SIZE) {
-			ERROR (device->base.context, "incomplete read interrupt transfer (got %zu, expected %d)", transferred, PACKET_SIZE);
+			ERROR (device->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE  ", expected %d)", transferred, PACKET_SIZE);
 			return DC_STATUS_PROTOCOL;
 		}
 		len = buf[0];

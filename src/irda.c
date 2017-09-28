@@ -53,6 +53,7 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "array.h"
+#include "platform.h"
 
 #ifdef _WIN32
 typedef int s_ssize_t;
@@ -80,10 +81,6 @@ typedef int s_errcode_t;
 #define S_INVALID -1
 #define S_IOCTL ioctl
 #define S_CLOSE close
-#endif
-
-#ifdef _MSC_VER
-#define snprintf _snprintf
 #endif
 
 struct dc_irda_t {

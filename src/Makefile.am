@@ -63,6 +63,7 @@ libdivecomputer_la_SOURCES = \
 	diverite_nitekq.h diverite_nitekq.c diverite_nitekq_parser.c \
 	citizen_aqualand.h citizen_aqualand.c citizen_aqualand_parser.c \
 	divesystem_idive.h divesystem_idive.c divesystem_idive_parser.c \
+	platform.h \
 	ringbuffer.h ringbuffer.c \
 	rbstream.h rbstream.c \
 	checksum.h checksum.c \
