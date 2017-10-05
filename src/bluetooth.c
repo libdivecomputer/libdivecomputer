@@ -30,6 +30,7 @@
 #ifdef _WIN32
 #ifdef HAVE_WS2BTH_H
 #define BLUETOOTH
+#include <initguid.h>
 #include <ws2bth.h>
 #endif
 #else
@@ -39,6 +40,8 @@
 #include <bluetooth/rfcomm.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
+#include <bluetooth/sdp.h>
+#include <bluetooth/sdp_lib.h>
 #endif
 #endif
 
@@ -104,6 +107,89 @@ dc_address_set (bdaddr_t *ba, dc_bluetooth_address_t address)
 		ba->b[i] = (address >> shift) & 0xFF;
 		shift += 8;
 	}
+}
+
+static dc_status_t
+dc_bluetooth_sdp (uint8_t *port, dc_context_t *context, const bdaddr_t *ba)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	sdp_session_t *session = NULL;
+	sdp_list_t *search = NULL, *attrid = NULL;
+	sdp_list_t *records = NULL;
+	uint8_t channel = 0;
+
+	// Connect to the SDP server on the remote device.
+	session = sdp_connect (BDADDR_ANY, ba, SDP_RETRY_IF_BUSY);
+	if (session == NULL) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error;
+	}
+
+	// Specify the UUID of the serial port service with all attributes.
+	uuid_t uuid = {0};
+	uint32_t range = 0x0000FFFF;
+	sdp_uuid16_create (&uuid, SERIAL_PORT_SVCLASS_ID);
+	search = sdp_list_append (NULL, &uuid);
+	attrid = sdp_list_append (NULL, &range);
+	if (search == NULL || attrid == NULL) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error;
+	}
+
+	// Get a list of the service records with their attributes.
+	if (sdp_service_search_attr_req (session, search, SDP_ATTR_REQ_RANGE, attrid, &records) != 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error;
+	}
+
+	// Go through each of the service records.
+	for (sdp_list_t *r = records; r; r = r->next ) {
+		sdp_record_t *record = (sdp_record_t *) r->data;
+
+		// Get a list of the protocol sequences.
+		sdp_list_t *protos = NULL;
+		if (sdp_get_access_protos (record, &protos) != 0 ) {
+			s_errcode_t errcode = S_ERRNO;
+			SYSERROR (context, errcode);
+			status = dc_socket_syserror(errcode);
+			goto error;
+		}
+
+		// Get the rfcomm port number.
+		int ch = sdp_get_proto_port (protos, RFCOMM_UUID);
+
+		sdp_list_foreach (protos, (sdp_list_func_t) sdp_list_free, NULL);
+		sdp_list_free (protos, NULL);
+
+		if (ch > 0) {
+			channel = ch;
+			break;
+		}
+	}
+
+	if (channel == 0) {
+		ERROR (context, "No serial port service found!");
+		status = DC_STATUS_IO;
+		goto error;
+	}
+
+	INFO (context, "SDP: channel=%u", channel);
+
+	*port = channel;
+
+error:
+	sdp_list_free (records, (sdp_free_func_t) sdp_record_free);
+	sdp_list_free (attrid, NULL);
+	sdp_list_free (search, NULL);
+	sdp_close (session);
+
+	return status;
 }
 #endif
 #endif
@@ -298,12 +384,23 @@ dc_bluetooth_connect (dc_iostream_t *abstract, dc_bluetooth_address_t address, u
 	sa.addressFamily = AF_BTH;
 	sa.btAddr = address;
 	sa.port = port;
-	memset(&sa.serviceClassId, 0, sizeof(sa.serviceClassId));
+	if (port == 0) {
+		sa.serviceClassId = SerialPortServiceClass_UUID;
+	} else {
+		memset(&sa.serviceClassId, 0, sizeof(sa.serviceClassId));
+	}
 #else
 	struct sockaddr_rc sa;
 	sa.rc_family = AF_BLUETOOTH;
-	sa.rc_channel = port;
 	dc_address_set (&sa.rc_bdaddr, address);
+	if (port == 0) {
+		dc_status_t rc = dc_bluetooth_sdp (&sa.rc_channel, abstract->context, &sa.rc_bdaddr);
+		if (rc != DC_STATUS_SUCCESS) {
+			return rc;
+		}
+	} else {
+		sa.rc_channel = port;
+	}
 #endif
 
 	return dc_socket_connect (&device->base, (struct sockaddr *) &sa, sizeof (sa));
