@@ -154,6 +154,7 @@ AC_CHECK_HEADERS([linux/serial.h])
 AC_CHECK_HEADERS([IOKit/serial/ioss.h])
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([sys/param.h])
+AC_CHECK_HEADERS([pthread.h])
 
 # Checks for global variable declarations.
 AC_CHECK_DECLS([optreset])
