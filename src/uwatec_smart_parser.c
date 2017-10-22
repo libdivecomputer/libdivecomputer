@@ -64,6 +64,8 @@
 #define GAUGE     0x00001000
 #define SALINITY  0x00100000
 
+#define EPOCH 946684800 // 2000-01-01 00:00:00 UTC
+
 typedef enum {
 	PRESSURE_DEPTH,
 	RBT,
@@ -723,7 +725,7 @@ uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 8);
 
-	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp) / 2;
+	dc_ticks_t ticks = EPOCH + timestamp / 2;
 
 	if (table->timezone != UNSUPPORTED) {
 		// For devices with timezone support, the UTC offset of the
