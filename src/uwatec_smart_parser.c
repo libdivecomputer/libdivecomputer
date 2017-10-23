@@ -35,19 +35,20 @@
 
 #define NBITS 8
 
-#define SMARTPRO      0x10
-#define GALILEO       0x11
-#define ALADINTEC     0x12
-#define ALADINTEC2G   0x13
-#define SMARTCOM      0x14
-#define ALADIN2G      0x15
-#define SMARTTEC      0x18
-#define GALILEOTRIMIX 0x19
-#define SMARTZ        0x1C
-#define MERIDIAN      0x20
-#define CHROMIS       0x24
-#define MANTIS2       0x26
-#define G2            0x32
+#define SMARTPRO          0x10
+#define GALILEO           0x11
+#define ALADINTEC         0x12
+#define ALADINTEC2G       0x13
+#define SMARTCOM          0x14
+#define ALADIN2G          0x15
+#define ALADINSPORTMATRIX 0x17
+#define SMARTTEC          0x18
+#define GALILEOTRIMIX     0x19
+#define SMARTZ            0x1C
+#define MERIDIAN          0x20
+#define CHROMIS           0x24
+#define MANTIS2           0x26
+#define G2                0x32
 
 #define UNSUPPORTED 0xFFFFFFFF
 
@@ -521,7 +522,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 				if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
 					parser->model == ALADIN2G || parser->model == MERIDIAN ||
 					parser->model == CHROMIS || parser->model == MANTIS2 ||
-					parser->model == G2) {
+					parser->model == G2 || parser->model == ALADINSPORTMATRIX) {
 					unsigned int offset = header->tankpressure + 2 * i;
 					endpressure   = array_uint16_le(data + offset);
 					beginpressure = array_uint16_le(data + offset + 2 * header->ngases);
@@ -611,6 +612,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->nevents[2] = C_ARRAY_SIZE (uwatec_smart_galileo_events_2);
 		break;
 	case G2:
+	case ALADINSPORTMATRIX:
 		parser->headersize = 84;
 		parser->header = &uwatec_smart_trimix_header;
 		parser->samples = uwatec_smart_galileo_samples;
@@ -950,7 +952,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 		if (parser->model == GALILEO || parser->model == GALILEOTRIMIX ||
 			parser->model == ALADIN2G || parser->model == MERIDIAN ||
 			parser->model == CHROMIS || parser->model == MANTIS2 ||
-			parser->model == G2) {
+			parser->model == G2 || parser->model == ALADINSPORTMATRIX) {
 			// Uwatec Galileo
 			id = uwatec_galileo_identify (data[offset]);
 		} else {
