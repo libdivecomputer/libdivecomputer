@@ -171,6 +171,23 @@ AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([localtime_r gmtime_r timegm _mkgmtime])
 AC_CHECK_FUNCS([getopt_long])
 
+# Checks for supported compiler options.
+AX_APPEND_COMPILE_FLAGS([ \
+	-pedantic \
+	-Wall \
+	-Wextra \
+	-Wshadow \
+	-Wrestrict \
+	-Wformat=2 \
+	-Wwrite-strings \
+	-Wcast-qual \
+	-Wpointer-arith \
+	-Wstrict-prototypes \
+	-Wmissing-prototypes \
+	-Wmissing-declarations \
+	-Wno-unused-parameter \
+])
+
 # Versioning.
 AC_SUBST([DC_VERSION],[dc_version])
 AC_SUBST([DC_VERSION_MAJOR],[dc_version_major])
