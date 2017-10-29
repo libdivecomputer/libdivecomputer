@@ -110,7 +110,7 @@ static const dc_iostream_vtable_t dc_bluetooth_vtable = {
 	dc_socket_write, /* write */
 	NULL, /* flush */
 	NULL, /* purge */
-	NULL, /* sleep */
+	dc_socket_sleep, /* sleep */
 	dc_socket_close, /* close */
 };
 

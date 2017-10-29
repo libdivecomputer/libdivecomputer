@@ -34,6 +34,7 @@
 #include <sys/select.h> // select
 #include <sys/ioctl.h>  // ioctl
 #include <sys/time.h>
+#include <time.h>
 #endif
 
 #include <libdivecomputer/common.h>
@@ -112,6 +113,9 @@ dc_socket_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual
 
 dc_status_t
 dc_socket_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+
+dc_status_t
+dc_socket_sleep (dc_iostream_t *abstract, unsigned int timeout);
 
 dc_status_t
 dc_socket_close (dc_iostream_t *iostream);
