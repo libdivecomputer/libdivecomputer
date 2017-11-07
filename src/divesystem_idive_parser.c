@@ -272,12 +272,14 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int beginpressure = 0;
 	unsigned int endpressure = 0;
 
+	unsigned int firmware = 0;
+	unsigned int apos4 = 0;
 	unsigned int nsamples = array_uint16_le (data + 1);
 	unsigned int samplesize = SZ_SAMPLE_IDIVE;
 	if (parser->model >= IX3M_EASY) {
 		// Detect the APOS4 firmware.
-		unsigned int firmware = array_uint32_le(data + 0x2A);
-		unsigned int apos4 = (firmware / 10000000) >= 4;
+		firmware = array_uint32_le(data + 0x2A);
+		apos4 = (firmware / 10000000) >= 4;
 		if (apos4) {
 			// Dive downloaded and recorded with the APOS4 firmware.
 			samplesize = SZ_SAMPLE_IX3M_APOS4;
@@ -289,6 +291,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			// Dive downloaded and recorded with an older firmware.
 			samplesize = SZ_SAMPLE_IX3M;
 		}
+	} else {
+		firmware = array_uint32_le(data + 0x2E);
 	}
 
 	unsigned int offset = parser->headersize;
