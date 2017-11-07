@@ -370,17 +370,31 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		}
 
 		// Deco stop / NDL.
-		unsigned int deco = array_uint16_le (data + offset + 21);
-		unsigned int tts  = array_uint16_le (data + offset + 23);
-		if (tts != 0xFFFF) {
-			if (deco) {
+		unsigned int decostop = 0, decotime = 0, tts = 0;
+		if (apos4) {
+			decostop = array_uint16_le (data + offset + 21);
+			decotime = array_uint16_le (data + offset + 23);
+			tts      = array_uint16_le (data + offset + 25);
+			if (tts == 0x7FFF) {
+				tts = INVALID;
+			}
+		} else {
+			decostop = array_uint16_le (data + offset + 21);
+			tts      = array_uint16_le (data + offset + 23);
+			if (tts == 0xFFFF) {
+				tts = INVALID;
+			}
+		}
+		if (tts != INVALID) {
+			if (decostop) {
 				sample.deco.type = DC_DECO_DECOSTOP;
-				sample.deco.depth = deco / 10.0;
+				sample.deco.depth = decostop / 10.0;
+				sample.deco.time = apos4 ? decotime : tts;
 			} else {
 				sample.deco.type = DC_DECO_NDL;
 				sample.deco.depth = 0.0;
+				sample.deco.time = tts;
 			}
-			sample.deco.time = tts;
 			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 		}
 
