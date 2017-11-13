@@ -35,6 +35,8 @@
 #define RX_PACKET_SIZE 64
 #define TX_PACKET_SIZE 32
 
+#define ALADINSQUARE      0x22
+
 typedef struct uwatec_g2_device_t {
 	dc_device_t base;
 	dc_usbhid_t *usbhid;
@@ -178,7 +180,7 @@ uwatec_g2_handshake (uwatec_g2_device_t *device)
 
 
 dc_status_t
-uwatec_g2_device_open (dc_device_t **out, dc_context_t *context)
+uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_g2_device_t *device = NULL;
@@ -200,7 +202,15 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context)
 	device->devtime = 0;
 
 	// Open the irda socket.
-	status = dc_usbhid_open (&device->usbhid, context, 0x2e6c, 0x3201);
+	unsigned int vid = 0, pid = 0;
+	if (model == ALADINSQUARE) {
+		vid = 0xc251;
+		pid = 0x2006;
+	} else {
+		vid = 0x2e6c;
+		pid = 0x3201;
+	}
+	status = dc_usbhid_open (&device->usbhid, context, vid, pid);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open USB device");
 		goto error_free;

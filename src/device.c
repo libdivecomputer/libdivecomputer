@@ -140,7 +140,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = uwatec_meridian_device_open (&device, context, name);
 		break;
 	case DC_FAMILY_UWATEC_G2:
-		rc = uwatec_g2_device_open (&device, context);
+		rc = uwatec_g2_device_open (&device, context, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
 		rc = reefnet_sensus_device_open (&device, context, name);
