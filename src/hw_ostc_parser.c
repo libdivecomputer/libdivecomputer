@@ -98,6 +98,7 @@ typedef struct hw_ostc_parser_t {
 	unsigned int nfixed;
 	unsigned int initial;
 	unsigned int initial_setpoint;
+	unsigned int initial_cns;
 	hw_ostc_gasmix_t gasmix[NGASMIXES];
 } hw_ostc_parser_t;
 
@@ -222,9 +223,11 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	}
 
 	// Get all the gas mixes, the index of the inital mix,
-	// and the initial setpoint (used in the fixed setpoint mode).
+	// the initial setpoint (used in the fixed setpoint CCR mode),
+	// and the initial CNS from the header
 	unsigned int initial = UNDEFINED;
 	unsigned int initial_setpoint = UNDEFINED;
+	unsigned int initial_cns = UNDEFINED;
 	unsigned int ngasmixes = 0;
 	hw_ostc_gasmix_t gasmix[NGASMIXES] = {{0}};
 	if (version == 0x22) {
@@ -250,6 +253,8 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		if (data[82] == OSTC3_CC) {
 			initial_setpoint = data[60];
 		}
+		// Initial CNS
+		initial_cns = array_uint16_le (data + 53);
 	} else {
 		ngasmixes = 5;
 		if (data[31] != 0xFF) {
@@ -278,6 +283,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	parser->nfixed = ngasmixes;
 	parser->initial = initial;
 	parser->initial_setpoint = initial_setpoint;
+	parser->initial_cns = initial_cns;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		parser->gasmix[i] = gasmix[i];
 	}
@@ -312,6 +318,7 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsign
 	parser->nfixed = 0;
 	parser->initial = 0;
 	parser->initial_setpoint = 0;
+	parser->initial_cns = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
@@ -349,6 +356,7 @@ hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsig
 	parser->nfixed = 0;
 	parser->initial = 0;
 	parser->initial_setpoint = 0;
+	parser->initial_cns = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
@@ -661,6 +669,12 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		if (time == samplerate && parser->initial_setpoint != UNDEFINED) {
 			sample.setpoint = parser->initial_setpoint / 100.0;
 			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+		}
+
+		// Initial CNS (%).
+		if (time == samplerate && parser->initial_cns != UNDEFINED) {
+			sample.cns = parser->initial_cns / 100.0;
+			if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 		}
 
 		// Depth (mbar).
