@@ -34,7 +34,7 @@
 #define MAXCONFIG 7
 #define NGASMIXES 15
 
-#define UNDEFINED 0xFF
+#define UNDEFINED 0xFFFFFFFF
 
 #define ALL    0
 #define FIXED  1
@@ -229,7 +229,9 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	hw_ostc_gasmix_t gasmix[NGASMIXES] = {{0}};
 	if (version == 0x22) {
 		ngasmixes = 3;
-		initial = data[31];
+		if (data[31] != 0xFF) {
+			initial = data[31];
+		}
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[25 + 2 * i];
 			gasmix[i].helium = 0;
@@ -250,7 +252,9 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		}
 	} else {
 		ngasmixes = 5;
-		initial = data[31];
+		if (data[31] != 0xFF) {
+			initial = data[31];
+		}
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[19 + 2 * i + 0];
 			gasmix[i].helium = data[19 + 2 * i + 1];
