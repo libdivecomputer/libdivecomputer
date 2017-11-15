@@ -39,6 +39,9 @@ extern "C" {
 #define PERDIX   5
 #define PERDIXAI 6
 
+#define NSTEPS    10000
+#define STEP(i,n) ((NSTEPS * (i) + (n) / 2) / (n))
+
 typedef struct shearwater_common_device_t {
 	dc_device_t base;
 	dc_serial_t *port;
@@ -54,7 +57,7 @@ dc_status_t
 shearwater_common_transfer (shearwater_common_device_t *device, const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize, unsigned int *actual);
 
 dc_status_t
-shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression);
+shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression, dc_event_progress_t *progress);
 
 dc_status_t
 shearwater_common_identifier (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int id);

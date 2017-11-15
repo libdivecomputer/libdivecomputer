@@ -168,6 +168,11 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Enable progress notifications.
+	unsigned int current = 0, maximum = 0;
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
 	// Read the serial number.
 	rc = shearwater_common_identifier (&device->base, buffer, ID_SERIAL);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -240,8 +245,16 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	while (1) {
+		// Update the progress state.
+		// Assume the worst case scenario of a full manifest, and adjust the
+		// value with the actual number of dives after the manifest has been
+		// processed.
+		maximum += 1 + RECORD_COUNT;
+
 		// Download a manifest.
-		rc = shearwater_common_download (&device->base, buffer, MANIFEST_ADDR, MANIFEST_SIZE, 0);
+		progress.current = NSTEPS * current;
+		progress.maximum = NSTEPS * maximum;
+		rc = shearwater_common_download (&device->base, buffer, MANIFEST_ADDR, MANIFEST_SIZE, 0, &progress);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to download the manifest.");
 			dc_buffer_free (buffer);
@@ -270,6 +283,10 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			count++;
 		}
 
+		// Update the progress state.
+		current += 1;
+		maximum -= RECORD_COUNT - count;
+
 		// Append the manifest records to the main buffer.
 		if (!dc_buffer_append (manifests, data, count * RECORD_SIZE)) {
 			ERROR (abstract->context, "Insufficient buffer space available.");
@@ -283,6 +300,11 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			break;
 	}
 
+	// Update and emit a progress event.
+	progress.current = NSTEPS * current;
+	progress.maximum = NSTEPS * maximum;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
 	// Cache the buffer pointer and size.
 	unsigned char *data = dc_buffer_get_data (manifests);
 	unsigned int size = dc_buffer_get_size (manifests);
@@ -293,13 +315,18 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		unsigned int address = array_uint32_be (data + offset + 20);
 
 		// Download the dive.
-		rc = shearwater_common_download (&device->base, buffer, DIVE_ADDR + address, DIVE_SIZE, 1);
+		progress.current = NSTEPS * current;
+		progress.maximum = NSTEPS * maximum;
+		rc = shearwater_common_download (&device->base, buffer, DIVE_ADDR + address, DIVE_SIZE, 1, &progress);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to download the dive.");
 			dc_buffer_free (buffer);
 			dc_buffer_free (manifests);
 			return rc;
 		}
+
+		// Update the progress state.
+		current += 1;
 
 		unsigned char *buf = dc_buffer_get_data (buffer);
 		unsigned int len = dc_buffer_get_size (buffer);
@@ -308,6 +335,11 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		offset += RECORD_SIZE;
 	}
+
+	// Update and emit a progress event.
+	progress.current = NSTEPS * current;
+	progress.maximum = NSTEPS * maximum;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	dc_buffer_free (manifests);
 	dc_buffer_free (buffer);

@@ -133,7 +133,12 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	return shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY, 0);
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.current = 0;
+	progress.maximum = NSTEPS;
+
+	return shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY, 0, &progress);
 }
 
 

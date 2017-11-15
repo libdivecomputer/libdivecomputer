@@ -342,7 +342,7 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 
 
 dc_status_t
-shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression)
+shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression, dc_event_progress_t *progress)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -370,9 +370,11 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	}
 
 	// Enable progress notifications.
-	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = 3 + size + 1;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	unsigned int initial = 0, current = 0, maximum = 3 + size + 1;
+	if (progress) {
+		initial = progress->current;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
 
 	// Transfer the init request.
 	rc = shearwater_common_transfer (device, req_init, sizeof (req_init), response, 3, &n);
@@ -387,8 +389,11 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	}
 
 	// Update and emit a progress event.
-	progress.current += 3;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	if (progress) {
+		current += 3;
+		progress->current = initial + STEP (current, maximum);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
 
 	unsigned int done = 0;
 	unsigned char block = 1;
@@ -415,8 +420,11 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 		}
 
 		// Update and emit a progress event.
-		progress.current += length;
-		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+		if (progress) {
+			current += length;
+			progress->current = initial + STEP (current, maximum);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+		}
 
 		if (compression) {
 			if (shearwater_common_decompress_lre (response + 2, length, buffer, &done) != 0) {
@@ -454,8 +462,11 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	}
 
 	// Update and emit a progress event.
-	progress.current += 1;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	if (progress) {
+		current += 1;
+		progress->current = initial + STEP (current, maximum);
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
 
 	return DC_STATUS_SUCCESS;
 }
