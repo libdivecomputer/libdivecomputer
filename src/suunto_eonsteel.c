@@ -592,16 +592,6 @@ error_free:
 	return status;
 }
 
-static int count_dir_entries(struct directory_entry *de)
-{
-	int count = 0;
-	while (de) {
-		count++;
-		de = de->next;
-	}
-	return count;
-}
-
 static dc_status_t
 suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
 {
@@ -630,9 +620,6 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	unsigned int count = 0;
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 
-	if (get_file_list(eon, &de) < 0)
-		return DC_STATUS_IO;
-
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
@@ -640,9 +627,39 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	devinfo.serial = array_convert_str2num(eon->version + 0x10, 16);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	count = count_dir_entries(de);
-	if (count == 0)  {
+	if (get_file_list(eon, &de) < 0)
+		return DC_STATUS_IO;
+
+	if (de == NULL) {
 		return DC_STATUS_SUCCESS;
+	}
+
+	// Locate the most recent dive.
+	// The filename represent the time of the dive, encoded as a hexadecimal
+	// number. Thus the most recent dive can be found by simply sorting the
+	// filenames alphabetically.
+	struct directory_entry *head = de, *tail = de, *latest = de;
+	while (de) {
+		if (strcmp (de->name, latest->name) > 0) {
+			latest = de;
+		}
+		tail = de;
+		count++;
+		de = de->next;
+	}
+
+	// Make the most recent dive the head of the list.
+	// The linked list is made circular, by attaching the head to the tail and
+	// then cut open again just before the most recent dive.
+	de = head;
+	while (de) {
+		if (de->next == latest) {
+			de->next = NULL;
+			tail->next = head;
+			break;
+		}
+
+		de = de->next;
 	}
 
 	file = dc_buffer_new(0);
@@ -650,6 +667,7 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	progress.current = 0;
 	device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);
 
+	de = latest;
 	while (de) {
 		int len;
 		struct directory_entry *next = de->next;
