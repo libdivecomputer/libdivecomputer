@@ -99,6 +99,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Suunto EON Steel */
 #ifdef USBHID
 	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0},
+	{"Suunto", "EON Core",  DC_FAMILY_SUUNTO_EONSTEEL, 1},
 #endif
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C},

@@ -30,9 +30,13 @@
 #include "usbhid.h"
 #include "platform.h"
 
+#define EONSTEEL 0
+#define EONCORE  1
+
 typedef struct suunto_eonsteel_device_t {
 	dc_device_t base;
 	dc_usbhid_t *usbhid;
+	unsigned int model;
 	unsigned int magic;
 	unsigned short seq;
 	unsigned char version[0x30];
@@ -551,7 +555,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 }
 
 dc_status_t
-suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context)
+suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_eonsteel_device_t *eon = NULL;
@@ -564,12 +568,19 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context)
 		return DC_STATUS_NOMEMORY;
 
 	// Set up the magic handshake fields
+	eon->model = model;
 	eon->magic = INIT_MAGIC;
 	eon->seq = INIT_SEQ;
 	memset (eon->version, 0, sizeof (eon->version));
 	memset (eon->fingerprint, 0, sizeof (eon->fingerprint));
 
-	status = dc_usbhid_open(&eon->usbhid, context, 0x1493, 0x0030);
+	unsigned int vid = 0x1493, pid = 0;
+	if (model == EONCORE) {
+		pid = 0x0033;
+	} else {
+		pid = 0x0030;
+	}
+	status = dc_usbhid_open(&eon->usbhid, context, vid, pid);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "unable to open device");
 		goto error_free;
@@ -622,7 +633,7 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = eon->model;
 	devinfo.firmware = array_uint32_be (eon->version + 0x20);
 	devinfo.serial = array_convert_str2num(eon->version + 0x10, 16);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
