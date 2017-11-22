@@ -64,8 +64,10 @@ AM_CONDITIONAL([ENABLE_DOC], [test "x$enable_doc" = "xyes"])
 AC_PROG_CC
 AC_PROG_CC_C99
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
+AC_CHECK_PROGS([MANDOC], [mandoc])
 
 AM_CONDITIONAL([HAVE_DOXYGEN],[test -n "$DOXYGEN"])
+AM_CONDITIONAL([HAVE_MANDOC],[test -n "$MANDOC"])
 
 # Enable automake silent build rules.
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])

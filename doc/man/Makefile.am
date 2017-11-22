@@ -1,4 +1,4 @@
-dist_man_MANS = \
+MANPAGES = \
 	dc_buffer_append.3 \
 	dc_buffer_free.3 \
 	dc_buffer_get_data.3 \
@@ -32,3 +32,18 @@ dist_man_MANS = \
 	dc_parser_samples_foreach.3 \
 	dc_parser_set_data.3 \
 	libdivecomputer.3
+
+HTMLPAGES = $(MANPAGES:%=%.html)
+
+dist_man_MANS = $(MANPAGES)
+
+if HAVE_MANDOC
+doc_DATA = $(HTMLPAGES)
+endif
+
+SUFFIXES = .3 .3.html
+
+.3.3.html:
+	$(AM_V_GEN) $(MANDOC) -Thtml -Ostyle=mandoc.css,man=%N.%S.html $< > $@
+
+CLEANFILES = $(HTMLPAGES)
