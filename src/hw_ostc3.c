@@ -727,6 +727,11 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 			if (firmware < 93)
 				length -= 3;
 		}
+		if (length < RB_LOGBOOK_SIZE_FULL) {
+			ERROR (abstract->context, "Invalid profile length (%u bytes).", length);
+			free (header);
+			return DC_STATUS_DATAFORMAT;
+		}
 
 		// Check the fingerprint data.
 		if (memcmp (header + offset + logbook->fingerprint, device->fingerprint, sizeof (device->fingerprint)) == 0)
@@ -787,6 +792,26 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 			free (profile);
 			free (header);
 			return rc;
+		}
+
+		// Detect invalid profile data.
+		unsigned int delta = device->hardware == OSTC4 ? 3 : 0;
+		if (length < RB_LOGBOOK_SIZE_FULL + 2 ||
+			profile[length - 2] != 0xFD || profile[length - 1] != 0xFD) {
+			// A valid profile should have at least a correct 2 byte
+			// end-of-profile marker.
+			WARNING (abstract->context, "Invalid profile end marker detected!");
+			length = RB_LOGBOOK_SIZE_FULL;
+		} else if (length == RB_LOGBOOK_SIZE_FULL + 2) {
+			// A profile containing only the 2 byte end-of-profile
+			// marker is considered a valid empty profile.
+		} else if (length < RB_LOGBOOK_SIZE_FULL + 5 + 2 ||
+			array_uint24_le (profile + RB_LOGBOOK_SIZE_FULL) + delta != array_uint24_le (profile + 9)) {
+			// If there is more data available, then there should be a
+			// valid profile header containing a length matching the
+			// length in the dive header.
+			WARNING (abstract->context, "Invalid profile header detected.");
+			length = RB_LOGBOOK_SIZE_FULL;
 		}
 
 		if (callback && !callback (profile, length, profile + 12, sizeof (device->fingerprint), userdata))

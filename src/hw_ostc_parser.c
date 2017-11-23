@@ -569,6 +569,13 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	unsigned int header = parser->header;
 	const hw_ostc_layout_t *layout = parser->layout;
 
+	// Exit if no profile data available.
+	if (size == header || (size == header + 2 &&
+		data[header] == 0xFD && data[header + 1] == 0xFD)) {
+		parser->cached = PROFILE;
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Check the header length.
 	if (version == 0x23 || version == 0x24) {
 		if (size < header + 5) {
