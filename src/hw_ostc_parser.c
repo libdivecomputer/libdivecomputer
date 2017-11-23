@@ -569,6 +569,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	unsigned int header = parser->header;
 	const hw_ostc_layout_t *layout = parser->layout;
 
+	// Check the header length.
+	if (version == 0x23 || version == 0x24) {
+		if (size < header + 5) {
+			ERROR (abstract->context, "Buffer overflow detected!");
+			return DC_STATUS_DATAFORMAT;
+		}
+	}
+
 	// Get the sample rate.
 	unsigned int samplerate = 0;
 	if (version == 0x23 || version == 0x24)
@@ -593,6 +601,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	if (nconfig > MAXCONFIG) {
 		ERROR(abstract->context, "Too many sample descriptors.");
 		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Check the header length.
+	if (version == 0x23 || version == 0x24) {
+		if (size < header + 5 + 3 * nconfig) {
+			ERROR (abstract->context, "Buffer overflow detected!");
+			return DC_STATUS_DATAFORMAT;
+		}
 	}
 
 	// Get the extended sample configuration.
