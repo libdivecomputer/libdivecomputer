@@ -1,3 +1,40 @@
+Version 0.6.0 (2017-11-24)
+==========================
+
+The v0.6.0 release adds support for several new devices, introduces two
+new features and fixes a couple of bugs. There are a few minor backwards
+incompatible changes, but most applications won't be affected by those.
+
+New features:
+
+ * Add support for new backends:
+    - g2: Scubapro G2, Aladin Sport Matrix, Aladin Square
+ * Add support for many new devices:
+    - Aqualung: i200, i750TC
+    - Cochran: Commander I, II and TM
+    - Cressi: Drake
+    - Hollis: DG02
+    - Mares: Quad
+    - Oceanic: F10
+    - Ratio: iX3M and iDive series
+    - Suunto: D4f, Eon Core
+    - Uwatec: Aladin Tec 3G
+ * Add basic timezone support
+ * Add support for synchronizing the device clock
+ * Document the public api with man pages
+
+Removed/changed features:
+
+ * Remove the deprecated gas change events
+ * Remove the deprecated vendor_product_parser_create(),
+   vendor_product_device_open() and vendor_product_extract_dives()
+   functions from the public api
+ * Remove the hw_{frog,ostc,ostc3}_device_clock() functions
+
+Bug fixes:
+
+ * Many small improvements
+
 Version 0.5.0 (2016-09-30)
 ==========================
 
