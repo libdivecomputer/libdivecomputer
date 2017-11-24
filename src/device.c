@@ -408,7 +408,7 @@ dc_device_close (dc_device_t *device)
 void
 device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data)
 {
-	dc_event_progress_t *progress = (dc_event_progress_t *) data;
+	const dc_event_progress_t *progress = (const dc_event_progress_t *) data;
 
 	// Check the event data for errors.
 	switch (event) {
@@ -436,10 +436,10 @@ device_event_emit (dc_device_t *device, dc_event_type_t event, const void *data)
 	// Cache the event data.
 	switch (event) {
 	case DC_EVENT_DEVINFO:
-		device->devinfo = *(dc_event_devinfo_t *) data;
+		device->devinfo = *(const dc_event_devinfo_t *) data;
 		break;
 	case DC_EVENT_CLOCK:
-		device->clock = *(dc_event_clock_t *) data;
+		device->clock = *(const dc_event_clock_t *) data;
 		break;
 	default:
 		break;

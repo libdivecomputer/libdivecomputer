@@ -142,7 +142,7 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 	case DC_SAMPLE_VENDOR:
 		fprintf (sampledata->ostream, "   <vendor type=\"%u\" size=\"%u\">", value.vendor.type, value.vendor.size);
 		for (unsigned int i = 0; i < value.vendor.size; ++i)
-			fprintf (sampledata->ostream, "%02X", ((unsigned char *) value.vendor.data)[i]);
+			fprintf (sampledata->ostream, "%02X", ((const unsigned char *) value.vendor.data)[i]);
 		fprintf (sampledata->ostream, "</vendor>\n");
 		break;
 	case DC_SAMPLE_SETPOINT:

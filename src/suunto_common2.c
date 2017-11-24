@@ -38,7 +38,7 @@
 
 #define RB_PROFILE_DISTANCE(l,a,b,m)  ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
-#define VTABLE(abstract)	((suunto_common2_device_vtable_t *) abstract->vtable)
+#define VTABLE(abstract)	((const suunto_common2_device_vtable_t *) abstract->vtable)
 
 void
 suunto_common2_device_init (suunto_common2_device_t *device)

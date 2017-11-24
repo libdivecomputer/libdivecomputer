@@ -500,7 +500,7 @@ dc_serial_write (dc_serial_t *device, const void *data, size_t size, size_t *act
 	}
 
 out:
-	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, dwWritten);
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (const unsigned char *) data, dwWritten);
 
 out_invalidargs:
 	if (actual)

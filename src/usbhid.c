@@ -523,7 +523,7 @@ out:
 	}
 #endif
 
-	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
+	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Write", (const unsigned char *) data, nbytes);
 
 out_invalidargs:
 	if (actual)

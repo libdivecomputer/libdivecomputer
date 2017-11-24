@@ -30,7 +30,7 @@
 #include "rbstream.h"
 #include "array.h"
 
-#define VTABLE(abstract)	((oceanic_common_device_vtable_t *) abstract->vtable)
+#define VTABLE(abstract)	((const oceanic_common_device_vtable_t *) abstract->vtable)
 
 #define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)

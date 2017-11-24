@@ -535,7 +535,7 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 			break; // Timeout.
 		}
 
-		s_ssize_t n = send (device->fd, (char*) data + nbytes, size - nbytes, 0);
+		s_ssize_t n = send (device->fd, (const char *) data + nbytes, size - nbytes, 0);
 		if (n < 0) {
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode == S_EINTR || errcode == S_EAGAIN)
@@ -555,7 +555,7 @@ dc_irda_write (dc_irda_t *device, const void *data, size_t size, size_t *actual)
 	}
 
 out:
-	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (unsigned char *) data, nbytes);
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Write", (const unsigned char *) data, nbytes);
 
 out_invalidargs:
 	if (actual)
