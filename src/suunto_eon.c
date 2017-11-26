@@ -36,7 +36,7 @@
 
 typedef struct suunto_eon_device_t {
 	suunto_common_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 } suunto_eon_device_t;
 
 static dc_status_t suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
@@ -84,31 +84,31 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	suunto_common_device_init (&device->base);
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (1200 8N2).
-	status = dc_serial_configure (device->port, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_TWO, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000ms).
-	status = dc_serial_set_timeout (device->port, 1000);
+	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Clear the RTS line.
-	status = dc_serial_set_rts (device->port, 0);
+	status = dc_iostream_set_rts (device->iostream, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR/RTS line.");
 		goto error_close;
@@ -119,7 +119,7 @@ suunto_eon_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -134,7 +134,7 @@ suunto_eon_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
@@ -163,7 +163,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Send the command.
 	unsigned char command[1] = {'P'};
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -178,7 +178,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 		// Increase the packet size if more data is immediately available.
 		size_t available = 0;
-		status = dc_serial_get_available (device->port, &available);
+		status = dc_iostream_get_available (device->iostream, &available);
 		if (status == DC_STATUS_SUCCESS && available > len)
 			len = available;
 
@@ -187,7 +187,7 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			len = sizeof(answer) - nbytes;
 
 		// Read the packet.
-		status = dc_serial_read (device->port, answer + nbytes, len, NULL);
+		status = dc_iostream_read (device->iostream, answer + nbytes, len, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return status;
@@ -264,7 +264,7 @@ suunto_eon_device_write_name (dc_device_t *abstract, unsigned char data[], unsig
 	// Send the command.
 	unsigned char command[21] = {'N'};
 	memcpy (command + 1, data, size);
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -285,7 +285,7 @@ suunto_eon_device_write_interval (dc_device_t *abstract, unsigned char interval)
 
 	// Send the command.
 	unsigned char command[2] = {'T', interval};
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;

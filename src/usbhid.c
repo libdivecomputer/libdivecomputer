@@ -50,8 +50,10 @@
 #endif
 
 #include "usbhid.h"
+
 #include "common-private.h"
 #include "context-private.h"
+#include "iostream-private.h"
 #include "platform.h"
 
 #ifdef _WIN32
@@ -62,9 +64,17 @@ typedef pthread_mutex_t dc_mutex_t;
 #define DC_MUTEX_INIT PTHREAD_MUTEX_INITIALIZER
 #endif
 
-struct dc_usbhid_t {
-	/* Library context. */
-	dc_context_t *context;
+#define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_usbhid_vtable)
+
+#ifdef USBHID
+static dc_status_t dc_usbhid_set_timeout (dc_iostream_t *iostream, int timeout);
+static dc_status_t dc_usbhid_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
+static dc_status_t dc_usbhid_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+static dc_status_t dc_usbhid_close (dc_iostream_t *iostream);
+
+typedef struct dc_usbhid_t {
+	/* Base class. */
+	dc_iostream_t base;
 	/* Internal state. */
 #if defined(USE_LIBUSB)
 	libusb_device_handle *handle;
@@ -76,6 +86,25 @@ struct dc_usbhid_t {
 	hid_device *handle;
 	int timeout;
 #endif
+} dc_usbhid_t;
+
+static const dc_iostream_vtable_t dc_usbhid_vtable = {
+	sizeof(dc_usbhid_t),
+	dc_usbhid_set_timeout, /* set_timeout */
+	NULL, /* set_latency */
+	NULL, /* set_halfduplex */
+	NULL, /* set_break */
+	NULL, /* set_dtr */
+	NULL, /* set_rts */
+	NULL, /* get_lines */
+	NULL, /* get_received */
+	NULL, /* configure */
+	dc_usbhid_read, /* read */
+	dc_usbhid_write, /* write */
+	NULL, /* flush */
+	NULL, /* purge */
+	NULL, /* sleep */
+	dc_usbhid_close, /* close */
 };
 
 #if defined(USE_LIBUSB)
@@ -99,6 +128,7 @@ syserror(int errcode)
 		return DC_STATUS_IO;
 	}
 }
+#endif
 #endif
 
 #ifdef USBHID
@@ -184,7 +214,7 @@ dc_usbhid_exit (void)
 #endif
 
 dc_status_t
-dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsigned int pid)
+dc_usbhid_open (dc_iostream_t **out, dc_context_t *context, unsigned int vid, unsigned int pid)
 {
 #ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
@@ -196,14 +226,11 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 	INFO (context, "Open: vid=%04x, pid=%04x", vid, pid);
 
 	// Allocate memory.
-	usbhid = (dc_usbhid_t *) malloc (sizeof (dc_usbhid_t));
+	usbhid = (dc_usbhid_t *) dc_iostream_allocate (context, &dc_usbhid_vtable);
 	if (usbhid == NULL) {
 		ERROR (context, "Out of memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	// Library context.
-	usbhid->context = context;
 
 	// Initialize the usb library.
 	status = dc_usbhid_init (context);
@@ -347,7 +374,7 @@ dc_usbhid_open (dc_usbhid_t **out, dc_context_t *context, unsigned int vid, unsi
 	usbhid->timeout = -1;
 #endif
 
-	*out = usbhid;
+	*out = (dc_iostream_t *) usbhid;
 
 	return DC_STATUS_SUCCESS;
 
@@ -362,21 +389,19 @@ error_usb_free_list:
 error_usb_exit:
 	dc_usbhid_exit ();
 error_free:
-	free (usbhid);
+	dc_iostream_deallocate ((dc_iostream_t *) usbhid);
 	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif
 }
 
-dc_status_t
-dc_usbhid_close (dc_usbhid_t *usbhid)
-{
 #ifdef USBHID
+static dc_status_t
+dc_usbhid_close (dc_iostream_t *abstract)
+{
 	dc_status_t status = DC_STATUS_SUCCESS;
-
-	if (usbhid == NULL)
-		return DC_STATUS_SUCCESS;
+	dc_usbhid_t *usbhid = (dc_usbhid_t *) abstract;
 
 #if defined(USE_LIBUSB)
 	libusb_release_interface (usbhid->handle, usbhid->interface);
@@ -385,22 +410,14 @@ dc_usbhid_close (dc_usbhid_t *usbhid)
 	hid_close(usbhid->handle);
 #endif
 	dc_usbhid_exit();
-	free (usbhid);
 
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
-dc_status_t
-dc_usbhid_set_timeout (dc_usbhid_t *usbhid, int timeout)
+static dc_status_t
+dc_usbhid_set_timeout (dc_iostream_t *abstract, int timeout)
 {
-#ifdef USBHID
-	if (usbhid == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	INFO (usbhid->context, "Timeout: value=%i", timeout);
+	dc_usbhid_t *usbhid = (dc_usbhid_t *) abstract;
 
 #if defined(USE_LIBUSB)
 	if (timeout < 0) {
@@ -419,27 +436,19 @@ dc_usbhid_set_timeout (dc_usbhid_t *usbhid, int timeout)
 #endif
 
 	return DC_STATUS_SUCCESS;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
-dc_status_t
-dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
+static dc_status_t
+dc_usbhid_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
 {
-#ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_usbhid_t *usbhid = (dc_usbhid_t *) abstract;
 	int nbytes = 0;
-
-	if (usbhid == NULL) {
-		status = DC_STATUS_INVALIDARGS;
-		goto out_invalidargs;
-	}
 
 #if defined(USE_LIBUSB)
 	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_in, data, size, &nbytes, usbhid->timeout);
 	if (rc != LIBUSB_SUCCESS) {
-		ERROR (usbhid->context, "Usb read interrupt transfer failed (%s).",
+		ERROR (abstract->context, "Usb read interrupt transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
 		goto out;
@@ -447,7 +456,7 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 #elif defined(USE_HIDAPI)
 	nbytes = hid_read_timeout(usbhid->handle, data, size, usbhid->timeout);
 	if (nbytes < 0) {
-		ERROR (usbhid->context, "Usb read interrupt transfer failed.");
+		ERROR (abstract->context, "Usb read interrupt transfer failed.");
 		status = DC_STATUS_IO;
 		nbytes = 0;
 		goto out;
@@ -455,29 +464,18 @@ dc_usbhid_read (dc_usbhid_t *usbhid, void *data, size_t size, size_t *actual)
 #endif
 
 out:
-	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Read", (unsigned char *) data, nbytes);
-
-out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
-dc_status_t
-dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *actual)
+static dc_status_t
+dc_usbhid_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *actual)
 {
-#ifdef USBHID
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_usbhid_t *usbhid = (dc_usbhid_t *) abstract;
 	int nbytes = 0;
-
-	if (usbhid == NULL) {
-		status = DC_STATUS_INVALIDARGS;
-		goto out_invalidargs;
-	}
 
 	if (size == 0) {
 		goto out;
@@ -496,7 +494,7 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 
 	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_out, (void *) buffer, length, &nbytes, 0);
 	if (rc != LIBUSB_SUCCESS) {
-		ERROR (usbhid->context, "Usb write interrupt transfer failed (%s).",
+		ERROR (abstract->context, "Usb write interrupt transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
 		goto out;
@@ -508,7 +506,7 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 #elif defined(USE_HIDAPI)
 	nbytes = hid_write(usbhid->handle, data, size);
 	if (nbytes < 0) {
-		ERROR (usbhid->context, "Usb write interrupt transfer failed.");
+		ERROR (abstract->context, "Usb write interrupt transfer failed.");
 		status = DC_STATUS_IO;
 		nbytes = 0;
 		goto out;
@@ -518,19 +516,14 @@ dc_usbhid_write (dc_usbhid_t *usbhid, const void *data, size_t size, size_t *act
 out:
 #ifdef _WIN32
 	if (nbytes > size) {
-		WARNING (usbhid->context, "Number of bytes exceeds the buffer size (" DC_PRINTF_SIZE " > " DC_PRINTF_SIZE ")!", nbytes, size);
+		WARNING (abstract->context, "Number of bytes exceeds the buffer size (" DC_PRINTF_SIZE " > " DC_PRINTF_SIZE ")!", nbytes, size);
 		nbytes = size;
 	}
 #endif
 
-	HEXDUMP (usbhid->context, DC_LOGLEVEL_INFO, "Write", (const unsigned char *) data, nbytes);
-
-out_invalidargs:
 	if (actual)
 		*actual = nbytes;
 
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
+#endif

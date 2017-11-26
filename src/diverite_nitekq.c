@@ -51,7 +51,7 @@
 
 typedef struct diverite_nitekq_device_t {
 	dc_device_t base;
-	dc_serial_t *port;
+	dc_iostream_t *iostream;
 	unsigned char version[32];
 	unsigned char fingerprint[SZ_LOGBOOK];
 } diverite_nitekq_device_t;
@@ -87,7 +87,7 @@ diverite_nitekq_send (diverite_nitekq_device_t *device, unsigned char cmd)
 
 	// Send the command.
 	unsigned char command[] = {cmd};
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -104,7 +104,7 @@ diverite_nitekq_receive (diverite_nitekq_device_t *device, unsigned char data[],
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Read the answer.
-	status = dc_serial_read (device->port, data, size, NULL);
+	status = dc_iostream_read (device->iostream, data, size, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -112,7 +112,7 @@ diverite_nitekq_receive (diverite_nitekq_device_t *device, unsigned char data[],
 
 	// Read the checksum.
 	unsigned char checksum[2] = {0};
-	status = dc_serial_read (device->port, checksum, sizeof (checksum), NULL);
+	status = dc_iostream_read (device->iostream, checksum, sizeof (checksum), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the checksum.");
 		return status;
@@ -130,14 +130,14 @@ diverite_nitekq_handshake (diverite_nitekq_device_t *device)
 
 	// Send the command.
 	unsigned char command[] = {HANDSHAKE};
-	status = dc_serial_write (device->port, command, sizeof (command), NULL);
+	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
 	}
 
 	// Read the answer.
-	status = dc_serial_read (device->port, device->version, sizeof (device->version), NULL);
+	status = dc_iostream_read (device->iostream, device->version, sizeof (device->version), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -164,33 +164,33 @@ diverite_nitekq_device_open (dc_device_t **out, dc_context_t *context, const cha
 	}
 
 	// Set the default values.
-	device->port = NULL;
+	device->iostream = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Open the device.
-	status = dc_serial_open (&device->port, context, name);
+	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
 		goto error_free;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
-	status = dc_serial_configure (device->port, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+	status = dc_iostream_configure (device->iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
 		goto error_close;
 	}
 
 	// Set the timeout for receiving data (1000ms).
-	status = dc_serial_set_timeout (device->port, 1000);
+	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_close;
 	}
 
 	// Make sure everything is in a sane state.
-	dc_serial_sleep (device->port, 100);
-	dc_serial_purge (device->port, DC_DIRECTION_ALL);
+	dc_iostream_sleep (device->iostream, 100);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Perform the handshaking.
 	status = diverite_nitekq_handshake (device);
@@ -204,7 +204,7 @@ diverite_nitekq_device_open (dc_device_t **out, dc_context_t *context, const cha
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_serial_close (device->port);
+	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -225,7 +225,7 @@ diverite_nitekq_device_close (dc_device_t *abstract)
 	}
 
 	// Close the device.
-	rc = dc_serial_close (device->port);
+	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

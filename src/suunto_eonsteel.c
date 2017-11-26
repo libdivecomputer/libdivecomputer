@@ -35,7 +35,7 @@
 
 typedef struct suunto_eonsteel_device_t {
 	dc_device_t base;
-	dc_usbhid_t *usbhid;
+	dc_iostream_t *iostream;
 	unsigned int model;
 	unsigned int magic;
 	unsigned short seq;
@@ -141,7 +141,7 @@ static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, 
 	size_t transferred = 0;
 	int len;
 
-	rc = dc_usbhid_read(eon->usbhid, buf, PACKET_SIZE, &transferred);
+	rc = dc_iostream_read(eon->iostream, buf, PACKET_SIZE, &transferred);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "read interrupt transfer failed");
 		return -1;
@@ -207,7 +207,7 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 		memcpy(buf+14, buffer, len);
 	}
 
-	rc = dc_usbhid_write(eon->usbhid, buf, sizeof(buf), &transferred);
+	rc = dc_iostream_write(eon->iostream, buf, sizeof(buf), &transferred);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "write interrupt transfer failed");
 		return -1;
@@ -523,20 +523,20 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 	unsigned char buf[64];
 	struct eon_hdr hdr;
 
-	dc_usbhid_set_timeout(eon->usbhid, 10);
+	dc_iostream_set_timeout(eon->iostream, 10);
 
 	/* Get rid of any pending stale input first */
 	for (;;) {
 		size_t transferred = 0;
 
-		dc_status_t rc = dc_usbhid_read(eon->usbhid, buf, sizeof(buf), &transferred);
+		dc_status_t rc = dc_iostream_read(eon->iostream, buf, sizeof(buf), &transferred);
 		if (rc != DC_STATUS_SUCCESS)
 			break;
 		if (!transferred)
 			break;
 	}
 
-	dc_usbhid_set_timeout(eon->usbhid, 5000);
+	dc_iostream_set_timeout(eon->iostream, 5000);
 
 	if (send_cmd(eon, CMD_INIT, sizeof(init), init)) {
 		ERROR(eon->base.context, "Failed to send initialization command");
@@ -580,7 +580,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned i
 	} else {
 		pid = 0x0030;
 	}
-	status = dc_usbhid_open(&eon->usbhid, context, vid, pid);
+	status = dc_usbhid_open(&eon->iostream, context, vid, pid);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "unable to open device");
 		goto error_free;
@@ -597,7 +597,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned i
 	return DC_STATUS_SUCCESS;
 
 error_close:
-	dc_usbhid_close(eon->usbhid);
+	dc_iostream_close(eon->iostream);
 error_free:
 	free(eon);
 	return status;
@@ -771,7 +771,7 @@ suunto_eonsteel_device_close(dc_device_t *abstract)
 {
 	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
 
-	dc_usbhid_close(eon->usbhid);
+	dc_iostream_close(eon->iostream);
 
 	return DC_STATUS_SUCCESS;
 }

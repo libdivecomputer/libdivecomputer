@@ -247,6 +247,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\custom.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\datetime.c"
 				>
 			</File>
@@ -292,6 +296,10 @@
 			</File>
 			<File
 				RelativePath="..\src\ihex.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\iostream.c"
 				>
 			</File>
 			<File
@@ -416,6 +424,10 @@
 			</File>
 			<File
 				RelativePath="..\src\shearwater_predator_parser.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\socket.c"
 				>
 			</File>
 			<File
@@ -573,6 +585,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\custom.h"
+				>
+			</File>
+			<File
 				RelativePath="..\include\libdivecomputer\datetime.h"
 				>
 			</File>
@@ -622,6 +638,14 @@
 			</File>
 			<File
 				RelativePath="..\src\ihex.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\iostream-private.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\iostream.h"
 				>
 			</File>
 			<File
@@ -746,6 +770,10 @@
 			</File>
 			<File
 				RelativePath="..\src\shearwater_predator.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\socket.h"
 				>
 			</File>
 			<File
