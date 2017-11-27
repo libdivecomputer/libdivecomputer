@@ -382,7 +382,7 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
 				break;
 			case CCR:
-				*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
 				break;
 			default:
 				return DC_STATUS_DATAFORMAT;

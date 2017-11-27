@@ -230,8 +230,10 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 				break;
 			case SCR:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_SCR;
+				break;
 			case CCR:
-				*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
 				break;
 			case GAUGE:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;

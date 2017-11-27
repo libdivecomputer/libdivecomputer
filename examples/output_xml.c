@@ -367,7 +367,7 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 	}
 
 	if (status != DC_STATUS_UNSUPPORTED) {
-		const char *names[] = {"freedive", "gauge", "oc", "cc"};
+		const char *names[] = {"freedive", "gauge", "oc", "ccr", "scr"};
 		fprintf (output->ostream, "<divemode>%s</divemode>\n",
 			names[divemode]);
 	}

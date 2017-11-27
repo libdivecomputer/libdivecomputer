@@ -59,6 +59,7 @@
 #define OSTC3_CC    1
 #define OSTC3_GAUGE 2
 #define OSTC3_APNEA 3
+#define OSTC3_PSCR  4
 
 #define OSTC4      0x3B
 
@@ -505,8 +506,10 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 					break;
 				case OSTC_ZHL16_CC:
 				case OSTC_ZHL16_CC_GF:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
+					break;
 				case OSTC_PSCR_GF:
-					*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+					*((dc_divemode_t *) value) = DC_DIVEMODE_SCR;
 					break;
 				default:
 					return DC_STATUS_DATAFORMAT;
@@ -529,13 +532,16 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 					break;
 				case OSTC3_CC:
-					*((dc_divemode_t *) value) = DC_DIVEMODE_CC;
+					*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
 					break;
 				case OSTC3_GAUGE:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
 					break;
 				case OSTC3_APNEA:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+					break;
+				case OSTC3_PSCR:
+					*((dc_divemode_t *) value) = DC_DIVEMODE_SCR;
 					break;
 				default:
 					return DC_STATUS_DATAFORMAT;
