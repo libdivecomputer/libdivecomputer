@@ -181,10 +181,10 @@ dc_serial_open (dc_iostream_t **out, dc_context_t *context, const char *name)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_serial_t *device = NULL;
 
-	if (out == NULL)
+	if (out == NULL || name == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	INFO (context, "Open: name=%s", name ? name : "");
+	INFO (context, "Open: name=%s", name);
 
 	// Allocate memory.
 	device = (dc_serial_t *) dc_iostream_allocate (context, &dc_serial_vtable);
