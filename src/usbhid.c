@@ -107,6 +107,12 @@ static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	dc_usbhid_close, /* close */
 };
 
+static dc_mutex_t g_usbhid_mutex = DC_MUTEX_INIT;
+static size_t g_usbhid_refcount = 0;
+#ifdef USE_LIBUSB
+static libusb_context *g_usbhid_ctx = NULL;
+#endif
+
 #if defined(USE_LIBUSB)
 static dc_status_t
 syserror(int errcode)
@@ -128,14 +134,6 @@ syserror(int errcode)
 		return DC_STATUS_IO;
 	}
 }
-#endif
-#endif
-
-#ifdef USBHID
-static dc_mutex_t g_usbhid_mutex = DC_MUTEX_INIT;
-static size_t g_usbhid_refcount = 0;
-#ifdef USE_LIBUSB
-static libusb_context *g_usbhid_ctx = NULL;
 #endif
 
 static void
