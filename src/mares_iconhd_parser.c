@@ -34,6 +34,7 @@
 #define SMARTAPNEA 0x010010
 #define ICONHD    0x14
 #define ICONHDNET 0x15
+#define QUADAIR   0x23
 
 #define NGASMIXES 3
 #define NTANKS    NGASMIXES
@@ -91,6 +92,8 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	unsigned int header = 0x5C;
 	if (parser->model == ICONHDNET)
 		header = 0x80;
+	else if (parser->model == QUADAIR)
+		header = 0x84;
 	else if (parser->model == SMART)
 		header = 4; // Type and number of samples only!
 	else if (parser->model == SMARTAPNEA)
@@ -125,6 +128,9 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	unsigned int samplesize = 8;
 	if (parser->model == ICONHDNET) {
 		headersize = 0x80;
+		samplesize = 12;
+	} else if (parser->model == QUADAIR) {
+		headersize = 0x84;
 		samplesize = 12;
 	} else if (parser->model == SMART) {
 		if (mode == FREEDIVE) {
@@ -175,7 +181,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Calculate the total number of bytes for this dive.
 	unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-	if (parser->model == ICONHDNET) {
+	if (parser->model == ICONHDNET || parser->model == QUADAIR) {
 		nbytes += (nsamples / 4) * 8;
 	} else if (parser->model == SMARTAPNEA) {
 		unsigned int divetime = array_uint32_le (p + 0x24);
@@ -209,10 +215,11 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Tanks
 	unsigned int ntanks = 0;
-	if (parser->model == ICONHDNET) {
+	if (parser->model == ICONHDNET || parser->model == QUADAIR) {
+		unsigned int tankoffset = (parser->model == ICONHDNET) ? 0x58 : 0x5C;
 		while (ntanks < NTANKS) {
-			unsigned int beginpressure = array_uint16_le (p + 0x58 + ntanks * 4 + 0);
-			unsigned int endpressure   = array_uint16_le (p + 0x58 + ntanks * 4 + 2);
+			unsigned int beginpressure = array_uint16_le (p + tankoffset + ntanks * 4 + 0);
+			unsigned int endpressure   = array_uint16_le (p + tankoffset + ntanks * 4 + 2);
 			if (beginpressure == 0 && (endpressure == 0 || endpressure == 36000))
 				break;
 			ntanks++;
@@ -352,6 +359,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	}
 
 	unsigned int volume = 0, workpressure = 0;
+	unsigned int tankoffset = 0;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
@@ -394,8 +402,9 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = parser->ntanks;
 			break;
 		case DC_FIELD_TANK:
-			volume = array_uint16_le (p + 0x64 + flags * 8 + 0);
-			workpressure = array_uint16_le (p + 0x64 + flags * 8 + 2);
+			tankoffset = (parser->model == ICONHDNET) ? 0x58 : 0x5C;
+			volume = array_uint16_le (p + tankoffset + 0x0C + flags * 8 + 0);
+			workpressure = array_uint16_le (p + tankoffset + 0x0C + flags * 8 + 2);
 			if (parser->settings & 0x0100) {
 				tank->type = DC_TANKVOLUME_METRIC;
 				tank->volume = volume;
@@ -408,8 +417,8 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				tank->volume /= workpressure * PSI / ATM;
 				tank->workpressure = workpressure * PSI / BAR;
 			}
-			tank->beginpressure = array_uint16_le (p + 0x58 + flags * 4 + 0) / 100.0;
-			tank->endpressure   = array_uint16_le (p + 0x58 + flags * 4 + 2) / 100.0;
+			tank->beginpressure = array_uint16_le (p + tankoffset + flags * 4 + 0) / 100.0;
+			tank->endpressure   = array_uint16_le (p + tankoffset + flags * 4 + 2) / 100.0;
 			if (flags < parser->ngasmixes) {
 				tank->gasmix = flags;
 			} else {
@@ -602,7 +611,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			nsamples++;
 
 			// Some extra data.
-			if (parser->model == ICONHDNET && (nsamples % 4) == 0) {
+			if ((parser->model == ICONHDNET || parser->model == QUADAIR) && (nsamples % 4) == 0) {
 				// Pressure (1/100 bar).
 				unsigned int pressure = array_uint16_le(data + offset);
 				if (gasmix < parser->ntanks) {

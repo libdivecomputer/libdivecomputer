@@ -42,6 +42,7 @@
 #define PUCKPRO   0x18
 #define NEMOWIDE2 0x19
 #define PUCK2     0x1F
+#define QUADAIR   0x23
 #define QUAD      0x29
 
 #define ACK 0xAA
@@ -127,6 +128,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 		{"Puck Pro",    PUCKPRO},
 		{"Nemo Wide 2", NEMOWIDE2},
 		{"Puck 2",      PUCK2},
+		{"Quad Air",    QUADAIR},
 		{"Quad",        QUAD},
 	};
 
@@ -299,6 +301,10 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, const char *
 		device->layout = &mares_nemowide2_layout;
 		device->packetsize = 256;
 		break;
+	case QUADAIR:
+		device->layout = &mares_iconhdnet_layout;
+		device->packetsize = 256;
+		break;
 	case ICONHDNET:
 		device->layout = &mares_iconhdnet_layout;
 		device->packetsize = 4096;
@@ -463,6 +469,8 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	unsigned int header = 0x5C;
 	if (model == ICONHDNET)
 		header = 0x80;
+	else if (model == QUADAIR)
+		header = 0x84;
 	else if (model == SMART)
 		header = 4; // Type and number of samples only!
 	else if (model == SMARTAPNEA)
@@ -545,6 +553,9 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 		if (model == ICONHDNET) {
 			headersize = 0x80;
 			samplesize = 12;
+		} else if (model == QUADAIR) {
+			headersize = 0x84;
+			samplesize = 12;
 		} else if (model == SMART) {
 			if (mode == FREEDIVE) {
 				headersize = 0x2E;
@@ -577,7 +588,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
 		unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-		if (model == ICONHDNET) {
+		if (model == ICONHDNET || model == QUADAIR) {
 			nbytes += (nsamples / 4) * 8;
 		} else if (model == SMARTAPNEA) {
 			unsigned int settings = array_uint16_le (buffer + offset - headersize + 0x1C);
