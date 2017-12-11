@@ -182,7 +182,7 @@ hw_frog_transfer (hw_frog_device_t *device,
 		// Read the ready byte.
 		unsigned char answer[1] = {0};
 		status = dc_iostream_read (device->iostream, answer, sizeof (answer), NULL);
-		if (status != sizeof (answer)) {
+		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the ready byte.");
 			return status;
 		}
