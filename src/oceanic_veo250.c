@@ -75,6 +75,7 @@ static const oceanic_common_version_t oceanic_veo250_version[] = {
 
 static const oceanic_common_layout_t oceanic_veo250_layout = {
 	0x8000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0400, /* rb_logbook_begin */

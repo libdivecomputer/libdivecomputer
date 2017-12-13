@@ -41,7 +41,7 @@
 #define INVALID 0
 
 static unsigned int
-get_profile_first (const unsigned char data[], const oceanic_common_layout_t *layout)
+get_profile_first (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int pagesize)
 {
 	unsigned int value;
 
@@ -55,17 +55,22 @@ get_profile_first (const unsigned char data[], const oceanic_common_layout_t *la
 		return array_uint16_le (data + 16);
 	}
 
-	if (layout->memsize > 0x20000)
-		return (value & 0x3FFF) * PAGESIZE;
-	else if (layout->memsize > 0x10000)
-		return (value & 0x1FFF) * PAGESIZE;
-	else
-		return (value & 0x0FFF) * PAGESIZE;
+	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
+
+	if (npages > 0x2000) {
+		value &= 0x3FFF;
+	}  else if (npages > 0x1000) {
+		value &= 0x1FFF;
+	} else {
+		value &= 0x0FFF;
+	}
+
+	return layout->highmem + value * pagesize;
 }
 
 
 static unsigned int
-get_profile_last (const unsigned char data[], const oceanic_common_layout_t *layout)
+get_profile_last (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int pagesize)
 {
 	unsigned int value;
 
@@ -79,12 +84,17 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 		return array_uint16_le(data + 18);
 	}
 
-	if (layout->memsize > 0x20000)
-		return (value & 0x3FFF) * PAGESIZE;
-	else if (layout->memsize > 0x10000)
-		return (value & 0x1FFF) * PAGESIZE;
-	else
-		return (value & 0x0FFF) * PAGESIZE;
+	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
+
+	if (npages > 0x2000) {
+		value &= 0x3FFF;
+	} else if (npages > 0x1000) {
+		value &= 0x1FFF;
+	} else {
+		value &= 0x0FFF;
+	}
+
+	return layout->highmem + value * pagesize;
 }
 
 
@@ -330,6 +340,9 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 	const oceanic_common_layout_t *layout = device->layout;
 
+	// Get the pagesize
+	unsigned int pagesize = layout->highmem ? 16 * PAGESIZE : PAGESIZE;
+
 	// Cache the logbook pointer and size.
 	const unsigned char *logbooks = dc_buffer_get_data (logbook);
 	unsigned int rb_logbook_size = dc_buffer_get_size (logbook);
@@ -352,8 +365,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		entry -= layout->rb_logbook_entry_size;
 
 		// Get the profile pointers.
-		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout);
-		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout);
+		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
+		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout, pagesize);
 		if (rb_entry_first < layout->rb_profile_begin ||
 			rb_entry_first >= layout->rb_profile_end ||
 			rb_entry_last < layout->rb_profile_begin ||
@@ -365,8 +378,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		// Calculate the end pointer and the number of bytes.
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, PAGESIZE, layout);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
+		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, pagesize, layout);
+		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + pagesize;
 
 		// Take the end pointer of the most recent logbook entry as the
 		// end of profile pointer.
@@ -430,8 +443,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		entry -= layout->rb_logbook_entry_size;
 
 		// Get the profile pointers.
-		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout);
-		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout);
+		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
+		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout, pagesize);
 		if (rb_entry_first < layout->rb_profile_begin ||
 			rb_entry_first >= layout->rb_profile_end ||
 			rb_entry_last < layout->rb_profile_begin ||
@@ -445,8 +458,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		// Calculate the end pointer and the number of bytes.
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, PAGESIZE, layout);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + PAGESIZE;
+		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, pagesize, layout);
+		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + pagesize;
 
 		// Skip gaps between the profiles.
 		unsigned int gap = 0;
@@ -480,6 +493,14 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		// large enough to store this entry.
 		offset -= layout->rb_logbook_entry_size;
 		memcpy (profiles + offset, logbooks + entry, layout->rb_logbook_entry_size);
+
+		// Remove padding from the profile.
+		if (layout->highmem) {
+			unsigned char *profile = profiles + offset + layout->rb_logbook_entry_size;
+			while (rb_entry_size >= PAGESIZE && array_isequal (profile + rb_entry_size - PAGESIZE, PAGESIZE, 0xFF)) {
+				rb_entry_size -= PAGESIZE;
+			}
+		}
 
 		unsigned char *p = profiles + offset;
 		if (callback && !callback (p, rb_entry_size + layout->rb_logbook_entry_size, p, layout->rb_logbook_entry_size, userdata)) {

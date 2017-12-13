@@ -32,6 +32,7 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
+#define PROPLUSX   0x4552
 #define VTX        0x4557
 #define I750TC     0x455A
 
@@ -44,6 +45,7 @@
 #define CMD_READ1     0xB1
 #define CMD_READ8     0xB4
 #define CMD_READ16    0xB8
+#define CMD_READ16HI  0xF6
 #define CMD_WRITE     0xB2
 #define CMD_KEEPALIVE 0x91
 #define CMD_QUIT      0x6A
@@ -57,7 +59,8 @@ typedef struct oceanic_atom2_device_t {
 	unsigned int delay;
 	unsigned int bigpage;
 	unsigned char cache[256];
-	unsigned int cached;
+	unsigned int cached_page;
+	unsigned int cached_highmem;
 } oceanic_atom2_device_t;
 
 static dc_status_t oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -184,6 +187,10 @@ static const oceanic_common_version_t oceanic_reactpro_version[] = {
 	{"REACPRO2 \0\0 512K"},
 };
 
+static const oceanic_common_version_t oceanic_proplusx_version[] = {
+	{"OCEANOCX \0\0 2048"},
+};
+
 static const oceanic_common_version_t aeris_a300cs_version[] = {
 	{"AER300CS \0\0 2048"},
 	{"OCEANVTX \0\0 2048"},
@@ -196,6 +203,7 @@ static const oceanic_common_version_t aqualung_i450t_version[] = {
 
 static const oceanic_common_layout_t aeris_f10_layout = {
 	0x10000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0100, /* rb_logbook_begin */
@@ -210,6 +218,7 @@ static const oceanic_common_layout_t aeris_f10_layout = {
 
 static const oceanic_common_layout_t aeris_f11_layout = {
 	0x20000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0100, /* rb_logbook_begin */
@@ -224,6 +233,7 @@ static const oceanic_common_layout_t aeris_f11_layout = {
 
 static const oceanic_common_layout_t oceanic_default_layout = {
 	0x10000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -238,6 +248,7 @@ static const oceanic_common_layout_t oceanic_default_layout = {
 
 static const oceanic_common_layout_t oceanic_atom1_layout = {
 	0x8000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -252,6 +263,7 @@ static const oceanic_common_layout_t oceanic_atom1_layout = {
 
 static const oceanic_common_layout_t oceanic_atom2a_layout = {
 	0xFFF0, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -266,6 +278,7 @@ static const oceanic_common_layout_t oceanic_atom2a_layout = {
 
 static const oceanic_common_layout_t oceanic_atom2b_layout = {
 	0x10000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -280,6 +293,7 @@ static const oceanic_common_layout_t oceanic_atom2b_layout = {
 
 static const oceanic_common_layout_t oceanic_atom2c_layout = {
 	0xFFF0, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -294,6 +308,7 @@ static const oceanic_common_layout_t oceanic_atom2c_layout = {
 
 static const oceanic_common_layout_t sherwood_wisdom_layout = {
 	0xFFF0, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x03D0, /* rb_logbook_begin */
@@ -308,6 +323,7 @@ static const oceanic_common_layout_t sherwood_wisdom_layout = {
 
 static const oceanic_common_layout_t oceanic_proplus3_layout = {
 	0x10000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x03E0, /* rb_logbook_begin */
@@ -322,6 +338,7 @@ static const oceanic_common_layout_t oceanic_proplus3_layout = {
 
 static const oceanic_common_layout_t tusa_zenair_layout = {
 	0xFFF0, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -336,6 +353,7 @@ static const oceanic_common_layout_t tusa_zenair_layout = {
 
 static const oceanic_common_layout_t oceanic_oc1_layout = {
 	0x20000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -350,6 +368,7 @@ static const oceanic_common_layout_t oceanic_oc1_layout = {
 
 static const oceanic_common_layout_t oceanic_oci_layout = {
 	0x20000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x10C0, /* rb_logbook_begin */
@@ -364,6 +383,7 @@ static const oceanic_common_layout_t oceanic_oci_layout = {
 
 static const oceanic_common_layout_t oceanic_atom3_layout = {
 	0x20000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0400, /* rb_logbook_begin */
@@ -378,6 +398,7 @@ static const oceanic_common_layout_t oceanic_atom3_layout = {
 
 static const oceanic_common_layout_t oceanic_vt4_layout = {
 	0x20000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0420, /* rb_logbook_begin */
@@ -392,6 +413,7 @@ static const oceanic_common_layout_t oceanic_vt4_layout = {
 
 static const oceanic_common_layout_t hollis_tx1_layout = {
 	0x40000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0780, /* rb_logbook_begin */
@@ -406,6 +428,7 @@ static const oceanic_common_layout_t hollis_tx1_layout = {
 
 static const oceanic_common_layout_t oceanic_veo1_layout = {
 	0x0400, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0400, /* rb_logbook_begin */
@@ -420,6 +443,7 @@ static const oceanic_common_layout_t oceanic_veo1_layout = {
 
 static const oceanic_common_layout_t oceanic_reactpro_layout = {
 	0xFFF0, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0400, /* rb_logbook_begin */
@@ -432,8 +456,24 @@ static const oceanic_common_layout_t oceanic_reactpro_layout = {
 	1, /* pt_mode_serial */
 };
 
+static const oceanic_common_layout_t oceanic_proplusx_layout = {
+	0x440000, /* memsize */
+	0x40000, /* highmem */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x1000, /* rb_logbook_begin */
+	0x10000, /* rb_logbook_end */
+	16, /* rb_logbook_entry_size */
+	0x40000, /* rb_profile_begin */
+	0x440000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1, /* pt_mode_logbook */
+	0, /* pt_mode_serial */
+};
+
 static const oceanic_common_layout_t aeris_a300cs_layout = {
 	0x40000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0900, /* rb_logbook_begin */
@@ -448,6 +488,7 @@ static const oceanic_common_layout_t aeris_a300cs_layout = {
 
 static const oceanic_common_layout_t aqualung_i450t_layout = {
 	0x40000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x10C0, /* rb_logbook_begin */
@@ -595,12 +636,13 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	device->iostream = iostream;
 	device->delay = 0;
 	device->bigpage = 1; // no big pages
-	device->cached = INVALID;
+	device->cached_page = INVALID;
+	device->cached_highmem = INVALID;
 	memset(device->cache, 0, sizeof(device->cache));
 
 	// Get the correct baudrate.
 	unsigned int baudrate = 38400;
-	if (model == VTX || model == I750TC) {
+	if (model == VTX || model == I750TC || model == PROPLUSX) {
 		baudrate = 115200;
 	}
 
@@ -684,6 +726,9 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		device->base.layout = &oceanic_veo1_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_reactpro_version)) {
 		device->base.layout = &oceanic_reactpro_layout;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_proplusx_version)) {
+		device->base.layout = &oceanic_proplusx_layout;
+		device->bigpage = 16;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_a300cs_version)) {
 		device->base.layout = &aeris_a300cs_layout;
 		device->bigpage = 16;
@@ -779,6 +824,7 @@ static dc_status_t
 oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
 	oceanic_atom2_device_t *device = (oceanic_atom2_device_t*) abstract;
+	const oceanic_common_layout_t *layout = device->base.layout;
 
 	if ((address % PAGESIZE != 0) ||
 		(size    % PAGESIZE != 0))
@@ -807,12 +853,26 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 	// Pick the best pagesize to use.
 	unsigned int pagesize = device->bigpage * PAGESIZE;
 
+	// High memory state.
+	unsigned int highmem = 0;
+
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
-		unsigned int page = address / pagesize;
-		if (page != device->cached) {
+		// Switch to the correct read command when entering the high memory area.
+		if (layout->highmem && address >= layout->highmem && !highmem) {
+			highmem = layout->highmem;
+			read_cmd = CMD_READ16HI;
+			crc_size = 2;
+			pagesize = 16 * PAGESIZE;
+		}
+
+		// Calculate the page number after mapping the virtual high memory
+		// addresses back to their physical address.
+		unsigned int page = (address - highmem) / pagesize;
+
+		if (page != device->cached_page || highmem != device->cached_highmem) {
 			// Read the package.
-			unsigned int number = page * device->bigpage; // This is always PAGESIZE, even in big page mode.
+			unsigned int number = highmem ? page : page * device->bigpage; // This is always PAGESIZE, even in big page mode.
 			unsigned char answer[256 + 2] = {0};          // Maximum we support for the known commands.
 			unsigned char command[4] = {read_cmd,
 					(number >> 8) & 0xFF, // high
@@ -824,7 +884,8 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 
 			// Cache the page.
 			memcpy (device->cache, answer, pagesize);
-			device->cached = page;
+			device->cached_page = page;
+			device->cached_highmem = highmem;
 		}
 
 		unsigned int offset = address % pagesize;
@@ -853,7 +914,8 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 		return DC_STATUS_INVALIDARGS;
 
 	// Invalidate the cache.
-	device->cached = INVALID;
+	device->cached_page = INVALID;
+	device->cached_highmem = INVALID;
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {

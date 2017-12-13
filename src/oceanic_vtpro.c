@@ -89,6 +89,7 @@ static const oceanic_common_version_t oceanic_wisdom_version[] = {
 
 static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0x8000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x0240, /* rb_logbook_begin */
@@ -103,6 +104,7 @@ static const oceanic_common_layout_t oceanic_vtpro_layout = {
 
 static const oceanic_common_layout_t oceanic_wisdom_layout = {
 	0x8000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
 	0x03D0, /* rb_logbook_begin */
@@ -117,6 +119,7 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 
 static const oceanic_common_layout_t aeris_500ai_layout = {
 	0x20000, /* memsize */
+	0, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0110, /* cf_pointers */
 	0x0200, /* rb_logbook_begin */

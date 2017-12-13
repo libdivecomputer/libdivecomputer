@@ -208,6 +208,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Oceanic",  "OCi",                 DC_FAMILY_OCEANIC_ATOM2, 0x454B, DC_TRANSPORT_SERIAL, NULL},
 	{"Aeris",    "A300CS",              DC_FAMILY_OCEANIC_ATOM2, 0x454C, DC_TRANSPORT_SERIAL, NULL},
 	{"Beuchat",  "Mundial 3",           DC_FAMILY_OCEANIC_ATOM2, 0x4550, DC_TRANSPORT_SERIAL, NULL},
+	{"Oceanic",  "Pro Plus X",          DC_FAMILY_OCEANIC_ATOM2, 0x4552, DC_TRANSPORT_SERIAL, NULL},
 	{"Oceanic",  "F10",                 DC_FAMILY_OCEANIC_ATOM2, 0x4553, DC_TRANSPORT_SERIAL, NULL},
 	{"Oceanic",  "F11",                 DC_FAMILY_OCEANIC_ATOM2, 0x4554, DC_TRANSPORT_SERIAL, NULL},
 	{"Subgear",  "XP-Air",              DC_FAMILY_OCEANIC_ATOM2, 0x4555, DC_TRANSPORT_SERIAL, NULL},

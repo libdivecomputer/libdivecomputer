@@ -38,6 +38,7 @@ extern "C" {
 typedef struct oceanic_common_layout_t {
 	// Memory size.
 	unsigned int memsize;
+	unsigned int highmem;
 	// Device info.
 	unsigned int cf_devinfo;
 	// Ringbuffer pointers.
