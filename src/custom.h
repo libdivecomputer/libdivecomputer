@@ -58,7 +58,7 @@ typedef struct dc_custom_cbs_t {
  * on failure.
  */
 dc_status_t
-dc_custom_open (dc_iostream_t **iostream, dc_context_t *context, const dc_custom_cbs_t *callbacks, void *userdata);
+dc_custom_open (dc_iostream_t **iostream, dc_context_t *context, dc_transport_t transport, const dc_custom_cbs_t *callbacks, void *userdata);
 
 #ifdef __cplusplus
 }

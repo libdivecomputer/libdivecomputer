@@ -83,6 +83,15 @@ typedef enum dc_line_t {
 } dc_line_t;
 
 /**
+ * Get the transport type.
+ *
+ * @param[in]  iostream  A valid I/O stream.
+ * @returns The transport type of the I/O stream.
+ */
+dc_transport_t
+dc_iostream_get_transport (dc_iostream_t *iostream);
+
+/**
  * Set the read timeout.
  *
  * There are three distinct modes available:

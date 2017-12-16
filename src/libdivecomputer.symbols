@@ -33,6 +33,7 @@ dc_descriptor_get_type
 dc_descriptor_get_model
 dc_descriptor_get_transport
 
+dc_iostream_get_transport
 dc_iostream_set_timeout
 dc_iostream_set_latency
 dc_iostream_set_break

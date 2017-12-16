@@ -504,7 +504,7 @@ dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context, dc_bluetooth_addr
 	INFO (context, "Open: address=" DC_ADDRESS_FORMAT ", port=%u", address, port);
 
 	// Allocate memory.
-	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_bluetooth_vtable);
+	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_bluetooth_vtable, DC_TRANSPORT_BLUETOOTH);
 	if (device == NULL) {
 		SYSERROR (context, S_ENOMEM);
 		return DC_STATUS_NOMEMORY;

@@ -27,7 +27,7 @@
 #include "context-private.h"
 
 dc_iostream_t *
-dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable)
+dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable, dc_transport_t transport)
 {
 	dc_iostream_t *iostream = NULL;
 
@@ -44,6 +44,7 @@ dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable)
 	// Initialize the base class.
 	iostream->vtable = vtable;
 	iostream->context = context;
+	iostream->transport = transport;
 
 	return iostream;
 }
@@ -61,6 +62,15 @@ dc_iostream_isinstance (dc_iostream_t *iostream, const dc_iostream_vtable_t *vta
 		return 0;
 
 	return iostream->vtable == vtable;
+}
+
+dc_transport_t
+dc_iostream_get_transport (dc_iostream_t *iostream)
+{
+	if (iostream == NULL)
+		return DC_TRANSPORT_NONE;
+
+	return iostream->transport;
 }
 
 dc_status_t

@@ -69,17 +69,17 @@ static const dc_iostream_vtable_t dc_custom_vtable = {
 };
 
 dc_status_t
-dc_custom_open (dc_iostream_t **out, dc_context_t *context, const dc_custom_cbs_t *callbacks, void *userdata)
+dc_custom_open (dc_iostream_t **out, dc_context_t *context, dc_transport_t transport, const dc_custom_cbs_t *callbacks, void *userdata)
 {
 	dc_custom_t *custom = NULL;
 
 	if (out == NULL || callbacks == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	INFO (context, "Open: custom");
+	INFO (context, "Open: transport=%u", transport);
 
 	// Allocate memory.
-	custom = (dc_custom_t *) dc_iostream_allocate (context, &dc_custom_vtable);
+	custom = (dc_custom_t *) dc_iostream_allocate (context, &dc_custom_vtable, transport);
 	if (custom == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
