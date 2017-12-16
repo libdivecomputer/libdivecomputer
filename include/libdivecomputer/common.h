@@ -48,6 +48,7 @@ typedef enum dc_transport_t {
 	DC_TRANSPORT_USBHID    = (1 << 2),
 	DC_TRANSPORT_IRDA      = (1 << 3),
 	DC_TRANSPORT_BLUETOOTH = (1 << 4),
+	DC_TRANSPORT_BLE       = (1 << 5)
 } dc_transport_t;
 
 typedef enum dc_family_t {
