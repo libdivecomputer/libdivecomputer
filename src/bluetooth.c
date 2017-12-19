@@ -443,7 +443,7 @@ dc_bluetooth_iterator_free (dc_iterator_t *abstract)
 #endif
 
 dc_status_t
-dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context)
+dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context, dc_bluetooth_address_t address, unsigned int port)
 {
 #ifdef BLUETOOTH
 	dc_status_t status = DC_STATUS_SUCCESS;
@@ -451,6 +451,8 @@ dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context)
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
+
+	INFO (context, "Open: address=" DC_ADDRESS_FORMAT ", port=%u", address, port);
 
 	// Allocate memory.
 	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_bluetooth_vtable);
@@ -469,29 +471,6 @@ dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context)
 		goto error_free;
 	}
 
-	*out = (dc_iostream_t *) device;
-
-	return DC_STATUS_SUCCESS;
-
-error_free:
-	dc_iostream_deallocate ((dc_iostream_t *) device);
-	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
-}
-
-dc_status_t
-dc_bluetooth_connect (dc_iostream_t *abstract, dc_bluetooth_address_t address, unsigned int port)
-{
-#ifdef BLUETOOTH
-	dc_socket_t *device = (dc_socket_t *) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	INFO (abstract->context, "Connect: address=" DC_ADDRESS_FORMAT ", port=%d", address, port);
-
 #ifdef _WIN32
 	SOCKADDR_BTH sa;
 	sa.addressFamily = AF_BTH;
@@ -507,16 +486,29 @@ dc_bluetooth_connect (dc_iostream_t *abstract, dc_bluetooth_address_t address, u
 	sa.rc_family = AF_BLUETOOTH;
 	dc_address_set (&sa.rc_bdaddr, address);
 	if (port == 0) {
-		dc_status_t rc = dc_bluetooth_sdp (&sa.rc_channel, abstract->context, &sa.rc_bdaddr);
-		if (rc != DC_STATUS_SUCCESS) {
-			return rc;
+		status = dc_bluetooth_sdp (&sa.rc_channel, context, &sa.rc_bdaddr);
+		if (status != DC_STATUS_SUCCESS) {
+			goto error_close;
 		}
 	} else {
 		sa.rc_channel = port;
 	}
 #endif
 
-	return dc_socket_connect (&device->base, (struct sockaddr *) &sa, sizeof (sa));
+	status = dc_socket_connect (&device->base, (struct sockaddr *) &sa, sizeof (sa));
+	if (status != DC_STATUS_SUCCESS) {
+		goto error_close;
+	}
+
+	*out = (dc_iostream_t *) device;
+
+	return DC_STATUS_SUCCESS;
+
+error_close:
+	dc_socket_close (&device->base);
+error_free:
+	dc_iostream_deallocate ((dc_iostream_t *) device);
+	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif

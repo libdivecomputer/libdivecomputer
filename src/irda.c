@@ -289,7 +289,7 @@ dc_irda_iterator_next (dc_iterator_t *abstract, void *out)
 #endif
 
 dc_status_t
-dc_irda_open (dc_iostream_t **out, dc_context_t *context)
+dc_irda_open (dc_iostream_t **out, dc_context_t *context, unsigned int address, unsigned int lsap)
 {
 #ifdef IRDA
 	dc_status_t status = DC_STATUS_SUCCESS;
@@ -297,6 +297,8 @@ dc_irda_open (dc_iostream_t **out, dc_context_t *context)
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
+
+	INFO (context, "Open: address=%08x, lsap=%u", address, lsap);
 
 	// Allocate memory.
 	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_irda_vtable);
@@ -310,71 +312,6 @@ dc_irda_open (dc_iostream_t **out, dc_context_t *context)
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
-
-	*out = (dc_iostream_t *) device;
-
-    return DC_STATUS_SUCCESS;
-
-error_free:
-	dc_iostream_deallocate ((dc_iostream_t *) device);
-	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
-}
-
-dc_status_t
-dc_irda_connect_name (dc_iostream_t *abstract, unsigned int address, const char *name)
-{
-#ifdef IRDA
-	dc_socket_t *device = (dc_socket_t *) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	INFO (abstract->context, "Connect: address=%08x, name=%s", address, name ? name : "");
-
-#ifdef _WIN32
-	SOCKADDR_IRDA peer;
-	peer.irdaAddressFamily = AF_IRDA;
-	peer.irdaDeviceID[0] = (address      ) & 0xFF;
-	peer.irdaDeviceID[1] = (address >>  8) & 0xFF;
-	peer.irdaDeviceID[2] = (address >> 16) & 0xFF;
-	peer.irdaDeviceID[3] = (address >> 24) & 0xFF;
-	if (name) {
-		strncpy (peer.irdaServiceName, name, sizeof(peer.irdaServiceName) - 1);
-		peer.irdaServiceName[sizeof(peer.irdaServiceName) - 1] = '\0';
-	} else {
-		memset (peer.irdaServiceName, 0x00, sizeof(peer.irdaServiceName));
-	}
-#else
-	struct sockaddr_irda peer;
-	peer.sir_family = AF_IRDA;
-	peer.sir_addr = address;
-	if (name) {
-		strncpy (peer.sir_name, name, sizeof(peer.sir_name) - 1);
-		peer.sir_name[sizeof(peer.sir_name) - 1] = '\0';
-	} else {
-		memset (peer.sir_name, 0x00, sizeof(peer.sir_name));
-	}
-#endif
-
-	return dc_socket_connect (&device->base, (struct sockaddr *) &peer, sizeof (peer));
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
-}
-
-dc_status_t
-dc_irda_connect_lsap (dc_iostream_t *abstract, unsigned int address, unsigned int lsap)
-{
-#ifdef IRDA
-	dc_socket_t *device = (dc_socket_t *) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	INFO (abstract->context, "Connect: address=%08x, lsap=%u", address, lsap);
 
 #ifdef _WIN32
 	SOCKADDR_IRDA peer;
@@ -392,7 +329,20 @@ dc_irda_connect_lsap (dc_iostream_t *abstract, unsigned int address, unsigned in
 	memset (peer.sir_name, 0x00, sizeof(peer.sir_name));
 #endif
 
-	return dc_socket_connect (&device->base, (struct sockaddr *) &peer, sizeof (peer));
+	status = dc_socket_connect (&device->base, (struct sockaddr *) &peer, sizeof (peer));
+	if (status != DC_STATUS_SUCCESS) {
+		goto error_close;
+	}
+
+	*out = (dc_iostream_t *) device;
+
+	return DC_STATUS_SUCCESS;
+
+error_close:
+	dc_socket_close (&device->base);
+error_free:
+	dc_iostream_deallocate ((dc_iostream_t *) device);
+	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;
 #endif

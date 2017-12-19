@@ -200,17 +200,10 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Open the irda socket.
-	status = dc_irda_open (&device->iostream, context);
+	status = dc_irda_open (&device->iostream, context, dc_irda_device_get_address (dev), 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the irda socket.");
 		goto error_device_free;
-	}
-
-	// Connect the device.
-	status = dc_irda_connect_lsap (device->iostream, dc_irda_device_get_address (dev), 1);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to connect the device.");
-		goto error_close;
 	}
 
 	// Perform the handshaking.

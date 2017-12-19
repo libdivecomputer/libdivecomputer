@@ -87,23 +87,13 @@ dc_bluetooth_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_d
  *
  * @param[out]  iostream   A location to store the bluetooth connection.
  * @param[in]   context    A valid context object.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_bluetooth_open (dc_iostream_t **iostream, dc_context_t *context);
-
-/**
- * Connect to an bluetooth device.
- *
- * @param[in]   iostream   A valid bluetooth connection.
  * @param[in]   address    The bluetooth device address.
  * @param[in]   port       The bluetooth port number.
  * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
  * on failure.
  */
 dc_status_t
-dc_bluetooth_connect (dc_iostream_t *iostream, dc_bluetooth_address_t address, unsigned int port);
+dc_bluetooth_open (dc_iostream_t **iostream, dc_context_t *context, dc_bluetooth_address_t address, unsigned int port);
 
 #ifdef __cplusplus
 }

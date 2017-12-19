@@ -78,35 +78,13 @@ dc_irda_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_descri
  *
  * @param[out]  iostream A location to store the IrDA connection.
  * @param[in]   context  A valid context object.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_irda_open (dc_iostream_t **iostream, dc_context_t *context);
-
-/**
- * Connect to an IrDA device.
- *
- * @param[in]   iostream A valid IrDA connection.
- * @param[in]   address  The IrDA device address.
- * @param[in]   name     The IrDA service name.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_irda_connect_name (dc_iostream_t *iostream, unsigned int address, const char *name);
-
-/**
- * Connect to an IrDA device.
- *
- * @param[in]   iostream A valid IrDA connection.
  * @param[in]   address  The IrDA device address.
  * @param[in]   lsap     The IrDA LSAP number.
  * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
  * on failure.
  */
 dc_status_t
-dc_irda_connect_lsap (dc_iostream_t *iostream, unsigned int address, unsigned int lsap);
+dc_irda_open (dc_iostream_t **iostream, dc_context_t *context, unsigned int address, unsigned int lsap);
 
 #ifdef __cplusplus
 }
