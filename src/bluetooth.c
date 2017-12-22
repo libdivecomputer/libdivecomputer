@@ -50,6 +50,8 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "iostream-private.h"
+#include "iterator-private.h"
+#include "descriptor-private.h"
 
 #ifdef _WIN32
 #define DC_ADDRESS_FORMAT "%012I64X"
@@ -64,7 +66,34 @@
 
 #define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_bluetooth_vtable)
 
+struct dc_bluetooth_device_t {
+	dc_bluetooth_address_t address;
+	char name[248];
+};
+
 #ifdef BLUETOOTH
+static dc_status_t dc_bluetooth_iterator_next (dc_iterator_t *iterator, void *item);
+static dc_status_t dc_bluetooth_iterator_free (dc_iterator_t *iterator);
+
+typedef struct dc_bluetooth_iterator_t {
+	dc_iterator_t base;
+	dc_filter_t filter;
+#ifdef _WIN32
+	HANDLE hLookup;
+#else
+	int fd;
+	inquiry_info *devices;
+	size_t count;
+	size_t current;
+#endif
+} dc_bluetooth_iterator_t;
+
+static const dc_iterator_vtable_t dc_bluetooth_iterator_vtable = {
+	sizeof(dc_bluetooth_iterator_t),
+	dc_bluetooth_iterator_next,
+	dc_bluetooth_iterator_free,
+};
+
 static const dc_iostream_vtable_t dc_bluetooth_vtable = {
 	sizeof(dc_socket_t),
 	dc_socket_set_timeout, /* set_timeout */
@@ -194,6 +223,225 @@ error:
 #endif
 #endif
 
+dc_bluetooth_address_t
+dc_bluetooth_device_get_address (dc_bluetooth_device_t *device)
+{
+	if (device == NULL)
+		return 0;
+
+	return device->address;
+}
+
+const char *
+dc_bluetooth_device_get_name (dc_bluetooth_device_t *device)
+{
+	if (device == NULL || device->name[0] == '\0')
+		return NULL;
+
+	return device->name;
+}
+
+void
+dc_bluetooth_device_free (dc_bluetooth_device_t *device)
+{
+	free (device);
+}
+
+dc_status_t
+dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
+{
+#ifdef BLUETOOTH
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_bluetooth_iterator_t *iterator = NULL;
+
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	iterator = (dc_bluetooth_iterator_t *) dc_iterator_allocate (context, &dc_bluetooth_iterator_vtable);
+	if (iterator == NULL) {
+		SYSERROR (context, S_ENOMEM);
+		return DC_STATUS_NOMEMORY;
+	}
+
+#ifdef _WIN32
+	WSAQUERYSET wsaq;
+	memset(&wsaq, 0, sizeof (wsaq));
+	wsaq.dwSize = sizeof (wsaq);
+	wsaq.dwNameSpace = NS_BTH;
+	wsaq.lpcsaBuffer = NULL;
+
+	HANDLE hLookup = NULL;
+	if (WSALookupServiceBegin(&wsaq, LUP_CONTAINERS | LUP_FLUSHCACHE, &hLookup) != 0) {
+		s_errcode_t errcode = S_ERRNO;
+		if (errcode == WSASERVICE_NOT_FOUND) {
+			// No remote bluetooth devices found.
+			hLookup = NULL;
+		} else {
+			SYSERROR (context, errcode);
+			status = dc_socket_syserror(errcode);
+			goto error_free;
+		}
+	}
+
+	iterator->hLookup = hLookup;
+#else
+	// Get the resource number for the first available bluetooth adapter.
+	int dev = hci_get_route (NULL);
+	if (dev < 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error_free;
+	}
+
+	// Open a socket to the bluetooth adapter.
+	int fd = hci_open_dev (dev);
+	if (fd < 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error_free;
+	}
+
+	// Perform the bluetooth device discovery. The inquiry lasts for at
+	// most MAX_PERIODS * 1.28 seconds, and at most MAX_DEVICES devices
+	// will be returned.
+	inquiry_info *devices = NULL;
+	int ndevices = hci_inquiry (dev, MAX_PERIODS, MAX_DEVICES, NULL, &devices, IREQ_CACHE_FLUSH);
+	if (ndevices < 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error_close;
+	}
+
+	iterator->fd = fd;
+	iterator->devices = devices;
+	iterator->count = ndevices;
+	iterator->current = 0;
+#endif
+	iterator->filter = dc_descriptor_get_filter (descriptor);
+
+	*out = (dc_iterator_t *) iterator;
+
+	return DC_STATUS_SUCCESS;
+
+#ifndef _WIN32
+error_close:
+	hci_close_dev(fd);
+#endif
+error_free:
+	dc_iterator_deallocate ((dc_iterator_t *) iterator);
+	return status;
+#else
+	return DC_STATUS_UNSUPPORTED;
+#endif
+}
+
+#ifdef BLUETOOTH
+static dc_status_t
+dc_bluetooth_iterator_next (dc_iterator_t *abstract, void *out)
+{
+	dc_bluetooth_iterator_t *iterator = (dc_bluetooth_iterator_t *) abstract;
+	dc_bluetooth_device_t *device = NULL;
+
+#ifdef _WIN32
+	if (iterator->hLookup == NULL) {
+		return DC_STATUS_DONE;
+	}
+
+	unsigned char buf[4096];
+	LPWSAQUERYSET pwsaResults = (LPWSAQUERYSET) buf;
+	memset(pwsaResults, 0, sizeof(WSAQUERYSET));
+	pwsaResults->dwSize = sizeof(WSAQUERYSET);
+	pwsaResults->dwNameSpace = NS_BTH;
+	pwsaResults->lpBlob = NULL;
+
+	while (1) {
+		DWORD dwSize = sizeof(buf);
+		if (WSALookupServiceNext (iterator->hLookup, LUP_RETURN_NAME | LUP_RETURN_ADDR, &dwSize, pwsaResults) != 0) {
+			s_errcode_t errcode = S_ERRNO;
+			if (errcode == WSA_E_NO_MORE || errcode == WSAENOMORE) {
+				break; // No more results.
+			}
+			SYSERROR (abstract->context, errcode);
+			return dc_socket_syserror(errcode);
+		}
+
+		if (pwsaResults->dwNumberOfCsAddrs == 0 ||
+			pwsaResults->lpcsaBuffer == NULL ||
+			pwsaResults->lpcsaBuffer->RemoteAddr.lpSockaddr == NULL) {
+			ERROR (abstract->context, "Invalid results returned");
+			return DC_STATUS_IO;
+		}
+
+		SOCKADDR_BTH *sa = (SOCKADDR_BTH *) pwsaResults->lpcsaBuffer->RemoteAddr.lpSockaddr;
+		dc_bluetooth_address_t address = sa->btAddr;
+		const char *name = (char *) pwsaResults->lpszServiceInstanceName;
+#else
+	while (iterator->current < iterator->count) {
+		inquiry_info *dev = &iterator->devices[iterator->current++];
+
+		dc_bluetooth_address_t address = dc_address_get (&dev->bdaddr);
+
+		// Get the user friendly name.
+		char buf[HCI_MAX_NAME_LENGTH], *name = buf;
+		int rc = hci_read_remote_name (iterator->fd, &dev->bdaddr, sizeof(buf), buf, 0);
+		if (rc < 0) {
+			name = NULL;
+		}
+
+		// Null terminate the string.
+		buf[sizeof(buf) - 1] = '\0';
+#endif
+
+		INFO (abstract->context, "Discover: address=" DC_ADDRESS_FORMAT ", name=%s",
+			address, name ? name : "");
+
+		if (iterator->filter && !iterator->filter (DC_TRANSPORT_BLUETOOTH, name)) {
+			continue;
+		}
+
+		device = (dc_bluetooth_device_t *) malloc (sizeof(dc_bluetooth_device_t));
+		if (device == NULL) {
+			SYSERROR (abstract->context, S_ENOMEM);
+			return DC_STATUS_NOMEMORY;
+		}
+
+		device->address = address;
+		if (name) {
+			strncpy(device->name, name, sizeof(device->name) - 1);
+			device->name[sizeof(device->name) - 1] = '\0';
+		} else {
+			memset(device->name, 0, sizeof(device->name));
+		}
+
+		*(dc_bluetooth_device_t **) out = device;
+
+		return DC_STATUS_SUCCESS;
+	}
+
+	return DC_STATUS_DONE;
+}
+
+static dc_status_t
+dc_bluetooth_iterator_free (dc_iterator_t *abstract)
+{
+	dc_bluetooth_iterator_t *iterator = (dc_bluetooth_iterator_t *) abstract;
+
+#ifdef _WIN32
+	if (iterator->hLookup) {
+		WSALookupServiceEnd (iterator->hLookup);
+	}
+#else
+	bt_free(iterator->devices);
+	hci_close_dev(iterator->fd);
+#endif
+
+	return DC_STATUS_SUCCESS;
+}
+#endif
+
 dc_status_t
 dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context)
 {
@@ -227,141 +475,6 @@ dc_bluetooth_open (dc_iostream_t **out, dc_context_t *context)
 
 error_free:
 	dc_iostream_deallocate ((dc_iostream_t *) device);
-	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
-}
-
-dc_status_t
-dc_bluetooth_discover (dc_iostream_t *abstract, dc_bluetooth_callback_t callback, void *userdata)
-{
-#ifdef BLUETOOTH
-	dc_status_t status = DC_STATUS_SUCCESS;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-#ifdef _WIN32
-	WSAQUERYSET wsaq;
-	memset(&wsaq, 0, sizeof (wsaq));
-	wsaq.dwSize = sizeof (wsaq);
-	wsaq.dwNameSpace = NS_BTH;
-	wsaq.lpcsaBuffer = NULL;
-
-	HANDLE hLookup;
-	if (WSALookupServiceBegin(&wsaq, LUP_CONTAINERS | LUP_FLUSHCACHE, &hLookup) != 0) {
-		s_errcode_t errcode = S_ERRNO;
-		if (errcode == WSASERVICE_NOT_FOUND) {
-			// No remote bluetooth devices found.
-			status = DC_STATUS_SUCCESS;
-		} else {
-			SYSERROR (abstract->context, errcode);
-			status = dc_socket_syserror(errcode);
-		}
-		goto error_exit;
-	}
-
-	unsigned char buf[4096];
-	LPWSAQUERYSET pwsaResults = (LPWSAQUERYSET) buf;
-	memset(pwsaResults, 0, sizeof(WSAQUERYSET));
-	pwsaResults->dwSize = sizeof(WSAQUERYSET);
-	pwsaResults->dwNameSpace = NS_BTH;
-	pwsaResults->lpBlob = NULL;
-
-	while (1) {
-		DWORD dwSize = sizeof(buf);
-		if (WSALookupServiceNext (hLookup, LUP_RETURN_NAME | LUP_RETURN_ADDR, &dwSize, pwsaResults) != 0) {
-			s_errcode_t errcode = S_ERRNO;
-			if (errcode == WSA_E_NO_MORE || errcode == WSAENOMORE) {
-				break; // No more results.
-			}
-			SYSERROR (abstract->context, errcode);
-			status = dc_socket_syserror(errcode);
-			goto error_close;
-		}
-
-		if (pwsaResults->dwNumberOfCsAddrs == 0 ||
-			pwsaResults->lpcsaBuffer == NULL ||
-			pwsaResults->lpcsaBuffer->RemoteAddr.lpSockaddr == NULL) {
-			ERROR (abstract->context, "Invalid results returned");
-			status = DC_STATUS_IO;
-			goto error_close;
-		}
-
-		SOCKADDR_BTH *sa = (SOCKADDR_BTH *) pwsaResults->lpcsaBuffer->RemoteAddr.lpSockaddr;
-		dc_bluetooth_address_t address = sa->btAddr;
-		const char *name = (char *) pwsaResults->lpszServiceInstanceName;
-
-		INFO (abstract->context, "Discover: address=" DC_ADDRESS_FORMAT ", name=%s", address, name);
-
-		if (callback) callback (address, name, userdata);
-
-	}
-
-error_close:
-	WSALookupServiceEnd (hLookup);
-#else
-	// Get the resource number for the first available bluetooth adapter.
-	int dev = hci_get_route (NULL);
-	if (dev < 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		status = dc_socket_syserror(errcode);
-		goto error_exit;
-	}
-
-	// Open a socket to the bluetooth adapter.
-	int fd = hci_open_dev (dev);
-	if (fd < 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		status = dc_socket_syserror(errcode);
-		goto error_exit;
-	}
-
-	// Allocate a buffer to store the results of the discovery.
-	inquiry_info *devices = (inquiry_info *) malloc (MAX_DEVICES * sizeof(inquiry_info));
-	if (devices == NULL) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		status = dc_socket_syserror(errcode);
-		goto error_close;
-	}
-
-	// Perform the bluetooth device discovery. The inquiry lasts for at
-	// most MAX_PERIODS * 1.28 seconds, and at most MAX_DEVICES devices
-	// will be returned.
-	int ndevices = hci_inquiry (dev, MAX_PERIODS, MAX_DEVICES, NULL, &devices, IREQ_CACHE_FLUSH);
-	if (ndevices < 0) {
-		s_errcode_t errcode = S_ERRNO;
-		SYSERROR (abstract->context, errcode);
-		status = dc_socket_syserror(errcode);
-		goto error_free;
-	}
-
-	for (unsigned int i = 0; i < ndevices; ++i) {
-		dc_bluetooth_address_t address = dc_address_get (&devices[i].bdaddr);
-
-		// Get the user friendly name.
-		char buf[HCI_MAX_NAME_LENGTH], *name = buf;
-		int rc = hci_read_remote_name (fd, &devices[i].bdaddr, sizeof(buf), buf, 0);
-		if (rc < 0) {
-			name = NULL;
-		}
-
-		INFO (abstract->context, "Discover: address=" DC_ADDRESS_FORMAT ", name=%s", address, name);
-
-		if (callback) callback (address, name, userdata);
-	}
-
-error_free:
-	free(devices);
-error_close:
-	hci_close_dev(fd);
-#endif
-
-error_exit:
 	return status;
 #else
 	return DC_STATUS_UNSUPPORTED;

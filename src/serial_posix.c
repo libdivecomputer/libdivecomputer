@@ -58,6 +58,13 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "iostream-private.h"
+#include "iterator-private.h"
+#include "descriptor-private.h"
+
+#define DIRNAME "/dev"
+
+static dc_status_t dc_serial_iterator_next (dc_iterator_t *iterator, void *item);
+static dc_status_t dc_serial_iterator_free (dc_iterator_t *iterator);
 
 static dc_status_t dc_serial_set_timeout (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_serial_set_latency (dc_iostream_t *iostream, unsigned int value);
@@ -74,6 +81,16 @@ static dc_status_t dc_serial_flush (dc_iostream_t *iostream);
 static dc_status_t dc_serial_purge (dc_iostream_t *iostream, dc_direction_t direction);
 static dc_status_t dc_serial_sleep (dc_iostream_t *iostream, unsigned int milliseconds);
 static dc_status_t dc_serial_close (dc_iostream_t *iostream);
+
+struct dc_serial_device_t {
+	char name[256];
+};
+
+typedef struct dc_serial_iterator_t {
+	dc_iterator_t base;
+	dc_filter_t filter;
+	DIR *dp;
+} dc_serial_iterator_t;
 
 typedef struct dc_serial_t {
 	dc_iostream_t base;
@@ -93,6 +110,12 @@ typedef struct dc_serial_t {
 	unsigned int baudrate;
 	unsigned int nbits;
 } dc_serial_t;
+
+static const dc_iterator_vtable_t dc_serial_iterator_vtable = {
+	sizeof(dc_serial_iterator_t),
+	dc_serial_iterator_next,
+	dc_serial_iterator_free,
+};
 
 static const dc_iostream_vtable_t dc_serial_vtable = {
 	sizeof(dc_serial_t),
@@ -131,12 +154,62 @@ syserror(int errcode)
 	}
 }
 
-dc_status_t
-dc_serial_enumerate (dc_serial_callback_t callback, void *userdata)
+const char *
+dc_serial_device_get_name (dc_serial_device_t *device)
 {
-	DIR *dp = NULL;
+	if (device == NULL || device->name[0] == '\0')
+		return NULL;
+
+	return device->name;
+}
+
+void
+dc_serial_device_free (dc_serial_device_t *device)
+{
+	free (device);
+}
+
+dc_status_t
+dc_serial_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_serial_iterator_t *iterator = NULL;
+
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	iterator = (dc_serial_iterator_t *) dc_iterator_allocate (context, &dc_serial_iterator_vtable);
+	if (iterator == NULL) {
+		SYSERROR (context, ENOMEM);
+		return DC_STATUS_NOMEMORY;
+	}
+
+	iterator->dp = opendir (DIRNAME);
+	if (iterator->dp == NULL) {
+		int errcode = errno;
+		SYSERROR (context, errcode);
+		status = syserror (errcode);
+		goto error_free;
+	}
+
+	iterator->filter = dc_descriptor_get_filter (descriptor);
+
+	*out = (dc_iterator_t *) iterator;
+
+	return DC_STATUS_SUCCESS;
+
+error_free:
+	dc_iterator_deallocate ((dc_iterator_t *) iterator);
+	return status;
+}
+
+static dc_status_t
+dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
+{
+	dc_serial_iterator_t *iterator = (dc_serial_iterator_t *) abstract;
+	dc_serial_device_t *device = NULL;
+
 	struct dirent *ep = NULL;
-	const char *dirname = "/dev";
 	const char *patterns[] = {
 #if defined (__APPLE__)
 		"tty.*",
@@ -149,28 +222,44 @@ dc_serial_enumerate (dc_serial_callback_t callback, void *userdata)
 		NULL
 	};
 
-	dp = opendir (dirname);
-	if (dp == NULL) {
-		return DC_STATUS_IO;
-	}
-
-	while ((ep = readdir (dp)) != NULL) {
+	while ((ep = readdir (iterator->dp)) != NULL) {
 		for (size_t i = 0; patterns[i] != NULL; ++i) {
-			if (fnmatch (patterns[i], ep->d_name, 0) == 0) {
-				char filename[1024];
-				int n = snprintf (filename, sizeof (filename), "%s/%s", dirname, ep->d_name);
-				if (n >= sizeof (filename)) {
-					closedir (dp);
-					return DC_STATUS_NOMEMORY;
-				}
+			if (fnmatch (patterns[i], ep->d_name, 0) != 0)
+				continue;
 
-				callback (filename, userdata);
-				break;
+			char filename[sizeof(device->name)];
+			int n = snprintf (filename, sizeof (filename), "%s/%s", DIRNAME, ep->d_name);
+			if (n < 0 || (size_t) n >= sizeof (filename)) {
+				return DC_STATUS_NOMEMORY;
 			}
+
+			if (iterator->filter && !iterator->filter (DC_TRANSPORT_SERIAL, filename)) {
+				continue;
+			}
+
+			device = (dc_serial_device_t *) malloc (sizeof(dc_serial_device_t));
+			if (device == NULL) {
+				SYSERROR (abstract->context, ENOMEM);
+				return DC_STATUS_NOMEMORY;
+			}
+
+			strncpy(device->name, filename, sizeof(device->name));
+
+			*(dc_serial_device_t **) out = device;
+
+			return DC_STATUS_SUCCESS;
 		}
 	}
 
-	closedir (dp);
+	return DC_STATUS_DONE;
+}
+
+static dc_status_t
+dc_serial_iterator_free (dc_iterator_t *abstract)
+{
+	dc_serial_iterator_t *iterator = (dc_serial_iterator_t *) abstract;
+
+	closedir (iterator->dp);
 
 	return DC_STATUS_SUCCESS;
 }

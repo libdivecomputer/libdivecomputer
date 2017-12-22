@@ -25,21 +25,53 @@
 #include <libdivecomputer/common.h>
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/iostream.h>
+#include <libdivecomputer/iterator.h>
+#include <libdivecomputer/descriptor.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 /**
- * IrDA enumeration callback.
- *
- * @param[in]  address   The IrDA device address.
- * @param[in]  name      The IrDA device name.
- * @param[in]  charset   The IrDA device character set.
- * @param[in]  hints     The IrDA device hints.
- * @param[in]  userdata  The user data pointer.
+ * Opaque object representing an IrDA device.
  */
-typedef void (*dc_irda_callback_t) (unsigned int address, const char *name, unsigned int charset, unsigned int hints, void *userdata);
+typedef struct dc_irda_device_t dc_irda_device_t;
+
+/**
+ * Get the address of the IrDA device.
+ *
+ * @param[in]  device  A valid IrDA device.
+ */
+unsigned int
+dc_irda_device_get_address (dc_irda_device_t *device);
+
+/**
+ * Get the name of the IrDA device.
+ *
+ * @param[in]  device  A valid IrDA device.
+ */
+const char *
+dc_irda_device_get_name (dc_irda_device_t *device);
+
+/**
+ * Destroy the IrDA device and free all resources.
+ *
+ * @param[in]  device  A valid IrDA device.
+ */
+void
+dc_irda_device_free (dc_irda_device_t *device);
+
+/**
+ * Create an iterator to enumerate the IrDA devices.
+ *
+ * @param[out] iterator    A location to store the iterator.
+ * @param[in]  context     A valid context object.
+ * @param[in]  descriptor  A valid device descriptor or NULL.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_irda_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_descriptor_t *descriptor);
 
 /**
  * Open an IrDA connection.
@@ -51,18 +83,6 @@ typedef void (*dc_irda_callback_t) (unsigned int address, const char *name, unsi
  */
 dc_status_t
 dc_irda_open (dc_iostream_t **iostream, dc_context_t *context);
-
-/**
- * Enumerate the IrDA devices.
- *
- * @param[in]  iostream  A valid IrDA connection.
- * @param[in]  callback  The callback function to call.
- * @param[in]  userdata  User data to pass to the callback function.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_irda_discover (dc_iostream_t *iostream, dc_irda_callback_t callback, void *userdata);
 
 /**
  * Connect to an IrDA device.

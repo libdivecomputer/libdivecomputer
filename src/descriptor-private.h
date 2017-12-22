@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2012 Jef Driesen
+ * Copyright (C) 2017 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,39 +19,26 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_ITERATOR_PRIVATE_H
-#define DC_ITERATOR_PRIVATE_H
+#ifndef DC_DESCRIPTOR_PRIVATE_H
+#define DC_DESCRIPTOR_PRIVATE_H
 
-#include <libdivecomputer/context.h>
-#include <libdivecomputer/iterator.h>
+#include <libdivecomputer/descriptor.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-typedef struct dc_iterator_vtable_t dc_iterator_vtable_t;
+typedef struct dc_usb_desc_t {
+	unsigned short vid;
+	unsigned short pid;
+} dc_usb_desc_t;
 
-struct dc_iterator_t {
-	const dc_iterator_vtable_t *vtable;
-	dc_context_t *context;
-};
+typedef int (*dc_filter_t) (dc_transport_t transport, const void *userdata);
 
-struct dc_iterator_vtable_t {
-	size_t size;
-	dc_status_t (*next) (dc_iterator_t *iterator, void *item);
-	dc_status_t (*free) (dc_iterator_t *iterator);
-};
-
-dc_iterator_t *
-dc_iterator_allocate (dc_context_t *context, const dc_iterator_vtable_t *vtable);
-
-void
-dc_iterator_deallocate (dc_iterator_t *iterator);
-
-int
-dc_iterator_isinstance (dc_iterator_t *iterator, const dc_iterator_vtable_t *vtable);
+dc_filter_t
+dc_descriptor_get_filter (dc_descriptor_t *descriptor);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* DC_ITERATOR_PRIVATE_H */
+#endif /* DC_DESCRIPTOR_PRIVATE_H */
