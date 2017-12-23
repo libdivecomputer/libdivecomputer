@@ -358,6 +358,27 @@ dc_filter_internal_usb (const dc_usb_desc_t *desc, const dc_usb_desc_t values[],
 	return 0;
 }
 
+static int
+dc_filter_internal_rfcomm (const char *name)
+{
+	static const char *prefixes[] = {
+#if defined (__linux__)
+		"/dev/rfcomm",
+#endif
+		NULL
+	};
+
+	if (name == NULL)
+		return 0;
+
+	for (size_t i = 0; prefixes[i] != NULL; ++i) {
+		if (strncmp (name, prefixes[i], strlen (prefixes[i])) == 0)
+			return 1;
+	}
+
+	return prefixes[0] == NULL;
+}
+
 static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 {
 	static const char *irda[] = {
@@ -403,6 +424,8 @@ static int dc_filter_hw (dc_transport_t transport, const void *userdata)
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
 		return strncasecmp ((const char *) userdata, "OSTC", 4) == 0 ||
 			strncasecmp ((const char *) userdata, "FROG", 4) == 0;
+	} else if (transport == DC_TRANSPORT_SERIAL) {
+		return dc_filter_internal_rfcomm ((const char *) userdata);
 	}
 
 	return 1;
@@ -419,6 +442,8 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
 		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+	} else if (transport == DC_TRANSPORT_SERIAL) {
+		return dc_filter_internal_rfcomm ((const char *) userdata);
 	}
 
 	return 1;
