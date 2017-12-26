@@ -118,7 +118,7 @@ dctool_scan_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 
 	// Default option values.
 	unsigned int help = 0;
-	dc_transport_t transport = DC_TRANSPORT_NONE;
+	dc_transport_t transport = dctool_transport_default (descriptor);
 
 	// Parse the command-line options.
 	int opt = 0;

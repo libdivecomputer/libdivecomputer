@@ -49,6 +49,9 @@ dctool_transport_type (const char *name);
 const char *
 dctool_transport_name (dc_transport_t type);
 
+dc_transport_t
+dctool_transport_default (dc_descriptor_t *descriptor);
+
 void
 dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata);
 

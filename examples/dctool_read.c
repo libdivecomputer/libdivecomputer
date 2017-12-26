@@ -102,7 +102,7 @@ dctool_read_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 	int exitcode = EXIT_SUCCESS;
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_buffer_t *buffer = NULL;
-	dc_transport_t transport = DC_TRANSPORT_NONE;
+	dc_transport_t transport = dctool_transport_default (descriptor);
 
 	// Default option values.
 	unsigned int help = 0;

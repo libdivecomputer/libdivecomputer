@@ -186,6 +186,19 @@ dctool_transport_name (dc_transport_t type)
 	return NULL;
 }
 
+dc_transport_t
+dctool_transport_default (dc_descriptor_t *descriptor)
+{
+	unsigned int transports = dc_descriptor_get_transports (descriptor);
+
+	for (size_t i = 0; i < C_ARRAY_SIZE (g_transports); ++i) {
+		if (transports & g_transports[i].type)
+			return g_transports[i].type;
+	}
+
+	return DC_TRANSPORT_NONE;
+}
+
 void
 dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata)
 {

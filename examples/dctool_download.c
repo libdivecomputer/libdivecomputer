@@ -258,7 +258,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	dc_buffer_t *fingerprint = NULL;
 	dctool_output_t *output = NULL;
 	dctool_units_t units = DCTOOL_UNITS_METRIC;
-	dc_transport_t transport = DC_TRANSPORT_NONE;
+	dc_transport_t transport = dctool_transport_default (descriptor);
 
 	// Default option values.
 	unsigned int help = 0;
