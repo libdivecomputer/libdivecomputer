@@ -477,6 +477,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 				WARNING(abstract->context, "Skipped unreadable dive!");
 				continue;
 			} else {
+				dc_buffer_free(buffer);
 				return rc;
 			}
 		}
@@ -500,8 +501,10 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 				(idx     ) & 0xFF,
 				(idx >> 8) & 0xFF};
 			rc = divesystem_idive_transfer (device, cmd_sample, sizeof(cmd_sample), packet, commands->sample.size * commands->nsamples, &errcode);
-			if (rc != DC_STATUS_SUCCESS)
+			if (rc != DC_STATUS_SUCCESS) {
+				dc_buffer_free(buffer);
 				return rc;
+			}
 
 			// If the number of samples is not an exact multiple of the
 			// number of samples per packet, then the last packet
