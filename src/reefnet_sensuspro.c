@@ -182,7 +182,11 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	dc_device_t *abstract = (dc_device_t *) device;
 
 	// Assert a break condition.
-	dc_iostream_set_break (device->iostream, 1);
+	status = dc_iostream_set_break (device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set break.");
+		return status;
+	}
 
 	// Receive the handshake from the dive computer.
 	unsigned char handshake[SZ_HANDSHAKE + 2] = {0};
@@ -193,7 +197,11 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 	}
 
 	// Clear the break condition again.
-	dc_iostream_set_break (device->iostream, 0);
+	status = dc_iostream_set_break (device->iostream, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to clear break.");
+		return status;
+	}
 
 	// Verify the checksum of the handshake packet.
 	unsigned short crc = array_uint16_le (handshake + SZ_HANDSHAKE);

@@ -886,15 +886,15 @@ uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
 		return 0;
 
 	unsigned int signbit = (1 << (n - 1));
-	unsigned int mask = (0xFFFFFFFF << n);
+	unsigned int mask = (signbit - 1);
 
 	// When turning a two's-complement number with a certain number
 	// of bits into one with more bits, the sign bit must be repeated
 	// in all the extra bits.
 	if ((x & signbit) == signbit)
-		return x | mask;
+		return x | ~mask;
 	else
-		return x & ~mask;
+		return x & mask;
 }
 
 

@@ -620,7 +620,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 			break;
 
 		unsigned char *fp = buffer + offset + length - headersize + fingerprint;
-		if (device && memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+		if (memcmp (fp, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			break;
 		}
 

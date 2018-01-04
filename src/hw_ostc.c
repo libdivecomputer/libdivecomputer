@@ -905,7 +905,12 @@ hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
 	// bootloader needs to be send repeatedly, until the response packet is
 	// received. Thus the time between each two attempts is directly controlled
 	// by the timeout value.
-	dc_iostream_set_timeout (device->iostream, 300);
+	rc = dc_iostream_set_timeout (device->iostream, 300);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the timeout.");
+		free (firmware);
+		return rc;
+	}
 
 	// Setup the bootloader.
 	const unsigned int baudrates[] = {19200, 115200};
@@ -931,7 +936,12 @@ hw_ostc_device_fwupdate (dc_device_t *abstract, const char *filename)
 	}
 
 	// Increase the timeout again.
-	dc_iostream_set_timeout (device->iostream, 1000);
+	rc = dc_iostream_set_timeout (device->iostream, 1000);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the timeout.");
+		free (firmware);
+		return rc;
+	}
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;

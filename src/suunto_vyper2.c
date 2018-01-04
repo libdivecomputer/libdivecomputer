@@ -127,10 +127,18 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	dc_iostream_sleep (device->iostream, 100);
 
 	// Make sure everything is in a sane state.
-	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
+	status = dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to reset IO state.");
+		goto error_close;
+	}
 
 	// Enable half-duplex emulation.
-	dc_iostream_set_halfduplex (device->iostream, 1);
+	status = dc_iostream_set_halfduplex (device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set half duplex.");
+		goto error_close;
+	}
 
 	// Read the version info.
 	status = suunto_common2_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
@@ -187,7 +195,11 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	dc_iostream_sleep (device->iostream, 600);
 
 	// Set RTS to send the command.
-	dc_iostream_set_rts (device->iostream, 1);
+	status = dc_iostream_set_rts (device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the RTS line.");
+		return status;
+	}
 
 	// Send the command to the dive computer.
 	status = dc_iostream_write (device->iostream, command, csize, NULL);
@@ -197,7 +209,11 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 	}
 
 	// Clear RTS to receive the reply.
-	dc_iostream_set_rts (device->iostream, 0);
+	status = dc_iostream_set_rts (device->iostream, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the RTS line.");
+		return status;
+	}
 
 	// Receive the answer of the dive computer.
 	status = dc_iostream_read (device->iostream, answer, asize, NULL);

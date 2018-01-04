@@ -258,7 +258,11 @@ dc_serial_close (dc_iostream_t *abstract)
 
 #ifndef ENABLE_PTY
 	// Disable exclusive access mode.
-	ioctl (device->fd, TIOCNXCL, NULL);
+	if (ioctl (device->fd, TIOCNXCL, NULL)) {
+		int errcode = errno;
+		SYSERROR (abstract->context, errcode);
+		dc_status_set_error(&status, syserror (errcode));
+	}
 #endif
 
 	// Close the device.

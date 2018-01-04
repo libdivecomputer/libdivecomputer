@@ -222,7 +222,7 @@ static int fill_in_group_details(suunto_eonsteel_parser_t *eon, struct type_desc
 		long index;
 
 		index = strtol(grp, &end, 10);
-		if (index < 0 || index > MAXTYPE || end == grp) {
+		if (index < 0 || index >= MAXTYPE || end == grp) {
 			ERROR(eon->base.context, "Group type descriptor '%s' does not parse", desc->desc);
 			break;
 		}
@@ -349,7 +349,7 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 		}
 	} while ((name = next) != NULL);
 
-	if (type > MAXTYPE) {
+	if (type >= MAXTYPE) {
 		ERROR(eon->base.context, "Type out of range (%04x: '%s' '%s' '%s')",
 			type,
 			desc.desc ? desc.desc : "",
@@ -418,7 +418,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 			end += 4;
 		}
 
-		if (type > MAXTYPE || !eon->type_desc[type].desc) {
+		if (type >= MAXTYPE || !eon->type_desc[type].desc) {
 			HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "last", last, 16);
 			HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "this", begin, 16);
 		} else {
@@ -834,10 +834,12 @@ static void sample_setpoint_type(const struct type_desc *desc, struct sample_dat
 		sample.ppo2 = info->eon->cache.customsetpoint;
 	else {
 		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) unknown type '%s'", value, type);
+		free((void *)type);
 		return;
 	}
 
 	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, sample, info->userdata);
+	free((void *)type);
 }
 
 // uint32
@@ -1168,6 +1170,7 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX_COUNT;
 	eon->cache.initialized |= 1 << DC_FIELD_TANK_COUNT;
+	free((void *)name);
 	return 0;
 }
 

@@ -269,9 +269,13 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 	// device needs approximately 6 seconds to respond.
 	unsigned char answer[2] = {0};
 	unsigned char command[2] = {0x18, 0x00};
-	dc_iostream_set_timeout (device->iostream, 9000);
-	dc_status_t rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
-	dc_iostream_set_timeout (device->iostream, 3000);
+	dc_status_t rc = dc_iostream_set_timeout (device->iostream, 9000);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+	rc = oceanic_vtpro_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+	rc = dc_iostream_set_timeout (device->iostream, 3000);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 

@@ -480,6 +480,7 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 		sizeof(result), result);
 	if (rc < 0) {
 		ERROR(eon->base.context, "cmd DIR_LOOKUP failed");
+		return -1;
 	}
 	HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "DIR_LOOKUP", result, rc);
 
