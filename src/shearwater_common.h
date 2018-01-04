@@ -38,6 +38,7 @@ extern "C" {
 #define NERD     4
 #define PERDIX   5
 #define PERDIXAI 6
+#define NERD2    7
 
 #define NSTEPS    10000
 #define STEP(i,n) ((NSTEPS * (i) + (n) / 2) / (n))

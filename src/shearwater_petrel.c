@@ -224,8 +224,10 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		model = PETREL;
 		break;
 	case 0x0A0A: // Nerd 1
-	case 0x0E0D: // Nerd 2
 		model = NERD;
+		break;
+	case 0x0E0D: // Nerd 2
+		model = NERD2;
 		break;
 	case 0x0707:
 		model = PERDIX;
