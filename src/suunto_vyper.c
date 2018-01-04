@@ -178,7 +178,11 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 	dc_iostream_sleep (device->iostream, 500);
 
 	// Set RTS to send the command.
-	dc_iostream_set_rts (device->iostream, 1);
+	status = dc_iostream_set_rts (device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set RTS.");
+		return status;
+	}
 
 	// Send the command to the dive computer.
 	status = dc_iostream_write (device->iostream, command, csize, NULL);
@@ -202,7 +206,11 @@ suunto_vyper_send (suunto_vyper_device_t *device, const unsigned char command[],
 	dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
 
 	// Clear RTS to receive the reply.
-	dc_iostream_set_rts (device->iostream, 0);
+	status = dc_iostream_set_rts (device->iostream, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to clear RTS.");
+		return status;
+	}
 
 	return DC_STATUS_SUCCESS;
 }

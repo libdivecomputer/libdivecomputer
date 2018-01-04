@@ -159,7 +159,11 @@ citizen_aqualand_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	dc_iostream_set_dtr (device->iostream, 1);
+	status = dc_iostream_set_dtr (device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the DTR line.");
+		return status;
+	}
 
 	// Send the init byte.
 	const unsigned char init[] = {0x7F};
@@ -201,7 +205,11 @@ citizen_aqualand_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			break;
 	}
 
-	dc_iostream_set_dtr (device->iostream, 0);
+	status = dc_iostream_set_dtr (device->iostream, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to clear the DTR line.");
+		return status;
+	}
 
 	return DC_STATUS_SUCCESS;
 }

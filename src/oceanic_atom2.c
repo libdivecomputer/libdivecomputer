@@ -630,8 +630,16 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	dc_iostream_sleep (device->iostream, 100);
 
 	// Set the DTR/RTS lines.
-	dc_iostream_set_dtr(device->iostream, 1);
-	dc_iostream_set_rts(device->iostream, 1);
+	status = dc_iostream_set_dtr(device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the DTR line.");
+		return status;
+	}
+	status = dc_iostream_set_rts(device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the DTR line.");
+		return status;
+	}
 
 	// Make sure everything is in a sane state.
 	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);

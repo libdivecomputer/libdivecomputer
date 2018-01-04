@@ -240,7 +240,11 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 		return DC_STATUS_CANCELLED;
 
 	// Clear RTS to send the command.
-	dc_iostream_set_rts (device->iostream, 0);
+	status = dc_iostream_set_rts (device->iostream, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to clear RTS.");
+		return status;
+	}
 
 	// Send the command to the dive computer.
 	status = dc_iostream_write (device->iostream, command, csize, NULL);
@@ -265,7 +269,11 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 	}
 
 	// Set RTS to receive the reply.
-	dc_iostream_set_rts (device->iostream, 1);
+	status = dc_iostream_set_rts (device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set RTS.");
+		return status;
+	}
 
 	// Receive the answer of the dive computer.
 	status = dc_iostream_read (device->iostream, answer, asize, NULL);

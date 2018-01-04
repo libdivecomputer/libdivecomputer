@@ -161,7 +161,11 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char answer[3] = {0};
 
 	// Assert DTR
-	dc_iostream_set_dtr (device->iostream, 1);
+	status = dc_iostream_set_dtr(device->iostream, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the DTR line.");
+		return status;
+	}
 
 	// Send: 0xFF
 	command[0] = 0xFF;
