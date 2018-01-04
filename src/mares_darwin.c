@@ -331,7 +331,7 @@ mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 			current -= length;
 		}
 
-		if (device && memcmp (buffer, device->fingerprint, sizeof (device->fingerprint)) == 0) {
+		if (memcmp (buffer, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			free (buffer);
 			return DC_STATUS_SUCCESS;
 		}
