@@ -834,10 +834,12 @@ static void sample_setpoint_type(const struct type_desc *desc, struct sample_dat
 		sample.ppo2 = info->eon->cache.customsetpoint;
 	else {
 		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) unknown type '%s'", value, type);
+		free((void *)type);
 		return;
 	}
 
 	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, sample, info->userdata);
+	free((void *)type);
 }
 
 // uint32
@@ -1168,6 +1170,7 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX_COUNT;
 	eon->cache.initialized |= 1 << DC_FIELD_TANK_COUNT;
+	free((void *)name);
 	return 0;
 }
 
