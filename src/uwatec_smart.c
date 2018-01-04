@@ -213,17 +213,10 @@ error_free:
 static dc_status_t
 uwatec_smart_device_close (dc_device_t *abstract)
 {
-	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_device_t *device = (uwatec_smart_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
 
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (status != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
-	return status;
+	// Close the device and pass up the return code.
+	return dc_iostream_close (device->iostream);
 }
 
 
