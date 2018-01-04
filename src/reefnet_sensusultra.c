@@ -716,6 +716,7 @@ reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 
 		// Prepend the packet to the buffer.
 		if (!dc_buffer_prepend (buffer, packet + 2, SZ_PACKET)) {
+			dc_buffer_free (buffer);
 			ERROR (abstract->context, "Insufficient buffer space available.");
 			return DC_STATUS_NOMEMORY;
 		}
