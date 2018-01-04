@@ -221,18 +221,22 @@ dc_irda_connect_name (dc_iostream_t *abstract, unsigned int address, const char 
 	peer.irdaDeviceID[1] = (address >>  8) & 0xFF;
 	peer.irdaDeviceID[2] = (address >> 16) & 0xFF;
 	peer.irdaDeviceID[3] = (address >> 24) & 0xFF;
-    if (name)
-		strncpy (peer.irdaServiceName, name, 25);
-	else
-		memset (peer.irdaServiceName, 0x00, 25);
+	if (name) {
+		strncpy (peer.irdaServiceName, name, sizeof(peer.irdaServiceName) - 1);
+		peer.irdaServiceName[sizeof(peer.irdaServiceName) - 1] = '\0';
+	} else {
+		memset (peer.irdaServiceName, 0x00, sizeof(peer.irdaServiceName));
+	}
 #else
 	struct sockaddr_irda peer;
 	peer.sir_family = AF_IRDA;
 	peer.sir_addr = address;
-	if (name)
-		strncpy (peer.sir_name, name, 25);
-	else
-		memset (peer.sir_name, 0x00, 25);
+	if (name) {
+		strncpy (peer.sir_name, name, sizeof(peer.sir_name) - 1);
+		peer.sir_name[sizeof(peer.sir_name) - 1] = '\0';
+	} else {
+		memset (peer.sir_name, 0x00, sizeof(peer.sir_name));
+	}
 #endif
 
 	return dc_socket_connect (&device->base, (struct sockaddr *) &peer, sizeof (peer));
