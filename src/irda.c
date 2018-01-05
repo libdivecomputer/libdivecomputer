@@ -263,13 +263,13 @@ dc_irda_connect_lsap (dc_iostream_t *abstract, unsigned int address, unsigned in
 	peer.irdaDeviceID[1] = (address >>  8) & 0xFF;
 	peer.irdaDeviceID[2] = (address >> 16) & 0xFF;
 	peer.irdaDeviceID[3] = (address >> 24) & 0xFF;
-	snprintf (peer.irdaServiceName, 25, "LSAP-SEL%u", lsap);
+	snprintf (peer.irdaServiceName, sizeof(peer.irdaServiceName), "LSAP-SEL%u", lsap);
 #else
 	struct sockaddr_irda peer;
 	peer.sir_family = AF_IRDA;
 	peer.sir_addr = address;
 	peer.sir_lsap_sel = lsap;
-	memset (peer.sir_name, 0x00, 25);
+	memset (peer.sir_name, 0x00, sizeof(peer.sir_name));
 #endif
 
 	return dc_socket_connect (&device->base, (struct sockaddr *) &peer, sizeof (peer));
