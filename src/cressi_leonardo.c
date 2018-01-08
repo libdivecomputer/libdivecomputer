@@ -320,9 +320,8 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;
 
-	// Erase the current contents of the buffer and
-	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
+	// Allocate the required amount of memory.
+	if (!dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}

@@ -263,9 +263,8 @@ zeagle_n2ition3_device_read (dc_device_t *abstract, unsigned int address, unsign
 static dc_status_t
 zeagle_n2ition3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
-	// Erase the current contents of the buffer and
-	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, SZ_MEMORY)) {
+	// Allocate the required amount of memory.
+	if (!dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}

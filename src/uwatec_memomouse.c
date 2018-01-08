@@ -450,12 +450,6 @@ uwatec_memomouse_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	uwatec_memomouse_device_t *device = (uwatec_memomouse_device_t*) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
-	// Erase the current contents of the buffer.
-	if (!dc_buffer_clear (buffer)) {
-		ERROR (abstract->context, "Insufficient buffer space available.");
-		return DC_STATUS_NOMEMORY;
-	}
-
 	// Give the interface some time to notice the DTR
 	// line change from a previous transfer (if any).
 	dc_iostream_sleep (device->iostream, 500);

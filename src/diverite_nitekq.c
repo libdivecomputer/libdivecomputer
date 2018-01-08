@@ -258,8 +258,8 @@ diverite_nitekq_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char packet[256] = {0};
 
-	// Erase the current contents of the buffer.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_PACKET + SZ_MEMORY)) {
+	// Pre-allocate the required amount of memory.
+	if (!dc_buffer_reserve (buffer, SZ_PACKET + SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}

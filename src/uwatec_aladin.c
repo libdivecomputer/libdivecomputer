@@ -178,9 +178,8 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 
-	// Erase the current contents of the buffer and
-	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_reserve (buffer, SZ_MEMORY)) {
+	// Pre-allocate the required amount of memory.
+	if (!dc_buffer_reserve (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}

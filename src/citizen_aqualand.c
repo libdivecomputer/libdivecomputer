@@ -152,13 +152,6 @@ citizen_aqualand_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	citizen_aqualand_device_t *device = (citizen_aqualand_device_t *) abstract;
 
-	// Erase the current contents of the buffer and
-	// pre-allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer)) {
-		ERROR (abstract->context, "Insufficient buffer space available.");
-		return DC_STATUS_NOMEMORY;
-	}
-
 	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to set the DTR line.");

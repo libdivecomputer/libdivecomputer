@@ -316,6 +316,11 @@ dc_device_dump (dc_device_t *device, dc_buffer_t *buffer)
 	if (device->vtable->dump == NULL)
 		return DC_STATUS_UNSUPPORTED;
 
+	if (buffer == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	dc_buffer_clear (buffer);
+
 	return device->vtable->dump (device, buffer);
 }
 

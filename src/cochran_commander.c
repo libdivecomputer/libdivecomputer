@@ -842,12 +842,6 @@ cochran_commander_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned int config_size = sizeof(config);
 	unsigned int size = device->layout->rb_profile_end - device->layout->rb_logbook_begin;
 
-	// Make sure buffer is good.
-	if (!dc_buffer_clear(buffer)) {
-		ERROR (abstract->context, "Uninitialized buffer.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	// Reserve space
 	if (!dc_buffer_resize(buffer, size)) {
 		ERROR(abstract->context, "Insufficient buffer space available.");

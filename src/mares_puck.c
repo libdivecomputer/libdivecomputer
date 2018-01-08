@@ -224,9 +224,8 @@ mares_puck_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	assert (device->layout != NULL);
 
-	// Erase the current contents of the buffer and
-	// allocate the required amount of memory.
-	if (!dc_buffer_clear (buffer) || !dc_buffer_resize (buffer, device->layout->memsize)) {
+	// Allocate the required amount of memory.
+	if (!dc_buffer_resize (buffer, device->layout->memsize)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}

@@ -219,12 +219,6 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t*) abstract;
 
-	// Erase the current contents of the buffer.
-	if (!dc_buffer_clear (buffer)) {
-		ERROR (abstract->context, "Insufficient buffer space available.");
-		return DC_STATUS_NOMEMORY;
-	}
-
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = SZ_HEADER + SZ_FW_NEW;
