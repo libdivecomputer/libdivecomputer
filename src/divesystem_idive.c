@@ -493,7 +493,12 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 
 		dc_buffer_clear(buffer);
 		dc_buffer_reserve(buffer, commands->header.size + commands->sample.size * nsamples);
-		dc_buffer_append(buffer, packet, commands->header.size);
+
+		if (!dc_buffer_append(buffer, packet, commands->header.size)) {
+			ERROR (abstract->context, "Insufficient buffer space available.");
+			dc_buffer_free(buffer);
+			return rc;
+		}
 
 		for (unsigned int j = 0; j < nsamples; j += commands->nsamples) {
 			unsigned int idx = j + 1;
@@ -518,7 +523,11 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 			progress.current = i * NSTEPS + STEP(j + n + 1, nsamples + 1);
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-			dc_buffer_append(buffer, packet, commands->sample.size * n);
+			if (!dc_buffer_append(buffer, packet, commands->sample.size * n)) {
+				ERROR (abstract->context, "Insufficient buffer space available.");
+				dc_buffer_free(buffer);
+				return rc;
+			}
 		}
 
 		unsigned char *data = dc_buffer_get_data(buffer);

@@ -1150,7 +1150,11 @@ hw_ostc3_firmware_readfile4 (dc_buffer_t *buffer, dc_context_t *context, const c
 	size_t n = 0;
 	unsigned char block[1024] = {0};
 	while ((n = fread (block, 1, sizeof (block), fp)) > 0) {
-		dc_buffer_append (buffer, block, n);
+		if (!dc_buffer_append (buffer, block, n)) {
+			ERROR (context, "Insufficient buffer space available.");
+			fclose (fp);
+			return DC_STATUS_NOMEMORY;
+		}
 	}
 
 	// Close the file.

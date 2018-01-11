@@ -94,6 +94,15 @@ static const dc_device_vtable_t suunto_eonsteel_device_vtable = {
 
 static const char dive_directory[] = "0:/dives";
 
+static void file_list_free (struct directory_entry *de)
+{
+	while (de) {
+		struct directory_entry *next = de->next;
+		free (de);
+		de = next;
+	}
+}
+
 static struct directory_entry *alloc_dirent(int type, int len, const char *name)
 {
 	struct directory_entry *res;
@@ -414,7 +423,10 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 
 		if (got > size)
 			got = size;
-		dc_buffer_append(buf, result+8, got);
+		if (!dc_buffer_append (buf, result + 8, got)) {
+			ERROR (eon->base.context, "Insufficient buffer space available.");
+			return -1;
+		}
 		offset += got;
 		size -= got;
 	}
@@ -674,7 +686,13 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 		de = de->next;
 	}
 
-	file = dc_buffer_new(0);
+	file = dc_buffer_new (16384);
+	if (file == NULL) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
+		file_list_free (latest);
+		return DC_STATUS_NOMEMORY;
+	}
+
 	progress.maximum = count;
 	progress.current = 0;
 	device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);

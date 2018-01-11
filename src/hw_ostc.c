@@ -587,7 +587,10 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 
 		if (format == HW_OSTC_FORMAT_RAW) {
 			// Append the raw data to the output buffer.
-			dc_buffer_append (buffer, raw, nbytes);
+			if (!dc_buffer_append (buffer, raw, nbytes)) {
+				ERROR (abstract->context, "Insufficient buffer space available.");
+				return DC_STATUS_NOMEMORY;
+			}
 		} else {
 			// Store the decompressed data in the output buffer.
 			for (unsigned int i = 0; i < count; ++i) {

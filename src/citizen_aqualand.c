@@ -185,7 +185,10 @@ citizen_aqualand_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			return status;
 		}
 
-		dc_buffer_append(buffer, answer, sizeof (answer));
+		if (!dc_buffer_append(buffer, answer, sizeof (answer))) {
+			ERROR (abstract->context, "Insufficient buffer space available.");
+			return status;
+		}
 
 		// Send the command.
 		status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
