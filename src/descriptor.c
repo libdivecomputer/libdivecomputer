@@ -321,6 +321,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Ratio",      "iDive Easy",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x42},
 	{"Ratio",      "iDive Deep",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x44},
 	{"Ratio",      "iDive Tech+",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x45},
+	{"Seac",       "Jack",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x1000},
 	/* Cochran Commander */
 	{"Cochran", "Commander TM", DC_FAMILY_COCHRAN_COMMANDER, 0},
 	{"Cochran", "Commander I",  DC_FAMILY_COCHRAN_COMMANDER, 1},
