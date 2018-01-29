@@ -66,6 +66,7 @@ struct shearwater_predator_parser_t {
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
+	unsigned int calibrated;
 	double calibration[3];
 	dc_divemode_t mode;
 };
@@ -148,6 +149,10 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
 	}
+	parser->calibrated = 0;
+	for (unsigned int i = 0; i < 3; ++i) {
+		parser->calibration[i] = 0.0;
+	}
 	parser->mode = DC_DIVEMODE_OC;
 
 	*out = (dc_parser_t *) parser;
@@ -184,6 +189,10 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
+	}
+	parser->calibrated = 0;
+	for (unsigned int i = 0; i < 3; ++i) {
+		parser->calibration[i] = 0.0;
 	}
 	parser->mode = DC_DIVEMODE_OC;
 
@@ -299,17 +308,34 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	}
 
 	// Cache sensor calibration for later use
-	parser->calibration[0] = array_uint16_be(data + 87) / 100000.0;
-	parser->calibration[1] = array_uint16_be(data + 89) / 100000.0;
-	parser->calibration[2] = array_uint16_be(data + 91) / 100000.0;
-	// The Predator expects the mV output of the cells to be within 30mV
-	// to 70mV in 100% O2 at 1 atmosphere.
-	// If the calibration value is scaled with a factor 2.2, then the
-	// sensors lines up and matches the average.
-	if (parser->model == PREDATOR) {
-		for (size_t i = 0; i < 3; ++i) {
+	unsigned int nsensors = 0, ndefaults = 0;
+	for (size_t i = 0; i < 3; ++i) {
+		unsigned int calibration = array_uint16_be(data + 87 + i * 2);
+		parser->calibration[i] = calibration / 100000.0;
+		if (parser->model == PREDATOR) {
+			// The Predator expects the mV output of the cells to be
+			// within 30mV to 70mV in 100% O2 at 1 atmosphere. If the
+			// calibration value is scaled with a factor 2.2, then the
+			// sensors lines up and matches the average.
 			parser->calibration[i] *= 2.2;
 		}
+		if (data[86] & (1 << i)) {
+			if (calibration == 2100) {
+				ndefaults++;
+			}
+			nsensors++;
+		}
+	}
+	if (nsensors == ndefaults) {
+		// If all (calibrated) sensors still have their factory default
+		// calibration values (2100), they are probably not calibrated
+		// properly. To avoid returning incorrect ppO2 values to the
+		// application, they are manually disabled (e.g. marked as
+		// uncalibrated).
+		WARNING (abstract->context, "Disabled all O2 sensors due to a default calibration value.");
+		parser->calibrated = 0;
+	} else {
+		parser->calibrated = data[86];
 	}
 
 	// Cache the data for later use.
@@ -462,13 +488,13 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
 #else
 				sample.ppo2 = data[offset + 12] * parser->calibration[0];
-				if (callback && (data[86] & 0x01)) callback (DC_SAMPLE_PPO2, sample, userdata);
+				if (callback && (parser->calibrated & 0x01)) callback (DC_SAMPLE_PPO2, sample, userdata);
 
 				sample.ppo2 = data[offset + 14] * parser->calibration[1];
-				if (callback && (data[86] & 0x02)) callback (DC_SAMPLE_PPO2, sample, userdata);
+				if (callback && (parser->calibrated & 0x02)) callback (DC_SAMPLE_PPO2, sample, userdata);
 
 				sample.ppo2 = data[offset + 15] * parser->calibration[2];
-				if (callback && (data[86] & 0x04)) callback (DC_SAMPLE_PPO2, sample, userdata);
+				if (callback && (parser->calibrated & 0x04)) callback (DC_SAMPLE_PPO2, sample, userdata);
 #endif
 			}
 
