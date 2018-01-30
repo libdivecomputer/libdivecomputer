@@ -474,19 +474,19 @@ cochran_commander_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 	if (value) {
 		switch (type) {
 		case DC_FIELD_TEMPERATURE_SURFACE:
-			*((unsigned int*) value) = (data[layout->start_temp] - 32.0) / 1.8;
+			*((double *) value) = (data[layout->start_temp] - 32.0) / 1.8;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			if (data[layout->min_temp] == 0xFF)
 				return DC_STATUS_UNSUPPORTED;
-			*((unsigned int*) value) = (data[layout->min_temp] / 2.0 + 20 - 32) / 1.8;
+			*((double *) value) = (data[layout->min_temp] / 2.0 + 20 - 32) / 1.8;
 			break;
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
 			if (layout->max_temp == UNSUPPORTED)
 				return DC_STATUS_UNSUPPORTED;
 			if (data[layout->max_temp] == 0xFF)
 				return DC_STATUS_UNSUPPORTED;
-			*((unsigned int*) value) = (data[layout->max_temp] / 2.0 + 20 - 32) / 1.8;
+			*((double *) value) = (data[layout->max_temp] / 2.0 + 20 - 32) / 1.8;
 			break;
 		case DC_FIELD_DIVETIME:
 			minutes = array_uint16_le(data + layout->divetime);
