@@ -32,7 +32,7 @@
 
 #define VTABLE(abstract)	((const oceanic_common_device_vtable_t *) abstract->vtable)
 
-#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_logbook_begin, l->rb_logbook_end)
+#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 1, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
 
 #define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_profile_begin, l->rb_profile_end)
@@ -218,22 +218,21 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	// Calculate the end pointer and the number of bytes.
-	unsigned int rb_logbook_end, rb_logbook_size;
+	// Calculate the end pointer.
+	unsigned int rb_logbook_end = 0;
 	if (layout->pt_mode_global == 0) {
 		rb_logbook_end  = RB_LOGBOOK_INCR (rb_logbook_last, layout->rb_logbook_entry_size, layout);
-		rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout) + layout->rb_logbook_entry_size;
 	} else {
 		rb_logbook_end  = rb_logbook_last;
-		rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_last, layout);
-		// In a typical ringbuffer implementation with only two begin/end
-		// pointers, there is no distinction possible between an empty and
-		// a full ringbuffer. We always consider the ringbuffer full in
-		// that case, because an empty ringbuffer can be detected by
-		// inspecting the logbook entries once they are downloaded.
-		if (rb_logbook_first == rb_logbook_last)
-			rb_logbook_size = layout->rb_logbook_end - layout->rb_logbook_begin;
 	}
+
+	// Calculate the number of bytes.
+	// In a typical ringbuffer implementation with only two begin/end
+	// pointers, there is no distinction possible between an empty and a
+	// full ringbuffer. We always consider the ringbuffer full in that
+	// case, because an empty ringbuffer can be detected by inspecting
+	// the logbook entries once they are downloaded.
+	unsigned int rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_end, layout);
 
 	// Update and emit a progress event.
 	progress->current += PAGESIZE;
