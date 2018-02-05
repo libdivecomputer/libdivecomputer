@@ -326,7 +326,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			nsensors++;
 		}
 	}
-	if (nsensors == ndefaults) {
+	if (nsensors && nsensors == ndefaults) {
 		// If all (calibrated) sensors still have their factory default
 		// calibration values (2100), they are probably not calibrated
 		// properly. To avoid returning incorrect ppO2 values to the
