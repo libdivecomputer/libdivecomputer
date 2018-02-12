@@ -135,9 +135,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "Chromis",     DC_FAMILY_UWATEC_MERIDIAN, 0x24, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro", "Mantis 2",    DC_FAMILY_UWATEC_MERIDIAN, 0x26, DC_TRANSPORT_SERIAL, NULL},
 	/* Scubapro G2 */
-	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_G2, 0x17, DC_TRANSPORT_NONE, dc_filter_uwatec},
+	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_G2, 0x17, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "Aladin Square",       DC_FAMILY_UWATEC_G2, 0x22, DC_TRANSPORT_USBHID, dc_filter_uwatec},
-	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_G2, 0x32, DC_TRANSPORT_USBHID, dc_filter_uwatec},
+	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_G2, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1, DC_TRANSPORT_SERIAL, NULL},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2, DC_TRANSPORT_SERIAL, NULL},
