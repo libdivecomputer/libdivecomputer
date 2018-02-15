@@ -24,6 +24,7 @@
 #endif
 
 #include <stdlib.h> // malloc, free
+#include <stdio.h>
 
 #include "socket.h"
 
@@ -222,6 +223,54 @@ error:
 }
 #endif
 #endif
+
+char *
+dc_bluetooth_addr2str(dc_bluetooth_address_t address, char *str, size_t size)
+{
+	if (str == NULL || size < DC_BLUETOOTH_SIZE)
+		return NULL;
+
+	int n = snprintf(str, size, "%02X:%02X:%02X:%02X:%02X:%02X",
+		(unsigned char)((address >> 40) & 0xFF),
+		(unsigned char)((address >> 32) & 0xFF),
+		(unsigned char)((address >> 24) & 0xFF),
+		(unsigned char)((address >> 16) & 0xFF),
+		(unsigned char)((address >>  8) & 0xFF),
+		(unsigned char)((address >>  0) & 0xFF));
+	if (n < 0 || (size_t) n >= size)
+		return NULL;
+
+	return str;
+}
+
+dc_bluetooth_address_t
+dc_bluetooth_str2addr(const char *str)
+{
+	dc_bluetooth_address_t address = 0;
+
+	if (str == NULL)
+		return 0;
+
+	unsigned char c = 0;
+	while ((c = *str++) != '\0') {
+		if (c == ':') {
+			continue;
+		} else if (c >= '0' && c <= '9') {
+			c -= '0';
+		} else if (c >= 'A' && c <= 'F') {
+			c -= 'A' - 10;
+		} else if (c >= 'a' && c <= 'f') {
+			c -= 'a' - 10;
+		} else {
+			return 0; /* Invalid character! */
+		}
+
+		address <<= 4;
+		address |= c;
+	}
+
+	return address;
+}
 
 dc_bluetooth_address_t
 dc_bluetooth_device_get_address (dc_bluetooth_device_t *device)

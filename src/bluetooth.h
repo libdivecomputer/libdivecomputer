@@ -33,6 +33,12 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
+ * The minimum number of bytes (including the terminating null byte) for
+ * formatting a bluetooth address as a string.
+ */
+#define DC_BLUETOOTH_SIZE 18
+
+/**
  * Bluetooth address (48 bits).
  */
 #if defined (_WIN32) && !defined (__GNUC__)
@@ -40,6 +46,34 @@ typedef unsigned __int64 dc_bluetooth_address_t;
 #else
 typedef unsigned long long dc_bluetooth_address_t;
 #endif
+
+/**
+ * Convert a bluetooth address to a string.
+ *
+ * The bluetooth address is formatted as XX:XX:XX:XX:XX:XX, where each
+ * XX is a hexadecimal number specifying an octet of the 48-bit address.
+ * The minimum size for the buffer is #DC_BLUETOOTH_SIZE bytes.
+ *
+ * @param[in]  address  A bluetooth address.
+ * @param[in]  str      The memory buffer to store the result.
+ * @param[in]  size     The size of the memory buffer.
+ * @returns The null-terminated string on success, or NULL on failure.
+ */
+char *
+dc_bluetooth_addr2str(dc_bluetooth_address_t address, char *str, size_t size);
+
+/**
+ * Convert a string to a bluetooth address.
+ *
+ * The string is expected to be in the format XX:XX:XX:XX:XX:XX, where
+ * each XX is a hexadecimal number specifying an octet of the 48-bit
+ * address.
+ *
+ * @param[in]  address  A null-terminated string.
+ * @returns The bluetooth address on success, or zero on failure.
+ */
+dc_bluetooth_address_t
+dc_bluetooth_str2addr(const char *address);
 
 /**
  * Opaque object representing a bluetooth device.
