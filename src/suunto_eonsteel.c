@@ -565,22 +565,7 @@ initialize_eonsteel(suunto_eonsteel_device_t *eon)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	const unsigned char init[] = {0x02, 0x00, 0x2a, 0x00};
-	unsigned char buf[64];
 	struct eon_hdr hdr;
-
-	dc_iostream_set_timeout(eon->iostream, 10);
-
-	/* Get rid of any pending stale input first */
-	for (;;) {
-		size_t transferred = 0;
-		rc = dc_iostream_read(eon->iostream, buf, sizeof(buf), &transferred);
-		if (rc != DC_STATUS_SUCCESS)
-			break;
-		if (!transferred)
-			break;
-	}
-
-	dc_iostream_set_timeout(eon->iostream, 5000);
 
 	rc = send_cmd(eon, CMD_INIT, sizeof(init), init);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -632,6 +617,12 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned i
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "unable to open device");
 		goto error_free;
+	}
+
+	status = dc_iostream_set_timeout(eon->iostream, 5000);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the timeout.");
+		goto error_close;
 	}
 
 	status = initialize_eonsteel(eon);
