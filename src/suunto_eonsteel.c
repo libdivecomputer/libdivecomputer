@@ -143,30 +143,31 @@ static void put_le32(unsigned int val, unsigned char *p)
  * The maximum payload is 62 bytes.
  */
 #define PACKET_SIZE 64
-static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
+static dc_status_t
+receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, unsigned int size, unsigned int *actual)
 {
 	unsigned char buf[64];
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	size_t transferred = 0;
-	int len;
+	unsigned int len;
 
 	rc = dc_iostream_read(eon->iostream, buf, PACKET_SIZE, &transferred);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "read interrupt transfer failed");
-		return -1;
+		return rc;
 	}
 	if (transferred != PACKET_SIZE) {
 		ERROR(eon->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE ", expected %d)", transferred, PACKET_SIZE);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	if (buf[0] != 0x3f) {
 		ERROR(eon->base.context, "read interrupt transfer returns wrong report type (%d)", buf[0]);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	len = buf[1];
 	if (len > PACKET_SIZE-2) {
 		ERROR(eon->base.context, "read interrupt transfer reports bad length (%d)", len);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	if (len > size) {
 		ERROR(eon->base.context, "receive_packet result buffer too small - truncating");
@@ -174,10 +175,15 @@ static int receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, 
 	}
 	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf+2, len);
 	memcpy(buffer, buf+2, len);
-	return len;
+
+	if (actual)
+		*actual = len;
+
+	return DC_STATUS_SUCCESS;
 }
 
-static int send_cmd(suunto_eonsteel_device_t *eon,
+static dc_status_t
+send_cmd(suunto_eonsteel_device_t *eon,
 	unsigned short cmd,
 	unsigned int len,
 	const unsigned char *buffer)
@@ -191,7 +197,7 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 	// Two-byte packet header, followed by 12 bytes of extended header
 	if (len > sizeof(buf)-2-12) {
 		ERROR(eon->base.context, "send command with too much long");
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	memset(buf, 0, sizeof(buf));
@@ -219,12 +225,13 @@ static int send_cmd(suunto_eonsteel_device_t *eon,
 	rc = dc_iostream_write(eon->iostream, buf, sizeof(buf), &transferred);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "write interrupt transfer failed");
-		return -1;
+		return rc;
 	}
 
 	// dump every outgoing packet?
 	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "cmd", buf+2, len+12);
-	return 0;
+
+	return DC_STATUS_SUCCESS;
 }
 
 struct eon_hdr {
@@ -234,17 +241,19 @@ struct eon_hdr {
 	unsigned int len;
 };
 
-static int receive_header(suunto_eonsteel_device_t *eon, struct eon_hdr *hdr, unsigned char *buffer, int size)
+static dc_status_t
+receive_header(suunto_eonsteel_device_t *eon, struct eon_hdr *hdr, unsigned char *buffer, unsigned int size, unsigned int *actual)
 {
-	int ret;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char header[64];
+	unsigned int ret = 0;
 
-	ret = receive_packet(eon, header, sizeof(header));
-	if (ret < 0)
-		return -1;
+	rc = receive_packet(eon, header, sizeof(header), &ret);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 	if (ret < 12) {
 		ERROR(eon->base.context, "short reply packet (%d)", ret);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	/* Unpack the 12-byte header */
@@ -256,22 +265,27 @@ static int receive_header(suunto_eonsteel_device_t *eon, struct eon_hdr *hdr, un
 	ret -= 12;
 	if (ret > size) {
 		ERROR(eon->base.context, "receive_header result data buffer too small (%d vs %d)", ret, size);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	memcpy(buffer, header+12, ret);
-	return ret;
+
+	if (actual)
+		*actual = ret;
+
+	return DC_STATUS_SUCCESS;
 }
 
-static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, int size)
+static dc_status_t
+receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, unsigned int size, unsigned int *actual)
 {
-	int ret = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	unsigned int ret = 0;
 
 	while (size > 0) {
-		int len;
-
-		len = receive_packet(eon, buffer + ret, size);
-		if (len < 0)
-			return -1;
+		unsigned int len = 0;
+		rc = receive_packet(eon, buffer + ret, size, &len);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
 
 		size -= len;
 		ret += len;
@@ -281,7 +295,10 @@ static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, in
 			break;
 	}
 
-	return ret;
+	if (actual)
+		*actual = ret;
+
+	return DC_STATUS_SUCCESS;
 }
 
 /*
@@ -298,40 +315,43 @@ static int receive_data(suunto_eonsteel_device_t *eon, unsigned char *buffer, in
  * send_cmd() side. The offsets are the same in the actual raw
  * packet.
  */
-static int send_receive(suunto_eonsteel_device_t *eon,
+static dc_status_t
+send_receive(suunto_eonsteel_device_t *eon,
 	unsigned short cmd,
 	unsigned int len_out, const unsigned char *out,
-	unsigned int len_in, unsigned char *in)
+	unsigned int len_in, unsigned char *in,
+	unsigned int *result)
 {
-	int len, actual, max;
-	unsigned char buf[2048];
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	unsigned int len, actual;
 	struct eon_hdr hdr;
 
-	if (send_cmd(eon, cmd, len_out, out) < 0)
-		return -1;
+	rc = send_cmd(eon, cmd, len_out, out);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	/* Get the header and the first part of the data */
-	len = receive_header(eon, &hdr, in, len_in);
-	if (len < 0)
-		return -1;
+	rc = receive_header(eon, &hdr, in, len_in, &len);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	/* Verify the header data */
 	if (hdr.cmd != cmd) {
 		ERROR(eon->base.context, "command reply doesn't match command");
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	if (hdr.magic != eon->magic + 5) {
 		ERROR(eon->base.context, "command reply doesn't match magic (got %08x, expected %08x)", hdr.magic, eon->magic + 5);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	if (hdr.seq != eon->seq) {
 		ERROR(eon->base.context, "command reply doesn't match sequence number");
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	actual = hdr.len;
 	if (actual < len) {
 		ERROR(eon->base.context, "command reply length mismatch (got %d, claimed %d)", len, actual);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	if (actual > len_in) {
 		ERROR(eon->base.context, "command reply too big for result buffer - truncating");
@@ -339,48 +359,57 @@ static int send_receive(suunto_eonsteel_device_t *eon,
 	}
 
 	/* Get the rest of the data */
-	len += receive_data(eon, in + len, actual - len);
+	unsigned int n = 0;
+	rc = receive_data(eon, in + len, actual - len, &n);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	len += n;
 	if (len != actual) {
 		ERROR(eon->base.context, "command reply returned unexpected amoutn of data (got %d, expected %d)", len, actual);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 
 	// Successful command - increment sequence number
 	eon->seq++;
-	return len;
+
+	if (result)
+		*result = len;
+
+	return DC_STATUS_SUCCESS;
 }
 
-static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
+static dc_status_t
+read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char result[2560];
 	unsigned char cmdbuf[64];
-	unsigned int size, offset;
-	int rc, len;
+	unsigned int size, offset, len;
+	unsigned int n = 0;
 
 	memset(cmdbuf, 0, sizeof(cmdbuf));
 	len = strlen(filename) + 1;
 	if (len + 4 > sizeof(cmdbuf)) {
 		ERROR(eon->base.context, "too long filename: %s", filename);
-		return -1;
+		return DC_STATUS_PROTOCOL;
 	}
 	memcpy(cmdbuf+4, filename, len);
 	rc = send_receive(eon, CMD_FILE_OPEN,
-		len+4, cmdbuf,
-		sizeof(result), result);
-	if (rc < 0) {
+		len+4, cmdbuf, sizeof(result), result, &n);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "unable to look up %s", filename);
-		return -1;
+		return rc;
 	}
-	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "lookup", result, rc);
+	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "lookup", result, n);
 
 	rc = send_receive(eon, CMD_FILE_STAT,
-		0, NULL,
-		sizeof(result), result);
-	if (rc < 0) {
+		0, NULL, sizeof(result), result, &n);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "unable to stat %s", filename);
-		return -1;
+		return rc;
 	}
-	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "stat", result, rc);
+	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "stat", result, n);
 
 	size = array_uint32_le(result+4);
 	offset = 0;
@@ -394,53 +423,51 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
 		put_le32(1234, cmdbuf+0);	// Not file offset, after all
 		put_le32(ask, cmdbuf+4);	// Size of read
 		rc = send_receive(eon, CMD_FILE_READ,
-			8, cmdbuf,
-			sizeof(result), result);
-		if (rc < 0) {
+			8, cmdbuf, sizeof(result), result, &n);
+		if (rc != DC_STATUS_SUCCESS) {
 			ERROR(eon->base.context, "unable to read %s", filename);
-			return -1;
+			return rc;
 		}
-		if (rc < 8) {
+		if (n < 8) {
 			ERROR(eon->base.context, "got short read reply for %s", filename);
-			return -1;
+			return DC_STATUS_PROTOCOL;
 		}
 
 		// Not file offset, just stays unmodified.
 		at = array_uint32_le(result);
 		if (at != 1234) {
 			ERROR(eon->base.context, "read of %s returned different offset than asked for (%d vs %d)", filename, at, offset);
-			return -1;
+			return DC_STATUS_PROTOCOL;
 		}
 
 		// Number of bytes actually read
 		got = array_uint32_le(result+4);
 		if (!got)
 			break;
-		if (rc < 8 + got) {
+		if (n < 8 + got) {
 			ERROR(eon->base.context, "odd read size reply for offset %d of file %s", offset, filename);
-			return -1;
+			return DC_STATUS_PROTOCOL;
 		}
 
 		if (got > size)
 			got = size;
 		if (!dc_buffer_append (buf, result + 8, got)) {
 			ERROR (eon->base.context, "Insufficient buffer space available.");
-			return -1;
+			return DC_STATUS_NOMEMORY;
 		}
 		offset += got;
 		size -= got;
 	}
 
 	rc = send_receive(eon, CMD_FILE_CLOSE,
-		0, NULL,
-		sizeof(result), result);
-	if (rc < 0) {
+		0, NULL, sizeof(result), result, &n);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "cmd CMD_FILE_CLOSE failed");
-		return -1;
+		return rc;
 	}
-	HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "close", result, rc);
+	HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "close", result, n);
 
-	return offset;
+	return DC_STATUS_SUCCESS;
 }
 
 /*
@@ -448,7 +475,7 @@ static int read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buf
  * with the last dirent first. That's intentional: for dives,
  * we will want to look up the last dive first.
  */
-static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int nr, const unsigned char *p, int len, struct directory_entry *old)
+static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int nr, const unsigned char *p, unsigned int len, struct directory_entry *old)
 {
 	while (len > 8) {
 		unsigned int type = array_uint32_le(p);
@@ -475,65 +502,68 @@ static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int n
 	return old;
 }
 
-static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
+static dc_status_t
+get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	struct directory_entry *de = NULL;
 	unsigned char cmd[64];
 	unsigned char result[2048];
-	int rc, cmdlen;
+	unsigned int n = 0;
+	unsigned int cmdlen;
 
-
-	*res = NULL;
 	put_le32(0, cmd);
 	memcpy(cmd + 4, dive_directory, sizeof(dive_directory));
 	cmdlen = 4 + sizeof(dive_directory);
 	rc = send_receive(eon, CMD_DIR_OPEN,
-		cmdlen, cmd,
-		sizeof(result), result);
-	if (rc < 0) {
+		cmdlen, cmd, sizeof(result), result, &n);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "cmd DIR_LOOKUP failed");
-		return -1;
+		return rc;
 	}
-	HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "DIR_LOOKUP", result, rc);
+	HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "DIR_LOOKUP", result, n);
 
 	for (;;) {
 		unsigned int nr, last;
 
 		rc = send_receive(eon, CMD_DIR_READDIR,
-			0, NULL,
-			sizeof(result), result);
-		if (rc < 0) {
+			0, NULL, sizeof(result), result, &n);
+		if (rc != DC_STATUS_SUCCESS) {
 			ERROR(eon->base.context, "readdir failed");
 			file_list_free(de);
-			return -1;
+			return rc;
 		}
-		if (rc < 8) {
+		if (n < 8) {
 			ERROR(eon->base.context, "short readdir result");
 			file_list_free(de);
-			return -1;
+			return DC_STATUS_PROTOCOL;
 		}
 		nr = array_uint32_le(result);
 		last = array_uint32_le(result+4);
 		HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "dir packet", result, 8);
 
-		de = parse_dirent(eon, nr, result+8, rc-8, de);
+		de = parse_dirent(eon, nr, result+8, n-8, de);
 		if (last)
 			break;
 	}
 
 	rc = send_receive(eon, CMD_DIR_CLOSE,
-		0, NULL,
-		sizeof(result), result);
-	if (rc < 0) {
+		0, NULL, sizeof(result), result, &n);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "dir close failed");
+		file_list_free(de);
+		return rc;
 	}
 
 	*res = de;
-	return 0;
+
+	return DC_STATUS_SUCCESS;
 }
 
-static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
+static dc_status_t
+initialize_eonsteel(suunto_eonsteel_device_t *eon)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	const unsigned char init[] = {0x02, 0x00, 0x2a, 0x00};
 	unsigned char buf[64];
 	struct eon_hdr hdr;
@@ -543,8 +573,7 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 	/* Get rid of any pending stale input first */
 	for (;;) {
 		size_t transferred = 0;
-
-		dc_status_t rc = dc_iostream_read(eon->iostream, buf, sizeof(buf), &transferred);
+		rc = dc_iostream_read(eon->iostream, buf, sizeof(buf), &transferred);
 		if (rc != DC_STATUS_SUCCESS)
 			break;
 		if (!transferred)
@@ -553,20 +582,24 @@ static int initialize_eonsteel(suunto_eonsteel_device_t *eon)
 
 	dc_iostream_set_timeout(eon->iostream, 5000);
 
-	if (send_cmd(eon, CMD_INIT, sizeof(init), init)) {
+	rc = send_cmd(eon, CMD_INIT, sizeof(init), init);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "Failed to send initialization command");
-		return -1;
+		return rc;
 	}
-	if (receive_header(eon, &hdr, eon->version, sizeof(eon->version)) < 0) {
+
+	rc = receive_header(eon, &hdr, eon->version, sizeof(eon->version), NULL);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "Failed to receive initial reply");
-		return -1;
+		return rc;
 	}
 
 	// Don't ask
 	eon->magic = (hdr.magic & 0xffff0000) | 0x0005;
 	// Increment the sequence number for every command sent
 	eon->seq++;
-	return 0;
+
+	return DC_STATUS_SUCCESS;
 }
 
 dc_status_t
@@ -601,9 +634,9 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, unsigned i
 		goto error_free;
 	}
 
-	if (initialize_eonsteel(eon) < 0) {
+	status = initialize_eonsteel(eon);
+	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "unable to initialize device");
-		status = DC_STATUS_IO;
 		goto error_close;
 	}
 
@@ -637,7 +670,9 @@ suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned ch
 static dc_status_t
 suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
-	int skip = 0, rc;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	int skip = 0;
 	struct directory_entry *de;
 	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
 	dc_buffer_t *file;
@@ -653,8 +688,9 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	devinfo.serial = array_convert_str2num(eon->version + 0x10, 16);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	if (get_file_list(eon, &de) < 0)
-		return DC_STATUS_IO;
+	rc = get_file_list(eon, &de);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
 
 	if (de == NULL) {
 		return DC_STATUS_SUCCESS;
@@ -707,8 +743,10 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 		const unsigned char *data = NULL;
 		unsigned int size = 0;
 
-		if (device_is_cancelled(abstract))
+		if (device_is_cancelled(abstract)) {
+			dc_status_set_error(&status, DC_STATUS_CANCELLED);
 			skip = 1;
+		}
 
 		switch (de->type) {
 		case DIRTYPE_DIR:
@@ -718,8 +756,10 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 			if (skip)
 				break;
 
-			if (sscanf(de->name, "%x.LOG", &time) != 1)
+			if (sscanf(de->name, "%x.LOG", &time) != 1) {
+				dc_status_set_error(&status, DC_STATUS_PROTOCOL);
 				break;
+			}
 
 			put_le32(time, buf);
 
@@ -729,8 +769,10 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 			}
 
 			len = snprintf(pathname, sizeof(pathname), "%s/%s", dive_directory, de->name);
-			if (len >= sizeof(pathname))
+			if (len < 0 || (unsigned int) len >= sizeof(pathname)) {
+				dc_status_set_error(&status, DC_STATUS_PROTOCOL);
 				break;
+			}
 
 			// Reset the membuffer, put the 4-byte length at the head.
 			dc_buffer_clear(file);
@@ -738,8 +780,10 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 
 			// Then read the filename into the rest of the buffer
 			rc = read_file(eon, pathname, file);
-			if (rc < 0)
+			if (rc != DC_STATUS_SUCCESS) {
+				dc_status_set_error(&status, rc);
 				break;
+			}
 
 			data = dc_buffer_get_data(file);
 			size = dc_buffer_get_size(file);
@@ -755,16 +799,16 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	}
 	dc_buffer_free(file);
 
-	return device_is_cancelled(abstract) ? DC_STATUS_CANCELLED : DC_STATUS_SUCCESS;
+	return status;
 }
 
 static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	suunto_eonsteel_device_t *eon = (suunto_eonsteel_device_t *) abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char result[64], cmd[8];
 	unsigned int year, month, day;
 	unsigned int hour, min, msec;
-	int rc;
 
 	year = datetime->year;
 	month = datetime->month;
@@ -782,14 +826,14 @@ static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const 
 	cmd[6] = msec & 0xFF;
 	cmd[7] = msec >> 8;
 
-	rc = send_receive(eon, CMD_SET_TIME, sizeof(cmd), cmd, sizeof(result), result);
-	if (rc < 0) {
-		return DC_STATUS_IO;
+	rc = send_receive(eon, CMD_SET_TIME, sizeof(cmd), cmd, sizeof(result), result, NULL);
+	if (rc != DC_STATUS_SUCCESS) {
+		return rc;
 	}
 
-	rc = send_receive(eon, CMD_SET_DATE, sizeof(cmd), cmd, sizeof(result), result);
-	if (rc < 0) {
-		return DC_STATUS_IO;
+	rc = send_receive(eon, CMD_SET_DATE, sizeof(cmd), cmd, sizeof(result), result, NULL);
+	if (rc != DC_STATUS_SUCCESS) {
+		return rc;
 	}
 
 	return DC_STATUS_SUCCESS;
