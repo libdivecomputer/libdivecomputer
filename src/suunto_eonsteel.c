@@ -170,8 +170,8 @@ receive_packet(suunto_eonsteel_device_t *eon, unsigned char *buffer, unsigned in
 		return DC_STATUS_PROTOCOL;
 	}
 	if (len > size) {
-		ERROR(eon->base.context, "receive_packet result buffer too small - truncating");
-		len = size;
+		ERROR(eon->base.context, "receive_packet result buffer too small");
+		return DC_STATUS_PROTOCOL;
 	}
 	HEXDUMP (eon->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf+2, len);
 	memcpy(buffer, buf+2, len);
@@ -354,8 +354,8 @@ send_receive(suunto_eonsteel_device_t *eon,
 		return DC_STATUS_PROTOCOL;
 	}
 	if (actual > len_in) {
-		ERROR(eon->base.context, "command reply too big for result buffer - truncating");
-		actual = len_in;
+		ERROR(eon->base.context, "command reply too big for result buffer");
+		return DC_STATUS_PROTOCOL;
 	}
 
 	/* Get the rest of the data */
