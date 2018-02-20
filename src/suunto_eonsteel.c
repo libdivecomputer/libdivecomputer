@@ -717,15 +717,23 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 		case DIRTYPE_FILE:
 			if (skip)
 				break;
+
 			if (sscanf(de->name, "%x.LOG", &time) != 1)
 				break;
+
+			put_le32(time, buf);
+
+			if (memcmp (buf, eon->fingerprint, sizeof (eon->fingerprint)) == 0) {
+				skip = 1;
+				break;
+			}
+
 			len = snprintf(pathname, sizeof(pathname), "%s/%s", dive_directory, de->name);
 			if (len >= sizeof(pathname))
 				break;
 
 			// Reset the membuffer, put the 4-byte length at the head.
 			dc_buffer_clear(file);
-			put_le32(time, buf);
 			dc_buffer_append(file, buf, 4);
 
 			// Then read the filename into the rest of the buffer
@@ -735,11 +743,6 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 
 			data = dc_buffer_get_data(file);
 			size = dc_buffer_get_size(file);
-
-			if (memcmp (data, eon->fingerprint, sizeof (eon->fingerprint)) == 0) {
-				skip = 1;
-				break;
-			}
 
 			if (callback && !callback(data, size, data, sizeof(eon->fingerprint), userdata))
 				skip = 1;
