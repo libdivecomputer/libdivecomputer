@@ -504,10 +504,12 @@ static int get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry *
 			sizeof(result), result);
 		if (rc < 0) {
 			ERROR(eon->base.context, "readdir failed");
+			file_list_free(de);
 			return -1;
 		}
 		if (rc < 8) {
 			ERROR(eon->base.context, "short readdir result");
+			file_list_free(de);
 			return -1;
 		}
 		nr = array_uint32_le(result);

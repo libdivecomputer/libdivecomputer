@@ -674,6 +674,7 @@ static char *lookup_enum(const struct type_desc *desc, unsigned char value)
  */
 static void sample_event_state_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->state_type);
 	info->state_type = lookup_enum(desc, type);
 }
 
@@ -705,6 +706,7 @@ static void sample_event_state_value(const struct type_desc *desc, struct sample
 
 static void sample_event_notify_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->notify_type);
 	info->notify_type = lookup_enum(desc, type);
 }
 
@@ -747,6 +749,7 @@ static void sample_event_notify_value(const struct type_desc *desc, struct sampl
 
 static void sample_event_warning_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->warning_type);
 	info->warning_type = lookup_enum(desc, type);
 }
 
@@ -785,6 +788,7 @@ static void sample_event_warning_value(const struct type_desc *desc, struct samp
 
 static void sample_event_alarm_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->alarm_type);
 	info->alarm_type = lookup_enum(desc, type);
 }
 
@@ -1013,6 +1017,12 @@ suunto_eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback
 	struct sample_data data = { eon, callback, userdata, 0 };
 
 	traverse_data(eon, traverse_samples, &data);
+
+	free(data.state_type);
+	free(data.notify_type);
+	free(data.warning_type);
+	free(data.alarm_type);
+
 	return DC_STATUS_SUCCESS;
 }
 
