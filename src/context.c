@@ -27,11 +27,10 @@
 #ifdef _WIN32
 #define NOGDI
 #include <windows.h>
-#else
-#include <sys/time.h>
 #endif
 
 #include "context-private.h"
+#include "timer.h"
 
 struct dc_context_t {
 	dc_loglevel_t loglevel;
@@ -39,11 +38,7 @@ struct dc_context_t {
 	void *userdata;
 #ifdef ENABLE_LOGGING
 	char msg[8192 + 32];
-#ifdef _WIN32
-	LARGE_INTEGER timestamp, frequency;
-#else
-	struct timeval timestamp;
-#endif
+	dc_timer_t *timer;
 #endif
 };
 
@@ -134,23 +129,11 @@ logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsign
 {
 	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
 
-	unsigned long seconds = 0, microseconds = 0;
+	dc_usecs_t now = 0;
+	dc_timer_now (context->timer, &now);
 
-#ifdef _WIN32
-	LARGE_INTEGER now, delta;
-	QueryPerformanceCounter(&now);
-	delta.QuadPart = now.QuadPart - context->timestamp.QuadPart;
-	delta.QuadPart *= 1000000;
-	delta.QuadPart /= context->frequency.QuadPart;
-	seconds = delta.QuadPart / 1000000;
-	microseconds = delta.QuadPart % 1000000;
-#else
-	struct timeval now, delta;
-	gettimeofday (&now, NULL);
-	timersub (&now, &context->timestamp, &delta);
-	seconds = delta.tv_sec;
-	microseconds = delta.tv_usec;
-#endif
+	unsigned long seconds = now / 1000000;
+	unsigned long microseconds = now % 1000000;
 
 	if (loglevel == DC_LOGLEVEL_ERROR || loglevel == DC_LOGLEVEL_WARNING) {
 		fprintf (stderr, "[%li.%06li] %s: %s [in %s:%d (%s)]\n",
@@ -187,12 +170,8 @@ dc_context_new (dc_context_t **out)
 
 #ifdef ENABLE_LOGGING
 	memset (context->msg, 0, sizeof (context->msg));
-#ifdef _WIN32
-	QueryPerformanceFrequency(&context->frequency);
-	QueryPerformanceCounter(&context->timestamp);
-#else
-	gettimeofday (&context->timestamp, NULL);
-#endif
+	context->timer = NULL;
+	dc_timer_new (&context->timer);
 #endif
 
 	*out = context;
@@ -203,6 +182,10 @@ dc_context_new (dc_context_t **out)
 dc_status_t
 dc_context_free (dc_context_t *context)
 {
+	if (context == NULL)
+		return DC_STATUS_SUCCESS;
+
+	dc_timer_free (context->timer);
 	free (context);
 
 	return DC_STATUS_SUCCESS;
