@@ -24,6 +24,7 @@ libdivecomputer_la_SOURCES = \
 	device-private.h device.c \
 	parser-private.h parser.c \
 	datetime.c \
+	timer.h timer.c \
 	suunto_common.h suunto_common.c \
 	suunto_common2.h suunto_common2.c \
 	suunto_solution.h suunto_solution.c suunto_solution_parser.c \

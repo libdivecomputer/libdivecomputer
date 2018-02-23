@@ -157,6 +157,7 @@ AC_CHECK_HEADERS([IOKit/serial/ioss.h])
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([pthread.h])
+AC_CHECK_HEADERS([mach/mach_time.h])
 
 # Checks for global variable declarations.
 AC_CHECK_DECLS([optreset])
@@ -169,6 +170,7 @@ AC_CHECK_MEMBERS([struct tm.tm_gmtoff],,,[
 # Checks for library functions.
 AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([localtime_r gmtime_r timegm _mkgmtime])
+AC_CHECK_FUNCS([clock_gettime mach_absolute_time])
 AC_CHECK_FUNCS([getopt_long])
 
 # Checks for supported compiler options.

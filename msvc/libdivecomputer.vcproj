@@ -483,6 +483,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\timer.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\usbhid.c"
 				>
 			</File>
@@ -818,6 +822,10 @@
 			</File>
 			<File
 				RelativePath="..\src\suunto_vyper2.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\timer.h"
 				>
 			</File>
 			<File
