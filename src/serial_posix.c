@@ -30,7 +30,6 @@
 #include <fcntl.h>	// fcntl
 #include <termios.h>	// tcgetattr, tcsetattr, cfsetispeed, cfsetospeed, tcflush, tcsendbreak
 #include <sys/ioctl.h>	// ioctl
-#include <sys/time.h>	// gettimeofday
 #include <time.h>	// nanosleep
 #ifdef HAVE_LINUX_SERIAL_H
 #include <linux/serial.h>
@@ -60,6 +59,7 @@
 #include "iostream-private.h"
 #include "iterator-private.h"
 #include "descriptor-private.h"
+#include "timer.h"
 
 #define DIRNAME "/dev"
 
@@ -99,6 +99,7 @@ typedef struct dc_serial_t {
 	 */
 	int fd;
 	int timeout;
+	dc_timer_t *timer;
 	/*
 	 * Serial port settings are saved into this variable immediately
 	 * after the port is opened. These settings are restored when the
@@ -290,6 +291,13 @@ dc_serial_open (dc_iostream_t **out, dc_context_t *context, const char *name)
 	device->baudrate = 0;
 	device->nbits = 0;
 
+	// Create a high resolution timer.
+	status = dc_timer_new (&device->timer);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to create a high resolution timer.");
+		goto error_free;
+	}
+
 	// Open the device in non-blocking mode, to return immediately
 	// without waiting for the modem connection to complete.
 	device->fd = open (name, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -297,7 +305,7 @@ dc_serial_open (dc_iostream_t **out, dc_context_t *context, const char *name)
 		int errcode = errno;
 		SYSERROR (context, errcode);
 		status = syserror (errcode);
-		goto error_free;
+		goto error_timer_free;
 	}
 
 #ifndef ENABLE_PTY
@@ -327,6 +335,8 @@ dc_serial_open (dc_iostream_t **out, dc_context_t *context, const char *name)
 
 error_close:
 	close (device->fd);
+error_timer_free:
+	dc_timer_free (device->timer);
 error_free:
 	dc_iostream_deallocate ((dc_iostream_t *) device);
 	return status;
@@ -360,6 +370,8 @@ dc_serial_close (dc_iostream_t *abstract)
 		SYSERROR (abstract->context, errcode);
 		dc_status_set_error(&status, syserror (errcode));
 	}
+
+	dc_timer_free (device->timer);
 
 	return status;
 }
@@ -682,11 +694,8 @@ dc_serial_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual
 	dc_serial_t *device = (dc_serial_t *) abstract;
 	size_t nbytes = 0;
 
-	// The total timeout.
-	int timeout = device->timeout;
-
 	// The absolute target time.
-	struct timeval tve;
+	dc_usecs_t target = 0;
 
 	int init = 1;
 	while (nbytes < size) {
@@ -694,35 +703,40 @@ dc_serial_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual
 		FD_ZERO (&fds);
 		FD_SET (device->fd, &fds);
 
-		struct timeval tvt;
-		if (timeout > 0) {
-			struct timeval now;
-			if (gettimeofday (&now, NULL) != 0) {
-				int errcode = errno;
-				SYSERROR (abstract->context, errcode);
-				status = syserror (errcode);
+		struct timeval tv, *ptv = NULL;
+		if (device->timeout > 0) {
+			dc_usecs_t timeout = 0;
+
+			dc_usecs_t now = 0;
+			status = dc_timer_now (device->timer, &now);
+			if (status != DC_STATUS_SUCCESS) {
 				goto out;
 			}
 
 			if (init) {
 				// Calculate the initial timeout.
-				tvt.tv_sec  = (timeout / 1000);
-				tvt.tv_usec = (timeout % 1000) * 1000;
+				timeout = device->timeout * 1000;
 				// Calculate the target time.
-				timeradd (&now, &tvt, &tve);
+				target = now + timeout;
+				init = 0;
 			} else {
 				// Calculate the remaining timeout.
-				if (timercmp (&now, &tve, <))
-					timersub (&tve, &now, &tvt);
-				else
-					timerclear (&tvt);
+				if (now < target) {
+					timeout = target - now;
+				} else {
+					timeout = 0;
+				}
 			}
-			init = 0;
-		} else if (timeout == 0) {
-			timerclear (&tvt);
+			tv.tv_sec  = timeout / 1000000;
+			tv.tv_usec = timeout % 1000000;
+			ptv = &tv;
+		} else if (device->timeout == 0) {
+			tv.tv_sec  = 0;
+			tv.tv_usec = 0;
+			ptv = &tv;
 		}
 
-		int rc = select (device->fd + 1, &fds, NULL, NULL, timeout >= 0 ? &tvt : NULL);
+		int rc = select (device->fd + 1, &fds, NULL, NULL, ptv);
 		if (rc < 0) {
 			int errcode = errno;
 			if (errcode == EINTR)
