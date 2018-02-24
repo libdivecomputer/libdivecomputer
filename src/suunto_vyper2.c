@@ -28,6 +28,7 @@
 #include "serial.h"
 #include "checksum.h"
 #include "array.h"
+#include "timer.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), (const dc_device_vtable_t *) &suunto_vyper2_device_vtable)
 
@@ -36,6 +37,7 @@
 typedef struct suunto_vyper2_device_t {
 	suunto_common2_device_t base;
 	dc_iostream_t *iostream;
+	dc_timer_t *timer;
 } suunto_vyper2_device_t;
 
 static dc_status_t suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
@@ -95,11 +97,18 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 	// Set the default values.
 	device->iostream = NULL;
 
+	// Create a high resolution timer.
+	status = dc_timer_new (&device->timer);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to create a high resolution timer.");
+		goto error_free;
+	}
+
 	// Open the device.
 	status = dc_serial_open (&device->iostream, context, name);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
+		goto error_timer_free;
 	}
 
 	// Set the serial communication protocol (9600 8N1).
@@ -133,13 +142,6 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 		goto error_close;
 	}
 
-	// Enable half-duplex emulation.
-	status = dc_iostream_set_halfduplex (device->iostream, 1);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to set half duplex.");
-		goto error_close;
-	}
-
 	// Read the version info.
 	status = suunto_common2_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
@@ -160,6 +162,8 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, const char 
 
 error_close:
 	dc_iostream_close (device->iostream);
+error_timer_free:
+	dc_timer_free (device->timer);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -172,6 +176,8 @@ suunto_vyper2_device_close (dc_device_t *abstract)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_vyper2_device_t *device = (suunto_vyper2_device_t*) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	dc_timer_free (device->timer);
 
 	// Close the device.
 	rc = dc_iostream_close (device->iostream);
@@ -201,11 +207,46 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 		return status;
 	}
 
+	// Get the current timestamp.
+	dc_usecs_t begin = 0;
+	status = dc_timer_now (device->timer, &begin);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
 	// Send the command to the dive computer.
 	status = dc_iostream_write (device->iostream, command, csize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
+	}
+
+	// Get the current timestamp.
+	dc_usecs_t end = 0;
+	status = dc_timer_now (device->timer, &end);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Calculate the elapsed time.
+	dc_usecs_t elapsed = end - begin;
+
+	// Calculate the expected duration. A 2 millisecond fudge factor is added
+	// because it improves the success rate significantly.
+	unsigned int baudrate = 9600;
+	unsigned int nbits = 1 + 8 /* databits */ + 1 /* stopbits */ + 0 /* parity */;
+	dc_usecs_t expected = (dc_usecs_t) csize * 1000000 * nbits / baudrate + 2000;
+
+	// Wait for the remaining time.
+	if (elapsed < expected) {
+		dc_usecs_t remaining = expected - elapsed;
+
+		// The remaining time is rounded up to the nearest millisecond
+		// because the sleep function doesn't support a higher
+		// resolution on all platforms. The higher resolution is
+		// pointless anyway, since we already added a fudge factor
+		// above.
+		dc_iostream_sleep (device->iostream, (remaining + 999) / 1000);
 	}
 
 	// Clear RTS to receive the reply.
