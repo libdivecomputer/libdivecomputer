@@ -170,12 +170,6 @@ dc_socket_set_latency (dc_iostream_t *iostream, unsigned int value)
 }
 
 dc_status_t
-dc_socket_set_halfduplex (dc_iostream_t *iostream, unsigned int value)
-{
-	return DC_STATUS_SUCCESS;
-}
-
-dc_status_t
 dc_socket_set_break (dc_iostream_t *iostream, unsigned int value)
 {
 	return DC_STATUS_SUCCESS;

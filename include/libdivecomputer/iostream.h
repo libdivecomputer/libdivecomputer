@@ -130,17 +130,6 @@ dc_status_t
 dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value);
 
 /**
- * Set the state of the half duplex emulation.
- *
- * @param[in]  iostream  A valid I/O stream.
- * @param[in]  value     The half duplex state.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_iostream_set_halfduplex (dc_iostream_t *iostream, unsigned int value);
-
-/**
  * Set the state of the break condition.
  *
  * @param[in]  iostream  A valid I/O stream.

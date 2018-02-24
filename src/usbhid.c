@@ -119,7 +119,6 @@ static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	sizeof(dc_usbhid_t),
 	dc_usbhid_set_timeout, /* set_timeout */
 	NULL, /* set_latency */
-	NULL, /* set_halfduplex */
 	NULL, /* set_break */
 	NULL, /* set_dtr */
 	NULL, /* set_rts */

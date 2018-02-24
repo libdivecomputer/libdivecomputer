@@ -44,8 +44,6 @@ struct dc_iostream_vtable_t {
 
 	dc_status_t (*set_latency) (dc_iostream_t *iostream, unsigned int value);
 
-	dc_status_t (*set_halfduplex) (dc_iostream_t *iostream, unsigned int value);
-
 	dc_status_t (*set_break) (dc_iostream_t *iostream, unsigned int value);
 
 	dc_status_t (*set_dtr) (dc_iostream_t *iostream, unsigned int value);

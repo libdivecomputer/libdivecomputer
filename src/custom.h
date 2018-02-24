@@ -33,7 +33,6 @@ extern "C" {
 typedef struct dc_custom_cbs_t {
 	dc_status_t (*set_timeout) (void *userdata, int timeout);
 	dc_status_t (*set_latency) (void *userdata, unsigned int value);
-	dc_status_t (*set_halfduplex) (void *userdata, unsigned int value);
 	dc_status_t (*set_break) (void *userdata, unsigned int value);
 	dc_status_t (*set_dtr) (void *userdata, unsigned int value);
 	dc_status_t (*set_rts) (void *userdata, unsigned int value);

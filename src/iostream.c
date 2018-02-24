@@ -86,17 +86,6 @@ dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value)
 }
 
 dc_status_t
-dc_iostream_set_halfduplex (dc_iostream_t *iostream, unsigned int value)
-{
-	if (iostream == NULL || iostream->vtable->set_halfduplex == NULL)
-		return DC_STATUS_UNSUPPORTED;
-
-	INFO (iostream->context, "Halfduplex: value=%i", value);
-
-	return iostream->vtable->set_halfduplex (iostream, value);
-}
-
-dc_status_t
 dc_iostream_set_break (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_break == NULL)

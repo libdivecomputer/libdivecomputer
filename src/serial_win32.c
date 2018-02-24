@@ -37,7 +37,6 @@ static dc_status_t dc_serial_iterator_free (dc_iterator_t *iterator);
 
 static dc_status_t dc_serial_set_timeout (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_serial_set_latency (dc_iostream_t *iostream, unsigned int value);
-static dc_status_t dc_serial_set_halfduplex (dc_iostream_t *iostream, unsigned int value);
 static dc_status_t dc_serial_set_break (dc_iostream_t *iostream, unsigned int value);
 static dc_status_t dc_serial_set_dtr (dc_iostream_t *iostream, unsigned int value);
 static dc_status_t dc_serial_set_rts (dc_iostream_t *iostream, unsigned int value);
@@ -76,10 +75,6 @@ typedef struct dc_serial_t {
 	 */
 	DCB dcb;
 	COMMTIMEOUTS timeouts;
-	/* Half-duplex settings */
-	int halfduplex;
-	unsigned int baudrate;
-	unsigned int nbits;
 } dc_serial_t;
 
 static const dc_iterator_vtable_t dc_serial_iterator_vtable = {
@@ -92,7 +87,6 @@ static const dc_iostream_vtable_t dc_serial_vtable = {
 	sizeof(dc_serial_t),
 	dc_serial_set_timeout, /* set_timeout */
 	dc_serial_set_latency, /* set_latency */
-	dc_serial_set_halfduplex, /* set_halfduplex */
 	dc_serial_set_break, /* set_break */
 	dc_serial_set_dtr, /* set_dtr */
 	dc_serial_set_rts, /* set_rts */
@@ -288,11 +282,6 @@ dc_serial_open (dc_iostream_t **out, dc_context_t *context, const char *name)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// Default to full-duplex.
-	device->halfduplex = 0;
-	device->baudrate = 0;
-	device->nbits = 0;
-
 	// Open the device.
 	device->hFile = CreateFileA (devname,
 			GENERIC_READ | GENERIC_WRITE, 0,
@@ -457,9 +446,6 @@ dc_serial_configure (dc_iostream_t *abstract, unsigned int baudrate, unsigned in
 		return syserror (errcode);
 	}
 
-	device->baudrate = baudrate;
-	device->nbits = 1 + databits + stopbits + (parity ? 1 : 0);
-
 	return DC_STATUS_SUCCESS;
 }
 
@@ -511,16 +497,6 @@ dc_serial_set_timeout (dc_iostream_t *abstract, int timeout)
 }
 
 static dc_status_t
-dc_serial_set_halfduplex (dc_iostream_t *abstract, unsigned int value)
-{
-	dc_serial_t *device = (dc_serial_t *) abstract;
-
-	device->halfduplex = value;
-
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
 dc_serial_set_latency (dc_iostream_t *abstract, unsigned int value)
 {
 	return DC_STATUS_SUCCESS;
@@ -558,50 +534,11 @@ dc_serial_write (dc_iostream_t *abstract, const void *data, size_t size, size_t 
 	dc_serial_t *device = (dc_serial_t *) abstract;
 	DWORD dwWritten = 0;
 
-	LARGE_INTEGER begin, end, freq;
-	if (device->halfduplex) {
-		// Get the current time.
-		if (!QueryPerformanceFrequency(&freq) ||
-			!QueryPerformanceCounter(&begin)) {
-			DWORD errcode = GetLastError ();
-			SYSERROR (abstract->context, errcode);
-			status = syserror (errcode);
-			goto out;
-		}
-	}
-
 	if (!WriteFile (device->hFile, data, size, &dwWritten, NULL)) {
 		DWORD errcode = GetLastError ();
 		SYSERROR (abstract->context, errcode);
 		status = syserror (errcode);
 		goto out;
-	}
-
-	if (device->halfduplex) {
-		// Get the current time.
-		if (!QueryPerformanceCounter(&end))  {
-			DWORD errcode = GetLastError ();
-			SYSERROR (abstract->context, errcode);
-			status = syserror (errcode);
-			goto out;
-		}
-
-		// Calculate the elapsed time (microseconds).
-		unsigned long elapsed = 1000000.0 * (end.QuadPart - begin.QuadPart) / freq.QuadPart + 0.5;
-
-		// Calculate the expected duration (microseconds). A 2 millisecond fudge
-		// factor is added because it improves the success rate significantly.
-		unsigned long expected = 1000000.0 * device->nbits / device->baudrate * size + 0.5 + 2000;
-
-		// Wait for the remaining time.
-		if (elapsed < expected) {
-			unsigned long remaining = expected - elapsed;
-
-			// The remaining time is rounded up to the nearest millisecond
-			// because the Windows Sleep() function doesn't have a higher
-			// resolution.
-			dc_serial_sleep (abstract, (remaining + 999) / 1000);
-		}
 	}
 
 	if (dwWritten != size) {

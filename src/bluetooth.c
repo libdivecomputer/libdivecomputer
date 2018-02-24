@@ -99,7 +99,6 @@ static const dc_iostream_vtable_t dc_bluetooth_vtable = {
 	sizeof(dc_socket_t),
 	dc_socket_set_timeout, /* set_timeout */
 	dc_socket_set_latency, /* set_latency */
-	dc_socket_set_halfduplex, /* set_halfduplex */
 	dc_socket_set_break, /* set_break */
 	dc_socket_set_dtr, /* set_dtr */
 	dc_socket_set_rts, /* set_rts */

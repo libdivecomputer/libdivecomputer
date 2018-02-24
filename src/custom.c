@@ -29,7 +29,6 @@
 
 static dc_status_t dc_custom_set_timeout (dc_iostream_t *abstract, int timeout);
 static dc_status_t dc_custom_set_latency (dc_iostream_t *abstract, unsigned int value);
-static dc_status_t dc_custom_set_halfduplex (dc_iostream_t *abstract, unsigned int value);
 static dc_status_t dc_custom_set_break (dc_iostream_t *abstract, unsigned int value);
 static dc_status_t dc_custom_set_dtr (dc_iostream_t *abstract, unsigned int value);
 static dc_status_t dc_custom_set_rts (dc_iostream_t *abstract, unsigned int value);
@@ -55,7 +54,6 @@ static const dc_iostream_vtable_t dc_custom_vtable = {
 	sizeof(dc_custom_t),
 	dc_custom_set_timeout, /* set_timeout */
 	dc_custom_set_latency, /* set_latency */
-	dc_custom_set_halfduplex, /* set_halfduplex */
 	dc_custom_set_break, /* set_break */
 	dc_custom_set_dtr, /* set_dtr */
 	dc_custom_set_rts, /* set_rts */
@@ -115,17 +113,6 @@ dc_custom_set_latency (dc_iostream_t *abstract, unsigned int value)
 		return DC_STATUS_UNSUPPORTED;
 
 	return custom->callbacks.set_latency (custom->userdata, value);
-}
-
-static dc_status_t
-dc_custom_set_halfduplex (dc_iostream_t *abstract, unsigned int value)
-{
-	dc_custom_t *custom = (dc_custom_t *) abstract;
-
-	if (custom->callbacks.set_halfduplex == NULL)
-		return DC_STATUS_UNSUPPORTED;
-
-	return custom->callbacks.set_halfduplex (custom->userdata, value);
 }
 
 static dc_status_t
