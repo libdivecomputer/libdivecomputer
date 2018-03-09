@@ -40,6 +40,7 @@ struct diverite_nitekq_parser_t {
 	dc_parser_t base;
 	// Cached fields.
 	unsigned int cached;
+	dc_divemode_t divemode;
 	unsigned int metric;
 	unsigned int ngasmixes;
 	unsigned int o2[NGASMIXES];
@@ -81,6 +82,7 @@ diverite_nitekq_parser_create (dc_parser_t **out, dc_context_t *context)
 
 	// Set the default values.
 	parser->cached = 0;
+	parser->divemode = DC_DIVEMODE_OC;
 	parser->metric = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
@@ -160,6 +162,9 @@ diverite_nitekq_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			gasmix->oxygen = parser->o2[flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
+		case DC_FIELD_DIVEMODE:
+			*((dc_divemode_t *) value) = parser->divemode;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
@@ -189,6 +194,7 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	unsigned int ngasmixes = 0;
 	unsigned int gasmix = 0xFFFFFFFF; /* initialize with impossible value */
 	unsigned int gasmix_previous = gasmix;
+	dc_divemode_t divemode = DC_DIVEMODE_OC;
 
 	unsigned int time = 0;
 	unsigned int offset = 0;
@@ -276,8 +282,11 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			offset += 2;
 
-			// PPO2
 			if (type == 3) {
+				// Dive mode
+				divemode = DC_DIVEMODE_CCR;
+
+				// PPO2
 				if (offset + 1 > size)
 					return DC_STATUS_DATAFORMAT;
 				unsigned int ppo2 = data[offset];
@@ -300,6 +309,7 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	parser->maxdepth = maxdepth;
 	parser->divetime = time;
 	parser->metric = metric;
+	parser->divemode = divemode;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
