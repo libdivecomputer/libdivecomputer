@@ -695,7 +695,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 
 		// Get the internal dive number.
 		unsigned int current = array_uint16_le (header + offset + logbook->number);
-		if (current > maximum) {
+		if (current > maximum || device->hardware == OSTC4) {
 			maximum = current;
 			latest = i;
 		}
