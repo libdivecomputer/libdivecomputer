@@ -275,14 +275,7 @@ main (int argc, char *argv[])
 	dc_context_set_loglevel (context, loglevel);
 	dc_context_set_logfunc (context, logfunc, NULL);
 
-	if (command->config & DCTOOL_CONFIG_DESCRIPTOR) {
-		// Check mandatory arguments.
-		if (device == NULL && family == DC_FAMILY_NULL) {
-			message ("No device name or family type specified.\n");
-			exitcode = EXIT_FAILURE;
-			goto cleanup;
-		}
-
+	if (device != NULL || family != DC_FAMILY_NULL) {
 		// Search for a matching device descriptor.
 		status = dctool_descriptor_search (&descriptor, device, family, model);
 		if (status != DC_STATUS_SUCCESS) {
@@ -302,6 +295,13 @@ main (int argc, char *argv[])
 			exitcode = EXIT_FAILURE;
 			goto cleanup;
 		}
+	}
+
+	// Check mandatory descriptor arguments.
+	if (command->config & DCTOOL_CONFIG_DESCRIPTOR && descriptor == NULL) {
+		message ("No device name or family type specified.\n");
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
 	}
 
 	// Execute the command.
