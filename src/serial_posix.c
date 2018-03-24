@@ -691,7 +691,7 @@ dc_serial_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual
 
 			if (init) {
 				// Calculate the initial timeout.
-				timeout = device->timeout * 1000;
+				timeout = (dc_usecs_t) device->timeout * 1000;
 				// Calculate the target time.
 				target = now + timeout;
 				init = 0;
