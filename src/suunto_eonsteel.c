@@ -782,6 +782,11 @@ static dc_status_t suunto_eonsteel_device_timesync(dc_device_t *abstract, const 
 		return DC_STATUS_IO;
 	}
 
+	rc = send_receive(eon, CMD_SET_DATE, sizeof(cmd), cmd, sizeof(result), result);
+	if (rc < 0) {
+		return DC_STATUS_IO;
+	}
+
 	return DC_STATUS_SUCCESS;
 }
 
