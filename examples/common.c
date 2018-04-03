@@ -401,28 +401,24 @@ dctool_usbhid_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t 
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_iostream_t *iostream = NULL;
-	unsigned int vid = 0, pid = 0;
 
 	// Discover the usbhid device.
 	dc_iterator_t *iterator = NULL;
 	dc_usbhid_device_t *device = NULL;
 	dc_usbhid_iterator_new (&iterator, context, descriptor);
 	while (dc_iterator_next (iterator, &device) == DC_STATUS_SUCCESS) {
-		vid = dc_usbhid_device_get_vid (device);
-		pid = dc_usbhid_device_get_pid (device);
-		dc_usbhid_device_free (device);
 		break;
 	}
 	dc_iterator_free (iterator);
 
-	if (vid == 0 && pid == 0) {
+	if (device == NULL) {
 		ERROR ("No dive computer found.");
 		status = DC_STATUS_NODEVICE;
 		goto cleanup;
 	}
 
 	// Open the usbhid device.
-	status = dc_usbhid_open (&iostream, context, vid, pid);
+	status = dc_usbhid_open (&iostream, context, device);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR ("Failed to open the usbhid device.");
 		goto cleanup;
@@ -431,6 +427,7 @@ dctool_usbhid_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t 
 	*out = iostream;
 
 cleanup:
+	dc_usbhid_device_free (device);
 	return status;
 }
 

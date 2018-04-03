@@ -78,13 +78,12 @@ dc_usbhid_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_desc
  *
  * @param[out]  iostream A location to store the USB HID connection.
  * @param[in]   context  A valid context object.
- * @param[in]   vid      The USB Vendor ID of the device.
- * @param[in]   pid      The USB Product ID of the device.
+ * @param[in]   device   A valid USB HID device.
  * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
  * on failure.
  */
 dc_status_t
-dc_usbhid_open (dc_iostream_t **iostream, dc_context_t *context, unsigned int vid, unsigned int pid);
+dc_usbhid_open (dc_iostream_t **iostream, dc_context_t *context, dc_usbhid_device_t *device);
 
 #ifdef __cplusplus
 }
