@@ -21,6 +21,7 @@ dc_context_new
 dc_context_free
 dc_context_set_loglevel
 dc_context_set_logfunc
+dc_context_get_transports
 
 dc_iterator_next
 dc_iterator_free
@@ -31,8 +32,9 @@ dc_descriptor_get_vendor
 dc_descriptor_get_product
 dc_descriptor_get_type
 dc_descriptor_get_model
-dc_descriptor_get_transport
+dc_descriptor_get_transports
 
+dc_iostream_get_transport
 dc_iostream_set_timeout
 dc_iostream_set_latency
 dc_iostream_set_break
@@ -47,6 +49,33 @@ dc_iostream_flush
 dc_iostream_purge
 dc_iostream_sleep
 dc_iostream_close
+
+dc_serial_device_get_name
+dc_serial_device_free
+dc_serial_iterator_new
+dc_serial_open
+
+dc_bluetooth_addr2str
+dc_bluetooth_str2addr
+dc_bluetooth_device_get_address
+dc_bluetooth_device_get_name
+dc_bluetooth_device_free
+dc_bluetooth_iterator_new
+dc_bluetooth_open
+
+dc_irda_device_get_address
+dc_irda_device_get_name
+dc_irda_device_free
+dc_irda_iterator_new
+dc_irda_open
+
+dc_usbhid_device_get_vid
+dc_usbhid_device_get_pid
+dc_usbhid_device_free
+dc_usbhid_iterator_new
+dc_usbhid_open
+
+dc_custom_open
 
 dc_parser_new
 dc_parser_new2

@@ -42,7 +42,7 @@
 #endif
 #endif
 
-#include "irda.h"
+#include <libdivecomputer/irda.h>
 
 #include "common-private.h"
 #include "context-private.h"
@@ -300,7 +300,7 @@ dc_irda_open (dc_iostream_t **out, dc_context_t *context, unsigned int address, 
 	INFO (context, "Open: address=%08x, lsap=%u", address, lsap);
 
 	// Allocate memory.
-	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_irda_vtable);
+	device = (dc_socket_t *) dc_iostream_allocate (context, &dc_irda_vtable, DC_TRANSPORT_IRDA);
 	if (device == NULL) {
 		SYSERROR (context, S_ENOMEM);
 		return DC_STATUS_NOMEMORY;

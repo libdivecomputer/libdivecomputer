@@ -26,7 +26,6 @@
 #include "cressi_edy.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "checksum.h"
 #include "array.h"
 #include "ringbuffer.h"
@@ -218,7 +217,7 @@ cressi_edy_quit (cressi_edy_device_t *device)
 
 
 dc_status_t
-cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+cressi_edy_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_edy_device_t *device = NULL;
@@ -234,44 +233,37 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->layout = NULL;
 	device->model = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	// Set the serial communication protocol (1200 8N1).
 	status = dc_iostream_configure (device->iostream, 1200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the DTR line.
 	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Clear the RTS line.
 	status = dc_iostream_set_rts (device->iostream, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to clear the RTS line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
@@ -293,7 +285,7 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 	status = dc_iostream_configure (device->iostream, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
@@ -304,8 +296,6 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, const char *na
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -321,12 +311,6 @@ cressi_edy_device_close (dc_device_t *abstract)
 
 	// Send the quit command.
 	rc = cressi_edy_quit (device);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}

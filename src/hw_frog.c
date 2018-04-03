@@ -25,7 +25,6 @@
 #include "hw_frog.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "checksum.h"
 #include "ringbuffer.h"
 #include "array.h"
@@ -199,7 +198,7 @@ hw_frog_transfer (hw_frog_device_t *device,
 
 
 dc_status_t
-hw_frog_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+hw_frog_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_frog_device_t *device = NULL;
@@ -215,28 +214,21 @@ hw_frog_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (3000ms).
 	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
@@ -247,15 +239,13 @@ hw_frog_device_open (dc_device_t **out, dc_context_t *context, const char *name)
 	status = hw_frog_transfer (device, NULL, INIT, NULL, 0, NULL, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to send the command.");
-		goto error_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -273,12 +263,6 @@ hw_frog_device_close (dc_device_t *abstract)
 	rc = hw_frog_transfer (device, NULL, EXIT, NULL, 0, NULL, 0);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
-		dc_status_set_error(&status, rc);
-	}
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
 

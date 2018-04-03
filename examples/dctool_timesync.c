@@ -39,17 +39,27 @@
 #include "utils.h"
 
 static dc_status_t
-do_timesync (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, const dc_datetime_t *datetime)
+do_timesync (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const dc_datetime_t *datetime)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
 	dc_device_t *device = NULL;
 
-	// Open the device.
-	message ("Opening the device (%s %s, %s).\n",
-		dc_descriptor_get_vendor (descriptor),
-		dc_descriptor_get_product (descriptor),
+	// Open the I/O stream.
+	message ("Opening the I/O stream (%s, %s).\n",
+		dctool_transport_name (transport),
 		devname ? devname : "null");
-	rc = dc_device_open (&device, context, descriptor, devname);
+	rc = dctool_iostream_open (&iostream, context, descriptor, transport, devname);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR ("Error opening the I/O stream.");
+		goto cleanup;
+	}
+
+	// Open the device.
+	message ("Opening the device (%s %s).\n",
+		dc_descriptor_get_vendor (descriptor),
+		dc_descriptor_get_product (descriptor));
+	rc = dc_device_open (&device, context, descriptor, iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error opening the device.");
 		goto cleanup;
@@ -82,6 +92,7 @@ do_timesync (dc_context_t *context, dc_descriptor_t *descriptor, const char *dev
 
 cleanup:
 	dc_device_close (device);
+	dc_iostream_close (iostream);
 	return rc;
 }
 
@@ -90,16 +101,18 @@ dctool_timesync_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 {
 	int exitcode = EXIT_SUCCESS;
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_transport_t transport = dctool_transport_default (descriptor);
 
 	// Default option values.
 	unsigned int help = 0;
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "h";
+	const char *optstring = "ht:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"transport",   required_argument, 0, 't'},
 		{0,             0,                 0,  0 }
 	};
 	while ((opt = getopt_long (argc, argv, optstring, options, NULL)) != -1) {
@@ -124,6 +137,13 @@ dctool_timesync_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		return EXIT_SUCCESS;
 	}
 
+	// Check the transport type.
+	if (transport == DC_TRANSPORT_NONE) {
+		message ("No valid transport type specified.\n");
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
+	}
+
 	// Get the system time.
 	dc_datetime_t datetime = {0};
 	dc_ticks_t now = dc_datetime_now ();
@@ -134,7 +154,7 @@ dctool_timesync_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	}
 
 	// Synchronize the device clock.
-	status = do_timesync (context, descriptor, argv[0], &datetime);
+	status = do_timesync (context, descriptor, transport, argv[0], &datetime);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -155,8 +175,10 @@ const dctool_command_t dctool_timesync = {
 	"\n"
 	"Options:\n"
 #ifdef HAVE_GETOPT_LONG
-	"   -h, --help   Show help message\n"
+	"   -h, --help               Show help message\n"
+	"   -t, --transport <name>   Transport type\n"
 #else
-	"   -h   Show help message\n"
+	"   -h               Show help message\n"
+	"   -t <transport>   Transport type\n"
 #endif
 };

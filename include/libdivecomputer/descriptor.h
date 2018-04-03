@@ -29,15 +29,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum dc_transport_t {
-	DC_TRANSPORT_NONE,
-	DC_TRANSPORT_SERIAL,
-	DC_TRANSPORT_USB,
-	DC_TRANSPORT_USBHID,
-	DC_TRANSPORT_IRDA,
-	DC_TRANSPORT_BLUETOOTH
-} dc_transport_t;
-
 typedef struct dc_descriptor_t dc_descriptor_t;
 
 dc_status_t
@@ -58,8 +49,8 @@ dc_descriptor_get_type (dc_descriptor_t *descriptor);
 unsigned int
 dc_descriptor_get_model (dc_descriptor_t *descriptor);
 
-dc_transport_t
-dc_descriptor_get_transport (dc_descriptor_t *descriptor);
+unsigned int
+dc_descriptor_get_transports (dc_descriptor_t *descriptor);
 
 #ifdef __cplusplus
 }

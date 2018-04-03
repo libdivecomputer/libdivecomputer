@@ -23,6 +23,7 @@
 #define OCEANIC_VTPRO_H
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
 
@@ -33,7 +34,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-oceanic_vtpro_device_open (dc_device_t **device, dc_context_t *context, const char *name, unsigned int model);
+oceanic_vtpro_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream, unsigned int model);
 
 dc_status_t
 oceanic_vtpro_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);

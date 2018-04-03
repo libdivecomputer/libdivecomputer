@@ -22,8 +22,9 @@
 #ifndef MARES_COMMON_H
 #define MARES_COMMON_H
 
+#include <libdivecomputer/iostream.h>
+
 #include "device-private.h"
-#include "serial.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +48,7 @@ typedef struct mares_common_device_t {
 } mares_common_device_t;
 
 void
-mares_common_device_init (mares_common_device_t *device);
+mares_common_device_init (mares_common_device_t *device, dc_iostream_t *iostream);
 
 dc_status_t
 mares_common_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);

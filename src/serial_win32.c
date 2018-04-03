@@ -24,7 +24,7 @@
 #define NOGDI
 #include <windows.h>
 
-#include "serial.h"
+#include <libdivecomputer/serial.h>
 
 #include "common-private.h"
 #include "context-private.h"
@@ -276,7 +276,7 @@ dc_serial_open (dc_iostream_t **out, dc_context_t *context, const char *name)
 	}
 
 	// Allocate memory.
-	device = (dc_serial_t *) dc_iostream_allocate (context, &dc_serial_vtable);
+	device = (dc_serial_t *) dc_iostream_allocate (context, &dc_serial_vtable, DC_TRANSPORT_SERIAL);
 	if (device == NULL) {
 		SYSERROR (context, ERROR_OUTOFMEMORY);
 		return DC_STATUS_NOMEMORY;

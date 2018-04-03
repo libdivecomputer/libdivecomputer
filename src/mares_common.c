@@ -47,12 +47,12 @@
 #define GAUGE    3
 
 void
-mares_common_device_init (mares_common_device_t *device)
+mares_common_device_init (mares_common_device_t *device, dc_iostream_t *iostream)
 {
 	assert (device != NULL);
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->echo = 0;
 	device->delay = 0;
 }

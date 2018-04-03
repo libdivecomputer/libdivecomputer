@@ -19,6 +19,7 @@
  * MA 02110-1301 USA
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -26,6 +27,11 @@
 #include <io.h>
 #include <fcntl.h>
 #endif
+
+#include <libdivecomputer/serial.h>
+#include <libdivecomputer/bluetooth.h>
+#include <libdivecomputer/irda.h>
+#include <libdivecomputer/usbhid.h>
 
 #include "common.h"
 #include "utils.h"
@@ -43,6 +49,11 @@ typedef struct backend_table_t {
 	dc_family_t type;
 	unsigned int model;
 } backend_table_t;
+
+typedef struct transport_table_t {
+	const char *name;
+	dc_transport_t type;
+} transport_table_t;
 
 static const backend_table_t g_backends[] = {
 	{"solution",    DC_FAMILY_SUUNTO_SOLUTION,     0},
@@ -79,6 +90,14 @@ static const backend_table_t g_backends[] = {
 	{"aqualand",    DC_FAMILY_CITIZEN_AQUALAND,    0},
 	{"idive",       DC_FAMILY_DIVESYSTEM_IDIVE,    0x03},
 	{"cochran",     DC_FAMILY_COCHRAN_COMMANDER,   0},
+};
+
+static const transport_table_t g_transports[] = {
+	{"serial",    DC_TRANSPORT_SERIAL},
+	{"usb",       DC_TRANSPORT_USB},
+	{"usbhid",    DC_TRANSPORT_USBHID},
+	{"irda",      DC_TRANSPORT_IRDA},
+	{"bluetooth", DC_TRANSPORT_BLUETOOTH},
 };
 
 const char *
@@ -143,6 +162,41 @@ dctool_family_model (dc_family_t type)
 	}
 
 	return 0;
+}
+
+dc_transport_t
+dctool_transport_type (const char *name)
+{
+	for (size_t i = 0; i < C_ARRAY_SIZE (g_transports); ++i) {
+		if (strcmp (name, g_transports[i].name) == 0)
+			return g_transports[i].type;
+	}
+
+	return DC_TRANSPORT_NONE;
+}
+
+const char *
+dctool_transport_name (dc_transport_t type)
+{
+	for (size_t i = 0; i < C_ARRAY_SIZE (g_transports); ++i) {
+		if (g_transports[i].type == type)
+			return g_transports[i].name;
+	}
+
+	return NULL;
+}
+
+dc_transport_t
+dctool_transport_default (dc_descriptor_t *descriptor)
+{
+	unsigned int transports = dc_descriptor_get_transports (descriptor);
+
+	for (size_t i = 0; i < C_ARRAY_SIZE (g_transports); ++i) {
+		if (transports & g_transports[i].type)
+			return g_transports[i].type;
+	}
+
+	return DC_TRANSPORT_NONE;
 }
 
 void
@@ -339,4 +393,153 @@ dctool_file_read (const char *filename)
 	fclose (fp);
 
 	return buffer;
+}
+
+static dc_status_t
+dctool_usbhid_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
+	unsigned int vid = 0, pid = 0;
+
+	// Discover the usbhid device.
+	dc_iterator_t *iterator = NULL;
+	dc_usbhid_device_t *device = NULL;
+	dc_usbhid_iterator_new (&iterator, context, descriptor);
+	while (dc_iterator_next (iterator, &device) == DC_STATUS_SUCCESS) {
+		vid = dc_usbhid_device_get_vid (device);
+		pid = dc_usbhid_device_get_pid (device);
+		dc_usbhid_device_free (device);
+		break;
+	}
+	dc_iterator_free (iterator);
+
+	if (vid == 0 && pid == 0) {
+		ERROR ("No dive computer found.");
+		status = DC_STATUS_NODEVICE;
+		goto cleanup;
+	}
+
+	// Open the usbhid device.
+	status = dc_usbhid_open (&iostream, context, vid, pid);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR ("Failed to open the usbhid device.");
+		goto cleanup;
+	}
+
+	*out = iostream;
+
+cleanup:
+	return status;
+}
+
+static dc_status_t
+dctool_irda_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t *descriptor, const char *devname)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
+	unsigned int address = 0;
+
+	if (devname) {
+		// Use the address.
+		address = strtoul(devname, NULL, 0);
+	} else {
+		// Discover the device address.
+		dc_iterator_t *iterator = NULL;
+		dc_irda_device_t *device = NULL;
+		dc_irda_iterator_new (&iterator, context, descriptor);
+		while (dc_iterator_next (iterator, &device) == DC_STATUS_SUCCESS) {
+			address = dc_irda_device_get_address (device);
+			dc_irda_device_free (device);
+			break;
+		}
+		dc_iterator_free (iterator);
+	}
+
+	if (address == 0) {
+		if (devname) {
+			ERROR ("No valid device address specified.");
+		} else {
+			ERROR ("No dive computer found.");
+		}
+		status = DC_STATUS_NODEVICE;
+		goto cleanup;
+	}
+
+	// Open the irda socket.
+	status = dc_irda_open (&iostream, context, address, 1);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR ("Failed to open the irda socket.");
+		goto cleanup;
+	}
+
+	*out = iostream;
+
+cleanup:
+	return status;
+}
+
+static dc_status_t
+dctool_bluetooth_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t *descriptor, const char *devname)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
+	dc_bluetooth_address_t address = 0;
+
+	if (devname) {
+		// Use the address.
+		address = dc_bluetooth_str2addr(devname);
+	} else {
+		// Discover the device address.
+		dc_iterator_t *iterator = NULL;
+		dc_bluetooth_device_t *device = NULL;
+		dc_bluetooth_iterator_new (&iterator, context, descriptor);
+		while (dc_iterator_next (iterator, &device) == DC_STATUS_SUCCESS) {
+			address = dc_bluetooth_device_get_address (device);
+			dc_bluetooth_device_free (device);
+			break;
+		}
+		dc_iterator_free (iterator);
+	}
+
+	if (address == 0) {
+		if (devname) {
+			ERROR ("No valid device address specified.");
+		} else {
+			ERROR ("No dive computer found.");
+		}
+		status = DC_STATUS_NODEVICE;
+		goto cleanup;
+	}
+
+	// Open the bluetooth socket.
+	status = dc_bluetooth_open (&iostream, context, address, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR ("Failed to open the bluetooth socket.");
+		goto cleanup;
+	}
+
+	*out = iostream;
+
+cleanup:
+	return status;
+}
+
+dc_status_t
+dctool_iostream_open (dc_iostream_t **iostream, dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname)
+{
+	switch (transport) {
+	case DC_TRANSPORT_SERIAL:
+		return dc_serial_open (iostream, context, devname);
+	case DC_TRANSPORT_USB:
+		return DC_STATUS_SUCCESS;
+	case DC_TRANSPORT_USBHID:
+		return dctool_usbhid_open(iostream, context, descriptor);
+	case DC_TRANSPORT_IRDA:
+		return dctool_irda_open (iostream, context, descriptor, devname);
+	case DC_TRANSPORT_BLUETOOTH:
+		return dctool_bluetooth_open (iostream, context, descriptor, devname);
+	default:
+		return DC_STATUS_UNSUPPORTED;
+	}
 }

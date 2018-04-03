@@ -23,6 +23,7 @@
 #define UWATEC_MERIDIAN_H
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
 
@@ -31,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-uwatec_meridian_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+uwatec_meridian_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 #ifdef __cplusplus
 }

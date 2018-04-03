@@ -26,7 +26,6 @@
 #include "cochran_commander.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "array.h"
 #include "ringbuffer.h"
 #include "rbstream.h"
@@ -104,7 +103,6 @@ static dc_status_t cochran_commander_device_set_fingerprint (dc_device_t *device
 static dc_status_t cochran_commander_device_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t cochran_commander_device_dump (dc_device_t *device, dc_buffer_t *data);
 static dc_status_t cochran_commander_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userdata);
-static dc_status_t cochran_commander_device_close (dc_device_t *device);
 
 static const dc_device_vtable_t cochran_commander_device_vtable = {
 	sizeof (cochran_commander_device_t),
@@ -115,7 +113,7 @@ static const dc_device_vtable_t cochran_commander_device_vtable = {
 	cochran_commander_device_dump, /* dump */
 	cochran_commander_device_foreach, /* foreach */
 	NULL, /* timesync */
-	cochran_commander_device_close /* close */
+	NULL /* close */
 };
 
 // Cochran Commander TM, pre-dates pre-21000 s/n
@@ -716,7 +714,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 
 
 dc_status_t
-cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+cochran_commander_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cochran_commander_device_t *device = NULL;
@@ -732,26 +730,19 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	cochran_commander_device_set_fingerprint((dc_device_t *) device, NULL, 0);
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, device->base.context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (device->base.context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	status = cochran_commander_serial_setup(device);
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_close;
+		goto error_free;
 	}
 
 	// Read ID from the device
 	status = cochran_commander_read_id (device, device->id, sizeof(device->id));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Device not responding.");
-		goto error_close;
+		goto error_free;
 	}
 
 	unsigned int model = cochran_commander_get_model(device);
@@ -777,33 +768,15 @@ cochran_commander_device_open (dc_device_t **out, dc_context_t *context, const c
 	default:
 		ERROR (context, "Unknown model");
 		status = DC_STATUS_UNSUPPORTED;
-		goto error_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-static dc_status_t
-cochran_commander_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	cochran_commander_device_t *device = (cochran_commander_device_t *) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

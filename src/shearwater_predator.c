@@ -44,7 +44,6 @@ typedef struct shearwater_predator_device_t {
 static dc_status_t shearwater_predator_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t shearwater_predator_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	sizeof(shearwater_predator_device_t),
@@ -55,14 +54,14 @@ static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	shearwater_predator_device_dump, /* dump */
 	shearwater_predator_device_foreach, /* foreach */
 	NULL, /* timesync */
-	shearwater_predator_device_close /* close */
+	NULL /* close */
 };
 
 static dc_status_t
 shearwater_predator_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
-shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, const char *name)
+shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	shearwater_predator_device_t *device = NULL;
@@ -80,8 +79,8 @@ shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, const
 	// Set the default values.
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	// Open the device.
-	status = shearwater_common_open (&device->base, context, name);
+	// Setup the device.
+	status = shearwater_common_setup (&device->base, context, iostream);
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
@@ -93,15 +92,6 @@ shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, const
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
-}
-
-
-static dc_status_t
-shearwater_predator_device_close (dc_device_t *abstract)
-{
-	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
-
-	return shearwater_common_close (device);
 }
 
 

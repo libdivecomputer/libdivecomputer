@@ -23,6 +23,7 @@
 #define ZEAGLE_N2ITION3_H
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
@@ -30,7 +31,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-zeagle_n2ition3_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+zeagle_n2ition3_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 #ifdef __cplusplus
 }

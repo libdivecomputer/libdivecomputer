@@ -26,7 +26,6 @@
 #include "suunto_d9.h"
 #include "suunto_common2.h"
 #include "context-private.h"
-#include "serial.h"
 #include "checksum.h"
 #include "array.h"
 
@@ -48,7 +47,6 @@ typedef struct suunto_d9_device_t {
 } suunto_d9_device_t;
 
 static dc_status_t suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize, unsigned int size);
-static dc_status_t suunto_d9_device_close (dc_device_t *abstract);
 
 static const suunto_common2_device_vtable_t suunto_d9_device_vtable = {
 	{
@@ -60,7 +58,7 @@ static const suunto_common2_device_vtable_t suunto_d9_device_vtable = {
 		suunto_common2_device_dump, /* dump */
 		suunto_common2_device_foreach, /* foreach */
 		NULL, /* timesync */
-		suunto_d9_device_close /* close */
+		NULL /* close */
 	},
 	suunto_d9_device_packet
 };
@@ -128,7 +126,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 
 
 dc_status_t
-suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+suunto_d9_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	suunto_d9_device_t *device = NULL;
@@ -147,34 +145,27 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 	suunto_common2_device_init (&device->base);
 
 	// Set the default values.
-	device->iostream = NULL;
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
+	device->iostream = iostream;
 
 	// Set the serial communication protocol (9600 8N1).
 	status = dc_iostream_configure (device->iostream, 9600, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the DTR line (power supply for the interface).
 	status = dc_iostream_set_dtr (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Give the interface 100 ms to settle and draw power up.
@@ -187,7 +178,7 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 	status = suunto_d9_device_autodetect (device, model);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to identify the protocol variant.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Override the base class values.
@@ -205,27 +196,8 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, const char *nam
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-
-static dc_status_t
-suunto_d9_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	suunto_d9_device_t *device = (suunto_d9_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

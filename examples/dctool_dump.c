@@ -40,17 +40,27 @@
 #include "utils.h"
 
 static dc_status_t
-dump (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, dc_buffer_t *fingerprint, dc_buffer_t *buffer)
+dump (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, dc_buffer_t *fingerprint, dc_buffer_t *buffer)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
 	dc_device_t *device = NULL;
 
-	// Open the device.
-	message ("Opening the device (%s %s, %s).\n",
-		dc_descriptor_get_vendor (descriptor),
-		dc_descriptor_get_product (descriptor),
+	// Open the I/O stream.
+	message ("Opening the I/O stream (%s, %s).\n",
+		dctool_transport_name (transport),
 		devname ? devname : "null");
-	rc = dc_device_open (&device, context, descriptor, devname);
+	rc = dctool_iostream_open (&iostream, context, descriptor, transport, devname);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR ("Error opening the I/O stream.");
+		goto cleanup;
+	}
+
+	// Open the device.
+	message ("Opening the device (%s %s).\n",
+		dc_descriptor_get_vendor (descriptor),
+		dc_descriptor_get_product (descriptor));
+	rc = dc_device_open (&device, context, descriptor, iostream);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error opening the device.");
 		goto cleanup;
@@ -93,6 +103,7 @@ dump (dc_context_t *context, dc_descriptor_t *descriptor, const char *devname, d
 
 cleanup:
 	dc_device_close (device);
+	dc_iostream_close (iostream);
 	return rc;
 }
 
@@ -103,6 +114,7 @@ dctool_dump_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_buffer_t *fingerprint = NULL;
 	dc_buffer_t *buffer = NULL;
+	dc_transport_t transport = dctool_transport_default (descriptor);
 
 	// Default option values.
 	unsigned int help = 0;
@@ -111,10 +123,11 @@ dctool_dump_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ho:p:";
+	const char *optstring = "ht:o:p:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
+		{"transport",   required_argument, 0, 't'},
 		{"output",      required_argument, 0, 'o'},
 		{"fingerprint", required_argument, 0, 'p'},
 		{0,             0,                 0,  0 }
@@ -126,6 +139,9 @@ dctool_dump_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 		switch (opt) {
 		case 'h':
 			help = 1;
+			break;
+		case 't':
+			transport = dctool_transport_type (optarg);
 			break;
 		case 'o':
 			filename = optarg;
@@ -147,6 +163,13 @@ dctool_dump_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 		return EXIT_SUCCESS;
 	}
 
+	// Check the transport type.
+	if (transport == DC_TRANSPORT_NONE) {
+		message ("No valid transport type specified.\n");
+		exitcode = EXIT_FAILURE;
+		goto cleanup;
+	}
+
 	// Convert the fingerprint to binary.
 	fingerprint = dctool_convert_hex2bin (fphex);
 
@@ -154,7 +177,7 @@ dctool_dump_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 	buffer = dc_buffer_new (0);
 
 	// Download the memory dump.
-	status = dump (context, descriptor, argv[0], fingerprint, buffer);
+	status = dump (context, descriptor, transport, argv[0], fingerprint, buffer);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -181,10 +204,12 @@ const dctool_command_t dctool_dump = {
 	"Options:\n"
 #ifdef HAVE_GETOPT_LONG
 	"   -h, --help                 Show help message\n"
+	"   -t, --transport <name>     Transport type\n"
 	"   -o, --output <filename>    Output filename\n"
 	"   -p, --fingerprint <data>   Fingerprint data (hexadecimal)\n"
 #else
 	"   -h                 Show help message\n"
+	"   -t <transport>     Transport type\n"
 	"   -o <filename>      Output filename\n"
 	"   -p <fingerprint>   Fingerprint data (hexadecimal)\n"
 #endif

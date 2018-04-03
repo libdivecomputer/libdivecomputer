@@ -24,6 +24,7 @@
 
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/descriptor.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 
 #ifdef __cplusplus
@@ -42,6 +43,15 @@ dctool_family_name (dc_family_t type);
 unsigned int
 dctool_family_model (dc_family_t type);
 
+dc_transport_t
+dctool_transport_type (const char *name);
+
+const char *
+dctool_transport_name (dc_transport_t type);
+
+dc_transport_t
+dctool_transport_default (dc_descriptor_t *descriptor);
+
 void
 dctool_event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *userdata);
 
@@ -56,6 +66,9 @@ dctool_file_write (const char *filename, dc_buffer_t *buffer);
 
 dc_buffer_t *
 dctool_file_read (const char *filename);
+
+dc_status_t
+dctool_iostream_open (dc_iostream_t **iostream, dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname);
 
 #ifdef __cplusplus
 }

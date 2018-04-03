@@ -25,7 +25,6 @@
 #include "divesystem_idive.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "serial.h"
 #include "checksum.h"
 #include "array.h"
 
@@ -76,7 +75,6 @@ typedef struct divesystem_idive_device_t {
 
 static dc_status_t divesystem_idive_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t divesystem_idive_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	sizeof(divesystem_idive_device_t),
@@ -87,7 +85,7 @@ static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	NULL, /* dump */
 	divesystem_idive_device_foreach, /* foreach */
 	NULL, /* timesync */
-	divesystem_idive_device_close /* close */
+	NULL /* close */
 };
 
 static const divesystem_idive_commands_t idive = {
@@ -115,7 +113,7 @@ static const divesystem_idive_commands_t ix3m_apos4 = {
 };
 
 dc_status_t
-divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, const char *name, unsigned int model)
+divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	divesystem_idive_device_t *device = NULL;
@@ -131,29 +129,22 @@ divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, const ch
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->model = model;
-
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		goto error_free;
-	}
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Set the timeout for receiving data (1000ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
@@ -164,27 +155,8 @@ divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, const ch
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-
-static dc_status_t
-divesystem_idive_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	divesystem_idive_device_t *device = (divesystem_idive_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (rc != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

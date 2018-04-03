@@ -549,7 +549,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\bluetooth.h"
+				RelativePath="..\include\libdivecomputer\bluetooth.h"
 				>
 			</File>
 			<File
@@ -589,7 +589,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\custom.h"
+				RelativePath="..\include\libdivecomputer\custom.h"
 				>
 			</File>
 			<File
@@ -653,7 +653,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\irda.h"
+				RelativePath="..\include\libdivecomputer\irda.h"
 				>
 			</File>
 			<File
@@ -761,7 +761,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\serial.h"
+				RelativePath="..\include\libdivecomputer\serial.h"
 				>
 			</File>
 			<File
@@ -833,7 +833,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\usbhid.h"
+				RelativePath="..\include\libdivecomputer\usbhid.h"
 				>
 			</File>
 			<File

@@ -41,6 +41,15 @@ typedef enum dc_status_t {
 	DC_STATUS_CANCELLED = -10
 } dc_status_t;
 
+typedef enum dc_transport_t {
+	DC_TRANSPORT_NONE      = 0,
+	DC_TRANSPORT_SERIAL    = (1 << 0),
+	DC_TRANSPORT_USB       = (1 << 1),
+	DC_TRANSPORT_USBHID    = (1 << 2),
+	DC_TRANSPORT_IRDA      = (1 << 3),
+	DC_TRANSPORT_BLUETOOTH = (1 << 4),
+} dc_transport_t;
+
 typedef enum dc_family_t {
 	DC_FAMILY_NULL = 0,
 	/* Suunto */

@@ -23,6 +23,7 @@
 #define CRESSI_LEONARDO_H
 
 #include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/parser.h>
 
@@ -31,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-cressi_leonardo_device_open (dc_device_t **device, dc_context_t *context, const char *name);
+cressi_leonardo_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 dc_status_t
 cressi_leonardo_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);

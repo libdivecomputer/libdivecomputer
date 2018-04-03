@@ -49,7 +49,7 @@
 #include <hidapi/hidapi.h>
 #endif
 
-#include "usbhid.h"
+#include <libdivecomputer/usbhid.h>
 
 #include "common-private.h"
 #include "context-private.h"
@@ -473,7 +473,7 @@ dc_usbhid_open (dc_iostream_t **out, dc_context_t *context, unsigned int vid, un
 	INFO (context, "Open: vid=%04x, pid=%04x", vid, pid);
 
 	// Allocate memory.
-	usbhid = (dc_usbhid_t *) dc_iostream_allocate (context, &dc_usbhid_vtable);
+	usbhid = (dc_usbhid_t *) dc_iostream_allocate (context, &dc_usbhid_vtable, DC_TRANSPORT_USBHID);
 	if (usbhid == NULL) {
 		ERROR (context, "Out of memory.");
 		return DC_STATUS_NOMEMORY;

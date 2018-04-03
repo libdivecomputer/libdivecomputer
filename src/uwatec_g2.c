@@ -26,7 +26,6 @@
 #include "uwatec_g2.h"
 #include "context-private.h"
 #include "device-private.h"
-#include "usbhid.h"
 #include "array.h"
 #include "platform.h"
 
@@ -48,7 +47,6 @@ typedef struct uwatec_g2_device_t {
 static dc_status_t uwatec_g2_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
 static dc_status_t uwatec_g2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t uwatec_g2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t uwatec_g2_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t uwatec_g2_device_vtable = {
 	sizeof(uwatec_g2_device_t),
@@ -59,7 +57,7 @@ static const dc_device_vtable_t uwatec_g2_device_vtable = {
 	uwatec_g2_device_dump, /* dump */
 	uwatec_g2_device_foreach, /* foreach */
 	NULL, /* timesync */
-	uwatec_g2_device_close /* close */
+	NULL /* close */
 };
 
 static dc_status_t
@@ -180,7 +178,7 @@ uwatec_g2_handshake (uwatec_g2_device_t *device)
 
 
 dc_status_t
-uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, unsigned int model)
+uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_g2_device_t *device = NULL;
@@ -196,58 +194,24 @@ uwatec_g2_device_open (dc_device_t **out, dc_context_t *context, unsigned int mo
 	}
 
 	// Set the default values.
-	device->iostream = NULL;
+	device->iostream = iostream;
 	device->timestamp = 0;
 	device->systime = (dc_ticks_t) -1;
 	device->devtime = 0;
-
-	// Open the irda socket.
-	unsigned int vid = 0, pid = 0;
-	if (model == ALADINSQUARE) {
-		vid = 0xc251;
-		pid = 0x2006;
-	} else {
-		vid = 0x2e6c;
-		pid = 0x3201;
-	}
-	status = dc_usbhid_open (&device->iostream, context, vid, pid);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open USB device");
-		goto error_free;
-	}
 
 	// Perform the handshaking.
 	status = uwatec_g2_handshake (device);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to handshake with the device.");
-		goto error_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_close:
-	dc_iostream_close (device->iostream);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-
-static dc_status_t
-uwatec_g2_device_close (dc_device_t *abstract)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	uwatec_g2_device_t *device = (uwatec_g2_device_t*) abstract;
-	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	// Close the device.
-	rc = dc_iostream_close (device->iostream);
-	if (status != DC_STATUS_SUCCESS) {
-		dc_status_set_error(&status, rc);
-	}
-
 	return status;
 }
 

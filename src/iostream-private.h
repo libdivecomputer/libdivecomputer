@@ -35,6 +35,7 @@ typedef struct dc_iostream_vtable_t dc_iostream_vtable_t;
 struct dc_iostream_t {
 	const dc_iostream_vtable_t *vtable;
 	dc_context_t *context;
+	dc_transport_t transport;
 };
 
 struct dc_iostream_vtable_t {
@@ -70,7 +71,7 @@ struct dc_iostream_vtable_t {
 };
 
 dc_iostream_t *
-dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable);
+dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable, dc_transport_t transport);
 
 void
 dc_iostream_deallocate (dc_iostream_t *iostream);

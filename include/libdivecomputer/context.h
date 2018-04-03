@@ -53,6 +53,9 @@ dc_context_set_loglevel (dc_context_t *context, dc_loglevel_t loglevel);
 dc_status_t
 dc_context_set_logfunc (dc_context_t *context, dc_logfunc_t logfunc, void *userdata);
 
+unsigned int
+dc_context_get_transports (dc_context_t *context);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

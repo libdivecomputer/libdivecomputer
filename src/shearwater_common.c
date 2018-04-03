@@ -36,29 +36,24 @@
 #define ESC_ESC   0xDD
 
 dc_status_t
-shearwater_common_open (shearwater_common_device_t *device, dc_context_t *context, const char *name)
+shearwater_common_setup (shearwater_common_device_t *device, dc_context_t *context, dc_iostream_t *iostream)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 
-	// Open the device.
-	status = dc_serial_open (&device->iostream, context, name);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the serial port.");
-		return status;
-	}
+	device->iostream = iostream;
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_close;
+		return status;
 	}
 
 	// Set the timeout for receiving data (3000ms).
 	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
+		return status;
 	}
 
 	// Make sure everything is in a sane state.
@@ -66,18 +61,6 @@ shearwater_common_open (shearwater_common_device_t *device, dc_context_t *contex
 	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	return DC_STATUS_SUCCESS;
-
-error_close:
-	dc_iostream_close (device->iostream);
-	return status;
-}
-
-
-dc_status_t
-shearwater_common_close (shearwater_common_device_t *device)
-{
-	// Close the device.
-	return dc_iostream_close (device->iostream);
 }
 
 
