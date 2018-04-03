@@ -28,6 +28,7 @@
 #include "device-private.h"
 #include "array.h"
 #include "platform.h"
+#include "checksum.h"
 
 #define EONSTEEL 0
 #define EONCORE  1
@@ -76,6 +77,13 @@ struct directory_entry {
 
 #define PACKET_SIZE 64
 #define HEADER_SIZE 12
+#define MAXDATA_SIZE 2048
+#define CRC_SIZE    4
+
+// HDLC special characters
+#define END     0x7E
+#define ESC     0x7D
+#define ESC_BIT 0x20
 
 static dc_status_t suunto_eonsteel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
@@ -133,6 +141,142 @@ static void put_le32(unsigned int val, unsigned char *p)
 	p[3] = val >> 24;
 }
 
+static dc_status_t
+suunto_eonsteel_hdlc_write (suunto_eonsteel_device_t *device, const unsigned char data[], size_t size, size_t *actual)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned char buffer[20];
+	size_t nbytes = 0;
+
+	// Start of the packet.
+	buffer[nbytes++] = END;
+
+	for (size_t i = 0; i < size; ++i) {
+		unsigned char c = data[i];
+
+		if (c == END || c == ESC) {
+			// Append the escape character.
+			buffer[nbytes++] = ESC;
+
+			// Flush the buffer if necessary.
+			if (nbytes >= sizeof(buffer)) {
+				status = dc_iostream_write(device->iostream, buffer, nbytes, NULL);
+				if (status != DC_STATUS_SUCCESS) {
+					ERROR(device->base.context, "Failed to send the packet.");
+					return status;
+				}
+
+				nbytes = 0;
+			}
+
+			// Escape the character.
+			c ^= ESC_BIT;
+		}
+
+		// Append the character.
+		buffer[nbytes++] = c;
+
+		// Flush the buffer if necessary.
+		if (nbytes >= sizeof(buffer)) {
+			status = dc_iostream_write(device->iostream, buffer, nbytes, NULL);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR(device->base.context, "Failed to send the packet.");
+				return status;
+			}
+
+			nbytes = 0;
+		}
+	}
+
+	// End of the packet.
+	buffer[nbytes++] = END;
+
+	// Flush the buffer.
+	status = dc_iostream_write(device->iostream, buffer, nbytes, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR(device->base.context, "Failed to send the packet.");
+		return status;
+	}
+
+	if (actual)
+		*actual = size;
+
+	return status;
+
+}
+
+static dc_status_t
+suunto_eonsteel_hdlc_read (suunto_eonsteel_device_t *device, unsigned char data[], size_t size, size_t *actual)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned char buffer[20];
+	unsigned int initialized = 0;
+	unsigned int escaped = 0;
+	size_t nbytes = 0;
+
+	while (1) {
+		// Read a single data packet.
+		size_t transferred = 0;
+		status = dc_iostream_read(device->iostream, buffer, sizeof(buffer), &transferred);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR(device->base.context, "Failed to receive the packet.");
+			return status;
+		}
+
+		for (size_t i = 0; i < transferred; ++i) {
+			unsigned char c = buffer[i];
+
+			if (c == END) {
+				if (escaped) {
+					ERROR (device->base.context, "HDLC frame escaped the special character %02x.", c);
+					return DC_STATUS_PROTOCOL;
+				}
+
+				if (initialized) {
+					goto done;
+				}
+
+				initialized = 1;
+				continue;
+			}
+
+			if (!initialized) {
+				continue;
+			}
+
+			if (c == ESC) {
+				if (escaped) {
+					ERROR (device->base.context, "HDLC frame escaped the special character %02x.", c);
+					return DC_STATUS_PROTOCOL;
+				}
+				escaped = 1;
+				continue;
+			}
+
+			if (escaped) {
+				c ^= ESC_BIT;
+				escaped = 0;
+			}
+
+			if (nbytes < size)
+				data[nbytes] = c;
+			nbytes++;
+
+		}
+	}
+
+done:
+	if (nbytes > size) {
+		ERROR(device->base.context, "Insufficient buffer space available.");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	if (actual)
+		*actual = nbytes;
+
+	return status;
+}
+
 /*
  * Get a single 64-byte packet from the dive computer. This handles packet
  * logging and any obvious packet-level errors, and returns the payload of
@@ -144,7 +288,7 @@ static void put_le32(unsigned int val, unsigned char *p)
  * The maximum payload is 62 bytes.
  */
 static dc_status_t
-suunto_eonsteel_receive(suunto_eonsteel_device_t *device, unsigned char data[], unsigned int size, unsigned int *actual)
+suunto_eonsteel_receive_usb(suunto_eonsteel_device_t *device, unsigned char data[], unsigned int size, unsigned int *actual)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char buf[PACKET_SIZE];
@@ -188,17 +332,58 @@ suunto_eonsteel_receive(suunto_eonsteel_device_t *device, unsigned char data[], 
 }
 
 static dc_status_t
+suunto_eonsteel_receive_ble(suunto_eonsteel_device_t *device, unsigned char data[], unsigned int size, unsigned int *actual)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	unsigned char buffer[HEADER_SIZE + MAXDATA_SIZE + CRC_SIZE];
+	size_t transferred = 0;
+
+	rc = suunto_eonsteel_hdlc_read(device, buffer, sizeof(buffer), &transferred);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR(device->base.context, "Failed to receive the packet.");
+		return rc;
+	}
+
+	if (transferred < CRC_SIZE) {
+		ERROR(device->base.context, "Invalid packet length (" DC_PRINTF_SIZE ").", transferred);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	unsigned int nbytes = transferred - CRC_SIZE;
+
+	unsigned int crc = array_uint32_le(buffer + nbytes);
+	unsigned int ccrc = checksum_crc32(buffer, nbytes);
+	if (crc != ccrc) {
+		ERROR(device->base.context, "Invalid checksum (expected %08x, received %08x).", ccrc, crc);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	if (nbytes > size) {
+		ERROR(device->base.context, "Insufficient buffer space available.");
+		return DC_STATUS_PROTOCOL;
+	}
+
+	memcpy(data, buffer, nbytes);
+
+	HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "rcv", buffer, nbytes);
+
+	if (actual)
+		*actual = nbytes;
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
 suunto_eonsteel_send(suunto_eonsteel_device_t *device,
 	unsigned short cmd,
 	const unsigned char data[],
 	unsigned int size)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
-	unsigned char buf[PACKET_SIZE];
-	size_t transferred = 0;
+	unsigned char buf[PACKET_SIZE + CRC_SIZE];
 
 	// Two-byte packet header, followed by 12 bytes of extended header
-	if (size + 2 + HEADER_SIZE > sizeof(buf)) {
+	if (size + 2 + HEADER_SIZE + CRC_SIZE > sizeof(buf)) {
 		ERROR(device->base.context, "Insufficient buffer space available.");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -225,7 +410,15 @@ suunto_eonsteel_send(suunto_eonsteel_device_t *device,
 		memcpy(buf + 14, data, size);
 	}
 
-	rc = dc_iostream_write(device->iostream, buf, sizeof(buf), &transferred);
+	// 4 byte LE checksum
+	unsigned int crc = checksum_crc32(buf + 2, size + HEADER_SIZE);
+	put_le32(crc, buf + 14 + size);
+
+	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
+		rc = suunto_eonsteel_hdlc_write(device, buf + 2, size + HEADER_SIZE + CRC_SIZE, NULL);
+	} else {
+		rc = dc_iostream_write(device->iostream, buf, sizeof(buf) - CRC_SIZE, NULL);
+	}
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(device->base.context, "Failed to send the command.");
 		return rc;
@@ -257,7 +450,7 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 	unsigned int *actual)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
-	unsigned char header[PACKET_SIZE];
+	unsigned char header[HEADER_SIZE + MAXDATA_SIZE];
 	unsigned int len = 0;
 
 	// Send the command.
@@ -265,8 +458,13 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	// Receive the header and the first part of the data.
-	rc = suunto_eonsteel_receive(device, header, sizeof(header), &len);
+	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
+		// Receive the entire data packet.
+		rc = suunto_eonsteel_receive_ble(device, header, sizeof(header), &len);
+	} else {
+		// Receive the header and the first part of the data.
+		rc = suunto_eonsteel_receive_usb(device, header, sizeof(header), &len);
+	}
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -319,15 +517,17 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 	memcpy(answer, header + HEADER_SIZE, nbytes);
 
 	// Receive the remainder of the data.
-	while (nbytes < length) {
-		rc = suunto_eonsteel_receive(device, answer + nbytes, length - nbytes, &len);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+	if (dc_iostream_get_transport(device->iostream) != DC_TRANSPORT_BLE) {
+		while (nbytes < length) {
+			rc = suunto_eonsteel_receive_usb(device, answer + nbytes, length - nbytes, &len);
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
 
-		nbytes += len;
+			nbytes += len;
 
-		if (len < PACKET_SIZE - 2)
-			break;
+			if (len < PACKET_SIZE - 2)
+				break;
+		}
 	}
 
 	// Verify the total payload length.

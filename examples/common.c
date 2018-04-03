@@ -98,6 +98,7 @@ static const transport_table_t g_transports[] = {
 	{"usbhid",    DC_TRANSPORT_USBHID},
 	{"irda",      DC_TRANSPORT_IRDA},
 	{"bluetooth", DC_TRANSPORT_BLUETOOTH},
+	{"ble",       DC_TRANSPORT_BLE},
 };
 
 const char *

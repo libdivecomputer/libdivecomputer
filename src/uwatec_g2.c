@@ -74,21 +74,25 @@ receive_data (uwatec_g2_device_t *device, dc_event_progress_t *progress, unsigne
 
 		rc = dc_iostream_read (device->iostream, buf, sizeof(buf), &transferred);
 		if (rc != DC_STATUS_SUCCESS) {
-			ERROR (device->base.context, "read interrupt transfer failed");
+			ERROR (device->base.context, "Failed to receive the packet.");
 			return rc;
 		}
-		if (transferred != sizeof(buf)) {
-			ERROR (device->base.context, "incomplete read interrupt transfer (got " DC_PRINTF_SIZE ", expected " DC_PRINTF_SIZE ")", transferred, sizeof(buf));
+
+		if (transferred < 1) {
+			ERROR (device->base.context, "Invalid packet length (" DC_PRINTF_SIZE ").", transferred);
 			return DC_STATUS_PROTOCOL;
 		}
+
 		len = buf[0];
-		if (len >= sizeof(buf)) {
-			ERROR (device->base.context, "read interrupt transfer returns impossible packet size (%d)", len);
+		if (len + 1 > transferred) {
+			ERROR (device->base.context, "Invalid payload length (%u).", len);
 			return DC_STATUS_PROTOCOL;
 		}
+
 		HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "rcv", buf + 1, len);
+
 		if (len > size) {
-			ERROR (device->base.context, "receive result buffer too small");
+			ERROR (device->base.context, "Insufficient buffer space available.");
 			return DC_STATUS_PROTOCOL;
 		}
 
@@ -124,7 +128,12 @@ uwatec_g2_transfer (uwatec_g2_device_t *device, const unsigned char command[], u
 	buf[1] = csize;
 	memcpy(buf + 2, command, csize);
 	memset(buf + 2 + csize, 0, sizeof(buf) - (csize + 2));
-	status = dc_iostream_write (device->iostream, buf, sizeof(buf), &transferred);
+
+	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
+		status = dc_iostream_write(device->iostream, buf + 1, csize + 1, &transferred);
+	} else {
+		status = dc_iostream_write(device->iostream, buf, sizeof(buf), &transferred);
+	}
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to send the command.");
 		return status;

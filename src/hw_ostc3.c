@@ -96,6 +96,9 @@ typedef struct hw_ostc3_device_t {
 	unsigned int model;
 	unsigned char fingerprint[5];
 	hw_ostc3_state_t state;
+	unsigned char cache[20];
+	unsigned int available;
+	unsigned int offset;
 } hw_ostc3_device_t;
 
 typedef struct hw_ostc3_logbook_t {
@@ -174,6 +177,89 @@ hw_ostc3_strncpy (unsigned char *data, unsigned int size, const char *text)
 	return 0;
 }
 
+static dc_status_t
+hw_ostc3_read (hw_ostc3_device_t *device, dc_event_progress_t *progress, unsigned char data[], size_t size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
+
+	size_t nbytes = 0;
+	while (nbytes < size) {
+		if (transport == DC_TRANSPORT_BLE) {
+			if (device->available == 0) {
+				// Read a packet into the cache.
+				size_t len = 0;
+				rc = dc_iostream_read (device->iostream, device->cache, sizeof(device->cache), &len);
+				if (rc != DC_STATUS_SUCCESS)
+					return rc;
+
+				device->available = len;
+				device->offset = 0;
+			}
+		}
+
+		// Set the minimum packet size.
+		size_t length = (transport == DC_TRANSPORT_BLE) ? device->available : 1024;
+
+		// Limit the packet size to the total size.
+		if (nbytes + length > size)
+			length = size - nbytes;
+
+		if (transport == DC_TRANSPORT_BLE) {
+			// Copy the data from the cached packet.
+			memcpy (data + nbytes, device->cache + device->offset, length);
+			device->available -= length;
+			device->offset += length;
+		} else {
+			// Read the packet.
+			rc = dc_iostream_write (device->iostream, data + nbytes, length, NULL);
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
+		}
+
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += length;
+			device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
+		}
+
+		nbytes += length;
+	}
+
+	return rc;
+}
+
+static dc_status_t
+hw_ostc3_write (hw_ostc3_device_t *device, dc_event_progress_t *progress, const unsigned char data[], size_t size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
+
+	size_t nbytes = 0;
+	while (nbytes < size) {
+		// Set the maximum packet size.
+		size_t length = (transport == DC_TRANSPORT_BLE) ? sizeof(device->cache) : 64;
+
+		// Limit the packet size to the total size.
+		if (nbytes + length > size)
+			length = size - nbytes;
+
+		// Write the packet.
+		rc = dc_iostream_write (device->iostream, data + nbytes, length, NULL);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += length;
+			device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
+		}
+
+		nbytes += length;
+	}
+
+	return rc;
+}
 
 static dc_status_t
 hw_ostc3_transfer (hw_ostc3_device_t *device,
@@ -196,7 +282,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	// Send the command.
 	unsigned char command[1] = {cmd};
-	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
+	status = hw_ostc3_write (device, NULL, command, sizeof (command));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -204,7 +290,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	// Read the echo.
 	unsigned char echo[1] = {0};
-	status = dc_iostream_read (device->iostream, echo, sizeof (echo), NULL);
+	status = hw_ostc3_read (device, NULL, echo, sizeof (echo));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the echo.");
 		return status;
@@ -223,68 +309,28 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 
 	if (input) {
 		// Send the input data packet.
-		unsigned int nbytes = 0;
-		while (nbytes < isize) {
-			// Set the minimum packet size.
-			unsigned int len = 64;
-
-			// Limit the packet size to the total size.
-			if (nbytes + len > isize)
-				len = isize - nbytes;
-
-			// Write the packet.
-			status = dc_iostream_write (device->iostream, input + nbytes, len, NULL);
-			if (status != DC_STATUS_SUCCESS) {
-				ERROR (abstract->context, "Failed to send the data packet.");
-				return status;
-			}
-
-			// Update and emit a progress event.
-			if (progress) {
-				progress->current += len;
-				device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
-			}
-
-			nbytes += len;
+		status = hw_ostc3_write (device, progress, input, isize);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the data packet.");
+			return status;
 		}
 	}
 
 	if (output) {
-		unsigned int nbytes = 0;
-		while (nbytes < osize) {
-			// Set the minimum packet size.
-			unsigned int len = 1024;
-
-			// Increase the packet size if more data is immediately available.
-			size_t available = 0;
-			status = dc_iostream_get_available (device->iostream, &available);
-			if (status == DC_STATUS_SUCCESS && available > len)
-				len = available;
-
-			// Limit the packet size to the total size.
-			if (nbytes + len > osize)
-				len = osize - nbytes;
-
-			// Read the packet.
-			status = dc_iostream_read (device->iostream, output + nbytes, len, NULL);
-			if (status != DC_STATUS_SUCCESS) {
-				ERROR (abstract->context, "Failed to receive the answer.");
-				return status;
-			}
-
-			// Update and emit a progress event.
-			if (progress) {
-				progress->current += len;
-				device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
-			}
-
-			nbytes += len;
+		// Read the ouput data packet.
+		status = hw_ostc3_read (device, progress, output, osize);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
 		}
 	}
 
 	if (delay) {
 		unsigned int count = delay / 100;
 		for (unsigned int i = 0; i < count; ++i) {
+			if (device->available)
+				break;
+
 			size_t available = 0;
 			status = dc_iostream_get_available (device->iostream, &available);
 			if (status == DC_STATUS_SUCCESS && available > 0)
@@ -297,7 +343,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	if (cmd != EXIT) {
 		// Read the ready byte.
 		unsigned char answer[1] = {0};
-		status = dc_iostream_read (device->iostream, answer, sizeof (answer), NULL);
+		status = hw_ostc3_read (device, NULL, answer, sizeof (answer));
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the ready byte.");
 			return status;
@@ -336,6 +382,9 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *i
 	device->feature = 0;
 	device->model = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	memset (device->cache, 0, sizeof (device->cache));
+	device->available = 0;
+	device->offset = 0;
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
@@ -424,7 +473,7 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 	unsigned char output[5];
 
 	// We cant use hw_ostc3_transfer here, due to the different echos
-	status = dc_iostream_write (device->iostream, command, sizeof (command), NULL);
+	status = hw_ostc3_write (device, NULL, command, sizeof (command));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to send the command.");
 		return status;
@@ -434,7 +483,7 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 	dc_iostream_sleep (device->iostream, 100);
 
 	// Read the response
-	status = dc_iostream_read (device->iostream, output, sizeof (output), NULL);
+	status = hw_ostc3_read (device, NULL, output, sizeof (output));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to receive the echo.");
 		return status;
