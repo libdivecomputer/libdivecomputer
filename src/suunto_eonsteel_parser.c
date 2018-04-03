@@ -64,7 +64,7 @@ enum eon_sample {
 #define EON_MAX_GROUP 16
 
 struct type_desc {
-	const char *desc, *format, *mod;
+	char *desc, *format, *mod;
 	unsigned int size;
 	enum eon_sample type[EON_MAX_GROUP];
 };
@@ -290,9 +290,9 @@ static void
 desc_free (struct type_desc desc[], unsigned int count)
 {
 	for (unsigned int i = 0; i < count; ++i) {
-		free((void *)desc[i].desc);
-		free((void *)desc[i].format);
-		free((void *)desc[i].mod);
+		free(desc[i].desc);
+		free(desc[i].format);
+		free(desc[i].mod);
 	}
 }
 
@@ -463,8 +463,8 @@ struct sample_data {
 	dc_sample_callback_t callback;
 	void *userdata;
 	unsigned int time;
-	const char *state_type, *notify_type;
-	const char *warning_type, *alarm_type;
+	char *state_type, *notify_type;
+	char *warning_type, *alarm_type;
 
 	/* We gather up deco and cylinder pressure information */
 	int gasnr;
@@ -613,7 +613,7 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
  *
  * "enum:0=NoFly Time,1=Depth,2=Surface Time,3=..."
  */
-static const char *lookup_enum(const struct type_desc *desc, unsigned char value)
+static char *lookup_enum(const struct type_desc *desc, unsigned char value)
 {
 	const char *str = desc->format;
 	unsigned char c;
@@ -674,6 +674,7 @@ static const char *lookup_enum(const struct type_desc *desc, unsigned char value
  */
 static void sample_event_state_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->state_type);
 	info->state_type = lookup_enum(desc, type);
 }
 
@@ -705,6 +706,7 @@ static void sample_event_state_value(const struct type_desc *desc, struct sample
 
 static void sample_event_notify_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->notify_type);
 	info->notify_type = lookup_enum(desc, type);
 }
 
@@ -747,6 +749,7 @@ static void sample_event_notify_value(const struct type_desc *desc, struct sampl
 
 static void sample_event_warning_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->warning_type);
 	info->warning_type = lookup_enum(desc, type);
 }
 
@@ -785,6 +788,7 @@ static void sample_event_warning_value(const struct type_desc *desc, struct samp
 
 static void sample_event_alarm_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
 {
+	free(info->alarm_type);
 	info->alarm_type = lookup_enum(desc, type);
 }
 
@@ -819,7 +823,7 @@ static void sample_event_alarm_value(const struct type_desc *desc, struct sample
 static void sample_setpoint_type(const struct type_desc *desc, struct sample_data *info, unsigned char value)
 {
 	dc_sample_value_t sample = {0};
-	const char *type = lookup_enum(desc, value);
+	char *type = lookup_enum(desc, value);
 
 	if (!type) {
 		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) did not match anything in %s", value, desc->format);
@@ -834,12 +838,12 @@ static void sample_setpoint_type(const struct type_desc *desc, struct sample_dat
 		sample.ppo2 = info->eon->cache.customsetpoint;
 	else {
 		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) unknown type '%s'", value, type);
-		free((void *)type);
+		free(type);
 		return;
 	}
 
 	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, sample, info->userdata);
-	free((void *)type);
+	free(type);
 }
 
 // uint32
@@ -1013,6 +1017,12 @@ suunto_eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback
 	struct sample_data data = { eon, callback, userdata, 0 };
 
 	traverse_data(eon, traverse_samples, &data);
+
+	free(data.state_type);
+	free(data.notify_type);
+	free(data.warning_type);
+	free(data.alarm_type);
+
 	return DC_STATUS_SUCCESS;
 }
 
@@ -1148,7 +1158,7 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 {
 	int idx = eon->cache.ngases;
 	dc_tankvolume_t tankinfo = DC_TANKVOLUME_METRIC;
-	const char *name;
+	char *name;
 
 	if (idx >= MAXGASES)
 		return 0;
@@ -1170,7 +1180,7 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX_COUNT;
 	eon->cache.initialized |= 1 << DC_FIELD_TANK_COUNT;
-	free((void *)name);
+	free(name);
 	return 0;
 }
 
