@@ -53,6 +53,7 @@
 #include "iostream-private.h"
 #include "iterator-private.h"
 #include "descriptor-private.h"
+#include "platform.h"
 
 #ifdef _WIN32
 #define DC_ADDRESS_FORMAT "%012I64X"
