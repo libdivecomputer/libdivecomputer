@@ -31,6 +31,16 @@
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
+#define CMD_MODEL      0x10
+#define CMD_SERIAL     0x14
+#define CMD_DEVTIME    0x1A
+#define CMD_HANDSHAKE1 0x1B
+#define CMD_HANDSHAKE2 0x1C
+#define CMD_DATA       0xC4
+#define CMD_SIZE       0xC6
+
+#define OK  0x01
+
 typedef struct uwatec_smart_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
@@ -90,25 +100,25 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 	unsigned char command[5] = {0x00, 0x10, 0x27, 0, 0};
 
 	// Handshake (stage 1).
-	command[0] = 0x1B;
+	command[0] = CMD_HANDSHAKE1;
 	dc_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the answer.
-	if (answer[0] != 0x01) {
+	if (answer[0] != OK) {
 		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Handshake (stage 2).
-	command[0] = 0x1C;
+	command[0] = CMD_HANDSHAKE2;
 	rc = uwatec_smart_transfer (device, command, 5, answer, 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Verify the answer.
-	if (answer[0] != 0x01) {
+	if (answer[0] != OK) {
 		ERROR (abstract->context, "Unexpected answer byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -184,21 +194,21 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	// Read the model number.
-	unsigned char cmd_model[1] = {0x10};
+	unsigned char cmd_model[1] = {CMD_MODEL};
 	unsigned char model[1] = {0};
 	rc = uwatec_smart_transfer (device, cmd_model, sizeof (cmd_model), model, sizeof (model));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Read the serial number.
-	unsigned char cmd_serial[1] = {0x14};
+	unsigned char cmd_serial[1] = {CMD_SERIAL};
 	unsigned char serial[4] = {0};
 	rc = uwatec_smart_transfer (device, cmd_serial, sizeof (cmd_serial), serial, sizeof (serial));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Read the device clock.
-	unsigned char cmd_devtime[1] = {0x1A};
+	unsigned char cmd_devtime[1] = {CMD_DEVTIME};
 	unsigned char devtime[4] = {0};
 	rc = uwatec_smart_transfer (device, cmd_devtime, sizeof (cmd_devtime), devtime, sizeof (devtime));
 	if (rc != DC_STATUS_SUCCESS)
@@ -237,7 +247,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			0};
 
 	// Data Length.
-	command[0] = 0xC6;
+	command[0] = CMD_SIZE;
 	unsigned char answer[4] = {0};
 	rc = uwatec_smart_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != DC_STATUS_SUCCESS)
@@ -262,7 +272,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char *data = dc_buffer_get_data (buffer);
 
 	// Data.
-	command[0] = 0xC4;
+	command[0] = CMD_DATA;
 	rc = uwatec_smart_transfer (device, command, sizeof (command), answer, sizeof (answer));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
