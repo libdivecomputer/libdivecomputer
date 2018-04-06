@@ -138,6 +138,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_G2, 0x17, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "Aladin Square",       DC_FAMILY_UWATEC_G2, 0x22, DC_TRANSPORT_USBHID, dc_filter_uwatec},
 	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_G2, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
+	{"Scubapro", "G2 Console",          DC_FAMILY_UWATEC_G2, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1, DC_TRANSPORT_SERIAL, NULL},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2, DC_TRANSPORT_SERIAL, NULL},
@@ -369,6 +370,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 	};
 	static const dc_usb_desc_t usbhid[] = {
 		{0x2e6c, 0x3201}, // G2
+		{0x2e6c, 0x3211}, // G2 Console
 		{0xc251, 0x2006}, // Aladin Square
 	};
 
