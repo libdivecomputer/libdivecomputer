@@ -78,7 +78,7 @@ dc_status_t
 dc_iostream_set_timeout (dc_iostream_t *iostream, int timeout)
 {
 	if (iostream == NULL || iostream->vtable->set_timeout == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Timeout: value=%i", timeout);
 
@@ -89,7 +89,7 @@ dc_status_t
 dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_latency == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Latency: value=%i", value);
 
@@ -100,7 +100,7 @@ dc_status_t
 dc_iostream_set_break (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_break == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Break: value=%i", value);
 
@@ -111,7 +111,7 @@ dc_status_t
 dc_iostream_set_dtr (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_dtr == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "DTR: value=%i", value);
 
@@ -122,7 +122,7 @@ dc_status_t
 dc_iostream_set_rts (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_rts == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "RTS: value=%i", value);
 
@@ -136,7 +136,6 @@ dc_iostream_get_lines (dc_iostream_t *iostream, unsigned int *value)
 	unsigned int lines = 0;
 
 	if (iostream == NULL || iostream->vtable->get_lines == NULL) {
-		status = DC_STATUS_UNSUPPORTED;
 		goto out;
 	}
 
@@ -158,7 +157,6 @@ dc_iostream_get_available (dc_iostream_t *iostream, size_t *value)
 	size_t available = 0;
 
 	if (iostream == NULL || iostream->vtable->get_available == NULL) {
-		status = DC_STATUS_UNSUPPORTED;
 		goto out;
 	}
 
@@ -177,7 +175,7 @@ dc_status_t
 dc_iostream_configure (dc_iostream_t *iostream, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol)
 {
 	if (iostream == NULL || iostream->vtable->configure == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Configure: baudrate=%i, databits=%i, parity=%i, stopbits=%i, flowcontrol=%i",
 		baudrate, databits, parity, stopbits, flowcontrol);
@@ -192,7 +190,6 @@ dc_iostream_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actu
 	size_t nbytes = 0;
 
 	if (iostream == NULL || iostream->vtable->read == NULL) {
-		status = DC_STATUS_UNSUPPORTED;
 		goto out;
 	}
 
@@ -214,7 +211,6 @@ dc_iostream_write (dc_iostream_t *iostream, const void *data, size_t size, size_
 	size_t nbytes = 0;
 
 	if (iostream == NULL || iostream->vtable->read == NULL) {
-		status = DC_STATUS_UNSUPPORTED;
 		goto out;
 	}
 
@@ -233,7 +229,7 @@ dc_status_t
 dc_iostream_flush (dc_iostream_t *iostream)
 {
 	if (iostream == NULL || iostream->vtable->flush == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Flush: none");
 
@@ -244,7 +240,7 @@ dc_status_t
 dc_iostream_purge (dc_iostream_t *iostream, dc_direction_t direction)
 {
 	if (iostream == NULL || iostream->vtable->purge == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Purge: direction=%u", direction);
 
@@ -255,7 +251,7 @@ dc_status_t
 dc_iostream_sleep (dc_iostream_t *iostream, unsigned int milliseconds)
 {
 	if (iostream == NULL || iostream->vtable->sleep == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Sleep: value=%u", milliseconds);
 

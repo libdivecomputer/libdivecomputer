@@ -99,7 +99,7 @@ dc_custom_set_timeout (dc_iostream_t *abstract, int timeout)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.set_timeout == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.set_timeout (custom->userdata, timeout);
 }
@@ -110,7 +110,7 @@ dc_custom_set_latency (dc_iostream_t *abstract, unsigned int value)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.set_latency == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.set_latency (custom->userdata, value);
 }
@@ -121,7 +121,7 @@ dc_custom_set_break (dc_iostream_t *abstract, unsigned int value)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.set_break == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.set_break (custom->userdata, value);
 }
@@ -132,7 +132,7 @@ dc_custom_set_dtr (dc_iostream_t *abstract, unsigned int value)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.set_dtr == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.set_dtr (custom->userdata, value);
 }
@@ -143,7 +143,7 @@ dc_custom_set_rts (dc_iostream_t *abstract, unsigned int value)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.set_rts == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.set_rts (custom->userdata, value);
 }
@@ -154,7 +154,7 @@ dc_custom_get_lines (dc_iostream_t *abstract, unsigned int *value)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.get_lines == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.get_lines (custom->userdata, value);
 }
@@ -165,7 +165,7 @@ dc_custom_get_available (dc_iostream_t *abstract, size_t *value)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.get_available == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.get_available (custom->userdata, value);
 }
@@ -176,7 +176,7 @@ dc_custom_configure (dc_iostream_t *abstract, unsigned int baudrate, unsigned in
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.configure == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.configure (custom->userdata, baudrate, databits, parity, stopbits, flowcontrol);
 }
@@ -187,7 +187,7 @@ dc_custom_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.read == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.read (custom->userdata, data, size, actual);
 }
@@ -198,7 +198,7 @@ dc_custom_write (dc_iostream_t *abstract, const void *data, size_t size, size_t 
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.write == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.write (custom->userdata, data, size, actual);
 }
@@ -209,7 +209,7 @@ dc_custom_flush (dc_iostream_t *abstract)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.flush == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.flush (custom->userdata);
 }
@@ -220,7 +220,7 @@ dc_custom_purge (dc_iostream_t *abstract, dc_direction_t direction)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.purge == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.purge (custom->userdata, direction);
 }
@@ -231,7 +231,7 @@ dc_custom_sleep (dc_iostream_t *abstract, unsigned int milliseconds)
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
 	if (custom->callbacks.sleep == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.sleep (custom->userdata, milliseconds);
 }
@@ -239,12 +239,10 @@ dc_custom_sleep (dc_iostream_t *abstract, unsigned int milliseconds)
 static dc_status_t
 dc_custom_close (dc_iostream_t *abstract)
 {
-	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_custom_t *custom = (dc_custom_t *) abstract;
 
-	if (custom->callbacks.close) {
-		status = custom->callbacks.close (custom->userdata);
-	}
+	if (custom->callbacks.close == NULL)
+		return DC_STATUS_SUCCESS;
 
-	return status;
+	return custom->callbacks.close (custom->userdata);
 }
