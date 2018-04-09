@@ -25,6 +25,7 @@
 
 #include "iostream-private.h"
 #include "context-private.h"
+#include "platform.h"
 
 dc_iostream_t *
 dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable, dc_transport_t transport)
@@ -141,6 +142,8 @@ dc_iostream_get_lines (dc_iostream_t *iostream, unsigned int *value)
 
 	status = iostream->vtable->get_lines (iostream, &lines);
 
+	INFO (iostream->context, "Lines: value=%u", lines);
+
 out:
 	if (value)
 		*value = lines;
@@ -160,6 +163,8 @@ dc_iostream_get_available (dc_iostream_t *iostream, size_t *value)
 	}
 
 	status = iostream->vtable->get_available (iostream, &available);
+
+	INFO (iostream->context, "Available: value=" DC_PRINTF_SIZE, available);
 
 out:
 	if (value)
