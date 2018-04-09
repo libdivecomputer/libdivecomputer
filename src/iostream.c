@@ -131,19 +131,41 @@ dc_iostream_set_rts (dc_iostream_t *iostream, unsigned int value)
 dc_status_t
 dc_iostream_get_lines (dc_iostream_t *iostream, unsigned int *value)
 {
-	if (iostream == NULL || iostream->vtable->get_lines == NULL)
-		return DC_STATUS_UNSUPPORTED;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned int lines = 0;
 
-	return iostream->vtable->get_lines (iostream, value);
+	if (iostream == NULL || iostream->vtable->get_lines == NULL) {
+		status = DC_STATUS_UNSUPPORTED;
+		goto out;
+	}
+
+	status = iostream->vtable->get_lines (iostream, &lines);
+
+out:
+	if (value)
+		*value = lines;
+
+	return status;
 }
 
 dc_status_t
 dc_iostream_get_available (dc_iostream_t *iostream, size_t *value)
 {
-	if (iostream == NULL || iostream->vtable->get_available == NULL)
-		return DC_STATUS_UNSUPPORTED;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	size_t available = 0;
 
-	return iostream->vtable->get_available (iostream, value);
+	if (iostream == NULL || iostream->vtable->get_available == NULL) {
+		status = DC_STATUS_UNSUPPORTED;
+		goto out;
+	}
+
+	status = iostream->vtable->get_available (iostream, &available);
+
+out:
+	if (value)
+		*value = available;
+
+	return status;
 }
 
 dc_status_t
