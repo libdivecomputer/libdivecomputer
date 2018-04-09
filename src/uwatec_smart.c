@@ -25,11 +25,14 @@
 #include "uwatec_smart.h"
 #include "context-private.h"
 #include "device-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_smart_device_vtable)
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
+#define DATASIZE 254
 
 #define CMD_MODEL      0x10
 #define CMD_SERIAL     0x14
@@ -69,18 +72,85 @@ static dc_status_t
 uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
-uwatec_smart_transfer (uwatec_smart_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+uwatec_smart_send (uwatec_smart_device_t *device, unsigned char cmd, const unsigned char data[], size_t size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	if (size > DATASIZE) {
+		ERROR (abstract->context, "Command too large (" DC_PRINTF_SIZE ").", size);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Build the packet.
+	unsigned char packet[1 + DATASIZE] = {
+		cmd};
+	if (size) {
+		memcpy (packet + 1, data, size);
+	}
+
+	// Send the packet.
+	rc = dc_iostream_write (device->iostream, packet, size + 1, NULL);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to send the data packet.");
+		return rc;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+uwatec_smart_receive (uwatec_smart_device_t *device, dc_event_progress_t *progress, unsigned char cmd, unsigned char data[], size_t size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	size_t nbytes = 0;
+	while (nbytes < size) {
+		// Set the minimum packet size.
+		size_t len = 32;
+
+		// Increase the packet size if more data is immediately available.
+		size_t available = 0;
+		rc = dc_iostream_get_available (device->iostream, &available);
+		if (rc == DC_STATUS_SUCCESS && available > len)
+			len = available;
+
+		// Limit the packet size to the total size.
+		if (nbytes + len > size)
+			len = size - nbytes;
+
+		rc = dc_iostream_read (device->iostream, data + nbytes, len, NULL);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the data packet.");
+			return rc;
+		}
+
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += len;
+			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+		}
+
+		nbytes += len;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+uwatec_smart_transfer (uwatec_smart_device_t *device, unsigned char cmd, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	status = dc_iostream_write (device->iostream, command, csize, NULL);
+	status = uwatec_smart_send (device, cmd, command, csize);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
 	}
 
-	status = dc_iostream_read (device->iostream, answer, asize, NULL);
+	status = uwatec_smart_receive (device, NULL, cmd, answer, asize);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -94,14 +164,11 @@ static dc_status_t
 uwatec_smart_handshake (uwatec_smart_device_t *device)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
-
-	// Command template.
+	const unsigned char params[] = {0x10, 0x27, 0, 0};
 	unsigned char answer[1] = {0};
-	unsigned char command[5] = {0x00, 0x10, 0x27, 0, 0};
 
 	// Handshake (stage 1).
-	command[0] = CMD_HANDSHAKE1;
-	dc_status_t rc = uwatec_smart_transfer (device, command, 1, answer, 1);
+	dc_status_t rc = uwatec_smart_transfer (device, CMD_HANDSHAKE1, NULL, 0, answer, sizeof(answer));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -112,8 +179,7 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 	}
 
 	// Handshake (stage 2).
-	command[0] = CMD_HANDSHAKE2;
-	rc = uwatec_smart_transfer (device, command, 5, answer, 1);
+	rc = uwatec_smart_transfer (device, CMD_HANDSHAKE2, params, sizeof(params), answer, sizeof(answer));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -194,23 +260,20 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	// Read the model number.
-	unsigned char cmd_model[1] = {CMD_MODEL};
 	unsigned char model[1] = {0};
-	rc = uwatec_smart_transfer (device, cmd_model, sizeof (cmd_model), model, sizeof (model));
+	rc = uwatec_smart_transfer (device, CMD_MODEL, NULL, 0, model, sizeof (model));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Read the serial number.
-	unsigned char cmd_serial[1] = {CMD_SERIAL};
 	unsigned char serial[4] = {0};
-	rc = uwatec_smart_transfer (device, cmd_serial, sizeof (cmd_serial), serial, sizeof (serial));
+	rc = uwatec_smart_transfer (device, CMD_SERIAL, NULL, 0, serial, sizeof (serial));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
 	// Read the device clock.
-	unsigned char cmd_devtime[1] = {CMD_DEVTIME};
 	unsigned char devtime[4] = {0};
-	rc = uwatec_smart_transfer (device, cmd_devtime, sizeof (cmd_devtime), devtime, sizeof (devtime));
+	rc = uwatec_smart_transfer (device, CMD_DEVTIME, NULL, 0, devtime, sizeof (devtime));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -235,8 +298,8 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	devinfo.serial = array_uint32_le (serial);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
-	// Command template.
-	unsigned char command[9] = {0x00,
+	// Command parameters.
+	const unsigned char params[] = {
 			(device->timestamp      ) & 0xFF,
 			(device->timestamp >> 8 ) & 0xFF,
 			(device->timestamp >> 16) & 0xFF,
@@ -247,9 +310,8 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			0};
 
 	// Data Length.
-	command[0] = CMD_SIZE;
 	unsigned char answer[4] = {0};
-	rc = uwatec_smart_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	rc = uwatec_smart_transfer (device, CMD_SIZE, params, sizeof (params), answer, sizeof (answer));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -272,48 +334,24 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char *data = dc_buffer_get_data (buffer);
 
 	// Data.
-	command[0] = CMD_DATA;
-	rc = uwatec_smart_transfer (device, command, sizeof (command), answer, sizeof (answer));
+	rc = uwatec_smart_transfer (device, CMD_DATA, params, sizeof (params), answer, sizeof (answer));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
-
-	unsigned int total = array_uint32_le (answer);
 
 	// Update and emit a progress event.
 	progress.current += 4;
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
+	unsigned int total = array_uint32_le (answer);
 	if (total != length + 4) {
 		ERROR (abstract->context, "Received an unexpected size.");
 		return DC_STATUS_PROTOCOL;
 	}
 
-	unsigned int nbytes = 0;
-	while (nbytes < length) {
-		// Set the minimum packet size.
-		unsigned int len = 32;
-
-		// Increase the packet size if more data is immediately available.
-		size_t available = 0;
-		rc = dc_iostream_get_available (device->iostream, &available);
-		if (rc == DC_STATUS_SUCCESS && available > len)
-			len = available;
-
-		// Limit the packet size to the total size.
-		if (nbytes + len > length)
-			len = length - nbytes;
-
-		rc = dc_iostream_read (device->iostream, data + nbytes, len, NULL);
-		if (rc != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to receive the answer.");
-			return rc;
-		}
-
-		// Update and emit a progress event.
-		progress.current += len;
-		device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
-
-		nbytes += len;
+	rc = uwatec_smart_receive (device, &progress, CMD_DATA, data, length);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to receive the answer.");
+		return rc;
 	}
 
 	return DC_STATUS_SUCCESS;
