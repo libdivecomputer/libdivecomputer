@@ -91,7 +91,7 @@ static const dc_iostream_vtable_t dc_serial_vtable = {
 	dc_serial_set_dtr, /* set_dtr */
 	dc_serial_set_rts, /* set_rts */
 	dc_serial_get_lines, /* get_lines */
-	dc_serial_get_available, /* get_received */
+	dc_serial_get_available, /* get_available */
 	dc_serial_configure, /* configure */
 	dc_serial_read, /* read */
 	dc_serial_write, /* write */

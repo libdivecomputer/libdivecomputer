@@ -142,7 +142,7 @@ static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	NULL, /* set_dtr */
 	NULL, /* set_rts */
 	NULL, /* get_lines */
-	NULL, /* get_received */
+	NULL, /* get_available */
 	NULL, /* configure */
 	dc_usbhid_read, /* read */
 	dc_usbhid_write, /* write */

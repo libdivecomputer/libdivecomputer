@@ -96,7 +96,7 @@ static const dc_iostream_vtable_t dc_irda_vtable = {
 	NULL, /* set_dtr */
 	NULL, /* set_rts */
 	NULL, /* get_lines */
-	dc_socket_get_available, /* get_received */
+	dc_socket_get_available, /* get_available */
 	NULL, /* configure */
 	dc_socket_read, /* read */
 	dc_socket_write, /* write */

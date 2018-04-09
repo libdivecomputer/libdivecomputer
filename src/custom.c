@@ -58,7 +58,7 @@ static const dc_iostream_vtable_t dc_custom_vtable = {
 	dc_custom_set_dtr, /* set_dtr */
 	dc_custom_set_rts, /* set_rts */
 	dc_custom_get_lines, /* get_lines */
-	dc_custom_get_available, /* get_received */
+	dc_custom_get_available, /* get_available */
 	dc_custom_configure, /* configure */
 	dc_custom_read, /* read */
 	dc_custom_write, /* write */
