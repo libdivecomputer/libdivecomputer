@@ -55,6 +55,7 @@
 #include "citizen_aqualand.h"
 #include "divesystem_idive.h"
 #include "cochran_commander.h"
+#include "tecdiving_divecomputereu.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -163,6 +164,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
 		rc = cochran_commander_parser_create (&parser, context, model);
+		break;
+	case DC_FAMILY_TECDIVING_DIVECOMPUTEREU:
+		rc = tecdiving_divecomputereu_parser_create (&parser, context);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

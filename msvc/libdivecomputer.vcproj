@@ -483,6 +483,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\tecdiving_divecomputereu.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\tecdiving_divecomputereu_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\timer.c"
 				>
 			</File>
@@ -814,6 +822,10 @@
 			</File>
 			<File
 				RelativePath="..\src\suunto_vyper2.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\tecdiving_divecomputereu.h"
 				>
 			</File>
 			<File

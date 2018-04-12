@@ -70,6 +70,7 @@ libdivecomputer_la_SOURCES = \
 	array.h array.c \
 	buffer.c \
 	cochran_commander.h cochran_commander.c cochran_commander_parser.c \
+	tecdiving_divecomputereu.h tecdiving_divecomputereu.c tecdiving_divecomputereu_parser.c \
 	socket.h socket.c \
 	irda.c \
 	usbhid.c \

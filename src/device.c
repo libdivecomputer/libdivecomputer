@@ -55,6 +55,7 @@
 #include "citizen_aqualand.h"
 #include "divesystem_idive.h"
 #include "cochran_commander.h"
+#include "tecdiving_divecomputereu.h"
 
 #include "device-private.h"
 #include "context-private.h"
@@ -202,6 +203,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
 		rc = cochran_commander_device_open (&device, context, iostream);
+		break;
+	case DC_FAMILY_TECDIVING_DIVECOMPUTEREU:
+		rc = tecdiving_divecomputereu_device_open (&device, context, iostream);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

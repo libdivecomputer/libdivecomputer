@@ -33,6 +33,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata);
 static int dc_filter_suunto (dc_transport_t transport, const void *userdata);
 static int dc_filter_shearwater (dc_transport_t transport, const void *userdata);
 static int dc_filter_hw (dc_transport_t transport, const void *userdata);
+static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -323,6 +324,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Cochran", "EMC-14",       DC_FAMILY_COCHRAN_COMMANDER, 3, DC_TRANSPORT_SERIAL, NULL},
 	{"Cochran", "EMC-16",       DC_FAMILY_COCHRAN_COMMANDER, 4, DC_TRANSPORT_SERIAL, NULL},
 	{"Cochran", "EMC-20H",      DC_FAMILY_COCHRAN_COMMANDER, 5, DC_TRANSPORT_SERIAL, NULL},
+	/* Tecdiving DiveComputer.eu */
+	{"Tecdiving", "DiveComputer.eu", DC_FAMILY_TECDIVING_DIVECOMPUTEREU, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_tecdiving},
 };
 
 static int
@@ -436,6 +439,21 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 		"Petrel",
 		"Nerd",
 		"Perdix",
+	};
+
+	if (transport == DC_TRANSPORT_BLUETOOTH) {
+		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+	} else if (transport == DC_TRANSPORT_SERIAL) {
+		return dc_filter_internal_rfcomm ((const char *) userdata);
+	}
+
+	return 1;
+}
+
+static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata)
+{
+	static const char *bluetooth[] = {
+		"DiveComputer",
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
