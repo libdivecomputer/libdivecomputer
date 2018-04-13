@@ -382,6 +382,10 @@ uwatec_smart_handshake (uwatec_smart_device_t *device)
 	const unsigned char params[] = {0x10, 0x27, 0, 0};
 	unsigned char answer[1] = {0};
 
+	// Skip the handshake for BLE communication.
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE)
+		return DC_STATUS_SUCCESS;
+
 	// Handshake (stage 1).
 	dc_status_t rc = uwatec_smart_transfer (device, CMD_HANDSHAKE1, NULL, 0, answer, sizeof(answer));
 	if (rc != DC_STATUS_SUCCESS)
