@@ -91,18 +91,18 @@ static const dc_iterator_vtable_t dc_irda_iterator_vtable = {
 static const dc_iostream_vtable_t dc_irda_vtable = {
 	sizeof(dc_socket_t),
 	dc_socket_set_timeout, /* set_timeout */
-	dc_socket_set_latency, /* set_latency */
-	dc_socket_set_break, /* set_break */
-	dc_socket_set_dtr, /* set_dtr */
-	dc_socket_set_rts, /* set_rts */
-	dc_socket_get_lines, /* get_lines */
-	dc_socket_get_available, /* get_received */
-	dc_socket_configure, /* configure */
+	NULL, /* set_latency */
+	NULL, /* set_break */
+	NULL, /* set_dtr */
+	NULL, /* set_rts */
+	NULL, /* get_lines */
+	dc_socket_get_available, /* get_available */
+	NULL, /* configure */
 	dc_socket_read, /* read */
 	dc_socket_write, /* write */
-	dc_socket_flush, /* flush */
-	dc_socket_purge, /* purge */
-	dc_socket_sleep, /* sleep */
+	NULL, /* flush */
+	NULL, /* purge */
+	NULL, /* sleep */
 	dc_socket_close, /* close */
 };
 #endif

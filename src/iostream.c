@@ -25,6 +25,7 @@
 
 #include "iostream-private.h"
 #include "context-private.h"
+#include "platform.h"
 
 dc_iostream_t *
 dc_iostream_allocate (dc_context_t *context, const dc_iostream_vtable_t *vtable, dc_transport_t transport)
@@ -77,7 +78,7 @@ dc_status_t
 dc_iostream_set_timeout (dc_iostream_t *iostream, int timeout)
 {
 	if (iostream == NULL || iostream->vtable->set_timeout == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Timeout: value=%i", timeout);
 
@@ -88,7 +89,7 @@ dc_status_t
 dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_latency == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Latency: value=%i", value);
 
@@ -99,7 +100,7 @@ dc_status_t
 dc_iostream_set_break (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_break == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Break: value=%i", value);
 
@@ -110,7 +111,7 @@ dc_status_t
 dc_iostream_set_dtr (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_dtr == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "DTR: value=%i", value);
 
@@ -121,7 +122,7 @@ dc_status_t
 dc_iostream_set_rts (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_rts == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "RTS: value=%i", value);
 
@@ -131,26 +132,50 @@ dc_iostream_set_rts (dc_iostream_t *iostream, unsigned int value)
 dc_status_t
 dc_iostream_get_lines (dc_iostream_t *iostream, unsigned int *value)
 {
-	if (iostream == NULL || iostream->vtable->get_lines == NULL)
-		return DC_STATUS_UNSUPPORTED;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned int lines = 0;
 
-	return iostream->vtable->get_lines (iostream, value);
+	if (iostream == NULL || iostream->vtable->get_lines == NULL) {
+		goto out;
+	}
+
+	status = iostream->vtable->get_lines (iostream, &lines);
+
+	INFO (iostream->context, "Lines: value=%u", lines);
+
+out:
+	if (value)
+		*value = lines;
+
+	return status;
 }
 
 dc_status_t
 dc_iostream_get_available (dc_iostream_t *iostream, size_t *value)
 {
-	if (iostream == NULL || iostream->vtable->get_available == NULL)
-		return DC_STATUS_UNSUPPORTED;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	size_t available = 0;
 
-	return iostream->vtable->get_available (iostream, value);
+	if (iostream == NULL || iostream->vtable->get_available == NULL) {
+		goto out;
+	}
+
+	status = iostream->vtable->get_available (iostream, &available);
+
+	INFO (iostream->context, "Available: value=" DC_PRINTF_SIZE, available);
+
+out:
+	if (value)
+		*value = available;
+
+	return status;
 }
 
 dc_status_t
 dc_iostream_configure (dc_iostream_t *iostream, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol)
 {
 	if (iostream == NULL || iostream->vtable->configure == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Configure: baudrate=%i, databits=%i, parity=%i, stopbits=%i, flowcontrol=%i",
 		baudrate, databits, parity, stopbits, flowcontrol);
@@ -165,7 +190,6 @@ dc_iostream_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actu
 	size_t nbytes = 0;
 
 	if (iostream == NULL || iostream->vtable->read == NULL) {
-		status = DC_STATUS_UNSUPPORTED;
 		goto out;
 	}
 
@@ -187,7 +211,6 @@ dc_iostream_write (dc_iostream_t *iostream, const void *data, size_t size, size_
 	size_t nbytes = 0;
 
 	if (iostream == NULL || iostream->vtable->read == NULL) {
-		status = DC_STATUS_UNSUPPORTED;
 		goto out;
 	}
 
@@ -206,7 +229,7 @@ dc_status_t
 dc_iostream_flush (dc_iostream_t *iostream)
 {
 	if (iostream == NULL || iostream->vtable->flush == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Flush: none");
 
@@ -217,7 +240,7 @@ dc_status_t
 dc_iostream_purge (dc_iostream_t *iostream, dc_direction_t direction)
 {
 	if (iostream == NULL || iostream->vtable->purge == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Purge: direction=%u", direction);
 
@@ -228,7 +251,7 @@ dc_status_t
 dc_iostream_sleep (dc_iostream_t *iostream, unsigned int milliseconds)
 {
 	if (iostream == NULL || iostream->vtable->sleep == NULL)
-		return DC_STATUS_UNSUPPORTED;
+		return DC_STATUS_SUCCESS;
 
 	INFO (iostream->context, "Sleep: value=%u", milliseconds);
 
