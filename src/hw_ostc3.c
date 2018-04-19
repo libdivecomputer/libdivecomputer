@@ -212,7 +212,7 @@ hw_ostc3_read (hw_ostc3_device_t *device, dc_event_progress_t *progress, unsigne
 			device->offset += length;
 		} else {
 			// Read the packet.
-			rc = dc_iostream_write (device->iostream, data + nbytes, length, NULL);
+			rc = dc_iostream_read (device->iostream, data + nbytes, length, NULL);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
 		}
