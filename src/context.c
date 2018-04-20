@@ -189,7 +189,9 @@ dc_context_free (dc_context_t *context)
 	if (context == NULL)
 		return DC_STATUS_SUCCESS;
 
+#ifdef ENABLE_LOGGING
 	dc_timer_free (context->timer);
+#endif
 	free (context);
 
 	return DC_STATUS_SUCCESS;
