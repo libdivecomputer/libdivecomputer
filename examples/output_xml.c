@@ -265,6 +265,20 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 	fprintf (output->ostream, "<maxdepth>%.2f</maxdepth>\n",
 		convert_depth(maxdepth, output->units));
 
+	// Parse the avgdepth.
+	message ("Parsing the avgdepth.\n");
+	double avgdepth = 0.0;
+	status = dc_parser_get_field (parser, DC_FIELD_AVGDEPTH, 0, &avgdepth);
+	if (status != DC_STATUS_SUCCESS && status != DC_STATUS_UNSUPPORTED) {
+		ERROR ("Error parsing the avgdepth.");
+		goto cleanup;
+	}
+
+	if (status != DC_STATUS_UNSUPPORTED) {
+		fprintf (output->ostream, "<avgdepth>%.2f</avgdepth>\n",
+			convert_depth(avgdepth, output->units));
+	}
+
 	// Parse the temperature.
 	message ("Parsing the temperature.\n");
 	for (unsigned int i = 0; i < 3; ++i) {
