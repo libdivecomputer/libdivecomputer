@@ -74,6 +74,7 @@ struct suunto_d9_parser_t {
 	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int id;
 	unsigned int mode;
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
@@ -225,6 +226,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		}
 	}
 	parser->config = config;
+	parser->id = id;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;
@@ -248,6 +250,7 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 	// Set the default values.
 	parser->model = model;
 	parser->cached = 0;
+	parser->id = 0;
 	parser->mode = AIR;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
@@ -270,6 +273,7 @@ suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, uns
 
 	// Reset the cache.
 	parser->cached = 0;
+	parser->id = 0;
 	parser->mode = AIR;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
@@ -715,10 +719,12 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
-					if (parser->model == DX || parser->model == VYPERNOVO)
+					if (parser->model == DX || parser->model == VYPERNOVO ||
+						(parser->model == D6i && parser->id == ID_D6I_V2)) {
 						length = 5;
-					else
+					} else {
 						length = 4;
+					}
 					if (offset + length > size) {
 						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
@@ -726,7 +732,8 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					unknown = data[offset + 0];
 					he = data[offset + 1];
 					o2 = data[offset + 2];
-					if (parser->model == DX || parser->model == VYPERNOVO) {
+					if (parser->model == DX || parser->model == VYPERNOVO ||
+						(parser->model == D6i && parser->id == ID_D6I_V2)) {
 						seconds = data[offset + 4];
 					} else {
 						seconds = data[offset + 3];
