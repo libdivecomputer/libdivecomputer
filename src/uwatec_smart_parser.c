@@ -366,6 +366,11 @@ uwatec_smart_event_info_t uwatec_smart_aladintec_events_0[] = {
 };
 
 static const
+uwatec_smart_event_info_t uwatec_smart_aladintec_events_1[] = {
+	{EV_UNKNOWN,          0xFF, 0},
+};
+
+static const
 uwatec_smart_event_info_t uwatec_smart_aladintec2g_events_0[] = {
 	{EV_WARNING,          0x01, 0},
 	{EV_ALARM,            0x02, 1},
@@ -634,7 +639,9 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		parser->samples = uwatec_smart_aladin_samples;
 		parser->nsamples = C_ARRAY_SIZE (uwatec_smart_aladin_samples);
 		parser->events[0] = uwatec_smart_aladintec_events_0;
+		parser->events[1] = uwatec_smart_aladintec_events_1;
 		parser->nevents[0] = C_ARRAY_SIZE (uwatec_smart_aladintec_events_0);
+		parser->nevents[1] = C_ARRAY_SIZE (uwatec_smart_aladintec_events_1);
 		break;
 	case ALADINTEC2G:
 		parser->headersize = 116;
