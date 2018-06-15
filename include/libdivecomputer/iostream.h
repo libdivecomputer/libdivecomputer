@@ -22,6 +22,7 @@
 #ifndef DC_IOSTREAM_H
 #define DC_IOSTREAM_H
 
+#include <stddef.h>
 #include <libdivecomputer/common.h>
 #include <libdivecomputer/context.h>
 
