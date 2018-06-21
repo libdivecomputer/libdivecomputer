@@ -132,7 +132,7 @@ dc_timer_now (dc_timer_t *timer, dc_usecs_t *usecs)
 	value = (dc_usecs_t) delta.tv_sec * 1000000 + delta.tv_nsec / 1000;
 #elif defined (HAVE_MACH_ABSOLUTE_TIME)
 	uint64_t now = mach_absolute_time();
-	value = (now - timer->timestamp) * timer->info.numer / timer->info.denom;
+	value = (now - timer->timestamp) * timer->info.numer / (timer->info.denom * 1000);
 #else
 	struct timeval now, delta;
 	if (gettimeofday (&now, NULL) != 0) {
