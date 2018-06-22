@@ -495,19 +495,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\uwatec_g2.c"
-				>
-			</File>
-			<File
 				RelativePath="..\src\uwatec_memomouse.c"
 				>
 			</File>
 			<File
 				RelativePath="..\src\uwatec_memomouse_parser.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\uwatec_meridian.c"
 				>
 			</File>
 			<File
@@ -841,15 +833,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\uwatec_g2.h"
-				>
-			</File>
-			<File
 				RelativePath="..\src\uwatec_memomouse.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\uwatec_meridian.h"
 				>
 			</File>
 			<File

@@ -68,8 +68,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_UWATEC_ALADIN = (3 << 16),
 	DC_FAMILY_UWATEC_MEMOMOUSE,
 	DC_FAMILY_UWATEC_SMART,
-	DC_FAMILY_UWATEC_MERIDIAN,
-	DC_FAMILY_UWATEC_G2,
+	DC_FAMILY_UWATEC_MERIDIAN, /* Deprecated: integrated into the Uwatec Smart family. */
+	DC_FAMILY_UWATEC_G2, /* Deprecated: integrated into the Uwatec Smart family. */
 	/* Oceanic */
 	DC_FAMILY_OCEANIC_VTPRO = (4 << 16),
 	DC_FAMILY_OCEANIC_VEO250,

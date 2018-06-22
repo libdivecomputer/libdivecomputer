@@ -33,7 +33,6 @@
 #include "reefnet_sensusultra.h"
 #include "uwatec_aladin.h"
 #include "uwatec_memomouse.h"
-#include "uwatec_meridian.h"
 #include "uwatec_smart.h"
 #include "oceanic_atom2.h"
 #include "oceanic_atom2.h"
@@ -97,8 +96,6 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = uwatec_memomouse_parser_create (&parser, context, devtime, systime);
 		break;
 	case DC_FAMILY_UWATEC_SMART:
-	case DC_FAMILY_UWATEC_MERIDIAN:
-	case DC_FAMILY_UWATEC_G2:
 		rc = uwatec_smart_parser_create (&parser, context, model, devtime, systime);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
