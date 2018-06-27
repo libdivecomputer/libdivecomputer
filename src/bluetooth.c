@@ -312,6 +312,12 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Initialize the socket library.
+	status = dc_socket_init (context);
+	if (status != DC_STATUS_SUCCESS) {
+		goto error_free;
+	}
+
 #ifdef _WIN32
 	WSAQUERYSET wsaq;
 	memset(&wsaq, 0, sizeof (wsaq));
@@ -328,7 +334,7 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 		} else {
 			SYSERROR (context, errcode);
 			status = dc_socket_syserror(errcode);
-			goto error_free;
+			goto error_socket_exit;
 		}
 	}
 
@@ -340,7 +346,7 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (context, errcode);
 		status = dc_socket_syserror(errcode);
-		goto error_free;
+		goto error_socket_exit;
 	}
 
 	// Open a socket to the bluetooth adapter.
@@ -349,7 +355,7 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (context, errcode);
 		status = dc_socket_syserror(errcode);
-		goto error_free;
+		goto error_socket_exit;
 	}
 
 	// Perform the bluetooth device discovery. The inquiry lasts for at
@@ -379,6 +385,8 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 error_close:
 	hci_close_dev(fd);
 #endif
+error_socket_exit:
+	dc_socket_exit (context);
 error_free:
 	dc_iterator_deallocate ((dc_iterator_t *) iterator);
 	return status;
@@ -486,6 +494,7 @@ dc_bluetooth_iterator_free (dc_iterator_t *abstract)
 	bt_free(iterator->devices);
 	hci_close_dev(iterator->fd);
 #endif
+	dc_socket_exit (abstract->context);
 
 	return DC_STATUS_SUCCESS;
 }
