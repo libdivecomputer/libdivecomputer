@@ -463,27 +463,27 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 	status = tecdiving_divecomputereu_send (device, CMD_LIST, NULL, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the list command.");
-		goto error_free;
+		goto error_logbook_free;
 	}
 
 	// Read the dive list.
 	status = tecdiving_divecomputereu_receive (device, RSP_LIST, logbook, length, &length);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the logbook.");
-		goto error_free;
+		goto error_logbook_free;
 	}
 
 	// Verify the minimum length.
 	if (length < 2) {
 		status = DC_STATUS_DATAFORMAT;
-		goto error_free;
+		goto error_logbook_free;
 	}
 
 	// Get the number of logbook entries.
 	unsigned int nlogbooks = array_uint16_be (logbook);
 	if (length != 2 + nlogbooks * SZ_SUMMARY) {
 		status = DC_STATUS_DATAFORMAT;
-		goto error_free;
+		goto error_logbook_free;
 	}
 
 	// Count the number of dives to download.
@@ -506,7 +506,7 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 	dc_buffer_t *buffer = dc_buffer_new(0);
 	if (buffer == NULL) {
 		status = DC_STATUS_NOMEMORY;
-		goto error_free;
+		goto error_logbook_free;
 	}
 
 	for (unsigned int i = 0; i < ndives; ++i) {
@@ -515,7 +515,7 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 		// Read the dive.
 		status = tecdiving_divecomputereu_readdive (abstract, &progress, i, buffer);
 		if (status != DC_STATUS_SUCCESS) {
-			goto error_free;
+			goto error_buffer_free;
 		}
 
 		// Cache the pointer.
@@ -526,7 +526,7 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 		if (memcmp (data, logbook + offset, SZ_SUMMARY) != 0) {
 			ERROR (abstract->context, "Dive header doesn't match logbook entry.");
 			status = DC_STATUS_DATAFORMAT;
-			goto error_free;
+			goto error_buffer_free;
 		}
 
 		if (callback && !callback (data, size, data, sizeof(device->fingerprint), userdata)) {
@@ -534,8 +534,9 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 		}
 	}
 
-error_free:
+error_buffer_free:
 	dc_buffer_free (buffer);
+error_logbook_free:
 	free (logbook);
 error_exit:
 	return status;
