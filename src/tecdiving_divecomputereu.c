@@ -117,7 +117,9 @@ tecdiving_divecomputereu_send (tecdiving_divecomputereu_device_t *device, unsign
 		(size >> 24) & 0xFF,
 		cmd,
 	};
-	memcpy(packet + 7, data, size);
+	if (size) {
+		memcpy(packet + 7, data, size);
+	}
 	crc = checksum_crc (packet + 1, size + 6, 0);
 	packet[size +  7] = (crc >> 8) & 0xFF;
 	packet[size +  8] = (crc     ) & 0xFF;
