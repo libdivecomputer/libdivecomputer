@@ -35,6 +35,7 @@
 #define ICONHD    0x14
 #define ICONHDNET 0x15
 #define QUADAIR   0x23
+#define SMARTAIR  0x24
 
 #define NGASMIXES 3
 #define NTANKS    NGASMIXES
@@ -94,7 +95,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		header = 0x80;
 	else if (parser->model == QUADAIR)
 		header = 0x84;
-	else if (parser->model == SMART)
+	else if (parser->model == SMART || parser->model == SMARTAIR)
 		header = 4; // Type and number of samples only!
 	else if (parser->model == SMARTAPNEA)
 		header = 6; // Type and number of samples only!
@@ -112,7 +113,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Get the number of samples in the profile data.
 	unsigned int type = 0, nsamples = 0;
-	if (parser->model == SMART || parser->model == SMARTAPNEA) {
+	if (parser->model == SMART || parser->model == SMARTAPNEA || parser->model == SMARTAIR) {
 		type     = array_uint16_le (data + length - header + 2);
 		nsamples = array_uint16_le (data + length - header + 0);
 	} else {
@@ -129,7 +130,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	if (parser->model == ICONHDNET) {
 		headersize = 0x80;
 		samplesize = 12;
-	} else if (parser->model == QUADAIR) {
+	} else if (parser->model == QUADAIR || parser->model == SMARTAIR) {
 		headersize = 0x84;
 		samplesize = 12;
 	} else if (parser->model == SMART) {
@@ -151,7 +152,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	}
 
 	const unsigned char *p = data + length - headersize;
-	if (parser->model != SMART && parser->model != SMARTAPNEA) {
+	if (parser->model != SMART && parser->model != SMARTAPNEA && parser->model != SMARTAIR) {
 		p += 4;
 	}
 
@@ -181,7 +182,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Calculate the total number of bytes for this dive.
 	unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-	if (parser->model == ICONHDNET || parser->model == QUADAIR) {
+	if (parser->model == ICONHDNET || parser->model == QUADAIR || parser->model == SMARTAIR) {
 		nbytes += (nsamples / 4) * 8;
 	} else if (parser->model == SMARTAPNEA) {
 		unsigned int divetime = array_uint32_le (p + 0x24);
@@ -215,7 +216,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Tanks
 	unsigned int ntanks = 0;
-	if (parser->model == ICONHDNET || parser->model == QUADAIR) {
+	if (parser->model == ICONHDNET || parser->model == QUADAIR || parser->model == SMARTAIR) {
 		unsigned int tankoffset = (parser->model == ICONHDNET) ? 0x58 : 0x5C;
 		while (ntanks < NTANKS) {
 			unsigned int beginpressure = array_uint16_le (p + tankoffset + ntanks * 4 + 0);
@@ -325,6 +326,8 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 		}
 	} else if (parser->model == SMARTAPNEA) {
 		p += 0x40;
+	} else if (parser->model == SMARTAIR) {
+		p += 2;
 	} else {
 		p += 6;
 	}
@@ -354,7 +357,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		return rc;
 
 	const unsigned char *p = abstract->data + parser->footer;
-	if (parser->model != SMART && parser->model != SMARTAPNEA) {
+	if (parser->model != SMART && parser->model != SMARTAPNEA && parser->model != SMARTAIR) {
 		p += 4;
 	}
 
@@ -611,7 +614,8 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			nsamples++;
 
 			// Some extra data.
-			if ((parser->model == ICONHDNET || parser->model == QUADAIR) && (nsamples % 4) == 0) {
+			if ((parser->model == ICONHDNET || parser->model == QUADAIR || parser->model == SMARTAIR) &&
+				(nsamples % 4) == 0) {
 				// Pressure (1/100 bar).
 				unsigned int pressure = array_uint16_le(data + offset);
 				if (gasmix < parser->ntanks) {

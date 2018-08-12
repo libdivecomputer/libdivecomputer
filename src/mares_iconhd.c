@@ -42,6 +42,7 @@
 #define NEMOWIDE2 0x19
 #define PUCK2     0x1F
 #define QUADAIR   0x23
+#define SMARTAIR  0x24
 #define QUAD      0x29
 
 #define ACK 0xAA
@@ -127,6 +128,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 		{"Nemo Wide 2", NEMOWIDE2},
 		{"Puck 2",      PUCK2},
 		{"Quad Air",    QUADAIR},
+		{"Smart Air",   SMARTAIR},
 		{"Quad",        QUAD},
 	};
 
@@ -293,6 +295,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 		device->packetsize = 256;
 		break;
 	case QUADAIR:
+	case SMARTAIR:
 		device->layout = &mares_iconhdnet_layout;
 		device->packetsize = 256;
 		break;
@@ -442,7 +445,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 		header = 0x80;
 	else if (model == QUADAIR)
 		header = 0x84;
-	else if (model == SMART)
+	else if (model == SMART || model == SMARTAIR)
 		header = 4; // Type and number of samples only!
 	else if (model == SMARTAPNEA)
 		header = 6; // Type and number of samples only!
@@ -504,7 +507,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 
 		// Get the number of samples in the profile data.
 		unsigned int type = 0, nsamples = 0;
-		if (model == SMART || model == SMARTAPNEA) {
+		if (model == SMART || model == SMARTAPNEA || model == SMARTAIR) {
 			type     = array_uint16_le (buffer + offset - header + 2);
 			nsamples = array_uint16_le (buffer + offset - header + 0);
 		} else {
@@ -541,6 +544,10 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 			headersize = 0x50;
 			samplesize = 14;
 			fingerprint = 0x40;
+		} else if (model == SMARTAIR) {
+			headersize = 0x84;
+			samplesize = 12;
+			fingerprint = 2;
 		}
 		if (offset < headersize)
 			break;
@@ -559,7 +566,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
 		unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-		if (model == ICONHDNET || model == QUADAIR) {
+		if (model == ICONHDNET || model == QUADAIR || model == SMARTAIR) {
 			nbytes += (nsamples / 4) * 8;
 		} else if (model == SMARTAPNEA) {
 			unsigned int settings = array_uint16_le (buffer + offset - headersize + 0x1C);
