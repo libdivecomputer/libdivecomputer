@@ -1,0 +1,56 @@
+language: c
+
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+
+    - os: linux
+      compiler: clang
+
+    - os: osx
+      compiler: gcc
+
+    - os: osx
+      compiler: clang
+
+    - os: linux
+      compiler: i686-w64-mingw32-gcc
+      addons:
+        apt:
+          packages:
+            - gcc-mingw-w64
+            - binutils-mingw-w64
+            - mingw-w64-tools
+
+    - os: linux
+      compiler: x86_64-w64-mingw32-gcc
+      addons:
+        apt:
+          packages:
+            - gcc-mingw-w64
+            - binutils-mingw-w64
+            - mingw-w64-tools
+
+addons:
+  apt:
+    packages:
+      - libbluetooth-dev
+      - libusb-1.0-0-dev
+
+install:
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+        brew install hidapi libusb;
+    fi
+
+script:
+  - case $CC in
+        *-gcc) TARGET="${CC%-gcc}" ;;
+    esac
+  - if [ -n "$TARGET" ]; then
+        TARGETOPTS="--host=${TARGET}";
+        unset CC;
+    fi
+  - autoreconf --install --force
+  - ./configure $TARGETOPTS --disable-doc
+  - make
