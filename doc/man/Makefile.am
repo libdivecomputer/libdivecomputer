@@ -14,6 +14,7 @@ MANPAGES = \
 	dc_datetime_mktime.3 \
 	dc_datetime_now.3 \
 	dc_descriptor_free.3 \
+	dc_descriptor_get_model.3 \
 	dc_descriptor_get_product.3 \
 	dc_descriptor_get_vendor.3 \
 	dc_descriptor_iterator.3 \
