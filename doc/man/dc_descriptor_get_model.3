@@ -1,0 +1,52 @@
+
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2018 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd August 19, 2018
+.Dt DC_DESCRIPTOR_GET_MODEL 3
+.Os
+.Sh NAME
+.Nm dc_descriptor_get_model
+.Nd get the model of a dive computer descriptor
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/descriptor.h
+.Ft "unsigned int"
+.Fo dc_descriptor_get_model
+.Fa "dc_descriptor_t *descriptor"
+.Fc
+.Sh DESCRIPTION
+Gets the model number of a dive computer descriptor or 0 if none was
+defined for the computer.
+0 is also a valid model number.
+.Sh RETURN VALUES
+This returns the model number or 0 if none exists.
+.Sh SEE ALSO
+.Xr dc_descriptor_iterator 3
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+The manpages were written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .
