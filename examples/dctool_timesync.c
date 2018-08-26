@@ -123,6 +123,9 @@ dctool_timesync_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		case 'h':
 			help = 1;
 			break;
+		case 't':
+			transport = dctool_transport_type (optarg);
+			break;
 		default:
 			return EXIT_FAILURE;
 		}
