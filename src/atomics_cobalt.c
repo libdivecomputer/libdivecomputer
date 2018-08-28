@@ -30,7 +30,7 @@
 #ifdef _WIN32
 #define NOGDI
 #endif
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 #endif
 
 #include "atomics_cobalt.h"
