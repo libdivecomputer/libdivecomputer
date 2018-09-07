@@ -26,6 +26,7 @@
 #include "shearwater_common.h"
 #include "context-private.h"
 #include "device-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &shearwater_petrel_device_vtable)
@@ -33,7 +34,6 @@
 #define MANIFEST_ADDR 0xE0000000
 #define MANIFEST_SIZE 0x600
 
-#define DIVE_ADDR     0xC0000000
 #define DIVE_SIZE     0xFFFFFF
 
 #define RECORD_SIZE   0x20
@@ -243,6 +243,41 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	devinfo.serial = array_uint32_be (serial);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
+	// Read the logbook type
+	rc = shearwater_common_identifier (&device->base, buffer, ID_LOGUPLOAD);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the logbook type.");
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return rc;
+	}
+
+	if (dc_buffer_get_size (buffer) != 9) {
+		ERROR (abstract->context, "Unexpected packet size (" DC_PRINTF_SIZE " bytes).", dc_buffer_get_size(buffer));
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	unsigned int base_addr = array_uint32_be (dc_buffer_get_data (buffer) + 1);
+	switch (base_addr) {
+	case 0xDD000000: // Predator - we shouldn't get here, we could give up or we can try 0xC0000000
+	case 0xC0000000: // Predator-Like Format (what we used to call the Petrel format)
+	case 0x90000000: // some firmware versions supported an earlier version of PNF without final record
+		// use the Predator-Like Format instead
+		base_addr = 0xC0000000;
+		break;
+	case 0x80000000: // new Petrel Native Format with final record
+		// that's the correct address
+		break;
+	default: // unknown format
+		ERROR (abstract->context, "Unknown logbook format %08x", base_addr);
+		dc_buffer_free (buffer);
+		dc_buffer_free (manifests);
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Read the manifest pages
 	while (1) {
 		// Update the progress state.
 		// Assume the worst case scenario of a full manifest, and adjust the
@@ -327,7 +362,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		// Download the dive.
 		progress.current = NSTEPS * current;
 		progress.maximum = NSTEPS * maximum;
-		rc = shearwater_common_download (&device->base, buffer, DIVE_ADDR + address, DIVE_SIZE, 1, &progress);
+		rc = shearwater_common_download (&device->base, buffer, base_addr + address, DIVE_SIZE, 1, &progress);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to download the dive.");
 			dc_buffer_free (buffer);

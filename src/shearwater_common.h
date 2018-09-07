@@ -30,9 +30,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define ID_SERIAL   0x8010
-#define ID_FIRMWARE 0x8011
-#define ID_HARDWARE 0x8050
+#define ID_SERIAL    0x8010
+#define ID_FIRMWARE  0x8011
+#define ID_LOGUPLOAD 0x8021
+#define ID_HARDWARE  0x8050
 
 #define PREDATOR 2
 #define PETREL   3
