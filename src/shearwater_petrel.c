@@ -263,11 +263,17 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		unsigned int size = dc_buffer_get_size (buffer);
 
 		// Process the records in the manifest.
-		unsigned int count = 0;
+		unsigned int count = 0, deleted = 0;
 		unsigned int offset = 0;
 		while (offset < size) {
 			// Check for a valid dive header.
 			unsigned int header = array_uint16_be (data + offset);
+			if (header == 0x5A23) {
+				// this is a deleted dive; keep looking
+				offset += RECORD_SIZE;
+				deleted++;
+				continue;
+			}
 			if (header != 0xA5C4)
 				break;
 
@@ -281,7 +287,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		// Update the progress state.
 		current += 1;
-		maximum -= RECORD_COUNT - count;
+		maximum -= RECORD_COUNT - count - deleted;
 
 		// Append the manifest records to the main buffer.
 		if (!dc_buffer_append (manifests, data, count * RECORD_SIZE)) {
@@ -292,7 +298,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		}
 
 		// Stop downloading manifest if there are no more records.
-		if (count != RECORD_COUNT)
+		if (count + deleted != RECORD_COUNT)
 			break;
 	}
 
@@ -307,6 +313,11 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 	unsigned int offset = 0;
 	while (offset < size) {
+		// skip deleted dives
+		if (array_uint16_be(data + offset) == 0x5A23) {
+			offset += RECORD_SIZE;
+			continue;
+		}
 		// Get the address of the dive.
 		unsigned int address = array_uint32_be (data + offset + 20);
 
