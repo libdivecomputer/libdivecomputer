@@ -457,7 +457,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			if (parser->model == SMARTAPNEA)
-				*((double *) value) = (signed short) array_uint16_le (p + 0x3C) / 10.0;
+				*((double *) value) = (signed short) array_uint16_le (p + 0x3E) / 10.0;
 			else if (parser->mode == FREEDIVE)
 				*((double *) value) = (signed short) array_uint16_le (p + 0x1C) / 10.0;
 			else
@@ -465,7 +465,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
 			if (parser->model == SMARTAPNEA)
-				*((double *) value) = (signed short) array_uint16_le (p + 0x3E) / 10.0;
+				*((double *) value) = (signed short) array_uint16_le (p + 0x3C) / 10.0;
 			else if (parser->mode == FREEDIVE)
 				*((double *) value) = (signed short) array_uint16_le (p + 0x1E) / 10.0;
 			else
