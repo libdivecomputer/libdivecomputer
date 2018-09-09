@@ -294,6 +294,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Shearwater", "Perdix",    DC_FAMILY_SHEARWATER_PETREL, 5, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_shearwater},
 	{"Shearwater", "Perdix AI", DC_FAMILY_SHEARWATER_PETREL, 6, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	{"Shearwater", "Nerd 2",    DC_FAMILY_SHEARWATER_PETREL, 7, DC_TRANSPORT_BLE, dc_filter_shearwater},
+	{"Shearwater", "Teric",     DC_FAMILY_SHEARWATER_PETREL, 8, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Citizen Hyper Aqualand */
@@ -444,6 +445,7 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 		"Petrel",
 		"Nerd",
 		"Perdix",
+		"Teric",
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
