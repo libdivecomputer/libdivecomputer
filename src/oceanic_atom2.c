@@ -35,6 +35,7 @@
 #define PROPLUSX   0x4552
 #define VTX        0x4557
 #define I750TC     0x455A
+#define I770R      0x4651
 
 #define MAXRETRIES 2
 #define MAXDELAY   16
@@ -190,6 +191,10 @@ static const oceanic_common_version_t oceanic_reactpro_version[] = {
 
 static const oceanic_common_version_t oceanic_proplusx_version[] = {
 	{"OCEANOCX \0\0 2048"},
+};
+
+static const oceanic_common_version_t aqualung_i770r_version[] = {
+	{"AQUA770R \0\0 2048"},
 };
 
 static const oceanic_common_version_t aeris_a300cs_version[] = {
@@ -472,6 +477,21 @@ static const oceanic_common_layout_t oceanic_proplusx_layout = {
 	0, /* pt_mode_serial */
 };
 
+static const oceanic_common_layout_t aqualung_i770r_layout = {
+	0x440000, /* memsize */
+	0x40000, /* highmem */
+	0x0000, /* cf_devinfo */
+	0x0040, /* cf_pointers */
+	0x2000, /* rb_logbook_begin */
+	0x10000, /* rb_logbook_end */
+	16, /* rb_logbook_entry_size */
+	0x40000, /* rb_profile_begin */
+	0x440000, /* rb_profile_end */
+	0, /* pt_mode_global */
+	1, /* pt_mode_logbook */
+	0, /* pt_mode_serial */
+};
+
 static const oceanic_common_layout_t aeris_a300cs_layout = {
 	0x40000, /* memsize */
 	0, /* highmem */
@@ -643,7 +663,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 
 	// Get the correct baudrate.
 	unsigned int baudrate = 38400;
-	if (model == VTX || model == I750TC || model == PROPLUSX) {
+	if (model == VTX || model == I750TC || model == PROPLUSX || model == I770R) {
 		baudrate = 115200;
 	}
 
@@ -745,6 +765,9 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		device->base.layout = &oceanic_reactpro_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_proplusx_version)) {
 		device->base.layout = &oceanic_proplusx_layout;
+		device->bigpage = 16;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, aqualung_i770r_version)) {
+		device->base.layout = &aqualung_i770r_layout;
 		device->bigpage = 16;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_a300cs_version)) {
 		device->base.layout = &aeris_a300cs_layout;
