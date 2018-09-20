@@ -119,6 +119,7 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 	{"TUSAZEN \0\0  512K"},
 	{"AQUAI300 \0\0 512K"},
 	{"HOLLDG03 \0\0 512K"},
+	{"AQUAI100 \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
