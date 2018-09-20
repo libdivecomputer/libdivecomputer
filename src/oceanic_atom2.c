@@ -668,12 +668,12 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	status = dc_iostream_set_dtr(device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		return status;
+		goto error_free;
 	}
 	status = dc_iostream_set_rts(device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the DTR line.");
-		return status;
+		goto error_free;
 	}
 
 	// Make sure everything is in a sane state.
