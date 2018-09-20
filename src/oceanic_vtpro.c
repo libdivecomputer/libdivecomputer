@@ -442,6 +442,20 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
+	// Clear the RTS line to reset the PIC inside the data cable as it
+	// may not have have been previously cleared. This ensures that the
+	// PIC will always start in a known state once RTS is set. Starting
+	// in a known default state is very important as the PIC won't
+	// respond to init commands unless it is in a default state.
+	status = dc_iostream_set_rts (device->iostream, 0);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to clear the RTS line.");
+		goto error_free;
+	}
+
+	// Hold RTS clear for a bit to allow PIC to reset.
+	dc_iostream_sleep (device->iostream, 100);
+
 	// Set the RTS line.
 	status = dc_iostream_set_rts (device->iostream, 1);
 	if (status != DC_STATUS_SUCCESS) {
