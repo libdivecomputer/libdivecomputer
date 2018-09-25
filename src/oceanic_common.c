@@ -496,9 +496,13 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 		// Remove padding from the profile.
 		if (layout->highmem) {
-			unsigned char *profile = profiles + offset + layout->rb_logbook_entry_size;
-			while (rb_entry_size >= PAGESIZE && array_isequal (profile + rb_entry_size - PAGESIZE, PAGESIZE, 0xFF)) {
-				rb_entry_size -= PAGESIZE;
+			// The logbook entry contains the total number of pages containing
+			// profile data, excluding the footer page. Limit the profile size
+			// to this size.
+			unsigned int npages = (array_uint16_le (profiles + offset + 12) & 0x0FFF) + 1;
+			unsigned int length = npages * PAGESIZE;
+			if (rb_entry_size > length) {
+				rb_entry_size = length;
 			}
 		}
 
