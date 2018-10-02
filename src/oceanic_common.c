@@ -499,7 +499,10 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			// The logbook entry contains the total number of pages containing
 			// profile data, excluding the footer page. Limit the profile size
 			// to this size.
-			unsigned int npages = (array_uint16_le (profiles + offset + 12) & 0x0FFF) + 1;
+			unsigned int value = array_uint16_le (profiles + offset + 12);
+			unsigned int value_hi = value & 0xE000;
+			unsigned int value_lo = value & 0x0FFF;
+			unsigned int npages = ((value_hi >> 1) | value_lo) + 1;
 			unsigned int length = npages * PAGESIZE;
 			if (rb_entry_size > length) {
 				rb_entry_size = length;
