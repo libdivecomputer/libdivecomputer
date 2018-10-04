@@ -451,6 +451,9 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 	} else if (parser->model == ZEN) {
 		o2_offset = header + 4;
 		ngasmixes = 2;
+	} else if (parser->model == PROPLUSX) {
+		o2_offset = 0x24;
+		ngasmixes = 4;
 	} else {
 		o2_offset = header + 4;
 		ngasmixes = 3;
