@@ -326,11 +326,47 @@ uwatec_smart_usbhid_receive (uwatec_smart_device_t *device, dc_event_progress_t 
 			return DC_STATUS_PROTOCOL;
 		}
 
+		/*
+		 * Something changed in the G2 firmware between versions 1.2 and 1.4.
+		 *
+		 * The first byte of a packet always used to be the length of the
+		 * packet data. That's still true for simple single-packet replies,
+		 * but multi-packet replies seem to have some other data in it, at
+		 * least for BLE.
+		 *
+		 * The new pattern *seems* to be:
+		 *
+		 *   - simple one-packet reply: the byte remains the size of the reply
+		 *
+		 *   - otherwise, it's an endlessly repeating sequence of
+		 *
+		 *	0xf7 247
+		 *	0x14  20
+		 *	0x27  39
+		 *	0x3a  58
+		 *	0x4d  77
+		 * 	0x60  96
+		 *	0x73 115
+		 *	0x86 134
+		 *	0x99 153
+		 *	0xac 172
+		 *	0xbf 191
+		 *	0xd2 210
+		 *	0xe5 229
+		 *	0xf7 247
+		 *	.. repeats ..
+		 *
+		 * which is basically "increase by 19" except for that last one (229->247
+		 * is an increase by 18).
+		 *
+		 * The number 19 is the real payload size for BLE GATT (20 bytes minus the
+		 * one-byte magic size-that-isn't-size-any-more-byte).
+		 *
+		 * It may be just an oddly implemented sequence number. Whatever.
+		 */
 		unsigned int len = buf[0];
-		if (len + 1 > transferred) {
-			ERROR (abstract->context, "Invalid payload length (%u).", len);
-			return DC_STATUS_PROTOCOL;
-		}
+		if (len + 1 > transferred)
+			len = transferred-1;
 
 		HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "rcv", buf + 1, len);
 
