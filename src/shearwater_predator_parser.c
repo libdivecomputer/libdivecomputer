@@ -264,7 +264,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 
 	unsigned int offset = headersize;
 	unsigned int length = size - footersize;
-	while (offset < length) {
+	while (offset + parser->samplesize <= length) {
 		// Ignore empty samples.
 		if (array_isequal (data + offset, parser->samplesize, 0x00)) {
 			offset += parser->samplesize;
@@ -440,7 +440,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 	unsigned int time = 0;
 	unsigned int offset = parser->headersize;
 	unsigned int length = size - parser->footersize;
-	while (offset < length) {
+	while (offset + parser->samplesize <= length) {
 		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
