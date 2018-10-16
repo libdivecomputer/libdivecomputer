@@ -474,7 +474,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			return DC_STATUS_DATAFORMAT;
 		}
 		time = timestamp;
-		sample.time = timestamp;
+		sample.time = timestamp * 1000;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Depth (1/10 m).

@@ -899,7 +899,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		if (type == LOG_RECORD_DIVE_SAMPLE) {
 			// Time (seconds).
 			time += interval;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (1/10 m or ft).
@@ -1076,7 +1076,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 				// Time (seconds).
 				time += interval;
-				sample.time = time;
+				sample.time = time * 1000;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Depth (absolute pressure in millibar)

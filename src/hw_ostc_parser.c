@@ -833,7 +833,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Time (seconds).
 		time += samplerate;
-		sample.time = time;
+		sample.time = time * 1000;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Initial gas mix.

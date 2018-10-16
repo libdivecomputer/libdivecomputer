@@ -331,7 +331,7 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			time = timestamp * 60 + (i + 1) * interval;
 		else
 			time = timestamp * 60 + (i + 1) * 60.0 / count + 0.5;
-		sample.time = time;
+		sample.time = time * 1000;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Vendor specific data

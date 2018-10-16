@@ -545,7 +545,7 @@ liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 			// Time (seconds).
 			time += interval;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (1/100 m).

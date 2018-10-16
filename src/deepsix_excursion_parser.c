@@ -423,7 +423,7 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 
 		if (type == TEMPERATURE) {
 			time += interval;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback(DC_SAMPLE_TIME, sample, userdata);
 
 			sample.depth = pressure_to_depth(depth, atmospheric, DENSITY);
@@ -591,7 +591,7 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 
 		// Time (seconds).
 		time += samplerate;
-		sample.time = time;
+		sample.time = time * 1000;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		unsigned int depth = array_uint16_le (data + offset);

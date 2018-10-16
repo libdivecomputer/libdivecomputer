@@ -331,7 +331,7 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 			return DC_STATUS_DATAFORMAT;
 		}
 		time = timestamp;
-		sample.time = time;
+		sample.time = time * 1000;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 		// Depth (1/100 m).

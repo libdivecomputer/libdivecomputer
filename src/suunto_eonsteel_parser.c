@@ -474,7 +474,7 @@ static void sample_time(struct sample_data *info, unsigned short time_delta)
 	dc_sample_value_t sample = {0};
 
 	info->time += time_delta;
-	sample.time = info->time / 1000;
+	sample.time = info->time / 1000 * 1000;
 	if (info->callback) info->callback(DC_SAMPLE_TIME, sample, info->userdata);
 }
 

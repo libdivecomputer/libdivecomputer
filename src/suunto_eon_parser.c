@@ -294,7 +294,7 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		if (complete) {
 			// Time (seconds).
 			time += interval;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 			complete = 0;
 		}
@@ -341,7 +341,7 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	// Time
 	if (complete) {
 		time += interval;
-		sample.time = time;
+		sample.time = time * 1000;
 		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 	}
 

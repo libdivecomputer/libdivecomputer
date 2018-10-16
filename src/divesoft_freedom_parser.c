@@ -924,7 +924,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				continue;
 			}
 			time = timestamp;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback(DC_SAMPLE_TIME, sample, userdata);
 		}
 

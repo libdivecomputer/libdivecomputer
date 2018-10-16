@@ -249,7 +249,7 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			unsigned int nsamples = seconds / interval;
 			for (unsigned int i = 0; i < nsamples; ++i) {
 				time += interval;
-				sample.time = time;
+				sample.time = time * 1000;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				sample.depth = 0;
@@ -257,7 +257,7 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			}
 
 			time += interval;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			sample.depth = depth / 100.0;
@@ -280,7 +280,7 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			}
 
 			time += interval;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			sample.depth = depth / 100.0;

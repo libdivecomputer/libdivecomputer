@@ -1162,7 +1162,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 		}
 
 		while (complete) {
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			if (parser->ngasmixes && gasmix != gasmix_previous) {

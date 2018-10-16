@@ -382,7 +382,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 			// Time (seconds).
 			time += 20;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (1/10 m).
@@ -459,7 +459,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 			// Surface Time (seconds).
 			time += surftime;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Surface Depth (0 m).
@@ -500,7 +500,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 					time += interval;
 					if (time > maxtime)
 						time = maxtime; // Adjust the last sample.
-					sample.time = time;
+					sample.time = time * 1000;
 					if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 					// Depth (1/10 m).
@@ -519,7 +519,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			} else {
 				// Dive Time (seconds).
 				time += divetime;
-				sample.time = time;
+				sample.time = time * 1000;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Maximum Depth (1/10 m).

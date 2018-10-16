@@ -225,7 +225,7 @@ typedef struct dc_decomodel_t {
 } dc_decomodel_t;
 
 typedef union dc_sample_value_t {
-	unsigned int time;
+	unsigned int time; /* Milliseconds */
 	double depth;
 	struct {
 		unsigned int tank;

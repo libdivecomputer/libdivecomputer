@@ -578,7 +578,7 @@ cochran_commander_parser_samples_foreach_tm (dc_parser_t *abstract, dc_sample_ca
 	unsigned int temp = samples[0];	// Half degrees F
 	unsigned int depth = samples[1];	// Half feet
 
-	last_sample_time = sample.time = time;
+	last_sample_time = sample.time = time * 1000;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 	sample.depth = (depth / 2.0) * FEET;
@@ -593,7 +593,7 @@ cochran_commander_parser_samples_foreach_tm (dc_parser_t *abstract, dc_sample_ca
 	while (offset < size) {
 		const unsigned char *s = samples + offset;
 
-		sample.time = time;
+		sample.time = time * 1000;
 		if (last_sample_time != sample.time) {
 			// We haven't issued this time yet.
 			last_sample_time = sample.time;
@@ -714,7 +714,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 		start_depth = array_uint16_le (data + layout->start_depth) / 256.0;
 	}
 
-	last_sample_time = sample.time = time;
+	last_sample_time = sample.time = time * 1000;
 	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 	sample.depth = start_depth * FEET;
@@ -730,7 +730,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 	while (offset < size) {
 		const unsigned char *s = samples + offset;
 
-		sample.time = time;
+		sample.time = time * 1000;
 		if (last_sample_time != sample.time) {
 			// We haven't issued this time yet.
 			last_sample_time = sample.time;

@@ -104,12 +104,20 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 
 	sample_data_t *sampledata = (sample_data_t *) userdata;
 
+	unsigned int seconds = 0, milliseconds = 0;
+
 	switch (type) {
 	case DC_SAMPLE_TIME:
+		seconds = value.time / 1000;
+		milliseconds = value.time % 1000;
 		if (sampledata->nsamples++)
 			fprintf (sampledata->ostream, "</sample>\n");
 		fprintf (sampledata->ostream, "<sample>\n");
-		fprintf (sampledata->ostream, "   <time>%02u:%02u</time>\n", value.time / 60, value.time % 60);
+		if (milliseconds) {
+			fprintf (sampledata->ostream, "   <time>%02u:%02u.%03u</time>\n", seconds / 60, seconds % 60, milliseconds);
+		} else {
+			fprintf (sampledata->ostream, "   <time>%02u:%02u</time>\n", seconds / 60, seconds % 60);
+		}
 		break;
 	case DC_SAMPLE_DEPTH:
 		fprintf (sampledata->ostream, "   <depth>%.2f</depth>\n",

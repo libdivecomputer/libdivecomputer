@@ -399,7 +399,7 @@ sample_statistics_cb (dc_sample_type_t type, dc_sample_value_t value, void *user
 
 	switch (type) {
 	case DC_SAMPLE_TIME:
-		statistics->divetime = value.time;
+		statistics->divetime = value.time / 1000;
 		break;
 	case DC_SAMPLE_DEPTH:
 		if (statistics->maxdepth < value.depth)

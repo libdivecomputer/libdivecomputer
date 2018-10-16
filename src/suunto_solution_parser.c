@@ -183,7 +183,7 @@ suunto_solution_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		if (value < 0x7e || value > 0x82) {
 			// Time (minutes).
 			time += 3 * 60;
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (ft).

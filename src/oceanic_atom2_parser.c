@@ -758,7 +758,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			for (unsigned int i = 0; i < nsamples; ++i) {
 				// Time
 				time += interval;
-				sample.time = time;
+				sample.time = time * 1000;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Vendor specific data
@@ -802,7 +802,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			} else {
 				time += interval;
 			}
-			sample.time = time;
+			sample.time = time * 1000;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Vendor specific data
