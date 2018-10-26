@@ -287,16 +287,22 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	if (last < layout->rb_profile_begin ||
 		last >= layout->rb_profile_end ||
 		end < layout->rb_profile_begin ||
-		end >= layout->rb_profile_end ||
-		begin < layout->rb_profile_begin ||
-		begin >= layout->rb_profile_end)
+		end >= layout->rb_profile_end)
 	{
 		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x 0x%04x %u).", begin, last, end, count);
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	// Calculate the total amount of bytes.
-	unsigned int remaining = RB_PROFILE_DISTANCE (layout, begin, end, count != 0);
+	unsigned int remaining = 0;
+	if (begin < layout->rb_profile_begin || begin >= layout->rb_profile_end) {
+		// Fall back to downloading the entire ringbuffer as workaround
+		// for an invalid begin pointer!
+		ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%04x 0x%04x 0x%04x %u).", begin, last, end, count);
+		remaining = layout->rb_profile_end - layout->rb_profile_begin;
+	} else {
+		remaining = RB_PROFILE_DISTANCE (layout, begin, end, count != 0);
+	}
 
 	// Update and emit a progress event.
 	progress.maximum -= (layout->rb_profile_end - layout->rb_profile_begin) - remaining;
