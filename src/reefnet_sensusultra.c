@@ -224,7 +224,7 @@ reefnet_sensusultra_packet (reefnet_sensusultra_device_t *device, unsigned char 
 
 	// Verify the checksum of the packet.
 	unsigned short crc = array_uint16_le (data + size - 2);
-	unsigned short ccrc = checksum_crc_ccitt_uint16 (data + header, size - header - 2);
+	unsigned short ccrc = checksum_crc16_ccitt (data + header, size - header - 2, 0xffff);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
@@ -477,7 +477,7 @@ reefnet_sensusultra_device_write_user (dc_device_t *abstract, const unsigned cha
 	}
 
 	// Send the checksum to the device.
-	unsigned short crc = checksum_crc_ccitt_uint16 (data, SZ_USER);
+	unsigned short crc = checksum_crc16_ccitt (data, SZ_USER, 0xffff);
 	rc = reefnet_sensusultra_send_ushort (device, crc);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;

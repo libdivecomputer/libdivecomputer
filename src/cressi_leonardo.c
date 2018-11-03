@@ -84,7 +84,7 @@ cressi_leonardo_make_ascii (const unsigned char raw[], unsigned int rsize, unsig
 	array_convert_bin2hex (raw, rsize, ascii + 1, 2 * rsize);
 
 	// Checksum
-	unsigned short crc = checksum_crc_ccitt_uint16 (ascii + 1, 2 * rsize);
+	unsigned short crc = checksum_crc16_ccitt (ascii + 1, 2 * rsize, 0xffff);
 	unsigned char checksum[] = {
 			(crc >> 8) & 0xFF,  // High
 			(crc     ) & 0xFF}; // Low
@@ -129,7 +129,7 @@ cressi_leonardo_packet (cressi_leonardo_device_t *device, const unsigned char co
 
 	// Verify the checksum of the packet.
 	unsigned short crc = array_uint16_be (checksum);
-	unsigned short ccrc = checksum_crc_ccitt_uint16 (answer + 1, asize - 6);
+	unsigned short ccrc = checksum_crc16_ccitt (answer + 1, asize - 6, 0xffff);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
@@ -372,7 +372,7 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Verify the checksum.
 	unsigned int csum1 = array_uint16_be (checksum);
-	unsigned int csum2 = checksum_crc_ccitt_uint16 (data, SZ_MEMORY);
+	unsigned int csum2 = checksum_crc16_ccitt (data, SZ_MEMORY, 0xffff);
 	if (csum1 != csum2) {
 		ERROR (abstract->context, "Unexpected answer bytes.");
 		return DC_STATUS_PROTOCOL;
