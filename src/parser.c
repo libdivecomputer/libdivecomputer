@@ -47,6 +47,7 @@
 #include "hw_ostc3.h"
 #include "cressi_edy.h"
 #include "cressi_leonardo.h"
+#include "cressi_goa.h"
 #include "zeagle_n2ition3.h"
 #include "atomics_cobalt.h"
 #include "shearwater_petrel.h"
@@ -143,6 +144,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_CRESSI_LEONARDO:
 		rc = cressi_leonardo_parser_create (&parser, context, model);
+		break;
+	case DC_FAMILY_CRESSI_GOA:
+		rc = cressi_goa_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context);

@@ -239,6 +239,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\cressi_goa.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cressi_goa_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\cressi_leonardo.c"
 				>
 			</File>
@@ -582,6 +590,10 @@
 			</File>
 			<File
 				RelativePath="..\src\cressi_edy.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\cressi_goa.h"
 				>
 			</File>
 			<File
