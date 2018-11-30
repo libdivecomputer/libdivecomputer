@@ -167,7 +167,7 @@ array_uint_be (const unsigned char data[], unsigned int n)
 	unsigned int value = 0;
 	for (unsigned int i = 0; i < n; ++i) {
 		shift -= 8;
-		value |= data[i] << shift;
+		value |= (unsigned int) data[i] << shift;
 	}
 	return value;
 }
@@ -178,7 +178,7 @@ array_uint_le (const unsigned char data[], unsigned int n)
 	unsigned int shift = 0;
 	unsigned int value = 0;
 	for (unsigned int i = 0; i < n; ++i) {
-		value |= data[i] << shift;
+		value |= (unsigned int) data[i] << shift;
 		shift += 8;
 	}
 	return value;
@@ -187,21 +187,30 @@ array_uint_le (const unsigned char data[], unsigned int n)
 unsigned int
 array_uint32_be (const unsigned char data[])
 {
-	return (data[0] << 24) + (data[1] << 16) + (data[2] << 8) + data[3];
+	return ((unsigned int) data[0] << 24) |
+	       ((unsigned int) data[1] << 16) |
+	       ((unsigned int) data[2] <<  8) |
+	       ((unsigned int) data[3] <<  0);
 }
 
 
 unsigned int
 array_uint32_le (const unsigned char data[])
 {
-	return data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+	return ((unsigned int) data[0] <<  0) |
+	       ((unsigned int) data[1] <<  8) |
+	       ((unsigned int) data[2] << 16) |
+	       ((unsigned int) data[3] << 24);
 }
 
 
 unsigned int
 array_uint32_word_be (const unsigned char data[])
 {
-	return data[1] + (data[0] << 8) + (data[3] << 16) + (data[2] << 24);
+	return ((unsigned int) data[0] <<  8) |
+	       ((unsigned int) data[1] <<  0) |
+	       ((unsigned int) data[2] << 24) |
+	       ((unsigned int) data[3] << 16);
 }
 
 
@@ -218,7 +227,9 @@ array_uint32_le_set (unsigned char data[], const unsigned int input)
 unsigned int
 array_uint24_be (const unsigned char data[])
 {
-	return (data[0] << 16) + (data[1] << 8) + data[2];
+	return ((unsigned int) data[0] << 16) |
+	       ((unsigned int) data[1] <<  8) |
+	       ((unsigned int) data[2] <<  0);
 }
 
 
@@ -234,20 +245,24 @@ array_uint24_be_set (unsigned char data[], const unsigned int input)
 unsigned int
 array_uint24_le (const unsigned char data[])
 {
-	return data[0] + (data[1] << 8) + (data[2] << 16);
+	return ((unsigned int) data[0] <<  0) |
+	       ((unsigned int) data[1] <<  8) |
+	       ((unsigned int) data[2] << 16);
 }
 
 unsigned short
 array_uint16_be (const unsigned char data[])
 {
-	return (data[0] << 8) + data[1];
+	return ((unsigned int) data[0] <<  8) |
+	       ((unsigned int) data[1] <<  0);
 }
 
 
 unsigned short
 array_uint16_le (const unsigned char data[])
 {
-	return data[0] + (data[1] << 8);
+	return ((unsigned int) data[0] <<  0) |
+	       ((unsigned int) data[1] <<  8);
 }
 
 unsigned char
