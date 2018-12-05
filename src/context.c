@@ -41,7 +41,7 @@ struct dc_context_t {
 	dc_logfunc_t logfunc;
 	void *userdata;
 #ifdef ENABLE_LOGGING
-	char msg[8192 + 32];
+	char msg[16384 + 32];
 	dc_timer_t *timer;
 #endif
 };
