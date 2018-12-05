@@ -37,11 +37,10 @@ addons:
     packages:
       - libbluetooth-dev
       - libusb-1.0-0-dev
-
-install:
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-        brew install hidapi libusb;
-    fi
+  homebrew:
+    packages:
+      - hidapi
+      - libusb
 
 script:
   - case $CC in
