@@ -45,6 +45,8 @@
 #define SMARTAIR  0x24
 #define QUAD      0x29
 
+#define MAXRETRIES 4
+
 #define ACK 0xAA
 #define EOF 0xEA
 
@@ -72,6 +74,9 @@ typedef struct mares_iconhd_device_t {
 	unsigned char version[140];
 	unsigned int model;
 	unsigned int packetsize;
+	unsigned char cache[20];
+	unsigned int available;
+	unsigned int offset;
 } mares_iconhd_device_t;
 
 static dc_status_t mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
@@ -146,7 +151,79 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 }
 
 static dc_status_t
-mares_iconhd_transfer (mares_iconhd_device_t *device,
+mares_iconhd_read (mares_iconhd_device_t *device, unsigned char data[], size_t size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
+
+	size_t nbytes = 0;
+	while (nbytes < size) {
+		if (transport == DC_TRANSPORT_BLE) {
+			if (device->available == 0) {
+				// Read a packet into the cache.
+				size_t len = 0;
+				rc = dc_iostream_read (device->iostream, device->cache, sizeof(device->cache), &len);
+				if (rc != DC_STATUS_SUCCESS)
+					return rc;
+
+				device->available = len;
+				device->offset = 0;
+			}
+		}
+
+		// Set the minimum packet size.
+		size_t length = (transport == DC_TRANSPORT_BLE) ? device->available : size - nbytes;
+
+		// Limit the packet size to the total size.
+		if (nbytes + length > size)
+			length = size - nbytes;
+
+		if (transport == DC_TRANSPORT_BLE) {
+			// Copy the data from the cached packet.
+			memcpy (data + nbytes, device->cache + device->offset, length);
+			device->available -= length;
+			device->offset += length;
+		} else {
+			// Read the packet.
+			rc = dc_iostream_read (device->iostream, data + nbytes, length, &length);
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
+		}
+
+		nbytes += length;
+	}
+
+	return rc;
+}
+
+static dc_status_t
+mares_iconhd_write (mares_iconhd_device_t *device, const unsigned char data[], size_t size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
+
+	size_t nbytes = 0;
+	while (nbytes < size) {
+		// Set the maximum packet size.
+		size_t length = (transport == DC_TRANSPORT_BLE) ? sizeof(device->cache) : size - nbytes;
+
+		// Limit the packet size to the total size.
+		if (nbytes + length > size)
+			length = size - nbytes;
+
+		// Write the packet.
+		rc = dc_iostream_write (device->iostream, data + nbytes, length, &length);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+
+		nbytes += length;
+	}
+
+	return rc;
+}
+
+static dc_status_t
+mares_iconhd_packet (mares_iconhd_device_t *device,
 	const unsigned char command[], unsigned int csize,
 	unsigned char answer[], unsigned int asize)
 {
@@ -159,7 +236,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 		return DC_STATUS_CANCELLED;
 
 	// Send the command header to the dive computer.
-	status = dc_iostream_write (device->iostream, command, 2, NULL);
+	status = mares_iconhd_write (device, command, 2);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -167,7 +244,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 
 	// Receive the header byte.
 	unsigned char header[1] = {0};
-	status = dc_iostream_read (device->iostream, header, sizeof (header), NULL);
+	status = mares_iconhd_read (device, header, sizeof (header));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -181,7 +258,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 
 	// Send the command payload to the dive computer.
 	if (csize > 2) {
-		status = dc_iostream_write (device->iostream, command + 2, csize - 2, NULL);
+		status = mares_iconhd_write (device, command + 2, csize - 2);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
 			return status;
@@ -189,7 +266,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	}
 
 	// Read the packet.
-	status = dc_iostream_read (device->iostream, answer, asize, NULL);
+	status = mares_iconhd_read (device, answer, asize);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -197,7 +274,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 
 	// Receive the trailer byte.
 	unsigned char trailer[1] = {0};
-	status = dc_iostream_read (device->iostream, trailer, sizeof (trailer), NULL);
+	status = mares_iconhd_read (device, trailer, sizeof (trailer));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -212,6 +289,27 @@ mares_iconhd_transfer (mares_iconhd_device_t *device,
 	return DC_STATUS_SUCCESS;
 }
 
+static dc_status_t
+mares_iconhd_transfer (mares_iconhd_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+{
+	unsigned int nretries = 0;
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	while ((rc = mares_iconhd_packet (device, command, csize, answer, asize)) != DC_STATUS_SUCCESS) {
+		// Automatically discard a corrupted packet,
+		// and request a new one.
+		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
+			return rc;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return rc;
+
+		// Discard any garbage bytes.
+		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
+	}
+
+	return DC_STATUS_SUCCESS;
+}
 
 dc_status_t
 mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
@@ -236,6 +334,9 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	memset (device->version, 0, sizeof (device->version));
 	device->model = 0;
 	device->packetsize = 0;
+	memset (device->cache, 0, sizeof (device->cache));
+	device->available = 0;
+	device->offset = 0;
 
 	// Set the serial communication protocol (115200 8E1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_EVEN, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);

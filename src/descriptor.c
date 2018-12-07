@@ -34,6 +34,7 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata);
 static int dc_filter_shearwater (dc_transport_t transport, const void *userdata);
 static int dc_filter_hw (dc_transport_t transport, const void *userdata);
 static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata);
+static int dc_filter_mares (dc_transport_t transport, const void *userdata);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -241,16 +242,16 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Airlab",     DC_FAMILY_MARES_DARWIN , 1, DC_TRANSPORT_SERIAL, NULL},
 	/* Mares Icon HD */
 	{"Mares", "Matrix",            DC_FAMILY_MARES_ICONHD , 0x0F, DC_TRANSPORT_SERIAL, NULL},
-	{"Mares", "Smart",             DC_FAMILY_MARES_ICONHD , 0x000010, DC_TRANSPORT_SERIAL, NULL},
-	{"Mares", "Smart Apnea",       DC_FAMILY_MARES_ICONHD , 0x010010, DC_TRANSPORT_SERIAL, NULL},
+	{"Mares", "Smart",             DC_FAMILY_MARES_ICONHD , 0x000010, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
+	{"Mares", "Smart Apnea",       DC_FAMILY_MARES_ICONHD , 0x010010, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Icon HD",           DC_FAMILY_MARES_ICONHD , 0x14, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Icon HD Net Ready", DC_FAMILY_MARES_ICONHD , 0x15, DC_TRANSPORT_SERIAL, NULL},
-	{"Mares", "Puck Pro",          DC_FAMILY_MARES_ICONHD , 0x18, DC_TRANSPORT_SERIAL, NULL},
+	{"Mares", "Puck Pro",          DC_FAMILY_MARES_ICONHD , 0x18, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Nemo Wide 2",       DC_FAMILY_MARES_ICONHD , 0x19, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Puck 2",            DC_FAMILY_MARES_ICONHD , 0x1F, DC_TRANSPORT_SERIAL, NULL},
-	{"Mares", "Quad Air",          DC_FAMILY_MARES_ICONHD , 0x23, DC_TRANSPORT_SERIAL, NULL},
-	{"Mares", "Smart Air",         DC_FAMILY_MARES_ICONHD , 0x24, DC_TRANSPORT_SERIAL, NULL},
-	{"Mares", "Quad",              DC_FAMILY_MARES_ICONHD , 0x29, DC_TRANSPORT_SERIAL, NULL},
+	{"Mares", "Quad Air",          DC_FAMILY_MARES_ICONHD , 0x23, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
+	{"Mares", "Smart Air",         DC_FAMILY_MARES_ICONHD , 0x24, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
+	{"Mares", "Quad",              DC_FAMILY_MARES_ICONHD , 0x29, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	/* Heinrichs Weikamp */
 	{"Heinrichs Weikamp", "OSTC",     DC_FAMILY_HW_OSTC, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1, DC_TRANSPORT_SERIAL, NULL},
@@ -497,6 +498,19 @@ static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata)
 		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
 	} else if (transport == DC_TRANSPORT_SERIAL) {
 		return dc_filter_internal_rfcomm ((const char *) userdata);
+	}
+
+	return 1;
+}
+
+static int dc_filter_mares (dc_transport_t transport, const void *userdata)
+{
+	static const char *bluetooth[] = {
+		"Mares bluelink pro",
+	};
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
 	}
 
 	return 1;
