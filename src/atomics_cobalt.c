@@ -43,13 +43,17 @@
 
 #define EXITCODE(rc) (rc == LIBUSB_ERROR_TIMEOUT ? DC_STATUS_TIMEOUT : DC_STATUS_IO)
 
+#define COBALT1 0
+#define COBALT2 2
+
 #define VID 0x0471
 #define PID 0x0888
 #define TIMEOUT 2000
 
 #define FP_OFFSET 20
 
-#define SZ_MEMORY (29 * 64 * 1024)
+#define SZ_MEMORY1 (29 * 64 * 1024) // Cobalt 1
+#define SZ_MEMORY2 (41 * 64 * 1024) // Cobalt 2
 #define SZ_VERSION 14
 
 typedef struct atomics_cobalt_device_t {
@@ -350,9 +354,12 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 {
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
+	// Get the model number.
+	unsigned int model = array_uint16_le (device->version + 12);
+
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = SZ_MEMORY + 2;
+	progress.maximum = (model == COBALT2 ? SZ_MEMORY2 : SZ_MEMORY1) + 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a vendor event.
