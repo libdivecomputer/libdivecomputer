@@ -30,9 +30,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define ID_SERIAL   0x8010
-#define ID_FIRMWARE 0x8011
-#define ID_HARDWARE 0x8050
+#define ID_SERIAL    0x8010
+#define ID_FIRMWARE  0x8011
+#define ID_LOGUPLOAD 0x8021
+#define ID_HARDWARE  0x8050
 
 #define PREDATOR 2
 #define PETREL   3
@@ -40,6 +41,7 @@ extern "C" {
 #define PERDIX   5
 #define PERDIXAI 6
 #define NERD2    7
+#define TERIC    8
 
 #define NSTEPS    10000
 #define STEP(i,n) ((NSTEPS * (i) + (n) / 2) / (n))
