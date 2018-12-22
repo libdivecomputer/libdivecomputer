@@ -304,8 +304,7 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 		// fix this here.
 		if (array_isequal (logbooks + offset, layout->rb_logbook_entry_size, 0xFF)) {
 			WARNING (abstract->context, "Uninitialized logbook entries detected!");
-			offset += layout->rb_logbook_entry_size;
-			break;
+			continue;
 		}
 
 		// Compare the fingerprint to identify previously downloaded entries.
@@ -363,6 +362,12 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	while (entry) {
 		// Move to the start of the current entry.
 		entry -= layout->rb_logbook_entry_size;
+
+		// Skip uninitialized entries.
+		if (array_isequal (logbooks + entry, layout->rb_logbook_entry_size, 0xFF)) {
+			WARNING (abstract->context, "Skipping uninitialized logbook entry!");
+			continue;
+		}
 
 		// Get the profile pointers.
 		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
@@ -441,6 +446,12 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	while (entry) {
 		// Move to the start of the current entry.
 		entry -= layout->rb_logbook_entry_size;
+
+		// Skip uninitialized entries.
+		if (array_isequal (logbooks + entry, layout->rb_logbook_entry_size, 0xFF)) {
+			WARNING (abstract->context, "Skipping uninitialized logbook entry!");
+			continue;
+		}
 
 		// Get the profile pointers.
 		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
