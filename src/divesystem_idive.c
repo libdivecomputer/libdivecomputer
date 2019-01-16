@@ -28,6 +28,8 @@
 #include "checksum.h"
 #include "array.h"
 
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
 #define ISINSTANCE(device) dc_device_isinstance((device), &divesystem_idive_device_vtable)
 
 #define ISIX3M(model) ((model) >= 0x21)
@@ -48,6 +50,7 @@
 #define CMD_IX3M_RANGE    0x78
 #define CMD_IX3M_HEADER   0x79
 #define CMD_IX3M_SAMPLE   0x7A
+#define CMD_IX3M_TIMESYNC 0x13
 
 #define ERR_INVALID_CMD    0x10
 #define ERR_INVALID_LENGTH 0x20
@@ -59,6 +62,10 @@
 
 #define NSTEPS    1000
 #define STEP(i,n) (NSTEPS * (i) / (n))
+
+#define EPOCH 1199145600 /* 2008-01-01 00:00:00 */
+
+#define TZ_IDX_UNCHANGED 0xFF
 
 typedef struct divesystem_idive_command_t {
 	unsigned char cmd;
@@ -82,6 +89,7 @@ typedef struct divesystem_idive_device_t {
 
 static dc_status_t divesystem_idive_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 
 static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	sizeof(divesystem_idive_device_t),
@@ -91,7 +99,7 @@ static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	divesystem_idive_device_foreach, /* foreach */
-	NULL, /* timesync */
+	divesystem_idive_device_timesync, /* timesync */
 	NULL /* close */
 };
 
@@ -520,6 +528,127 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	}
 
 	dc_buffer_free(buffer);
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	divesystem_idive_device_t *device = (divesystem_idive_device_t *) abstract;
+	unsigned int errcode = 0;
+
+	static const signed char tz_array[] = {
+		-12,  0,    /* UTC-12    */
+		-11,  0,    /* UTC-11    */
+		-10,  0,    /* UTC-10    */
+		 -9, 30,    /* UTC-9:30  */
+		 -9,  0,    /* UTC-9     */
+		 -8,  0,    /* UTC-8     */
+		 -7,  0,    /* UTC-7     */
+		 -6,  0,    /* UTC-6     */
+		 -5,  0,    /* UTC-5     */
+		 -4, 30,    /* UTC-4:30  */
+		 -4,  0,    /* UTC-4     */
+		 -3, 30,    /* UTC-3:30  */
+		 -3,  0,    /* UTC-3     */
+		 -2,  0,    /* UTC-2     */
+		 -1,  0,    /* UTC-1     */
+		  0,  0,    /* UTC       */
+		  1,  0,    /* UTC+1     */
+		  2,  0,    /* UTC+2     */
+		  3,  0,    /* UTC+3     */
+		  3, 30,    /* UTC+3:30  */
+		  4,  0,    /* UTC+4     */
+		  4, 30,    /* UTC+4:30  */
+		  5,  0,    /* UTC+5     */
+		  5, 30,    /* UTC+5:30  */
+		  5, 45,    /* UTC+5:45  */
+		  6,  0,    /* UTC+6     */
+		  6, 30,    /* UTC+6:30  */
+		  7,  0,    /* UTC+7     */
+		  8,  0,    /* UTC+8     */
+		  8, 45,    /* UTC+8:45  */
+		  9,  0,    /* UTC+9     */
+		  9, 30,    /* UTC+9:30  */
+		  9, 45,    /* UTC+9:45  */
+		 10,  0,    /* UTC+10    */
+		 10, 30,    /* UTC+10:30 */
+		 11,  0,    /* UTC+11    */
+		 11, 30,    /* UTC+11:30 */
+		 12,  0,    /* UTC+12    */
+		 12, 45,    /* UTC+12:45 */
+		 13,  0,    /* UTC+13    */
+		 13, 45,    /* UTC+13:45 */
+		 14,  0     /* UTC+14    */
+	};
+
+	if (!ISIX3M(device->model)) {
+		return DC_STATUS_UNSUPPORTED;
+	}
+
+	if (datetime == NULL) {
+		ERROR (abstract->context, "Invalid parameter specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Get the UTC timestamp.
+	dc_ticks_t timestamp = dc_datetime_mktime(datetime);
+	if (timestamp == -1) {
+		ERROR (abstract->context, "Invalid date/time value specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Adjust the epoch.
+	timestamp -= EPOCH;
+
+	// Find the timezone index.
+	size_t tz_idx = C_ARRAY_SIZE(tz_array);
+	for (size_t i = 0; i < C_ARRAY_SIZE(tz_array); i += 2) {
+		int timezone = tz_array[i] * 3600;
+		if (timezone < 0) {
+			timezone -= tz_array[i + 1] * 60;
+		} else {
+			timezone += tz_array[i + 1] * 60;
+		}
+
+		if (timezone == datetime->timezone) {
+			tz_idx = i;
+			break;
+		}
+	}
+	if (tz_idx >= C_ARRAY_SIZE(tz_array)) {
+		ERROR (abstract->context, "Invalid timezone value specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Adjust the timezone index.
+	tz_idx /= 2;
+
+	// Send the command.
+	unsigned char command[] = {
+		CMD_IX3M_TIMESYNC,
+		(timestamp >>  0) & 0xFF,
+		(timestamp >>  8) & 0xFF,
+		(timestamp >> 16) & 0xFF,
+		(timestamp >> 24) & 0xFF,
+		tz_idx,            // Home timezone
+		TZ_IDX_UNCHANGED}; // Travel timezone
+	rc = divesystem_idive_transfer (device, command, sizeof(command), NULL, 0, &errcode);
+	if (rc != DC_STATUS_SUCCESS) {
+		if (errcode == ERR_INVALID_LENGTH || errcode == ERR_INVALID_DATA) {
+			// Fallback to the variant without the second timezone if the
+			// firmware doesn't support two timezones (ERR_INVALID_LENGTH) or
+			// leaving the timezone unchanged (ERR_INVALID_DATA).
+			rc = divesystem_idive_transfer (device, command, sizeof(command) - 1, NULL, 0, &errcode);
+			if (rc != DC_STATUS_SUCCESS) {
+				return rc;
+			}
+		} else {
+			return rc;
+		}
+	}
 
 	return DC_STATUS_SUCCESS;
 }
