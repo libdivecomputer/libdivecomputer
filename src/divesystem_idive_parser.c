@@ -26,6 +26,8 @@
 #include "parser-private.h"
 #include "array.h"
 
+#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &divesystem_idive_parser_vtable)
 
 #define IX3M_EASY 0x22
@@ -151,13 +153,96 @@ divesystem_idive_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *date
 {
 	divesystem_idive_parser_t *parser = (divesystem_idive_parser_t *) abstract;
 
+	static const signed char tz_array[] = {
+		-12,  0,    /* UTC-12    */
+		-11,  0,    /* UTC-11    */
+		-10,  0,    /* UTC-10    */
+		 -9, 30,    /* UTC-9:30  */
+		 -9,  0,    /* UTC-9     */
+		 -8,  0,    /* UTC-8     */
+		 -7,  0,    /* UTC-7     */
+		 -6,  0,    /* UTC-6     */
+		 -5,  0,    /* UTC-5     */
+		 -4, 30,    /* UTC-4:30  */
+		 -4,  0,    /* UTC-4     */
+		 -3, 30,    /* UTC-3:30  */
+		 -3,  0,    /* UTC-3     */
+		 -2,  0,    /* UTC-2     */
+		 -1,  0,    /* UTC-1     */
+		  0,  0,    /* UTC       */
+		  1,  0,    /* UTC+1     */
+		  2,  0,    /* UTC+2     */
+		  3,  0,    /* UTC+3     */
+		  3, 30,    /* UTC+3:30  */
+		  4,  0,    /* UTC+4     */
+		  4, 30,    /* UTC+4:30  */
+		  5,  0,    /* UTC+5     */
+		  5, 30,    /* UTC+5:30  */
+		  5, 45,    /* UTC+5:45  */
+		  6,  0,    /* UTC+6     */
+		  6, 30,    /* UTC+6:30  */
+		  7,  0,    /* UTC+7     */
+		  8,  0,    /* UTC+8     */
+		  8, 45,    /* UTC+8:45  */
+		  9,  0,    /* UTC+9     */
+		  9, 30,    /* UTC+9:30  */
+		  9, 45,    /* UTC+9:45  */
+		 10,  0,    /* UTC+10    */
+		 10, 30,    /* UTC+10:30 */
+		 11,  0,    /* UTC+11    */
+		 11, 30,    /* UTC+11:30 */
+		 12,  0,    /* UTC+12    */
+		 12, 45,    /* UTC+12:45 */
+		 13,  0,    /* UTC+13    */
+		 13, 45,    /* UTC+13:45 */
+		 14,  0     /* UTC+14    */
+	};
+
 	if (abstract->size < parser->headersize)
 		return DC_STATUS_DATAFORMAT;
 
 	dc_ticks_t ticks = array_uint32_le(abstract->data + 7) + EPOCH;
 
-	if (!dc_datetime_localtime (datetime, ticks))
-        return DC_STATUS_DATAFORMAT;
+	// Detect the APOS4 firmware.
+	unsigned int firmware = 0;
+	unsigned int apos4 = 0;
+	if (parser->model >= IX3M_EASY) {
+		firmware = array_uint32_le(abstract->data + 0x2A);
+		apos4 = (firmware / 10000000) >= 4;
+	} else {
+		firmware = array_uint32_le(abstract->data + 0x2E);
+		apos4 = 0;
+	}
+
+	if (apos4) {
+		// For devices with timezone support, the UTC offset of the
+		// device is used. The UTC offset is stored as an index in the
+		// timezone table.
+		unsigned int tz_idx = abstract->data[48];
+		if ((tz_idx % 2) != 0 || tz_idx >= C_ARRAY_SIZE(tz_array)) {
+			ERROR (abstract->context, "Invalid timezone index (%u).", tz_idx);
+			return DC_STATUS_DATAFORMAT;
+		}
+
+		int timezone = tz_array[tz_idx] * 3600;
+		if (timezone < 0) {
+			timezone -= tz_array[tz_idx + 1] * 60;
+		} else {
+			timezone += tz_array[tz_idx + 1] * 60;
+		}
+
+		ticks += timezone;
+
+		if (!dc_datetime_gmtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+
+		datetime->timezone = timezone;
+	} else {
+		// For devices without timezone support, the current timezone of
+		// the host system is used.
+		if (!dc_datetime_localtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
