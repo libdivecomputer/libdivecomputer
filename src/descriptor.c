@@ -420,11 +420,17 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 		{0x2e6c, 0x3211}, // G2 Console
 		{0xc251, 0x2006}, // Aladin Square
 	};
+	static const char *bluetooth[] = {
+		"G2",
+		"Aladin",
+	};
 
 	if (transport == DC_TRANSPORT_IRDA) {
 		return dc_filter_internal_name ((const char *) userdata, irda, C_ARRAY_SIZE(irda));
 	} else if (transport == DC_TRANSPORT_USBHID) {
 		return dc_filter_internal_usb ((const dc_usb_desc_t *) userdata, usbhid, C_ARRAY_SIZE(usbhid));
+	} else if (transport == DC_TRANSPORT_BLE) {
+		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
 	}
 
 	return 1;
@@ -436,9 +442,15 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 		{0x1493, 0x0030}, // Eon Steel
 		{0x1493, 0x0033}, // Eon Core
 	};
+	static const char *bluetooth[] = {
+		"EON Steel",
+		"EON Core",
+	};
 
 	if (transport == DC_TRANSPORT_USBHID) {
 		return dc_filter_internal_usb ((const dc_usb_desc_t *) userdata, usbhid, C_ARRAY_SIZE(usbhid));
+	} else if (transport == DC_TRANSPORT_BLE) {
+		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
 	}
 
 	return 1;
@@ -446,7 +458,7 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 
 static int dc_filter_hw (dc_transport_t transport, const void *userdata)
 {
-	if (transport == DC_TRANSPORT_BLUETOOTH) {
+	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
 		return strncasecmp ((const char *) userdata, "OSTC", 4) == 0 ||
 			strncasecmp ((const char *) userdata, "FROG", 4) == 0;
 	} else if (transport == DC_TRANSPORT_SERIAL) {
@@ -466,7 +478,7 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 		"Teric",
 	};
 
-	if (transport == DC_TRANSPORT_BLUETOOTH) {
+	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
 		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
 	} else if (transport == DC_TRANSPORT_SERIAL) {
 		return dc_filter_internal_rfcomm ((const char *) userdata);
