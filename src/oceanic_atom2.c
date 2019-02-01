@@ -808,7 +808,7 @@ oceanic_atom2_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Send the quit command.
-	unsigned char command[4] = {CMD_QUIT, 0x05, 0xA5, 0x00};
+	unsigned char command[4] = {CMD_QUIT, 0x05, 0xA5};
 	rc = oceanic_atom2_transfer (device, command, sizeof (command), NAK, NULL, 0, 0);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
@@ -827,7 +827,7 @@ oceanic_atom2_device_keepalive (dc_device_t *abstract)
 		return DC_STATUS_INVALIDARGS;
 
 	// Send the command to the dive computer.
-	unsigned char command[4] = {CMD_KEEPALIVE, 0x05, 0xA5, 0x00};
+	unsigned char command[] = {CMD_KEEPALIVE, 0x05, 0xA5};
 	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, NULL, 0, 0);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
@@ -848,7 +848,7 @@ oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsig
 		return DC_STATUS_INVALIDARGS;
 
 	unsigned char answer[PAGESIZE + 1] = {0};
-	unsigned char command[2] = {CMD_VERSION, 0x00};
+	unsigned char command[] = {CMD_VERSION};
 	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, answer, sizeof (answer), 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
@@ -913,10 +913,10 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 			// Read the package.
 			unsigned int number = highmem ? page : page * device->bigpage; // This is always PAGESIZE, even in big page mode.
 			unsigned char answer[256 + 2] = {0};          // Maximum we support for the known commands.
-			unsigned char command[4] = {read_cmd,
+			unsigned char command[] = {read_cmd,
 					(number >> 8) & 0xFF, // high
 					(number     ) & 0xFF, // low
-					0};
+				};
 			dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, answer, pagesize + crc_size, crc_size);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
@@ -960,16 +960,16 @@ oceanic_atom2_device_write (dc_device_t *abstract, unsigned int address, const u
 	while (nbytes < size) {
 		// Prepare to write the package.
 		unsigned int number = address / PAGESIZE;
-		unsigned char prepare[4] = {CMD_WRITE,
+		unsigned char prepare[] = {CMD_WRITE,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF, // low
-				0x00};
+			};
 		dc_status_t rc = oceanic_atom2_transfer (device, prepare, sizeof (prepare), ACK, NULL, 0, 0);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
 		// Write the package.
-		unsigned char command[PAGESIZE + 2] = {0};
+		unsigned char command[PAGESIZE + 1] = {0};
 		memcpy (command, data, PAGESIZE);
 		command[PAGESIZE] = checksum_add_uint8 (command, PAGESIZE, 0x00);
 		rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, NULL, 0, 0);
