@@ -632,19 +632,6 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 }
 
 
-static dc_status_t
-oceanic_atom2_quit (oceanic_atom2_device_t *device)
-{
-	// Send the command to the dive computer.
-	unsigned char command[4] = {CMD_QUIT, 0x05, 0xA5, 0x00};
-	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0, 0);
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
 dc_status_t
 oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
@@ -827,7 +814,8 @@ oceanic_atom2_device_close (dc_device_t *abstract)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	// Send the quit command.
-	rc = oceanic_atom2_quit (device);
+	unsigned char command[4] = {CMD_QUIT, 0x05, 0xA5, 0x00};
+	rc = oceanic_atom2_transfer (device, command, sizeof (command), NULL, 0, 0);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_status_set_error(&status, rc);
 	}
