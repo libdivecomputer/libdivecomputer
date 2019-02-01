@@ -38,6 +38,7 @@
 #define I770R      0x4651
 #define GEO40      0x4653
 
+#define MAXPACKET  256
 #define MAXRETRIES 2
 #define MAXDELAY   16
 #define INVALID    0xFFFFFFFF
@@ -539,6 +540,14 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
+	if (asize > MAXPACKET) {
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	if (crc_size > 2 || (crc_size != 0 && asize == 0)) {
+		return DC_STATUS_INVALIDARGS;
+	}
+
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
@@ -553,41 +562,36 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 		return status;
 	}
 
-	// Receive the response (ACK/NAK) of the dive computer.
-	unsigned char response = 0;
-	status = dc_iostream_read (device->iostream, &response, 1, NULL);
+	// Receive the answer of the dive computer.
+	unsigned char packet[1 + MAXPACKET + 2];
+	status = dc_iostream_read (device->iostream, packet, 1 + asize + crc_size, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
 	}
 
-	// Verify the response of the dive computer.
-	if (response != ack) {
+	// Verify the ACK byte of the answer.
+	if (packet[0] != ack) {
 		ERROR (abstract->context, "Unexpected answer start byte(s).");
 		return DC_STATUS_PROTOCOL;
 	}
 
 	if (asize) {
-		// Receive the answer of the dive computer.
-		status = dc_iostream_read (device->iostream, answer, asize, NULL);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to receive the answer.");
-			return status;
-		}
-
 		// Verify the checksum of the answer.
 		unsigned short crc, ccrc;
 		if (crc_size == 2) {
-			crc = array_uint16_le (answer + asize - 2);
-			ccrc = checksum_add_uint16 (answer, asize - 2, 0x0000);
+			crc = array_uint16_le (packet + 1 + asize);
+			ccrc = checksum_add_uint16 (packet + 1, asize, 0x0000);
 		} else {
-			crc = answer[asize - 1];
-			ccrc = checksum_add_uint8 (answer, asize - 1, 0x00);
+			crc = packet[1 + asize];
+			ccrc = checksum_add_uint8 (packet + 1, asize, 0x00);
 		}
 		if (crc != ccrc) {
 			ERROR (abstract->context, "Unexpected answer checksum.");
 			return DC_STATUS_PROTOCOL;
 		}
+
+		memcpy (answer, packet + 1, asize);
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -847,13 +851,10 @@ oceanic_atom2_device_version (dc_device_t *abstract, unsigned char data[], unsig
 	if (size < PAGESIZE)
 		return DC_STATUS_INVALIDARGS;
 
-	unsigned char answer[PAGESIZE + 1] = {0};
 	unsigned char command[] = {CMD_VERSION};
-	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, answer, sizeof (answer), 1);
+	dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, data, PAGESIZE, 1);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
-
-	memcpy (data, answer, PAGESIZE);
 
 	return DC_STATUS_SUCCESS;
 }
@@ -912,17 +913,15 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 		if (page != device->cached_page || highmem != device->cached_highmem) {
 			// Read the package.
 			unsigned int number = highmem ? page : page * device->bigpage; // This is always PAGESIZE, even in big page mode.
-			unsigned char answer[256 + 2] = {0};          // Maximum we support for the known commands.
 			unsigned char command[] = {read_cmd,
 					(number >> 8) & 0xFF, // high
 					(number     ) & 0xFF, // low
 				};
-			dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, answer, pagesize + crc_size, crc_size);
+			dc_status_t rc = oceanic_atom2_transfer (device, command, sizeof (command), ACK, device->cache, pagesize, crc_size);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
 
 			// Cache the page.
-			memcpy (device->cache, answer, pagesize);
 			device->cached_page = page;
 			device->cached_highmem = highmem;
 		}
