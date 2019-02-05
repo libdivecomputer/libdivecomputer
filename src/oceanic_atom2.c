@@ -29,6 +29,7 @@
 #include "array.h"
 #include "ringbuffer.h"
 #include "checksum.h"
+#include "platform.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
@@ -59,6 +60,7 @@
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
 	dc_iostream_t *iostream;
+	unsigned int sequence;
 	unsigned int delay;
 	unsigned int bigpage;
 	unsigned char cache[256];
@@ -534,11 +536,136 @@ static const oceanic_common_layout_t aqualung_i450t_layout = {
 	0, /* pt_mode_serial */
 };
 
+/*
+ * The BLE GATT packet size is up to 20 bytes and the format is:
+ *
+ * byte 0: <0xCD>
+ *         Seems to always have this value. Don't ask what it means
+ * byte 1: <d 1 c s s s s s>
+ *          d=0 means "command", d=1 means "reply from dive computer"
+ *          1 is always set, afaik
+ *          c=0 means "last packet" in sequence, c=1 means "more packets coming"
+ *          sssss is a 5-bit sequence number for packets
+ * byte 2: <cmd seq>
+ *          starts at 0 for the connection, incremented for each command
+ * byte 3: <length of data>
+ *          1-16 bytes of data per packet.
+ * byte 4..n: <data>
+ */
+static dc_status_t
+oceanic_atom2_ble_write (oceanic_atom2_device_t *device, const unsigned char data[], unsigned int size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	unsigned char buf[20];
+	unsigned char cmd_seq = device->sequence;
+	unsigned char pkt_seq = 0;
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		unsigned char status = 0x40;
+		unsigned int length = size - nbytes;
+		if (length > sizeof(buf) - 4) {
+			length = sizeof(buf) - 4;
+			status |= 0x20;
+		}
+		buf[0] = 0xcd;
+		buf[1] = status | (pkt_seq & 0x1F);
+		buf[2] = cmd_seq;
+		buf[3] = length;
+		memcpy (buf + 4, data, length);
+
+		rc = dc_iostream_write (device->iostream, buf, 4 + length, NULL);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+
+		nbytes += length;
+		pkt_seq++;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+oceanic_atom2_ble_read (oceanic_atom2_device_t *device, unsigned char data[], unsigned int size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+	unsigned char buf[20];
+	unsigned char cmd_seq = device->sequence;
+	unsigned char pkt_seq = 0;
+
+	unsigned int nbytes = 0;
+	while (1) {
+		size_t transferred = 0;
+		rc = dc_iostream_read (device->iostream, buf, sizeof(buf), &transferred);
+		if (rc != DC_STATUS_SUCCESS)
+			return rc;
+
+		if (transferred < 4) {
+			ERROR (abstract->context, "Invalid packet size (" DC_PRINTF_SIZE ").", transferred);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Verify the start byte.
+		if (buf[0] != 0xcd) {
+			ERROR (abstract->context, "Unexpected packet start byte (%02x).", buf[0]);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Verify the status byte.
+		unsigned char status = buf[1];
+		unsigned char expect = 0xc0 | (pkt_seq & 0x1F) | (status & 0x20);
+		if (status != expect) {
+			ERROR (abstract->context, "Unexpected packet status byte (%02x %02x).", status, expect);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Verify the sequence byte.
+		if (buf[2] != cmd_seq) {
+			ERROR (abstract->context, "Unexpected packet sequence byte (%02x %02x).", buf[2], cmd_seq);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Verify the length byte.
+		unsigned int length = buf[3];
+		if (length + 4 > transferred) {
+			ERROR (abstract->context, "Invalid packet length (%u).", length);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Append the payload data to the output buffer. If the output
+		// buffer is too small, the error is not reported immediately
+		// but delayed until all packets have been received.
+		if (nbytes < size) {
+			unsigned int n = length;
+			if (nbytes + n > size) {
+				n = size - nbytes;
+			}
+			memcpy (data + nbytes, buf + 4, n);
+		}
+		nbytes += length;
+		pkt_seq++;
+
+		// Last packet?
+		if ((status & 0x20) == 0)
+			break;
+	}
+
+	// Verify the expected number of bytes.
+	if (nbytes != size) {
+		ERROR (abstract->context, "Unexpected number of bytes received (%u %u).", nbytes, size);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
 static dc_status_t
 oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char command[], unsigned int csize, unsigned char ack, unsigned char answer[], unsigned int asize, unsigned int crc_size)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
 
 	if (asize > MAXPACKET) {
 		return DC_STATUS_INVALIDARGS;
@@ -556,7 +683,11 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 	}
 
 	// Send the command to the dive computer.
-	status = dc_iostream_write (device->iostream, command, csize, NULL);
+	if (transport == DC_TRANSPORT_BLE) {
+		status = oceanic_atom2_ble_write (device, command, csize);
+	} else {
+		status = dc_iostream_write (device->iostream, command, csize, NULL);
+	}
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -564,7 +695,11 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 
 	// Receive the answer of the dive computer.
 	unsigned char packet[1 + MAXPACKET + 2];
-	status = dc_iostream_read (device->iostream, packet, 1 + asize + crc_size, NULL);
+	if (transport == DC_TRANSPORT_BLE) {
+		status = oceanic_atom2_ble_read (device, packet, 1 + asize + crc_size);
+	} else {
+		status = dc_iostream_read (device->iostream, packet, 1 + asize + crc_size, NULL);
+	}
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -593,6 +728,8 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 
 		memcpy (answer, packet + 1, asize);
 	}
+
+	device->sequence++;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -652,6 +789,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	// Set the default values.
 	device->iostream = iostream;
 	device->delay = 0;
+	device->sequence = 0;
 	device->bigpage = 1; // no big pages
 	device->cached_page = INVALID;
 	device->cached_highmem = INVALID;
