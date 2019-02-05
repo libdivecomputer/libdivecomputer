@@ -22,6 +22,8 @@
 #include <string.h> // memcpy
 #include <stdlib.h> // malloc, free
 
+#include <libdivecomputer/ble.h>
+
 #include "oceanic_atom2.h"
 #include "oceanic_common.h"
 #include "context-private.h"
@@ -46,6 +48,7 @@
 
 #define CMD_INIT      0xA8
 #define CMD_VERSION   0x84
+#define CMD_HANDSHAKE 0xE5
 #define CMD_READ1     0xB1
 #define CMD_READ8     0xB4
 #define CMD_READ16    0xB8
@@ -766,6 +769,65 @@ oceanic_atom2_transfer (oceanic_atom2_device_t *device, const unsigned char comm
 	return DC_STATUS_SUCCESS;
 }
 
+/*
+ * The BLE communication sends a handshake packet that seems
+ * to be a passphrase based on the BLE name of the device
+ * (more specifically the serial number encoded in the name).
+ *
+ * The packet format is:
+ *    0xe5
+ *    < 8 bytes of passphrase >
+ *    one-byte checksum of the passphrase.
+ */
+static dc_status_t
+oceanic_atom2_ble_handshake(oceanic_atom2_device_t *device)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	// Retrieve the bluetooth device name.
+	// The format of the name is something like 'FQ001124', where the
+	// two first letters are the ASCII representation of the model
+	// number (e.g. 'FQ' or 0x4651 for the i770R), and the six digits
+	// are the serial number.
+	char name[8 + 1] = {0};
+	rc = dc_iostream_ioctl (device->iostream, DC_IOCTL_BLE_GET_NAME, name, sizeof(name));
+	if (rc != DC_STATUS_SUCCESS) {
+		if (rc == DC_STATUS_UNSUPPORTED) {
+			// Allow skipping the handshake if no name. But the download
+			// will likely fail.
+			WARNING (abstract->context, "Bluetooth device name unavailable.");
+			return DC_STATUS_SUCCESS;
+		} else {
+			return rc;
+		}
+	}
+
+	// Force a null terminated string.
+	name[sizeof(name) - 1] = 0;
+
+	// Check the minimum length.
+	if (strlen (name) < 8) {
+		ERROR (abstract->context, "Bluetooth device name too short.");
+		return DC_STATUS_IO;
+	}
+
+	// Turn ASCII numbers into just raw byte values.
+	unsigned char handshake[10] = {CMD_HANDSHAKE};
+	for (unsigned int i = 0; i < 6; i++) {
+		handshake[i + 1] = name[i + 2] - '0';
+	}
+
+	// Add simple checksum.
+	handshake[9] = checksum_add_uint8 (handshake + 1, 8, 0x00);
+
+	// Send the command to the dive computer.
+	rc = oceanic_atom2_transfer (device, handshake, sizeof(handshake), ACK, NULL, 0, 0);
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	return DC_STATUS_SUCCESS;
+}
 
 dc_status_t
 oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
@@ -855,6 +917,13 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	status = oceanic_atom2_device_version ((dc_device_t *) device, device->base.version, sizeof (device->base.version));
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
+	}
+
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
+		status = oceanic_atom2_ble_handshake(device);
+		if (status != DC_STATUS_SUCCESS) {
+			goto error_free;
+		}
 	}
 
 	// Override the base class values.
