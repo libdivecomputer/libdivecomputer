@@ -207,11 +207,11 @@ static const oceanic_common_version_t oceanic_reactpro_version[] = {
 };
 
 static const oceanic_common_version_t oceanic_proplusx_version[] = {
-	{"OCEANOCX \0\0 2048"},
+	{"OCEANOCX \0\0 \0\0\0\0"},
 };
 
 static const oceanic_common_version_t aqualung_i770r_version[] = {
-	{"AQUA770R \0\0 2048"},
+	{"AQUA770R \0\0 \0\0\0\0"},
 };
 
 static const oceanic_common_version_t aeris_a300cs_version[] = {
