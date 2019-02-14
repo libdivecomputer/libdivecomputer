@@ -30,10 +30,7 @@
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &divesystem_idive_parser_vtable)
 
-#define IX3M_EASY 0x22
-#define IX3M_DEEP 0x23
-#define IX3M_TEC  0x24
-#define IX3M_REB  0x25
+#define ISIX3M(model) ((model) >= 0x21)
 
 #define SZ_HEADER_IDIVE 0x32
 #define SZ_SAMPLE_IDIVE 0x2A
@@ -103,7 +100,7 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 
 	// Set the default values.
 	parser->model = model;
-	if (model >= IX3M_EASY) {
+	if (ISIX3M(model)) {
 		parser->headersize = SZ_HEADER_IX3M;
 	} else {
 		parser->headersize = SZ_HEADER_IDIVE;
@@ -206,7 +203,7 @@ divesystem_idive_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *date
 	// Detect the APOS4 firmware.
 	unsigned int firmware = 0;
 	unsigned int apos4 = 0;
-	if (parser->model >= IX3M_EASY) {
+	if (ISIX3M(parser->model)) {
 		firmware = array_uint32_le(abstract->data + 0x2A);
 		apos4 = (firmware / 10000000) >= 4;
 	} else {
@@ -297,7 +294,7 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			tank->gasmix = DC_GASMIX_UNKNOWN;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
-			if (parser->model >= IX3M_EASY) {
+			if (ISIX3M(parser->model)) {
 				*((double *) value) = array_uint16_le (data + 11) / 10000.0;
 			} else {
 				*((double *) value) = array_uint16_le (data + 11) / 1000.0;
@@ -363,7 +360,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int apos4 = 0;
 	unsigned int nsamples = array_uint16_le (data + 1);
 	unsigned int samplesize = SZ_SAMPLE_IDIVE;
-	if (parser->model >= IX3M_EASY) {
+	if (ISIX3M(parser->model)) {
 		// Detect the APOS4 firmware.
 		firmware = array_uint32_le(data + 0x2A);
 		apos4 = (firmware / 10000000) >= 4;

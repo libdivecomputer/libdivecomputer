@@ -30,10 +30,7 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &divesystem_idive_device_vtable)
 
-#define IX3M_EASY 0x22
-#define IX3M_DEEP 0x23
-#define IX3M_TEC  0x24
-#define IX3M_REB  0x25
+#define ISIX3M(model) ((model) >= 0x21)
 
 #define MAXRETRIES 9
 
@@ -374,7 +371,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	unsigned int errcode = 0;
 
 	const divesystem_idive_commands_t *commands = &idive;
-	if (device->model >= IX3M_EASY) {
+	if (ISIX3M(device->model)) {
 		commands = &ix3m;
 	}
 
@@ -400,7 +397,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	vendor.size = commands->id.size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
-	if (device->model >= IX3M_EASY) {
+	if (ISIX3M(device->model)) {
 		// Detect the APOS4 firmware.
 		unsigned int apos4 = (devinfo.firmware / 10000000) >= 4;
 		if (apos4) {
