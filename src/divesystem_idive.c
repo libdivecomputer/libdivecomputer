@@ -319,7 +319,9 @@ divesystem_idive_packet (divesystem_idive_device_t *device, const unsigned char 
 		goto error;
 	}
 
-	memcpy(answer, packet + 1, length - 2);
+	if (length > 2) {
+		memcpy (answer, packet + 1, length - 2);
+	}
 
 error:
 	if (errorcode) {
