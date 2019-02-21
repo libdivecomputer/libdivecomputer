@@ -39,6 +39,16 @@
 #define ACK       0x06
 #define NAK       0x15
 
+#define CMD_IDIVE_ID      0x10
+#define CMD_IDIVE_RANGE   0x98
+#define CMD_IDIVE_HEADER  0xA0
+#define CMD_IDIVE_SAMPLE  0xA8
+
+#define CMD_IX3M_ID       0x11
+#define CMD_IX3M_RANGE    0x78
+#define CMD_IX3M_HEADER   0x79
+#define CMD_IX3M_SAMPLE   0x7A
+
 #define ERR_INVALID_CMD    0x10
 #define ERR_INVALID_LENGTH 0x20
 #define ERR_INVALID_DATA   0x30
@@ -86,26 +96,26 @@ static const dc_device_vtable_t divesystem_idive_device_vtable = {
 };
 
 static const divesystem_idive_commands_t idive = {
-	{0x10, 0x0A},
-	{0x98, 0x04},
-	{0xA0, 0x32},
-	{0xA8, 0x2A},
+	{CMD_IDIVE_ID,     0x0A},
+	{CMD_IDIVE_RANGE,  0x04},
+	{CMD_IDIVE_HEADER, 0x32},
+	{CMD_IDIVE_SAMPLE, 0x2A},
 	1,
 };
 
 static const divesystem_idive_commands_t ix3m = {
-	{0x11, 0x1A},
-	{0x78, 0x04},
-	{0x79, 0x36},
-	{0x7A, 0x36},
+	{CMD_IX3M_ID,     0x1A},
+	{CMD_IX3M_RANGE,  0x04},
+	{CMD_IX3M_HEADER, 0x36},
+	{CMD_IX3M_SAMPLE, 0x36},
 	1,
 };
 
 static const divesystem_idive_commands_t ix3m_apos4 = {
-	{0x11, 0x1A},
-	{0x78, 0x04},
-	{0x79, 0x36},
-	{0x7A, 0x40},
+	{CMD_IX3M_ID,     0x1A},
+	{CMD_IX3M_RANGE,  0x04},
+	{CMD_IX3M_HEADER, 0x36},
+	{CMD_IX3M_SAMPLE, 0x40},
 	3,
 };
 
