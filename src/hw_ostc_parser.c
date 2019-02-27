@@ -916,9 +916,11 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					break;
 				case 6: // Tank pressure
 					value = array_uint16_le (data + offset);
-					sample.pressure.tank = tank;
-					sample.pressure.value = value / 10.0;
-					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					if (value != 0) {
+						sample.pressure.tank = tank;
+						sample.pressure.value = value / 10.0;
+						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					}
 					break;
 				default: // Not yet used.
 					break;
