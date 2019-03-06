@@ -380,6 +380,20 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	// Autodetect the model using the version packet.
 	device->model = mares_iconhd_get_model (device);
 
+	// Read the size of the flash memory.
+	unsigned int memsize = 0;
+	if (device->model == QUAD) {
+		unsigned char cmd_flash[] = {0xB3, 0x16};
+		unsigned char rsp_flash[4] = {0};
+		status = mares_iconhd_transfer (device, cmd_flash, sizeof (cmd_flash), rsp_flash, sizeof (rsp_flash));
+		if (status != DC_STATUS_SUCCESS) {
+			WARNING (context, "Failed to read the flash memory size.");
+		} else {
+			memsize = array_uint32_le (rsp_flash);
+			DEBUG (context, "Flash memory size is %u bytes.", memsize);
+		}
+	}
+
 	// Load the correct memory layout.
 	switch (device->model) {
 	case MATRIX:
@@ -391,8 +405,15 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	case NEMOWIDE2:
 	case SMART:
 	case SMARTAPNEA:
-	case QUAD:
 		device->layout = &mares_nemowide2_layout;
+		device->packetsize = 256;
+		break;
+	case QUAD:
+		if (memsize > 0x40000) {
+			device->layout = &mares_iconhd_layout;
+		} else {
+			device->layout = &mares_nemowide2_layout;
+		}
 		device->packetsize = 256;
 		break;
 	case QUADAIR:
