@@ -555,7 +555,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				unsigned int event = data[offset++];
 				unsigned int seconds, type, unknown, heading;
 				unsigned int current, next;
-				unsigned int he, o2, idx;
+				unsigned int he, o2, ppo2, idx;
 				unsigned int length;
 
 				sample.event.type = SAMPLE_EVENT_NONE;
@@ -747,8 +747,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					o2 = data[offset + 2];
 					if (parser->model == DX || parser->model == VYPERNOVO ||
 						(parser->model == D6i && parser->id == ID_D6I_V2)) {
+						ppo2 = data[offset + 3];
 						seconds = data[offset + 4];
 					} else {
+						ppo2 = 0;
 						seconds = data[offset + 3];
 					}
 					idx = type & 0x0F;
@@ -761,6 +763,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					}
 					sample.gasmix = idx;
 					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+					if (type & 0x80) {
+						sample.setpoint = ppo2 / 10.0;
+						if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+					}
 					offset += length;
 					break;
 				default:
