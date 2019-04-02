@@ -729,7 +729,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
 					}
-					unknown = data[offset + 0];
+					type = data[offset + 0];
 					he = data[offset + 1];
 					o2 = data[offset + 2];
 					if (parser->model == DX || parser->model == VYPERNOVO ||
@@ -738,7 +738,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					} else {
 						seconds = data[offset + 3];
 					}
-					idx = suunto_d9_parser_find_gasmix(parser, o2, he);
+					idx = type & 0x0F;
 					if (idx >= parser->ngasmixes) {
 						ERROR (abstract->context, "Invalid gas mix.");
 						return DC_STATUS_DATAFORMAT;
