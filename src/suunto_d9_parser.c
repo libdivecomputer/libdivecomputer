@@ -223,6 +223,8 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 			} else {
 				parser->gasmix = data[0x28];
 			}
+		} else if (parser->model == DX) {
+			parser->gasmix = data[0x31] & 0x7F;
 		}
 	}
 	parser->config = config;
