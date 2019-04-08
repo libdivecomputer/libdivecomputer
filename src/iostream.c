@@ -210,7 +210,7 @@ dc_iostream_write (dc_iostream_t *iostream, const void *data, size_t size, size_
 	dc_status_t status = DC_STATUS_SUCCESS;
 	size_t nbytes = 0;
 
-	if (iostream == NULL || iostream->vtable->read == NULL) {
+	if (iostream == NULL || iostream->vtable->write == NULL) {
 		goto out;
 	}
 
