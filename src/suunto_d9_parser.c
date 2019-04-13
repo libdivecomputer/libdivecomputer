@@ -77,6 +77,7 @@ struct suunto_d9_parser_t {
 	unsigned int id;
 	unsigned int mode;
 	unsigned int ngasmixes;
+	unsigned int nccr;
 	unsigned int oxygen[NGASMIXES];
 	unsigned int helium[NGASMIXES];
 	unsigned int gasmix;
@@ -109,7 +110,7 @@ static unsigned int
 suunto_d9_parser_find_gasmix (suunto_d9_parser_t *parser, unsigned int o2, unsigned int he)
 {
 	// Find the gasmix in the list.
-	unsigned int i = 0;
+	unsigned int i = parser->nccr;
 	while (i < parser->ngasmixes) {
 		if (o2 == parser->oxygen[i] && he == parser->helium[i])
 			break;
@@ -136,6 +137,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 	unsigned int gasmode_offset = 0x19;
 	unsigned int gasmix_offset = 0x21;
 	unsigned int gasmix_count = 3;
+	unsigned int ccr_count = 0;
 	if (parser->model == HELO2) {
 		gasmode_offset = 0x1F;
 		gasmix_offset = 0x54;
@@ -169,6 +171,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 		else
 			gasmix_offset = 0xC1;
 		gasmix_count = 11;
+		ccr_count = 3;
 	}
 
 	// Offset to the configuration data.
@@ -189,12 +192,15 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 	parser->gasmix = 0;
 	if (parser->mode == GAUGE || parser->mode == FREEDIVE) {
 		parser->ngasmixes = 0;
+		parser->nccr = 0;
 	} else if (parser->mode == AIR) {
 		parser->oxygen[0] = 21;
 		parser->helium[0] = 0;
 		parser->ngasmixes = 1;
+		parser->nccr = 0;
 	} else {
 		parser->ngasmixes = 0;
+		parser->nccr = ccr_count;
 		for (unsigned int i = 0; i < gasmix_count; ++i) {
 			if (parser->model == HELO2 || parser->model == D4i ||
 				parser->model == D6i || parser->model == D9tx ||
@@ -222,6 +228,11 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 				parser->gasmix = data[0x2D];
 			} else {
 				parser->gasmix = data[0x28];
+			}
+		} else if (parser->model == DX) {
+			parser->gasmix = data[0x31] & 0x7F;
+			if ((data[0x31] & 0x80) == 0) {
+				parser->gasmix += parser->nccr;
 			}
 		}
 	}
@@ -253,6 +264,7 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 	parser->id = 0;
 	parser->mode = AIR;
 	parser->ngasmixes = 0;
+	parser->nccr = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
@@ -276,6 +288,7 @@ suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, uns
 	parser->id = 0;
 	parser->mode = AIR;
 	parser->ngasmixes = 0;
+	parser->nccr = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
 		parser->helium[i] = 0;
@@ -542,7 +555,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				unsigned int event = data[offset++];
 				unsigned int seconds, type, unknown, heading;
 				unsigned int current, next;
-				unsigned int he, o2, idx;
+				unsigned int he, o2, ppo2, idx;
 				unsigned int length;
 
 				sample.event.type = SAMPLE_EVENT_NONE;
@@ -729,22 +742,31 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						ERROR (abstract->context, "Buffer overflow detected!");
 						return DC_STATUS_DATAFORMAT;
 					}
-					unknown = data[offset + 0];
+					type = data[offset + 0];
 					he = data[offset + 1];
 					o2 = data[offset + 2];
 					if (parser->model == DX || parser->model == VYPERNOVO ||
 						(parser->model == D6i && parser->id == ID_D6I_V2)) {
+						ppo2 = data[offset + 3];
 						seconds = data[offset + 4];
 					} else {
+						ppo2 = 0;
 						seconds = data[offset + 3];
 					}
-					idx = suunto_d9_parser_find_gasmix(parser, o2, he);
+					idx = type & 0x0F;
+					if ((type & 0x80) == 0) {
+						idx += parser->nccr;
+					}
 					if (idx >= parser->ngasmixes) {
 						ERROR (abstract->context, "Invalid gas mix.");
 						return DC_STATUS_DATAFORMAT;
 					}
 					sample.gasmix = idx;
 					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+					if (type & 0x80) {
+						sample.setpoint = ppo2 / 10.0;
+						if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+					}
 					offset += length;
 					break;
 				default:
