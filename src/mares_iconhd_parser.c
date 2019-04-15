@@ -100,13 +100,13 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	else if (parser->model == SMARTAPNEA)
 		header = 6; // Type and number of samples only!
 
-	if (size < header + 4) {
+	if (size < 4) {
 		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
 	}
 
 	unsigned int length = array_uint32_le (data);
-	if (length > size) {
+	if (length < 4 + header || length > size) {
 		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -146,7 +146,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		samplesize = 14;
 	}
 
-	if (length < headersize) {
+	if (length < 4 + headersize) {
 		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
 	}
