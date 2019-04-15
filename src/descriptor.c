@@ -252,6 +252,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Icon HD Net Ready", DC_FAMILY_MARES_ICONHD , 0x15, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Puck Pro",          DC_FAMILY_MARES_ICONHD , 0x18, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Nemo Wide 2",       DC_FAMILY_MARES_ICONHD , 0x19, DC_TRANSPORT_SERIAL, NULL},
+	{"Mares", "Genius",            DC_FAMILY_MARES_ICONHD , 0x1C, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Puck 2",            DC_FAMILY_MARES_ICONHD , 0x1F, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Quad Air",          DC_FAMILY_MARES_ICONHD , 0x23, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Smart Air",         DC_FAMILY_MARES_ICONHD , 0x24, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
