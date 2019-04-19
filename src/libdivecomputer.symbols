@@ -46,6 +46,7 @@ dc_iostream_configure
 dc_iostream_poll
 dc_iostream_read
 dc_iostream_write
+dc_iostream_ioctl
 dc_iostream_flush
 dc_iostream_purge
 dc_iostream_sleep

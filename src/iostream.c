@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include <libdivecomputer/ioctl.h>
+
 #include "iostream-private.h"
 #include "context-private.h"
 #include "platform.h"
@@ -232,6 +234,40 @@ dc_iostream_write (dc_iostream_t *iostream, const void *data, size_t size, size_
 out:
 	if (actual)
 		*actual = nbytes;
+
+	return status;
+}
+
+dc_status_t
+dc_iostream_ioctl (dc_iostream_t *iostream, unsigned int request, void *data, size_t size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+
+	if (iostream == NULL || iostream->vtable->ioctl == NULL)
+		return DC_STATUS_SUCCESS;
+
+	// The size should match the size encoded in the ioctl request,
+	// unless it's a variable size request.
+	if (size != DC_IOCTL_SIZE(request) &&
+		!(DC_IOCTL_DIR(request) != DC_IOCTL_DIR_NONE && DC_IOCTL_SIZE(request) == 0)) {
+		ERROR (iostream->context, "Invalid size for ioctl request 0x%08x (" DC_PRINTF_SIZE ").", request, size);
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	INFO (iostream->context, "Ioctl: request=0x%08x (dir=%u, type=%u, nr=%u, size=%u)",
+		request,
+		DC_IOCTL_DIR(request), DC_IOCTL_TYPE(request),
+		DC_IOCTL_NR(request), DC_IOCTL_SIZE(request));
+
+	if (DC_IOCTL_DIR(request) & DC_IOCTL_DIR_WRITE) {
+		HEXDUMP (iostream->context, DC_LOGLEVEL_INFO, "Ioctl write", (unsigned char *) data, size);
+	}
+
+	status = iostream->vtable->ioctl (iostream, request, data, size);
+
+	if (DC_IOCTL_DIR(request) & DC_IOCTL_DIR_READ) {
+		HEXDUMP (iostream->context, DC_LOGLEVEL_INFO, "Ioctl read", (unsigned char *) data, size);
+	}
 
 	return status;
 }

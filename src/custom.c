@@ -38,6 +38,7 @@ static dc_status_t dc_custom_configure (dc_iostream_t *abstract, unsigned int ba
 static dc_status_t dc_custom_poll (dc_iostream_t *abstract, int timeout);
 static dc_status_t dc_custom_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual);
 static dc_status_t dc_custom_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *actual);
+static dc_status_t dc_custom_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size_t size);
 static dc_status_t dc_custom_flush (dc_iostream_t *abstract);
 static dc_status_t dc_custom_purge (dc_iostream_t *abstract, dc_direction_t direction);
 static dc_status_t dc_custom_sleep (dc_iostream_t *abstract, unsigned int milliseconds);
@@ -64,6 +65,7 @@ static const dc_iostream_vtable_t dc_custom_vtable = {
 	dc_custom_poll, /* poll */
 	dc_custom_read, /* read */
 	dc_custom_write, /* write */
+	dc_custom_ioctl, /* ioctl */
 	dc_custom_flush, /* flush */
 	dc_custom_purge, /* purge */
 	dc_custom_sleep, /* sleep */
@@ -214,6 +216,17 @@ dc_custom_write (dc_iostream_t *abstract, const void *data, size_t size, size_t 
 		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.write (custom->userdata, data, size, actual);
+}
+
+static dc_status_t
+dc_custom_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size_t size)
+{
+	dc_custom_t *custom = (dc_custom_t *) abstract;
+
+	if (custom->callbacks.ioctl == NULL)
+		return DC_STATUS_SUCCESS;
+
+	return custom->callbacks.ioctl (custom->userdata, request, data, size);
 }
 
 static dc_status_t

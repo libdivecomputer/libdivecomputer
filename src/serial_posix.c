@@ -77,6 +77,7 @@ static dc_status_t dc_serial_configure (dc_iostream_t *iostream, unsigned int ba
 static dc_status_t dc_serial_poll (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_serial_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 static dc_status_t dc_serial_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+static dc_status_t dc_serial_ioctl (dc_iostream_t *iostream, unsigned int request, void *data, size_t size);
 static dc_status_t dc_serial_flush (dc_iostream_t *iostream);
 static dc_status_t dc_serial_purge (dc_iostream_t *iostream, dc_direction_t direction);
 static dc_status_t dc_serial_sleep (dc_iostream_t *iostream, unsigned int milliseconds);
@@ -127,6 +128,7 @@ static const dc_iostream_vtable_t dc_serial_vtable = {
 	dc_serial_poll, /* poll */
 	dc_serial_read, /* read */
 	dc_serial_write, /* write */
+	dc_serial_ioctl, /* ioctl */
 	dc_serial_flush, /* flush */
 	dc_serial_purge, /* purge */
 	dc_serial_sleep, /* sleep */
@@ -847,6 +849,12 @@ out:
 		*actual = nbytes;
 
 	return status;
+}
+
+static dc_status_t
+dc_serial_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size_t size)
+{
+	return DC_STATUS_UNSUPPORTED;
 }
 
 static dc_status_t

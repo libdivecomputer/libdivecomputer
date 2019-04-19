@@ -101,6 +101,7 @@ static const dc_iostream_vtable_t dc_irda_vtable = {
 	dc_socket_poll, /* poll */
 	dc_socket_read, /* read */
 	dc_socket_write, /* write */
+	dc_socket_ioctl, /* ioctl */
 	NULL, /* flush */
 	NULL, /* purge */
 	dc_socket_sleep, /* sleep */

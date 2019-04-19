@@ -63,6 +63,8 @@ struct dc_iostream_vtable_t {
 
 	dc_status_t (*write) (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
 
+	dc_status_t (*ioctl) (dc_iostream_t *iostream, unsigned int request, void *data, size_t size);
+
 	dc_status_t (*flush) (dc_iostream_t *iostream);
 
 	dc_status_t (*purge) (dc_iostream_t *iostream, dc_direction_t direction);
