@@ -124,22 +124,6 @@ dc_status_t
 dc_iostream_set_timeout (dc_iostream_t *iostream, int timeout);
 
 /**
- * Set the receive latency.
- *
- * The effect of this setting is highly platform and driver specific. On
- * Windows it does nothing at all, on Linux it controls the low latency
- * flag (e.g. only zero vs non-zero latency), and on Mac OS X it sets
- * the receive latency as requested.
- *
- * @param[in]  iostream  A valid I/O stream.
- * @param[in]  value     The latency in milliseconds.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value);
-
-/**
  * Set the state of the break condition.
  *
  * @param[in]  iostream  A valid I/O stream.

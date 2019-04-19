@@ -36,7 +36,6 @@ static dc_status_t dc_serial_iterator_next (dc_iterator_t *iterator, void *item)
 static dc_status_t dc_serial_iterator_free (dc_iterator_t *iterator);
 
 static dc_status_t dc_serial_set_timeout (dc_iostream_t *iostream, int timeout);
-static dc_status_t dc_serial_set_latency (dc_iostream_t *iostream, unsigned int value);
 static dc_status_t dc_serial_set_break (dc_iostream_t *iostream, unsigned int value);
 static dc_status_t dc_serial_set_dtr (dc_iostream_t *iostream, unsigned int value);
 static dc_status_t dc_serial_set_rts (dc_iostream_t *iostream, unsigned int value);
@@ -93,7 +92,6 @@ static const dc_iterator_vtable_t dc_serial_iterator_vtable = {
 static const dc_iostream_vtable_t dc_serial_vtable = {
 	sizeof(dc_serial_t),
 	dc_serial_set_timeout, /* set_timeout */
-	dc_serial_set_latency, /* set_latency */
 	dc_serial_set_break, /* set_break */
 	dc_serial_set_dtr, /* set_dtr */
 	dc_serial_set_rts, /* set_rts */
@@ -547,12 +545,6 @@ dc_serial_set_timeout (dc_iostream_t *abstract, int timeout)
 }
 
 static dc_status_t
-dc_serial_set_latency (dc_iostream_t *abstract, unsigned int value)
-{
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
 dc_serial_poll (dc_iostream_t *abstract, int timeout)
 {
 	dc_serial_t *device = (dc_serial_t *) abstract;
@@ -687,7 +679,12 @@ out:
 static dc_status_t
 dc_serial_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size_t size)
 {
-	return DC_STATUS_UNSUPPORTED;
+	switch (request) {
+	case DC_IOCTL_SERIAL_SET_LATENCY:
+		return DC_STATUS_SUCCESS;
+	default:
+		return DC_STATUS_UNSUPPORTED;
+	}
 }
 
 static dc_status_t

@@ -36,7 +36,6 @@ dc_descriptor_get_transports
 
 dc_iostream_get_transport
 dc_iostream_set_timeout
-dc_iostream_set_latency
 dc_iostream_set_break
 dc_iostream_set_dtr
 dc_iostream_set_rts

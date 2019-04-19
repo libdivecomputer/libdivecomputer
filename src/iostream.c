@@ -88,17 +88,6 @@ dc_iostream_set_timeout (dc_iostream_t *iostream, int timeout)
 }
 
 dc_status_t
-dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value)
-{
-	if (iostream == NULL || iostream->vtable->set_latency == NULL)
-		return DC_STATUS_SUCCESS;
-
-	INFO (iostream->context, "Latency: value=%i", value);
-
-	return iostream->vtable->set_latency (iostream, value);
-}
-
-dc_status_t
 dc_iostream_set_break (dc_iostream_t *iostream, unsigned int value)
 {
 	if (iostream == NULL || iostream->vtable->set_break == NULL)
