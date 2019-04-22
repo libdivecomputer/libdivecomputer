@@ -128,6 +128,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Uwatec",   "Aladin Sport",        DC_FAMILY_UWATEC_SMART, 0x15, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Subgear",  "XP-3G",               DC_FAMILY_UWATEC_SMART, 0x15, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Scubapro", "Aladin Sport Matrix", DC_FAMILY_UWATEC_SMART, 0x17, DC_TRANSPORT_BLE, dc_filter_uwatec},
+	{"Scubapro", "Aladin H Matrix",     DC_FAMILY_UWATEC_SMART, 0x17, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Uwatec",   "Smart Tec",           DC_FAMILY_UWATEC_SMART, 0x18, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Uwatec",   "Galileo Trimix",      DC_FAMILY_UWATEC_SMART, 0x19, DC_TRANSPORT_IRDA, dc_filter_uwatec},
 	{"Uwatec",   "Smart Z",             DC_FAMILY_UWATEC_SMART, 0x1C, DC_TRANSPORT_IRDA, dc_filter_uwatec},
