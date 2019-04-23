@@ -969,7 +969,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			unsigned int have_deco = 0;
 			unsigned int decostop = 0, decotime = 0;
 			if (parser->model == A300CS || parser->model == VTX ||
-				parser->model == I450T || parser->model == I750TC ||
+				parser->model == I750TC ||
 				parser->model == PROPLUSX || parser->model == I770R) {
 				decostop = (data[offset + 15] & 0x70) >> 4;
 				decotime = array_uint16_le(data + offset + 6) & 0x03FF;
@@ -990,7 +990,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			} else if (parser->model == I200 || parser->model == I300 ||
 				parser->model == OC1A || parser->model == OC1B ||
 				parser->model == OC1C || parser->model == OCI ||
-				parser->model == I100 || parser->model == I300C) {
+				parser->model == I100 || parser->model == I300C ||
+				parser->model == I450T) {
 				decostop = (data[offset + 7] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 6) & 0x0FFF;
 				have_deco = 1;
