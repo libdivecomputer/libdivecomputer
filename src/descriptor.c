@@ -427,6 +427,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 	static const char *bluetooth[] = {
 		"G2",
 		"Aladin",
+		"HUD",
 	};
 
 	if (transport == DC_TRANSPORT_IRDA) {
