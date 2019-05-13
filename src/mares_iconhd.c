@@ -49,6 +49,11 @@
 
 #define ACK 0xAA
 #define EOF 0xEA
+#define XOR 0xA5
+
+#define CMD_VERSION   0xC2
+#define CMD_FLASHSIZE 0xB3
+#define CMD_READ      0xE7
 
 #define AIR       0
 #define GAUGE     1
@@ -370,7 +375,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Send the version command.
-	unsigned char command[] = {0xC2, 0x67};
+	unsigned char command[] = {CMD_VERSION, CMD_VERSION ^ XOR};
 	status = mares_iconhd_transfer (device, command, sizeof (command),
 		device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
@@ -383,7 +388,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	// Read the size of the flash memory.
 	unsigned int memsize = 0;
 	if (device->model == QUAD) {
-		unsigned char cmd_flash[] = {0xB3, 0x16};
+		unsigned char cmd_flash[] = {CMD_FLASHSIZE, CMD_FLASHSIZE ^ XOR};
 		unsigned char rsp_flash[4] = {0};
 		status = mares_iconhd_transfer (device, cmd_flash, sizeof (cmd_flash), rsp_flash, sizeof (rsp_flash));
 		if (status != DC_STATUS_SUCCESS) {
@@ -473,7 +478,7 @@ mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 			len = device->packetsize;
 
 		// Read the packet.
-		unsigned char command[] = {0xE7, 0x42,
+		unsigned char command[] = {CMD_READ, CMD_READ ^ XOR,
 			(address      ) & 0xFF,
 			(address >>  8) & 0xFF,
 			(address >> 16) & 0xFF,
