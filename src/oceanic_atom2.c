@@ -151,6 +151,7 @@ static const oceanic_common_version_t tusa_zenair_version[] = {
 	{"AMPHOSSW \0\0 512K"},
 	{"AMPHOAIR \0\0 512K"},
 	{"VOYAGE2G \0\0 512K"},
+	{"TUSTALIS \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_oc1_version[] = {

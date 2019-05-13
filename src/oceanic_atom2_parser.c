@@ -74,6 +74,7 @@
 #define F11A        0x4549
 #define OCI         0x454B
 #define A300CS      0x454C
+#define TALIS       0x454E
 #define MUNDIAL3    0x4550
 #define PROPLUSX    0x4552
 #define F10B        0x4553
@@ -288,6 +289,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case AMPHOS:
 		case AMPHOSAIR:
 		case VOYAGER2G:
+		case TALIS:
 			datetime->year   = (p[3] & 0x1F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
 			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
@@ -712,7 +714,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == MANTA || parser->model == I300 ||
 		parser->model == I200 || parser->model == I100 ||
-		parser->model == I300C) {
+		parser->model == I300C || TALIS) {
 		have_pressure = 0;
 	}
 
@@ -862,6 +864,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == ELEMENT2 || parser->model == MANTA ||
 					parser->model == ZEN) {
 					temperature = data[offset + 6];
+				} else if (parser->model == TALIS) {
+					temperature = data[offset + 7];
 				} else if (parser->model == GEO20 || parser->model == VEO20 ||
 					parser->model == VEO30 || parser->model == OC1A ||
 					parser->model == OC1B || parser->model == OC1C ||
