@@ -102,6 +102,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Suunto EON Steel */
 	{"Suunto", "EON Steel", DC_FAMILY_SUUNTO_EONSTEEL, 0, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},
 	{"Suunto", "EON Core",  DC_FAMILY_SUUNTO_EONSTEEL, 1, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},
+	{"Suunto", "D5",        DC_FAMILY_SUUNTO_EONSTEEL, 2, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C, DC_TRANSPORT_SERIAL, NULL},
 	{"Uwatec", "Aladin Sport Plus",   DC_FAMILY_UWATEC_ALADIN, 0x3E, DC_TRANSPORT_SERIAL, NULL},
@@ -447,10 +448,12 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 	static const dc_usb_desc_t usbhid[] = {
 		{0x1493, 0x0030}, // Eon Steel
 		{0x1493, 0x0033}, // Eon Core
+		{0x1493, 0x0035}, // D5
 	};
 	static const char *bluetooth[] = {
 		"EON Steel",
 		"EON Core",
+		"Suunto D5",
 	};
 
 	if (transport == DC_TRANSPORT_USBHID) {
