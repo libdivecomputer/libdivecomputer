@@ -496,7 +496,7 @@ static void sample_temp(struct sample_data *info, short temp)
 {
 	dc_sample_value_t sample = {0};
 
-	if (temp < -3000)
+	if (temp <= -3000)
 		return;
 
 	sample.temperature = temp / 10.0;
