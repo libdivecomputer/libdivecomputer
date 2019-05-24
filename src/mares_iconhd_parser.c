@@ -54,8 +54,8 @@ struct mares_iconhd_parser_t {
 	unsigned int cached;
 	unsigned int mode;
 	unsigned int nsamples;
-	unsigned int footer;
 	unsigned int samplesize;
+	unsigned int headersize;
 	unsigned int settings;
 	unsigned int interval;
 	unsigned int samplerate;
@@ -227,11 +227,14 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		}
 	}
 
+	// Limit the size to the actual length.
+	parser->base.size = length;
+
 	// Cache the data for later use.
 	parser->mode = mode;
 	parser->nsamples = nsamples;
-	parser->footer = length - headersize;
 	parser->samplesize = samplesize;
+	parser->headersize = headersize;
 	parser->settings = settings;
 	parser->interval = interval;
 	parser->samplerate = samplerate;
@@ -266,8 +269,8 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->cached = 0;
 	parser->mode = AIR;
 	parser->nsamples = 0;
-	parser->footer = 0;
 	parser->samplesize = 0;
+	parser->headersize = 0;
 	parser->settings = 0;
 	parser->interval = 0;
 	parser->samplerate = 0;
@@ -292,8 +295,8 @@ mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->cached = 0;
 	parser->mode = AIR;
 	parser->nsamples = 0;
-	parser->footer = 0;
 	parser->samplesize = 0;
+	parser->headersize = 0;
 	parser->settings = 0;
 	parser->interval = 0;
 	parser->samplerate = 0;
@@ -317,7 +320,7 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	const unsigned char *p = abstract->data + parser->footer;
+	const unsigned char *p = abstract->data + abstract->size - parser->headersize;
 	if (parser->model == SMART) {
 		if (parser->mode == FREEDIVE) {
 			p += 0x20;
@@ -356,7 +359,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	const unsigned char *p = abstract->data + parser->footer;
+	const unsigned char *p = abstract->data + abstract->size - parser->headersize;
 	if (parser->model != SMART && parser->model != SMARTAPNEA && parser->model != SMARTAIR) {
 		p += 4;
 	}
