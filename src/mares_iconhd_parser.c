@@ -320,19 +320,19 @@ mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	// Pointer to the header data.
 	const unsigned char *p = abstract->data + abstract->size - parser->headersize;
-	if (parser->model == SMART) {
-		if (parser->mode == FREEDIVE) {
-			p += 0x20;
-		} else {
-			p += 2;
-		}
-	} else if (parser->model == SMARTAPNEA) {
+	if (parser->model != SMART && parser->model != SMARTAPNEA && parser->model != SMARTAIR) {
+		p += 4;
+	}
+
+	// Offset to the date/time field.
+	if (parser->model == SMARTAPNEA) {
 		p += 0x40;
-	} else if (parser->model == SMARTAIR) {
-		p += 2;
+	} else if (parser->mode == FREEDIVE) {
+		p += 0x20;
 	} else {
-		p += 6;
+		p += 2;
 	}
 
 	if (datetime) {
@@ -359,6 +359,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	// Pointer to the header data.
 	const unsigned char *p = abstract->data + abstract->size - parser->headersize;
 	if (parser->model != SMART && parser->model != SMARTAPNEA && parser->model != SMARTAIR) {
 		p += 4;
