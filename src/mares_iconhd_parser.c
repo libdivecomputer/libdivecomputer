@@ -552,6 +552,8 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
+	unsigned int isairintegrated = (parser->model == ICONHDNET || parser->model == QUADAIR || parser->model == SMARTAIR);
+
 	unsigned int time = 0;
 	unsigned int offset = 4;
 	unsigned int nsamples = 0;
@@ -647,8 +649,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			nsamples++;
 
 			// Some extra data.
-			if ((parser->model == ICONHDNET || parser->model == QUADAIR || parser->model == SMARTAIR) &&
-				(nsamples % 4) == 0) {
+			if (isairintegrated && (nsamples % 4) == 0) {
 				// Pressure (1/100 bar).
 				unsigned int pressure = array_uint16_le(data + offset);
 				if (gasmix < parser->ntanks) {
