@@ -47,6 +47,18 @@
 
 typedef struct mares_iconhd_parser_t mares_iconhd_parser_t;
 
+typedef struct mares_iconhd_gasmix_t {
+	unsigned int oxygen;
+	unsigned int helium;
+} mares_iconhd_gasmix_t;
+
+typedef struct mares_iconhd_tank_t {
+	unsigned int volume;
+	unsigned int workpressure;
+	unsigned int beginpressure;
+	unsigned int endpressure;
+} mares_iconhd_tank_t;
+
 struct mares_iconhd_parser_t {
 	dc_parser_t base;
 	unsigned int model;
@@ -61,7 +73,8 @@ struct mares_iconhd_parser_t {
 	unsigned int samplerate;
 	unsigned int ntanks;
 	unsigned int ngasmixes;
-	unsigned int oxygen[NGASMIXES];
+	mares_iconhd_gasmix_t gasmix[NGASMIXES];
+	mares_iconhd_tank_t tank[NTANKS];
 };
 
 static dc_status_t mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -195,11 +208,12 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 
 	// Gas mixes
 	unsigned int ngasmixes = 0;
-	unsigned int oxygen[NGASMIXES] = {0};
+	mares_iconhd_gasmix_t gasmix[NGASMIXES] = {0};
 	if (mode == GAUGE || mode == FREEDIVE) {
 		ngasmixes = 0;
 	} else if (mode == AIR) {
-		oxygen[0] = 21;
+		gasmix[0].oxygen = 21;
+		gasmix[0].helium = 0;
 		ngasmixes = 1;
 	} else {
 		// Count the number of active gas mixes. The active gas
@@ -209,19 +223,23 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 		while (ngasmixes < NGASMIXES) {
 			if (p[0x10 + ngasmixes * 4 + 1] & 0x80)
 				break;
-			oxygen[ngasmixes] = p[0x10 + ngasmixes * 4];
+			gasmix[ngasmixes].oxygen = p[0x10 + ngasmixes * 4];
+			gasmix[ngasmixes].helium = 0;
 			ngasmixes++;
 		}
 	}
 
 	// Tanks
 	unsigned int ntanks = 0;
+	mares_iconhd_tank_t tank[NTANKS] = {0};
 	if (parser->model == ICONHDNET || parser->model == QUADAIR || parser->model == SMARTAIR) {
 		unsigned int tankoffset = (parser->model == ICONHDNET) ? 0x58 : 0x5C;
 		while (ntanks < NTANKS) {
-			unsigned int beginpressure = array_uint16_le (p + tankoffset + ntanks * 4 + 0);
-			unsigned int endpressure   = array_uint16_le (p + tankoffset + ntanks * 4 + 2);
-			if (beginpressure == 0 && (endpressure == 0 || endpressure == 36000))
+			tank[ntanks].volume        = array_uint16_le (p + tankoffset + 0x0C + ntanks * 8 + 0);
+			tank[ntanks].workpressure  = array_uint16_le (p + tankoffset + 0x0C + ntanks * 8 + 2);
+			tank[ntanks].beginpressure = array_uint16_le (p + tankoffset + ntanks * 4 + 0);
+			tank[ntanks].endpressure   = array_uint16_le (p + tankoffset + ntanks * 4 + 2);
+			if (tank[ntanks].beginpressure == 0 && (tank[ntanks].endpressure == 0 || tank[ntanks].endpressure == 36000))
 				break;
 			ntanks++;
 		}
@@ -241,7 +259,10 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 	parser->ntanks = ntanks;
 	parser->ngasmixes = ngasmixes;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
-		parser->oxygen[i] = oxygen[i];
+		parser->gasmix[i] = gasmix[i];
+	}
+	for (unsigned int i = 0; i < ntanks; ++i) {
+		parser->tank[i] = tank[i];
 	}
 	parser->cached = 1;
 
@@ -277,7 +298,14 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->ntanks = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->oxygen[i] = 0;
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
+	}
+	for (unsigned int i = 0; i < NTANKS; ++i) {
+		parser->tank[i].volume = 0;
+		parser->tank[i].workpressure = 0;
+		parser->tank[i].beginpressure = 0;
+		parser->tank[i].endpressure = 0;
 	}
 
 	*out = (dc_parser_t*) parser;
@@ -303,7 +331,14 @@ mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->ntanks = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->oxygen[i] = 0;
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
+	}
+	for (unsigned int i = 0; i < NTANKS; ++i) {
+		parser->tank[i].volume = 0;
+		parser->tank[i].workpressure = 0;
+		parser->tank[i].beginpressure = 0;
+		parser->tank[i].endpressure = 0;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -365,9 +400,6 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		p += 4;
 	}
 
-	unsigned int volume = 0, workpressure = 0;
-	unsigned int tankoffset = 0;
-
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
@@ -401,31 +433,28 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			gasmix->oxygen = parser->oxygen[flags] / 100.0;
-			gasmix->helium = 0.0;
+			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
+			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_TANK_COUNT:
 			*((unsigned int *) value) = parser->ntanks;
 			break;
 		case DC_FIELD_TANK:
-			tankoffset = (parser->model == ICONHDNET) ? 0x58 : 0x5C;
-			volume = array_uint16_le (p + tankoffset + 0x0C + flags * 8 + 0);
-			workpressure = array_uint16_le (p + tankoffset + 0x0C + flags * 8 + 2);
 			if (parser->settings & 0x0100) {
 				tank->type = DC_TANKVOLUME_METRIC;
-				tank->volume = volume;
-				tank->workpressure = workpressure;
+				tank->volume = parser->tank[flags].volume;
+				tank->workpressure = parser->tank[flags].workpressure;
 			} else {
-				if (workpressure == 0)
+				if (parser->tank[flags].workpressure == 0)
 					return DC_STATUS_DATAFORMAT;
 				tank->type = DC_TANKVOLUME_IMPERIAL;
-				tank->volume = volume * CUFT * 1000.0;
-				tank->volume /= workpressure * PSI / ATM;
-				tank->workpressure = workpressure * PSI / BAR;
+				tank->volume = parser->tank[flags].volume * CUFT * 1000.0;
+				tank->volume /= parser->tank[flags].workpressure * PSI / ATM;
+				tank->workpressure = parser->tank[flags].workpressure * PSI / BAR;
 			}
-			tank->beginpressure = array_uint16_le (p + tankoffset + flags * 4 + 0) / 100.0;
-			tank->endpressure   = array_uint16_le (p + tankoffset + flags * 4 + 2) / 100.0;
+			tank->beginpressure = parser->tank[flags].beginpressure / 100.0;
+			tank->endpressure   = parser->tank[flags].endpressure / 100.0;
 			if (flags < parser->ngasmixes) {
 				tank->gasmix = flags;
 			} else {
