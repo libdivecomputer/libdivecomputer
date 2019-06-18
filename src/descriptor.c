@@ -46,6 +46,7 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 static int dc_filter_hw (dc_transport_t transport, const void *userdata);
 static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata);
 static int dc_filter_mares (dc_transport_t transport, const void *userdata);
+static int dc_filter_divesystem (dc_transport_t transport, const void *userdata);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -330,12 +331,12 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"DiveSystem", "iDive Easy",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x09, DC_TRANSPORT_SERIAL, NULL},
 	{"DiveSystem", "iDive X3M",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x0A, DC_TRANSPORT_SERIAL, NULL},
 	{"DiveSystem", "iDive Deep",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x0B, DC_TRANSPORT_SERIAL, NULL},
-	{"Ratio",      "iX3M GPS Pro ", DC_FAMILY_DIVESYSTEM_IDIVE, 0x21, DC_TRANSPORT_SERIAL, NULL},
-	{"Ratio",      "iX3M GPS Easy", DC_FAMILY_DIVESYSTEM_IDIVE, 0x22, DC_TRANSPORT_SERIAL, NULL},
-	{"Ratio",      "iX3M GPS Deep", DC_FAMILY_DIVESYSTEM_IDIVE, 0x23, DC_TRANSPORT_SERIAL, NULL},
-	{"Ratio",      "iX3M GPS Tech+",DC_FAMILY_DIVESYSTEM_IDIVE, 0x24, DC_TRANSPORT_SERIAL, NULL},
-	{"Ratio",      "iX3M GPS Reb",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x25, DC_TRANSPORT_SERIAL, NULL},
-	{"Ratio",      "iX3M GPS Fancy",DC_FAMILY_DIVESYSTEM_IDIVE, 0x26, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M GPS Pro ", DC_FAMILY_DIVESYSTEM_IDIVE, 0x21, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M GPS Easy", DC_FAMILY_DIVESYSTEM_IDIVE, 0x22, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M GPS Deep", DC_FAMILY_DIVESYSTEM_IDIVE, 0x23, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M GPS Tech+",DC_FAMILY_DIVESYSTEM_IDIVE, 0x24, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M GPS Reb",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x25, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M GPS Fancy",DC_FAMILY_DIVESYSTEM_IDIVE, 0x26, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
 	{"Ratio",      "iX3M Pro Fancy",DC_FAMILY_DIVESYSTEM_IDIVE, 0x31, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iX3M Pro Easy", DC_FAMILY_DIVESYSTEM_IDIVE, 0x32, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iX3M Pro Pro",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x33, DC_TRANSPORT_SERIAL, NULL},
@@ -403,6 +404,29 @@ dc_match_usb (const void *key, const void *value)
 	const dc_usb_desc_t *v = (const dc_usb_desc_t *) value;
 
 	return k->vid == v->vid && k->pid == v->pid;
+}
+
+static int
+dc_match_number_with_prefix (const void *key, const void *value)
+{
+	const char *str = (const char *) key;
+	const char *prefix = *(const char * const *) value;
+
+	size_t n = strlen (prefix);
+
+	if (strncmp (str, prefix, n) != 0) {
+		return 0;
+	}
+
+	while (str[n] != 0) {
+		const char c = str[n];
+		if (c < '0' || c > '9') {
+			return 0;
+		}
+		n++;
+	}
+
+	return 1;
 }
 
 static int
@@ -541,6 +565,19 @@ static int dc_filter_mares (dc_transport_t transport, const void *userdata)
 
 	if (transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
+	}
+
+	return 1;
+}
+
+static int dc_filter_divesystem (dc_transport_t transport, const void *userdata)
+{
+	static const char * const bluetooth[] = {
+		"DS",
+	};
+
+	if (transport == DC_TRANSPORT_BLUETOOTH) {
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_number_with_prefix);
 	}
 
 	return 1;
