@@ -486,7 +486,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		if (!dc_buffer_append(buffer, packet, commands->header.size)) {
 			ERROR (abstract->context, "Insufficient buffer space available.");
 			dc_buffer_free(buffer);
-			return rc;
+			return DC_STATUS_NOMEMORY;
 		}
 
 		for (unsigned int j = 0; j < nsamples; j += commands->nsamples) {
@@ -515,7 +515,7 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 			if (!dc_buffer_append(buffer, packet, commands->sample.size * n)) {
 				ERROR (abstract->context, "Insufficient buffer space available.");
 				dc_buffer_free(buffer);
-				return rc;
+				return DC_STATUS_NOMEMORY;
 			}
 		}
 
