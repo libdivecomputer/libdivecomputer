@@ -714,7 +714,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		parser->model == GEO || parser->model == GEO20 ||
 		parser->model == MANTA || parser->model == I300 ||
 		parser->model == I200 || parser->model == I100 ||
-		parser->model == I300C || TALIS) {
+		parser->model == I300C || parser->model == TALIS) {
 		have_pressure = 0;
 	}
 
