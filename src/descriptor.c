@@ -420,7 +420,7 @@ dc_filter_internal (const void *key, const void *values, size_t count, size_t si
 	return count == 0;
 }
 
-static const char *rfcomm[] = {
+static const char * const rfcomm[] = {
 #if defined (__linux__)
 	"/dev/rfcomm",
 #endif
@@ -429,7 +429,7 @@ static const char *rfcomm[] = {
 
 static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 {
-	static const char *irda[] = {
+	static const char * const irda[] = {
 		"Aladin Smart Com",
 		"Aladin Smart Pro",
 		"Aladin Smart Tec",
@@ -444,7 +444,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 		{0x2e6c, 0x4201}, // G2 HUD
 		{0xc251, 0x2006}, // Aladin Square
 	};
-	static const char *bluetooth[] = {
+	static const char * const bluetooth[] = {
 		"G2",
 		"Aladin",
 		"HUD",
@@ -468,7 +468,7 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 		{0x1493, 0x0033}, // Eon Core
 		{0x1493, 0x0035}, // D5
 	};
-	static const char *bluetooth[] = {
+	static const char * const bluetooth[] = {
 		"EON Steel",
 		"EON Core",
 		"Suunto D5",
@@ -485,7 +485,7 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 
 static int dc_filter_hw (dc_transport_t transport, const void *userdata)
 {
-	static const char *bluetooth[] = {
+	static const char * const bluetooth[] = {
 		"OSTC",
 		"FROG",
 	};
@@ -501,7 +501,7 @@ static int dc_filter_hw (dc_transport_t transport, const void *userdata)
 
 static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 {
-	static const char *bluetooth[] = {
+	static const char * const bluetooth[] = {
 		"Predator",
 		"Petrel",
 		"Nerd",
@@ -520,7 +520,7 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 
 static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata)
 {
-	static const char *bluetooth[] = {
+	static const char * const bluetooth[] = {
 		"DiveComputer",
 	};
 
@@ -535,7 +535,7 @@ static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata)
 
 static int dc_filter_mares (dc_transport_t transport, const void *userdata)
 {
-	static const char *bluetooth[] = {
+	static const char * const bluetooth[] = {
 		"Mares bluelink pro",
 	};
 
