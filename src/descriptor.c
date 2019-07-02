@@ -28,6 +28,17 @@
 #include "platform.h"
 
 #define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
+#define C_ARRAY_ITEMSIZE(array) (sizeof *(array))
+
+#define DC_FILTER_INTERNAL(key, values, isnullterminated, match) \
+	dc_filter_internal( \
+		key, \
+		values, \
+		C_ARRAY_SIZE(values) - isnullterminated, \
+		C_ARRAY_ITEMSIZE(values), \
+		match)
+
+typedef int (*dc_match_t)(const void *, const void *);
 
 static int dc_filter_uwatec (dc_transport_t transport, const void *userdata);
 static int dc_filter_suunto (dc_transport_t transport, const void *userdata);
@@ -359,56 +370,62 @@ static const dc_descriptor_t g_descriptors[] = {
 };
 
 static int
-dc_filter_internal_name (const char *name, const char *values[], size_t count)
+dc_match_name (const void *key, const void *value)
 {
-	if (name == NULL)
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strcasecmp (k, v) == 0;
+}
+
+static int
+dc_match_prefix (const void *key, const void *value)
+{
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strncasecmp (k, v, strlen (v)) == 0;
+}
+
+static int
+dc_match_devname (const void *key, const void *value)
+{
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strncmp (k, v, strlen (v)) == 0;
+}
+
+static int
+dc_match_usb (const void *key, const void *value)
+{
+	const dc_usb_desc_t *k = (const dc_usb_desc_t *) key;
+	const dc_usb_desc_t *v = (const dc_usb_desc_t *) value;
+
+	return k->vid == v->vid && k->pid == v->pid;
+}
+
+static int
+dc_filter_internal (const void *key, const void *values, size_t count, size_t size, dc_match_t match)
+{
+	if (key == NULL)
 		return 0;
 
 	for (size_t i = 0; i < count; ++i) {
-		if (strcasecmp (name, values[i]) == 0) {
+		if (match (key, (const unsigned char *) values + i * size)) {
 			return 1;
 		}
 	}
 
-	return 0;
+	return count == 0;
 }
 
-static int
-dc_filter_internal_usb (const dc_usb_desc_t *desc, const dc_usb_desc_t values[], size_t count)
-{
-	if (desc == NULL)
-		return 0;
-
-	for (size_t i = 0; i < count; ++i) {
-		if (desc->vid == values[i].vid &&
-			desc->pid == values[i].pid) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-static int
-dc_filter_internal_rfcomm (const char *name)
-{
-	static const char *prefixes[] = {
+static const char *rfcomm[] = {
 #if defined (__linux__)
-		"/dev/rfcomm",
+	"/dev/rfcomm",
 #endif
-		NULL
-	};
-
-	if (name == NULL)
-		return 0;
-
-	for (size_t i = 0; prefixes[i] != NULL; ++i) {
-		if (strncmp (name, prefixes[i], strlen (prefixes[i])) == 0)
-			return 1;
-	}
-
-	return prefixes[0] == NULL;
-}
+	NULL
+};
 
 static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 {
@@ -434,11 +451,11 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata)
 	};
 
 	if (transport == DC_TRANSPORT_IRDA) {
-		return dc_filter_internal_name ((const char *) userdata, irda, C_ARRAY_SIZE(irda));
+		return DC_FILTER_INTERNAL (userdata, irda, 0, dc_match_name);
 	} else if (transport == DC_TRANSPORT_USBHID) {
-		return dc_filter_internal_usb ((const dc_usb_desc_t *) userdata, usbhid, C_ARRAY_SIZE(usbhid));
+		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usb);
 	} else if (transport == DC_TRANSPORT_BLE) {
-		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	}
 
 	return 1;
@@ -458,9 +475,9 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 	};
 
 	if (transport == DC_TRANSPORT_USBHID) {
-		return dc_filter_internal_usb ((const dc_usb_desc_t *) userdata, usbhid, C_ARRAY_SIZE(usbhid));
+		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usb);
 	} else if (transport == DC_TRANSPORT_BLE) {
-		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	}
 
 	return 1;
@@ -468,11 +485,15 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 
 static int dc_filter_hw (dc_transport_t transport, const void *userdata)
 {
+	static const char *bluetooth[] = {
+		"OSTC",
+		"FROG",
+	};
+
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
-		return strncasecmp ((const char *) userdata, "OSTC", 4) == 0 ||
-			strncasecmp ((const char *) userdata, "FROG", 4) == 0;
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
 	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return dc_filter_internal_rfcomm ((const char *) userdata);
+		return DC_FILTER_INTERNAL (userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
@@ -489,9 +510,9 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
-		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return dc_filter_internal_rfcomm ((const char *) userdata);
+		return DC_FILTER_INTERNAL (userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
@@ -504,9 +525,9 @@ static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata)
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
-		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return dc_filter_internal_rfcomm ((const char *) userdata);
+		return DC_FILTER_INTERNAL (userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
@@ -519,7 +540,7 @@ static int dc_filter_mares (dc_transport_t transport, const void *userdata)
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {
-		return dc_filter_internal_name ((const char *) userdata, bluetooth, C_ARRAY_SIZE(bluetooth));
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	}
 
 	return 1;
