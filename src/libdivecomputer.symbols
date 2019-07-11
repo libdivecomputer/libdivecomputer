@@ -142,3 +142,4 @@ hw_ostc3_device_config_reset
 hw_ostc3_device_fwupdate
 atomics_cobalt_device_version
 atomics_cobalt_device_set_simulation
+divesystem_idive_device_fwupdate

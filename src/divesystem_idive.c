@@ -21,10 +21,12 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
+#include <stdio.h>
 
 #include "divesystem_idive.h"
 #include "context-private.h"
 #include "device-private.h"
+#include "platform.h"
 #include "checksum.h"
 #include "array.h"
 
@@ -39,6 +41,7 @@
 #define MAXPACKET 0xFF
 #define START     0x55
 #define ACK       0x06
+#define WAIT      0x13
 #define NAK       0x15
 
 #define CMD_IDIVE_ID      0x10
@@ -51,6 +54,12 @@
 #define CMD_IX3M_HEADER   0x79
 #define CMD_IX3M_SAMPLE   0x7A
 #define CMD_IX3M_TIMESYNC 0x13
+#define CMD_IX3M_BOOTLOADER 0x0A
+
+#define BOOTLOADER_PROBE    0x78
+#define BOOTLOADER_UPLOAD_A 0x40
+#define BOOTLOADER_UPLOAD_B 0x23
+#define BOOTLOADER_ACK      0x46
 
 #define ERR_INVALID_CMD    0x10
 #define ERR_INVALID_LENGTH 0x20
@@ -79,6 +88,11 @@ typedef struct divesystem_idive_commands_t {
 	divesystem_idive_command_t sample;
 	unsigned int nsamples;
 } divesystem_idive_commands_t;
+
+typedef struct divesystem_idive_signature_t {
+	const char *name;
+	unsigned int delay;
+} divesystem_idive_signature_t;
 
 typedef struct divesystem_idive_device_t {
 	dc_device_t base;
@@ -125,6 +139,14 @@ static const divesystem_idive_commands_t ix3m_apos4 = {
 	{CMD_IX3M_HEADER, 0x36},
 	{CMD_IX3M_SAMPLE, 0x40},
 	3,
+};
+
+static const divesystem_idive_signature_t signatures[] = {
+	{"dsh01", 50}, // IX3M GPS
+	{"dsh30", 50}, // IX3M Pro
+	{"dsh20",  5}, // iDive Sport
+	{"dsh23",  5}, // iDive Color
+	{"acx",    5}, // WPT
 };
 
 dc_status_t
@@ -651,4 +673,263 @@ divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *da
 	}
 
 	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+divesystem_idive_firmware_readfile (dc_buffer_t *buffer, dc_context_t *context, const char *filename)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_buffer_t *tmp = NULL;
+	FILE *fp = NULL;
+
+	if (!dc_buffer_clear (buffer)) {
+		ERROR (context, "Invalid arguments.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Allocate a temporary buffer.
+	tmp = dc_buffer_new (0x20000);
+	if (tmp == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		status = DC_STATUS_NOMEMORY;
+		goto error_exit;
+	}
+
+	// Open the file.
+	fp = fopen (filename, "rb");
+	if (fp == NULL) {
+		ERROR (context, "Failed to open the file.");
+		status = DC_STATUS_IO;
+		goto error_free;
+	}
+
+	// Read the entire file into the buffer.
+	size_t n = 0;
+	unsigned char block[4096] = {0};
+	while ((n = fread (block, 1, sizeof (block), fp)) > 0) {
+		if (!dc_buffer_append (tmp, block, n)) {
+			ERROR (context, "Insufficient buffer space available.");
+			status = DC_STATUS_NOMEMORY;
+			goto error_close;
+		}
+	}
+
+	// Resize the output buffer.
+	size_t nbytes = dc_buffer_get_size (tmp);
+	if (!dc_buffer_resize (buffer, nbytes / 2)) {
+		ERROR (context, "Insufficient buffer space available.");
+		status = DC_STATUS_NOMEMORY;
+		goto error_close;
+	}
+
+	// Convert to binary data.
+	int rc = array_convert_hex2bin (
+		dc_buffer_get_data (tmp), dc_buffer_get_size (tmp),
+		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
+	if (rc != 0) {
+		ERROR (context, "Unexpected data format.");
+		status = DC_STATUS_DATAFORMAT;
+		goto error_close;
+	}
+
+error_close:
+	fclose (fp);
+error_free:
+	dc_buffer_free (tmp);
+error_exit:
+	return status;
+}
+
+static dc_status_t
+divesystem_idive_firmware_send (divesystem_idive_device_t *device, const divesystem_idive_signature_t *signature, const unsigned char data[], size_t size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	unsigned int nretries = 0;
+	while (1) {
+		// Send the frame.
+		status = dc_iostream_write (device->iostream, data, size, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the frame.");
+			return status;
+		}
+
+		// Read the response until an ACK or NAK byte is received.
+		unsigned int state = 0;
+		while (state == 0) {
+			// Receive the response.
+			unsigned char response = 0;
+			status = dc_iostream_read (device->iostream, &response, 1, NULL);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to receive the response.");
+				return status;
+			}
+
+			// Process the response.
+			switch (response) {
+			case ACK:
+			case NAK:
+				state = response;
+				break;
+			case WAIT:
+				dc_iostream_sleep (device->iostream, signature->delay);
+				break;
+			case 'A':
+			case 'B':
+			case 'C':
+			case 'D':
+			case 'E':
+			case 'F':
+			case 'G':
+			case 'H':
+			case 'K':
+			case 'X':
+				break;
+			default:
+				WARNING (abstract->context, "Unexpected response byte received (%02x)", response);
+				break;
+			}
+		}
+
+		// Exit if ACK received.
+		if (state == ACK)
+			break;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES) {
+			ERROR (abstract->context, "Maximum number of retries reached.");
+			return DC_STATUS_PROTOCOL;
+		}
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+divesystem_idive_device_fwupdate (dc_device_t *abstract, const char *filename)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	divesystem_idive_device_t *device = (divesystem_idive_device_t *) abstract;
+	unsigned int errcode = 0;
+
+	// Allocate memory for the firmware data.
+	dc_buffer_t *buffer = dc_buffer_new (0);
+	if (buffer == NULL) {
+		ERROR (abstract->context, "Failed to allocate memory for the firmware data.");
+		status = DC_STATUS_NOMEMORY;
+		goto error_exit;
+	}
+
+	// Read the firmware file.
+	status = divesystem_idive_firmware_readfile (buffer, abstract->context, filename);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the firmware file.");
+		goto error_free;
+	}
+
+	// Cache the data and size.
+	const unsigned char *data = dc_buffer_get_data (buffer);
+	size_t size = dc_buffer_get_size (buffer);
+
+	// Enable progress notifications.
+	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
+	progress.maximum = size;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	// Activate the bootloader.
+	const unsigned char bootloader[] = {CMD_IX3M_BOOTLOADER, 0xC9, 0x4B};
+	status = divesystem_idive_transfer (device, bootloader, sizeof (bootloader), NULL, 0, &errcode);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to activate the bootloader.");
+		goto error_free;
+	}
+
+	// Give the device some time to enter the bootloader.
+	dc_iostream_sleep (device->iostream, 2000);
+
+	// Wait for the bootloader.
+	const divesystem_idive_signature_t *signature = NULL;
+	while (signature == NULL) {
+		// Discard garbage data.
+		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
+
+		// Probe for the bootloader.
+		const unsigned char probe[] = {BOOTLOADER_PROBE};
+		status = dc_iostream_write (device->iostream, probe, sizeof (probe), NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to activate the bootloader.");
+			goto error_free;
+		}
+
+		// Read the signature string.
+		size_t n = 0;
+		unsigned char name[5] = {0};
+		status = dc_iostream_read (device->iostream, name, sizeof (name), &n);
+		if (status != DC_STATUS_SUCCESS && status != DC_STATUS_TIMEOUT) {
+			ERROR (abstract->context, "Failed to read the signature string.");
+			goto error_free;
+		}
+
+		// Verify the signature string.
+		for (size_t i = 0; i < C_ARRAY_SIZE (signatures); ++i) {
+			if (n == strlen (signatures[i].name) && memcmp (name, signatures[i].name, n) == 0) {
+				signature = signatures + i;
+				break;
+			}
+		}
+	}
+
+	// Send the start upload command.
+	const unsigned char upload[] = {BOOTLOADER_UPLOAD_A, BOOTLOADER_UPLOAD_B};
+	status = dc_iostream_write (device->iostream, upload, sizeof(upload), NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to send the start upload command.");
+		goto error_free;
+	}
+
+	// Receive the ack.
+	unsigned char ack[1] = {0};
+	status = dc_iostream_read (device->iostream, ack, sizeof(ack), NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to receive the ack byte.");
+		goto error_free;
+	}
+
+	// Verify the ack.
+	if (ack[0] != BOOTLOADER_ACK) {
+		ERROR (abstract->context, "Invalid ack byte (%02x).", ack[0]);
+		status = DC_STATUS_PROTOCOL;
+		goto error_free;
+	}
+
+	// Upload the firmware.
+	unsigned int offset = 0;
+	while (offset + 2 <= size) {
+		// Get the number of bytes in the current frame.
+		unsigned int len = array_uint16_be (data + offset) + 2;
+		if (offset + len > size) {
+			ERROR (abstract->context, "Invalid frame size (%u %u " DC_PRINTF_SIZE ")", offset, len, size);
+			status = DC_STATUS_DATAFORMAT;
+			goto error_free;
+		}
+
+		// Send the frame.
+		status = divesystem_idive_firmware_send (device, signature, data + offset, len);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the frame.");
+			goto error_free;
+		}
+
+		// Update and emit a progress event.
+		progress.current += len;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+		offset += len;
+	}
+
+error_free:
+	dc_buffer_free (buffer);
+error_exit:
+	return status;
 }

@@ -35,6 +35,7 @@
 #include <libdivecomputer/device.h>
 #include <libdivecomputer/hw_ostc.h>
 #include <libdivecomputer/hw_ostc3.h>
+#include <libdivecomputer/divesystem_idive.h>
 
 #include "dctool.h"
 #include "common.h"
@@ -92,6 +93,9 @@ fwupdate (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 		break;
 	case DC_FAMILY_HW_OSTC3:
 		rc = hw_ostc3_device_fwupdate (device, hexfile);
+		break;
+	case DC_FAMILY_DIVESYSTEM_IDIVE:
+		rc = divesystem_idive_device_fwupdate (device, hexfile);
 		break;
 	default:
 		rc = DC_STATUS_UNSUPPORTED;

@@ -28,4 +28,5 @@ libdivecomputer_HEADERS = 	\
 	hw_ostc.h \
 	hw_frog.h \
 	hw_ostc3.h \
-	atomics_cobalt.h
+	atomics_cobalt.h \
+	divesystem_idive.h
