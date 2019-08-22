@@ -39,7 +39,7 @@
 #define SZ_SAMPLE_IX3M_APOS4 0x40
 
 #define NGASMIXES 8
-#define NTANKS    1
+#define NTANKS    10
 
 #define EPOCH 1199145600 /* 2008-01-01 00:00:00 */
 
@@ -58,6 +58,7 @@ typedef struct divesystem_idive_gasmix_t {
 } divesystem_idive_gasmix_t;
 
 typedef struct divesystem_idive_tank_t {
+	unsigned int id;
 	unsigned int beginpressure;
 	unsigned int endpressure;
 } divesystem_idive_tank_t;
@@ -126,6 +127,7 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 		parser->gasmix[i].helium = 0;
 	}
 	for (unsigned int i = 0; i < NTANKS; ++i) {
+		parser->tank[i].id = 0;
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
 	}
@@ -153,6 +155,7 @@ divesystem_idive_parser_set_data (dc_parser_t *abstract, const unsigned char *da
 		parser->gasmix[i].helium = 0;
 	}
 	for (unsigned int i = 0; i < NTANKS; ++i) {
+		parser->tank[i].id = 0;
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
 	}
@@ -368,6 +371,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int he_previous = 0xFFFFFFFF;
 	unsigned int mode_previous = INVALID;
 	unsigned int divemode = INVALID;
+	unsigned int tank_previous = INVALID;
+	unsigned int tank_idx = INVALID;
 
 	unsigned int firmware = 0;
 	unsigned int apos4 = 0;
@@ -502,16 +507,39 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 		// Tank Pressure
 		if (samplesize == SZ_SAMPLE_IX3M_APOS4) {
+			unsigned int id = data[offset + 47] & 0x0F;
 			unsigned int pressure = data[offset + 49];
-			if (tank[0].beginpressure == 0 && pressure != 0) {
-				tank[0].beginpressure = pressure;
-				ntanks = 1;
+
+			// Get the index of the tank.
+			if (id != tank_previous) {
+				unsigned int i = 0;
+				while (i < ntanks) {
+					if (id == tank[i].id)
+						break;
+					i++;
+				}
+
+				tank_previous = id;
+				tank_idx = i;
 			}
-			if (tank[0].beginpressure) {
-				sample.pressure.tank = 0;
+
+			// Add a new tank if necessary.
+			if (tank_idx >= ntanks && pressure != 0) {
+				if (tank_idx >= NTANKS) {
+					ERROR (abstract->context, "Maximum number of tanks reached.");
+					return DC_STATUS_DATAFORMAT;
+				}
+				tank[tank_idx].id = id;
+				tank[tank_idx].beginpressure = pressure;
+				tank[tank_idx].endpressure = pressure;
+				ntanks = tank_idx + 1;
+			}
+
+			if (tank_idx < ntanks) {
+				sample.pressure.tank = tank_idx;
 				sample.pressure.value = pressure;
 				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-				tank[0].endpressure = pressure;
+				tank[tank_idx].endpressure = pressure;
 			}
 		}
 
