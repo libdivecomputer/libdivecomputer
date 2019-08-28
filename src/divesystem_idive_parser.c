@@ -508,38 +508,50 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		// Tank Pressure
 		if (samplesize == SZ_SAMPLE_IX3M_APOS4) {
 			unsigned int id = data[offset + 47] & 0x0F;
+			unsigned int flags = data[offset + 47] & 0xF0;
 			unsigned int pressure = data[offset + 49];
 
-			// Get the index of the tank.
-			if (id != tank_previous) {
-				unsigned int i = 0;
-				while (i < ntanks) {
-					if (id == tank[i].id)
-						break;
-					i++;
+			if (flags & 0x80) {
+				// No active transmitter available
+			} else if (flags & 0x40) {
+				// Transmitter connection lost
+				sample.event.type = SAMPLE_EVENT_TRANSMITTER;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = 0;
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			} else {
+				// Get the index of the tank.
+				if (id != tank_previous) {
+					unsigned int i = 0;
+					while (i < ntanks) {
+						if (id == tank[i].id)
+							break;
+						i++;
+					}
+
+					tank_previous = id;
+					tank_idx = i;
 				}
 
-				tank_previous = id;
-				tank_idx = i;
-			}
-
-			// Add a new tank if necessary.
-			if (tank_idx >= ntanks && pressure != 0) {
-				if (tank_idx >= NTANKS) {
-					ERROR (abstract->context, "Maximum number of tanks reached.");
-					return DC_STATUS_DATAFORMAT;
+				// Add a new tank if necessary.
+				if (tank_idx >= ntanks && pressure != 0) {
+					if (tank_idx >= NTANKS) {
+						ERROR (abstract->context, "Maximum number of tanks reached.");
+						return DC_STATUS_DATAFORMAT;
+					}
+					tank[tank_idx].id = id;
+					tank[tank_idx].beginpressure = pressure;
+					tank[tank_idx].endpressure = pressure;
+					ntanks = tank_idx + 1;
 				}
-				tank[tank_idx].id = id;
-				tank[tank_idx].beginpressure = pressure;
-				tank[tank_idx].endpressure = pressure;
-				ntanks = tank_idx + 1;
-			}
 
-			if (tank_idx < ntanks) {
-				sample.pressure.tank = tank_idx;
-				sample.pressure.value = pressure;
-				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-				tank[tank_idx].endpressure = pressure;
+				if (tank_idx < ntanks) {
+					sample.pressure.tank = tank_idx;
+					sample.pressure.value = pressure;
+					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					tank[tank_idx].endpressure = pressure;
+				}
 			}
 		}
 
