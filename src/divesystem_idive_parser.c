@@ -39,6 +39,7 @@
 #define SZ_SAMPLE_IX3M_APOS4 0x40
 
 #define NGASMIXES 8
+#define NTANKS    10
 
 #define EPOCH 1199145600 /* 2008-01-01 00:00:00 */
 
@@ -51,6 +52,17 @@
 
 typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
+typedef struct divesystem_idive_gasmix_t {
+	unsigned int oxygen;
+	unsigned int helium;
+} divesystem_idive_gasmix_t;
+
+typedef struct divesystem_idive_tank_t {
+	unsigned int id;
+	unsigned int beginpressure;
+	unsigned int endpressure;
+} divesystem_idive_tank_t;
+
 struct divesystem_idive_parser_t {
 	dc_parser_t base;
 	unsigned int model;
@@ -61,10 +73,9 @@ struct divesystem_idive_parser_t {
 	unsigned int divetime;
 	unsigned int maxdepth;
 	unsigned int ngasmixes;
-	unsigned int oxygen[NGASMIXES];
-	unsigned int helium[NGASMIXES];
-	unsigned int beginpressure;
-	unsigned int endpressure;
+	unsigned int ntanks;
+	divesystem_idive_gasmix_t gasmix[NGASMIXES];
+	divesystem_idive_tank_t tank[NTANKS];
 };
 
 static dc_status_t divesystem_idive_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -110,12 +121,16 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->ngasmixes = 0;
+	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->oxygen[i] = 0;
-		parser->helium[i] = 0;
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
 	}
-	parser->beginpressure = 0;
-	parser->endpressure = 0;
+	for (unsigned int i = 0; i < NTANKS; ++i) {
+		parser->tank[i].id = 0;
+		parser->tank[i].beginpressure = 0;
+		parser->tank[i].endpressure = 0;
+	}
 
 	*out = (dc_parser_t*) parser;
 
@@ -134,12 +149,16 @@ divesystem_idive_parser_set_data (dc_parser_t *abstract, const unsigned char *da
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->ngasmixes = 0;
+	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->oxygen[i] = 0;
-		parser->helium[i] = 0;
+		parser->gasmix[i].oxygen = 0;
+		parser->gasmix[i].helium = 0;
 	}
-	parser->beginpressure = 0;
-	parser->endpressure = 0;
+	for (unsigned int i = 0; i < NTANKS; ++i) {
+		parser->tank[i].id = 0;
+		parser->tank[i].beginpressure = 0;
+		parser->tank[i].endpressure = 0;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -276,21 +295,19 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
-			gasmix->helium = parser->helium[flags] / 100.0;
-			gasmix->oxygen = parser->oxygen[flags] / 100.0;
+			gasmix->helium = parser->gasmix[flags].helium / 100.0;
+			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_TANK_COUNT:
-			if (parser->beginpressure == 0 && parser->endpressure == 0)
-				return DC_STATUS_UNSUPPORTED;
-			*((unsigned int *) value) = 1;
+			*((unsigned int *) value) = parser->ntanks;
 			break;
 		case DC_FIELD_TANK:
 			tank->type = DC_TANKVOLUME_NONE;
 			tank->volume = 0.0;
 			tank->workpressure = 0.0;
-			tank->beginpressure = parser->beginpressure;
-			tank->endpressure   = parser->endpressure;
+			tank->beginpressure = parser->tank[flags].beginpressure;
+			tank->endpressure   = parser->tank[flags].endpressure;
 			tank->gasmix = DC_GASMIX_UNKNOWN;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
@@ -347,14 +364,15 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int time = 0;
 	unsigned int maxdepth = 0;
 	unsigned int ngasmixes = 0;
-	unsigned int oxygen[NGASMIXES];
-	unsigned int helium[NGASMIXES];
+	unsigned int ntanks = 0;
+	divesystem_idive_gasmix_t gasmix[NGASMIXES] = {0};
+	divesystem_idive_tank_t tank[NTANKS] = {0};
 	unsigned int o2_previous = 0xFFFFFFFF;
 	unsigned int he_previous = 0xFFFFFFFF;
 	unsigned int mode_previous = INVALID;
 	unsigned int divemode = INVALID;
-	unsigned int beginpressure = 0;
-	unsigned int endpressure = 0;
+	unsigned int tank_previous = INVALID;
+	unsigned int tank_idx = INVALID;
 
 	unsigned int firmware = 0;
 	unsigned int apos4 = 0;
@@ -431,7 +449,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			// Find the gasmix in the list.
 			unsigned int i = 0;
 			while (i < ngasmixes) {
-				if (o2 == oxygen[i] && he == helium[i])
+				if (o2 == gasmix[i].oxygen && he == gasmix[i].helium)
 					break;
 				i++;
 			}
@@ -442,8 +460,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					ERROR (abstract->context, "Maximum number of gas mixes reached.");
 					return DC_STATUS_DATAFORMAT;
 				}
-				oxygen[i] = o2;
-				helium[i] = he;
+				gasmix[i].oxygen = o2;
+				gasmix[i].helium = he;
 				ngasmixes = i + 1;
 			}
 
@@ -489,15 +507,51 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 		// Tank Pressure
 		if (samplesize == SZ_SAMPLE_IX3M_APOS4) {
+			unsigned int id = data[offset + 47] & 0x0F;
+			unsigned int flags = data[offset + 47] & 0xF0;
 			unsigned int pressure = data[offset + 49];
-			if (beginpressure == 0 && pressure != 0) {
-				beginpressure = pressure;
-			}
-			if (beginpressure) {
-				sample.pressure.tank = 0;
-				sample.pressure.value = pressure;
-				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
-				endpressure = pressure;
+
+			if (flags & 0x80) {
+				// No active transmitter available
+			} else if (flags & 0x40) {
+				// Transmitter connection lost
+				sample.event.type = SAMPLE_EVENT_TRANSMITTER;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = 0;
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			} else {
+				// Get the index of the tank.
+				if (id != tank_previous) {
+					unsigned int i = 0;
+					while (i < ntanks) {
+						if (id == tank[i].id)
+							break;
+						i++;
+					}
+
+					tank_previous = id;
+					tank_idx = i;
+				}
+
+				// Add a new tank if necessary.
+				if (tank_idx >= ntanks && pressure != 0) {
+					if (tank_idx >= NTANKS) {
+						ERROR (abstract->context, "Maximum number of tanks reached.");
+						return DC_STATUS_DATAFORMAT;
+					}
+					tank[tank_idx].id = id;
+					tank[tank_idx].beginpressure = pressure;
+					tank[tank_idx].endpressure = pressure;
+					ntanks = tank_idx + 1;
+				}
+
+				if (tank_idx < ntanks) {
+					sample.pressure.tank = tank_idx;
+					sample.pressure.value = pressure;
+					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					tank[tank_idx].endpressure = pressure;
+				}
 			}
 		}
 
@@ -505,13 +559,14 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	}
 
 	// Cache the data for later use.
-	parser->beginpressure = beginpressure;
-	parser->endpressure = endpressure;
+	for (unsigned int i = 0; i < ntanks; ++i) {
+		parser->tank[i] = tank[i];
+	}
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
-		parser->helium[i] = helium[i];
-		parser->oxygen[i] = oxygen[i];
+		parser->gasmix[i] = gasmix[i];
 	}
 	parser->ngasmixes = ngasmixes;
+	parser->ntanks = ntanks;
 	parser->maxdepth = maxdepth;
 	parser->divetime = time;
 	parser->divemode = divemode;
