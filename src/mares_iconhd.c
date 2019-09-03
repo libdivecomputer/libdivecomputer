@@ -327,6 +327,8 @@ mares_iconhd_transfer (mares_iconhd_device_t *device, const unsigned char comman
 
 		// Discard any garbage bytes.
 		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
+		device->available = 0;
+		device->offset = 0;
 	}
 
 	return DC_STATUS_SUCCESS;
