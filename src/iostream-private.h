@@ -57,6 +57,8 @@ struct dc_iostream_vtable_t {
 
 	dc_status_t (*configure) (dc_iostream_t *iostream, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol);
 
+	dc_status_t (*poll) (dc_iostream_t *iostream, int timeout);
+
 	dc_status_t (*read) (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 
 	dc_status_t (*write) (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);

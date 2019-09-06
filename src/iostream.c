@@ -184,6 +184,17 @@ dc_iostream_configure (dc_iostream_t *iostream, unsigned int baudrate, unsigned 
 }
 
 dc_status_t
+dc_iostream_poll (dc_iostream_t *iostream, int timeout)
+{
+	if (iostream == NULL || iostream->vtable->poll == NULL)
+		return DC_STATUS_SUCCESS;
+
+	INFO (iostream->context, "Poll: value=%i", timeout);
+
+	return iostream->vtable->poll (iostream, timeout);
+}
+
+dc_status_t
 dc_iostream_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;

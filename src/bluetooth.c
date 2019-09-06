@@ -106,6 +106,7 @@ static const dc_iostream_vtable_t dc_bluetooth_vtable = {
 	NULL, /* get_lines */
 	dc_socket_get_available, /* get_available */
 	NULL, /* configure */
+	dc_socket_poll, /* poll */
 	dc_socket_read, /* read */
 	dc_socket_write, /* write */
 	NULL, /* flush */

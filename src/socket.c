@@ -187,6 +187,42 @@ dc_socket_get_available (dc_iostream_t *abstract, size_t *value)
 }
 
 dc_status_t
+dc_socket_poll (dc_iostream_t *abstract, int timeout)
+{
+	dc_socket_t *socket = (dc_socket_t *) abstract;
+	int rc = 0;
+
+	do {
+		fd_set fds;
+		FD_ZERO (&fds);
+		FD_SET (socket->fd, &fds);
+
+		struct timeval tv, *ptv = NULL;
+		if (timeout > 0) {
+			tv.tv_sec  = (timeout / 1000);
+			tv.tv_usec = (timeout % 1000) * 1000;
+			ptv = &tv;
+		} else if (timeout == 0) {
+			tv.tv_sec  = 0;
+			tv.tv_usec = 0;
+			ptv = &tv;
+		}
+
+		rc = select (socket->fd + 1, &fds, NULL, NULL, ptv);
+	} while (rc < 0 && S_ERRNO == S_EINTR);
+
+	if (rc < 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (abstract->context, errcode);
+		return dc_socket_syserror(errcode);
+	} else if (rc == 0) {
+		return DC_STATUS_TIMEOUT;
+	} else {
+		return DC_STATUS_SUCCESS;
+	}
+}
+
+dc_status_t
 dc_socket_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;

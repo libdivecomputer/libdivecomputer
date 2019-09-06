@@ -212,6 +212,36 @@ dc_status_t
 dc_iostream_configure (dc_iostream_t *iostream, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol);
 
 /**
+ * Poll the I/O stream for available data.
+ *
+ * There are three distinct modes available:
+ *
+ *  1. Blocking (timeout < 0):
+ *
+ *     The poll operation is blocked until one or more bytes have been
+ *     received. If no bytes are received, the operation will block
+ *     forever.
+ *
+ *  2. Non-blocking (timeout == 0):
+ *
+ *     The poll operation returns immediately, even if no bytes have
+ *     been received.
+ *
+ *  3. Timeout (timeout > 0):
+ *
+ *     The poll operation is blocked until one or more bytes have been
+ *     received. If no bytes are received within the specified amount of
+ *     time, the operation will return with a timeout.
+ *
+ * @param[in]  iostream  A valid I/O stream.
+ * @param[in]  timeout   The timeout in milliseconds.
+ * @returns #DC_STATUS_SUCCESS on success, #DC_STATUS_TIMEOUT on
+ * timeout, or another #dc_status_t code on failure.
+ */
+dc_status_t
+dc_iostream_poll (dc_iostream_t *iostream, int timeout);
+
+/**
  * Read data from the I/O stream.
  *
  * @param[in]  iostream  A valid I/O stream.

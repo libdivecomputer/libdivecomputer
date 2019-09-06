@@ -43,6 +43,7 @@ dc_iostream_set_rts
 dc_iostream_get_available
 dc_iostream_get_lines
 dc_iostream_configure
+dc_iostream_poll
 dc_iostream_read
 dc_iostream_write
 dc_iostream_flush

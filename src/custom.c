@@ -35,6 +35,7 @@ static dc_status_t dc_custom_set_rts (dc_iostream_t *abstract, unsigned int valu
 static dc_status_t dc_custom_get_lines (dc_iostream_t *abstract, unsigned int *value);
 static dc_status_t dc_custom_get_available (dc_iostream_t *abstract, size_t *value);
 static dc_status_t dc_custom_configure (dc_iostream_t *abstract, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol);
+static dc_status_t dc_custom_poll (dc_iostream_t *abstract, int timeout);
 static dc_status_t dc_custom_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual);
 static dc_status_t dc_custom_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *actual);
 static dc_status_t dc_custom_flush (dc_iostream_t *abstract);
@@ -60,6 +61,7 @@ static const dc_iostream_vtable_t dc_custom_vtable = {
 	dc_custom_get_lines, /* get_lines */
 	dc_custom_get_available, /* get_available */
 	dc_custom_configure, /* configure */
+	dc_custom_poll, /* poll */
 	dc_custom_read, /* read */
 	dc_custom_write, /* write */
 	dc_custom_flush, /* flush */
@@ -179,6 +181,17 @@ dc_custom_configure (dc_iostream_t *abstract, unsigned int baudrate, unsigned in
 		return DC_STATUS_SUCCESS;
 
 	return custom->callbacks.configure (custom->userdata, baudrate, databits, parity, stopbits, flowcontrol);
+}
+
+static dc_status_t
+dc_custom_poll (dc_iostream_t *abstract, int timeout)
+{
+	dc_custom_t *custom = (dc_custom_t *) abstract;
+
+	if (custom->callbacks.poll == NULL)
+		return DC_STATUS_SUCCESS;
+
+	return custom->callbacks.poll (custom->userdata, timeout);
 }
 
 static dc_status_t
