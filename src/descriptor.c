@@ -503,7 +503,7 @@ static int dc_filter_suunto (dc_transport_t transport, const void *userdata)
 	if (transport == DC_TRANSPORT_USBHID) {
 		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usb);
 	} else if (transport == DC_TRANSPORT_BLE) {
-		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
 	}
 
 	return 1;
