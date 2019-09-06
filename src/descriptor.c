@@ -530,7 +530,8 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata)
 	static const char * const bluetooth[] = {
 		"Predator",
 		"Petrel",
-		"Nerd",
+		"NERD",
+		"NERD 2",
 		"Perdix",
 		"Teric",
 	};
