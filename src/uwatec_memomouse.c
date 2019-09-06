@@ -309,14 +309,13 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
-	size_t available = 0;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	// Waiting for greeting message.
-	while (dc_iostream_get_available (device->iostream, &available) == DC_STATUS_SUCCESS && available == 0) {
+	while (dc_iostream_poll (device->iostream, 300) == DC_STATUS_TIMEOUT) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
@@ -330,8 +329,6 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 			ERROR (abstract->context, "Failed to reject the packet.");
 			return status;
 		}
-
-		dc_iostream_sleep (device->iostream, 300);
 	}
 
 	// Read the ID string.
@@ -385,12 +382,11 @@ uwatec_memomouse_dump_internal (uwatec_memomouse_device_t *device, dc_buffer_t *
 	}
 
 	// Wait for the data packet.
-	while (dc_iostream_get_available (device->iostream, &available) == DC_STATUS_SUCCESS && available == 0) {
+	while (dc_iostream_poll (device->iostream, 100) == DC_STATUS_TIMEOUT) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
 		device_event_emit (&device->base, DC_EVENT_WAITING, NULL);
-		dc_iostream_sleep (device->iostream, 100);
 	}
 
 	// Fetch the current system time.

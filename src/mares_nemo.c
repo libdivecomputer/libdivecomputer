@@ -177,13 +177,11 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Wait until some data arrives.
-	size_t available = 0;
-	while (dc_iostream_get_available (device->iostream, &available) == DC_STATUS_SUCCESS && available == 0) {
+	while (dc_iostream_poll (device->iostream, 100) == DC_STATUS_TIMEOUT) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
 		device_event_emit (abstract, DC_EVENT_WAITING, NULL);
-		dc_iostream_sleep (device->iostream, 100);
 	}
 
 	// Receive the header of the package.
