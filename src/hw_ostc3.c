@@ -325,12 +325,9 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 		}
 	}
 
-	if (delay) {
+	if (delay && device->available == 0) {
 		unsigned int count = delay / 100;
 		for (unsigned int i = 0; i < count; ++i) {
-			if (device->available)
-				break;
-
 			size_t available = 0;
 			status = dc_iostream_get_available (device->iostream, &available);
 			if (status == DC_STATUS_SUCCESS && available > 0)
