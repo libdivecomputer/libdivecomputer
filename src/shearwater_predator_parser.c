@@ -288,6 +288,10 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		return DC_STATUS_SUCCESS;
 	}
 
+	// Log versions before 6 weren't reliably stored in the data, but
+	// 6 is also the oldest version that we assume in our code
+	unsigned int logversion = 0;
+
 	// Verify the minimum length.
 	if (size < 2) {
 		ERROR (abstract->context, "Invalid data length.");
@@ -330,6 +334,9 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			parser->opening[i] = 0;
 			parser->closing[i] = size - footersize;
 		}
+
+		// Log version
+		logversion = data[127];
 	}
 
 	// Default dive mode.
@@ -391,6 +398,11 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		} else if (type >= LOG_RECORD_OPENING_0 && type <= LOG_RECORD_OPENING_7) {
 			// Opening record
 			parser->opening[type - LOG_RECORD_OPENING_0] = offset;
+
+			// Log version
+			if (type == LOG_RECORD_OPENING_4) {
+				logversion = data[offset + 16];
+			}
 		} else if (type >= LOG_RECORD_CLOSING_0 && type <= LOG_RECORD_CLOSING_7) {
 			// Closing record
 			parser->closing[type - LOG_RECORD_CLOSING_0] = offset;
@@ -409,10 +421,6 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			return DC_STATUS_DATAFORMAT;
 		}
 	}
-
-	// Log versions before 6 weren't reliably stored in the data, but
-	// 6 is also the oldest version that we assume in our code
-	unsigned int logversion = data[parser->opening[4] + (pnf ? 16 : 127)];
 
 	// Cache sensor calibration for later use
 	unsigned int nsensors = 0, ndefaults = 0;
