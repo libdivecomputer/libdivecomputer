@@ -36,6 +36,7 @@
 #define VTX        0x4557
 #define I750TC     0x455A
 #define I770R      0x4651
+#define GEO40      0x4653
 
 #define MAXRETRIES 2
 #define MAXDELAY   16
@@ -137,6 +138,7 @@ static const oceanic_common_version_t oceanic_default_version[] = {
 	{"ELITET31 \0\0 512K"},
 	{"DATAMASK \0\0 512K"},
 	{"COMPMASK \0\0 512K"},
+	{"OCEGEO40 \0\0 512K"},
 };
 
 static const oceanic_common_version_t sherwood_wisdom_version[] = {

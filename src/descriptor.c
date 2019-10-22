@@ -241,6 +241,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Aqualung", "i100",                DC_FAMILY_OCEANIC_ATOM2, 0x464E, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i770R",               DC_FAMILY_OCEANIC_ATOM2, 0x4651, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i550C",               DC_FAMILY_OCEANIC_ATOM2, 0x4652, DC_TRANSPORT_SERIAL, NULL},
+	{"Oceanic",  "Geo 4.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4653, DC_TRANSPORT_SERIAL, NULL},
 	/* Mares Nemo */
 	{"Mares", "Nemo",         DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Nemo Steel",   DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
