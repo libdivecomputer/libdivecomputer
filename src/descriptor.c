@@ -565,10 +565,11 @@ static int dc_filter_mares (dc_transport_t transport, const void *userdata)
 {
 	static const char * const bluetooth[] = {
 		"Mares bluelink pro",
+		"Mares Genius",
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {
-		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
 	}
 
 	return 1;
