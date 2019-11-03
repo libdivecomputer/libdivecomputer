@@ -17,7 +17,7 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="3201", GROUP="plugde
 SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="3211", GROUP="plugdev"
 
 # Scubapro G2 HUD
-SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="0x4201", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="4201", GROUP="plugdev"
 
 # Scubapro Aladin Square
 SUBSYSTEM=="usb", ATTR{idVendor}=="c251", ATTR{idProduct}=="2006", GROUP="plugdev"
