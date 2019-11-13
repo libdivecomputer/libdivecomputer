@@ -713,7 +713,6 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	// The device maintains an internal counter which is incremented for every
 	// dive, and the current value at the time of the dive is stored in the
 	// dive header. Thus the most recent dive will have the highest value.
-	unsigned int count = 0;
 	unsigned int latest = 0;
 	unsigned int maximum = 0;
 	for (unsigned int i = 0; i < RB_LOGBOOK_COUNT; ++i) {
@@ -729,24 +728,21 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 			maximum = current;
 			latest = i;
 		}
-
-		count++;
 	}
 
 	// Calculate the total and maximum size.
 	unsigned int ndives = 0;
 	unsigned int size = 0;
 	unsigned int maxsize = 0;
-	for (unsigned int i = 0; i < count; ++i) {
+	unsigned char dive[RB_LOGBOOK_COUNT] = {0};
+	for (unsigned int i = 0; i < RB_LOGBOOK_COUNT; ++i) {
 		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
 		unsigned int offset = idx * logbook->size;
 
-		// Uninitialized header entries should no longer be present at this
-		// stage, unless the dives are interleaved with empty entries. But
-		// that's something we don't support at all.
+		// Ignore uninitialized header entries.
 		if (array_isequal (header + offset, logbook->size, 0xFF)) {
 			WARNING (abstract->context, "Unexpected empty header found.");
-			break;
+			continue;
 		}
 
 		// Calculate the profile length.
@@ -770,6 +766,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		if (length > maxsize)
 			maxsize = length;
 		size += length;
+		dive[ndives] = idx;
 		ndives++;
 	}
 
@@ -793,7 +790,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 
 	// Download the dives.
 	for (unsigned int i = 0; i < ndives; ++i) {
-		unsigned int idx = (latest + RB_LOGBOOK_COUNT - i) % RB_LOGBOOK_COUNT;
+		unsigned int idx = dive[i];
 		unsigned int offset = idx * logbook->size;
 
 		// Calculate the profile length.
