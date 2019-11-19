@@ -921,7 +921,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						sample.pressure.value = value;
 						// The hwOS Sport firmware used a resolution of
 						// 0.1 bar between versions 10.40 and 10.50.
-						if (parser->model != OSTC4 && (firmware >= 0x0A28 && firmware <= 0x0A32)) {
+						if (parser->hwos && parser->model != OSTC4 &&
+							(firmware >= 0x0A28 && firmware <= 0x0A32)) {
 							sample.pressure.value /= 10.0;
 						}
 						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
