@@ -132,7 +132,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		rc = mares_iconhd_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_HW_OSTC:
-		rc = hw_ostc_parser_create (&parser, context, 0);
+		rc = hw_ostc_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_HW_FROG:
 	case DC_FAMILY_HW_OSTC3:

@@ -332,9 +332,9 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsign
 
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int hwos)
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context)
 {
-	return hw_ostc_parser_create_internal (out, context, hwos, 0);
+	return hw_ostc_parser_create_internal (out, context, 0, 0);
 }
 
 dc_status_t

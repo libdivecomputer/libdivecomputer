@@ -36,7 +36,7 @@ dc_status_t
 hw_ostc_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int hwos);
+hw_ostc_parser_create (dc_parser_t **parser, dc_context_t *context);
 
 #ifdef __cplusplus
 }
