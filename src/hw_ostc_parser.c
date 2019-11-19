@@ -43,6 +43,14 @@
 #define HEADER  1
 #define PROFILE 2
 
+#define TEMPERATURE 0
+#define DECO        1
+#define GF          2
+#define PPO2        3
+#define DECOPLAN    4
+#define CNS         5
+#define TANK        6
+
 #define OSTC_ZHL16_OC    0
 #define OSTC_GAUGE       1
 #define OSTC_ZHL16_CC    2
@@ -641,21 +649,21 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		if (info[i].divisor) {
 			switch (info[i].type) {
-			case 0: // Temperature
-			case 1: // Deco / NDL
-			case 6: // Tank pressure
+			case TEMPERATURE:
+			case DECO:
+			case TANK:
 				if (info[i].size != 2) {
 					ERROR(abstract->context, "Unexpected sample size.");
 					return DC_STATUS_DATAFORMAT;
 				}
 				break;
-			case 3: // ppO2
+			case PPO2:
 				if (info[i].size != 3 && info[i].size != 9) {
 					ERROR(abstract->context, "Unexpected sample size.");
 					return DC_STATUS_DATAFORMAT;
 				}
 				break;
-			case 5: // CNS
+			case CNS:
 				if (info[i].size != 1 && info[i].size != 2) {
 					ERROR(abstract->context, "Unexpected sample size.");
 					return DC_STATUS_DATAFORMAT;
@@ -870,12 +878,12 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				unsigned int count = 0;
 				unsigned int value = 0;
 				switch (info[i].type) {
-				case 0: // Temperature (0.1 °C).
+				case TEMPERATURE:
 					value = array_uint16_le (data + offset);
 					sample.temperature = value / 10.0;
 					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 					break;
-				case 1: // Deco / NDL
+				case DECO:
 					// Due to a firmware bug, the deco/ndl info is incorrect for
 					// all OSTC4 dives with a firmware older than version 1.0.8.
 					if (parser->model == OSTC4 && firmware < 0x0810)
@@ -890,7 +898,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					sample.deco.time = data[offset + 1] * 60;
 					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 					break;
-				case 3: // ppO2 (0.01 bar).
+				case PPO2:
 					for (unsigned int j = 0; j < 3; ++j) {
 						if (info[i].size == 3) {
 							ppo2[j] = data[offset + j];
@@ -907,14 +915,14 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						}
 					}
 					break;
-				case 5: // CNS
+				case CNS:
 					if (info[i].size == 2)
 						sample.cns = array_uint16_le (data + offset) / 100.0;
 					else
 						sample.cns = data[offset] / 100.0;
 					if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 					break;
-				case 6: // Tank pressure
+				case TANK:
 					value = array_uint16_le (data + offset);
 					if (value != 0) {
 						sample.pressure.tank = tank;
