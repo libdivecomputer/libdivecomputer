@@ -71,6 +71,16 @@
 
 #define OSTC4      0x3B
 
+#define OSTC3FW(major,minor) ( \
+		(((major) & 0xFF) << 8) | \
+		((minor) & 0xFF))
+
+#define OSTC4FW(major,minor,micro,beta) ( \
+		(((major) & 0x1F) << 11) | \
+		(((minor) & 0x1F) >> 6) | \
+		(((micro) & 0x1F) << 1) | \
+		((beta) & 0x01))
+
 typedef struct hw_ostc_sample_info_t {
 	unsigned int type;
 	unsigned int divisor;
@@ -886,7 +896,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				case DECO:
 					// Due to a firmware bug, the deco/ndl info is incorrect for
 					// all OSTC4 dives with a firmware older than version 1.0.8.
-					if (parser->model == OSTC4 && firmware < 0x0810)
+					if (parser->model == OSTC4 && firmware < OSTC4FW(1,0,8,0))
 						break;
 					if (data[offset]) {
 						sample.deco.type = DC_DECO_DECOSTOP;
@@ -930,7 +940,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						// The hwOS Sport firmware used a resolution of
 						// 0.1 bar between versions 10.40 and 10.50.
 						if (parser->hwos && parser->model != OSTC4 &&
-							(firmware >= 0x0A28 && firmware <= 0x0A32)) {
+							(firmware >= OSTC3FW(10,40) && firmware <= OSTC3FW(10,50))) {
 							sample.pressure.value /= 10.0;
 						}
 						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
