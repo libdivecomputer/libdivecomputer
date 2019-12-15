@@ -188,6 +188,7 @@ AX_APPEND_COMPILE_FLAGS([ \
 	-Wmissing-prototypes \
 	-Wmissing-declarations \
 	-Wno-unused-parameter \
+	-fmacro-prefix-map='$(top_srcdir)/'= \
 ])
 
 # Windows specific compiler options.
