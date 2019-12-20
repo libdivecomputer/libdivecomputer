@@ -93,6 +93,7 @@
 #define I770R       0x4651
 #define I550C       0x4652
 #define GEO40       0x4653
+#define PROPLUS4    0x4656
 
 #define NORMAL   0
 #define GAUGE    1
@@ -171,7 +172,8 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		parser->headersize += PAGESIZE;
 	} else if (model == TX1) {
 		parser->headersize += 2 * PAGESIZE;
-	} else if (model == ATOM1 || model == I100) {
+	} else if (model == ATOM1 || model == I100 ||
+		model == PROPLUS4) {
 		parser->headersize -= 2 * PAGESIZE;
 	} else if (model == F10A || model == F10B ||
 		model == MUNDIAL2 || model == MUNDIAL3) {
@@ -288,6 +290,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case I100:
 		case I300C:
 		case GEO40:
+		case PROPLUS4:
 			datetime->year   = ((p[3] & 0xE0) >> 1) + (p[4] & 0x0F) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
 			datetime->day    = p[3] & 0x1F;
@@ -899,7 +902,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				} else {
 					unsigned int sign;
 					if (parser->model == DG03 || parser->model == PROPLUS3 ||
-						parser->model == I550 || parser->model == I550C)
+						parser->model == I550 || parser->model == I550C ||
+						parser->model == PROPLUS4)
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == VOYAGER2G || parser->model == AMPHOS ||
 						parser->model == AMPHOSAIR || parser->model == ZENAIR)
@@ -932,7 +936,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == DG03 || parser->model == PROPLUS3 ||
 					parser->model == AMPHOSAIR || parser->model == I550 ||
 					parser->model == VISION || parser->model == XPAIR ||
-					parser->model == I550C)
+					parser->model == I550C || parser->model == PROPLUS4)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else if (parser->model == TX1 || parser->model == A300CS ||
 					parser->model == VTX || parser->model == I750TC ||

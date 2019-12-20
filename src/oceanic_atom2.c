@@ -147,6 +147,7 @@ static const oceanic_common_version_t sherwood_wisdom_version[] = {
 
 static const oceanic_common_version_t oceanic_proplus3_version[] = {
 	{"PROPLUS3 \0\0 512K"},
+	{"PROPLUS4 \0\0 512K"},
 };
 
 static const oceanic_common_version_t tusa_zenair_version[] = {
