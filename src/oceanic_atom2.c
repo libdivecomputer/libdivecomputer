@@ -96,6 +96,10 @@ static const oceanic_common_version_t aeris_f11_version[] = {
 	{"OCEANF11 \0\0 1024"},
 };
 
+static const oceanic_common_version_t aeris_manta_version[] = {
+	{"MANTA  R\0\0  512K"},
+};
+
 static const oceanic_common_version_t oceanic_atom1_version[] = {
 	{"ATOM rev\0\0  256K"},
 };
@@ -105,7 +109,6 @@ static const oceanic_common_version_t oceanic_atom2_version[] = {
 };
 
 static const oceanic_common_version_t oceanic_atom2a_version[] = {
-	{"MANTA  R\0\0  512K"},
 	{"INSIGHT2 \0\0 512K"},
 	{"OCEVEO30 \0\0 512K"},
 	{"ATMOSAI R\0\0 512K"},
@@ -736,6 +739,12 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_f11_version)) {
 		device->base.layout = &aeris_f11_layout;
 		device->bigpage = 8;
+	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_manta_version)) {
+		if (array_uint16_be (device->base.version + 0x08) >= 0x3242) {
+			device->base.layout = &oceanic_atom2a_layout;
+		} else {
+			device->base.layout = &oceanic_atom2c_layout;
+		}
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom1_version)) {
 		device->base.layout = &oceanic_atom1_layout;
 	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2_version)) {
