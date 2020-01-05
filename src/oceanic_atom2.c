@@ -128,6 +128,7 @@ static const oceanic_common_version_t oceanic_atom2b_version[] = {
 	{"AQUAI100 \0\0 512K"},
 	{"AQUA300C \0\0 512K"},
 	{"OCEGEO40 \0\0 512K"},
+	{"VEOSMART \0\0 512K"},
 };
 
 static const oceanic_common_version_t oceanic_atom2c_version[] = {
