@@ -124,22 +124,6 @@ dc_status_t
 dc_iostream_set_timeout (dc_iostream_t *iostream, int timeout);
 
 /**
- * Set the receive latency.
- *
- * The effect of this setting is highly platform and driver specific. On
- * Windows it does nothing at all, on Linux it controls the low latency
- * flag (e.g. only zero vs non-zero latency), and on Mac OS X it sets
- * the receive latency as requested.
- *
- * @param[in]  iostream  A valid I/O stream.
- * @param[in]  value     The latency in milliseconds.
- * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
- * on failure.
- */
-dc_status_t
-dc_iostream_set_latency (dc_iostream_t *iostream, unsigned int value);
-
-/**
  * Set the state of the break condition.
  *
  * @param[in]  iostream  A valid I/O stream.
@@ -268,6 +252,19 @@ dc_iostream_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actu
  */
 dc_status_t
 dc_iostream_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+
+/**
+ * Perform an I/O stream specific request.
+ *
+ * @param[in]  iostream  A valid I/O stream.
+ * @param[in]  request   The request to perform.
+ * @param[in,out]  data  The request specific data.
+ * @param[in]  size      The size of the request specific data.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
+dc_status_t
+dc_iostream_ioctl (dc_iostream_t *iostream, unsigned int request, void *data, size_t size);
 
 /**
  * Flush the internal output buffer and wait until the data has been

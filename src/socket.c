@@ -331,6 +331,12 @@ out:
 }
 
 dc_status_t
+dc_socket_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size_t size)
+{
+	return DC_STATUS_UNSUPPORTED;
+}
+
+dc_status_t
 dc_socket_sleep (dc_iostream_t *abstract, unsigned int timeout)
 {
 #ifdef _WIN32

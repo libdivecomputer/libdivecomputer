@@ -97,6 +97,7 @@ static dc_status_t dc_usbhid_set_timeout (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_usbhid_poll (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_usbhid_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 static dc_status_t dc_usbhid_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+static dc_status_t dc_usbhid_ioctl (dc_iostream_t *iostream, unsigned int request, void *data, size_t size);
 static dc_status_t dc_usbhid_close (dc_iostream_t *iostream);
 
 typedef struct dc_usbhid_iterator_t {
@@ -138,7 +139,6 @@ static const dc_iterator_vtable_t dc_usbhid_iterator_vtable = {
 static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	sizeof(dc_usbhid_t),
 	dc_usbhid_set_timeout, /* set_timeout */
-	NULL, /* set_latency */
 	NULL, /* set_break */
 	NULL, /* set_dtr */
 	NULL, /* set_rts */
@@ -148,6 +148,7 @@ static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	dc_usbhid_poll, /* poll */
 	dc_usbhid_read, /* read */
 	dc_usbhid_write, /* write */
+	dc_usbhid_ioctl, /* ioctl */
 	NULL, /* flush */
 	NULL, /* purge */
 	NULL, /* sleep */
@@ -780,5 +781,11 @@ out:
 		*actual = nbytes;
 
 	return status;
+}
+
+static dc_status_t
+dc_usbhid_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size_t size)
+{
+	return DC_STATUS_UNSUPPORTED;
 }
 #endif

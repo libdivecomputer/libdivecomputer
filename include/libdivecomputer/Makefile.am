@@ -9,6 +9,7 @@ libdivecomputer_HEADERS = 	\
 	iostream.h \
 	serial.h \
 	bluetooth.h \
+	ble.h \
 	irda.h \
 	usbhid.h \
 	custom.h \

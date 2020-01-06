@@ -32,7 +32,6 @@ extern "C" {
 
 typedef struct dc_custom_cbs_t {
 	dc_status_t (*set_timeout) (void *userdata, int timeout);
-	dc_status_t (*set_latency) (void *userdata, unsigned int value);
 	dc_status_t (*set_break) (void *userdata, unsigned int value);
 	dc_status_t (*set_dtr) (void *userdata, unsigned int value);
 	dc_status_t (*set_rts) (void *userdata, unsigned int value);
@@ -42,6 +41,7 @@ typedef struct dc_custom_cbs_t {
 	dc_status_t (*poll) (void *userdata, int timeout);
 	dc_status_t (*read) (void *userdata, void *data, size_t size, size_t *actual);
 	dc_status_t (*write) (void *userdata, const void *data, size_t size, size_t *actual);
+	dc_status_t (*ioctl) (void *userdata, unsigned int request, void *data, size_t size);
 	dc_status_t (*flush) (void *userdata);
 	dc_status_t (*purge) (void *userdata, dc_direction_t direction);
 	dc_status_t (*sleep) (void *userdata, unsigned int milliseconds);

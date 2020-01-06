@@ -43,8 +43,6 @@ struct dc_iostream_vtable_t {
 
 	dc_status_t (*set_timeout) (dc_iostream_t *iostream, int timeout);
 
-	dc_status_t (*set_latency) (dc_iostream_t *iostream, unsigned int value);
-
 	dc_status_t (*set_break) (dc_iostream_t *iostream, unsigned int value);
 
 	dc_status_t (*set_dtr) (dc_iostream_t *iostream, unsigned int value);
@@ -62,6 +60,8 @@ struct dc_iostream_vtable_t {
 	dc_status_t (*read) (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 
 	dc_status_t (*write) (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
+
+	dc_status_t (*ioctl) (dc_iostream_t *iostream, unsigned int request, void *data, size_t size);
 
 	dc_status_t (*flush) (dc_iostream_t *iostream);
 

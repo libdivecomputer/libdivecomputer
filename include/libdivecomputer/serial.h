@@ -27,6 +27,7 @@
 #include "iostream.h"
 #include "iterator.h"
 #include "descriptor.h"
+#include "ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,6 +77,16 @@ dc_serial_iterator_new (dc_iterator_t **iterator, dc_context_t *context, dc_desc
  */
 dc_status_t
 dc_serial_open (dc_iostream_t **iostream, dc_context_t *context, const char *name);
+
+/**
+ * Set the receive latency in milliseconds.
+ *
+ * The effect of this setting is highly platform and driver specific. On
+ * Windows it does nothing at all, on Linux it controls the low latency
+ * flag (e.g. only zero vs non-zero latency), and on Mac OS X it sets
+ * the receive latency as requested.
+ */
+#define DC_IOCTL_SERIAL_SET_LATENCY DC_IOCTL_IOW('s', 0, sizeof(unsigned int))
 
 #ifdef __cplusplus
 }

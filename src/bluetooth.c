@@ -99,7 +99,6 @@ static const dc_iterator_vtable_t dc_bluetooth_iterator_vtable = {
 static const dc_iostream_vtable_t dc_bluetooth_vtable = {
 	sizeof(dc_socket_t),
 	dc_socket_set_timeout, /* set_timeout */
-	NULL, /* set_latency */
 	NULL, /* set_break */
 	NULL, /* set_dtr */
 	NULL, /* set_rts */
@@ -109,6 +108,7 @@ static const dc_iostream_vtable_t dc_bluetooth_vtable = {
 	dc_socket_poll, /* poll */
 	dc_socket_read, /* read */
 	dc_socket_write, /* write */
+	dc_socket_ioctl, /* ioctl */
 	NULL, /* flush */
 	NULL, /* purge */
 	dc_socket_sleep, /* sleep */
