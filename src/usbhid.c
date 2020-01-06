@@ -94,6 +94,7 @@ static dc_status_t dc_usbhid_iterator_next (dc_iterator_t *iterator, void *item)
 static dc_status_t dc_usbhid_iterator_free (dc_iterator_t *iterator);
 
 static dc_status_t dc_usbhid_set_timeout (dc_iostream_t *iostream, int timeout);
+static dc_status_t dc_usbhid_poll (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_usbhid_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 static dc_status_t dc_usbhid_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
 static dc_status_t dc_usbhid_close (dc_iostream_t *iostream);
@@ -144,6 +145,7 @@ static const dc_iostream_vtable_t dc_usbhid_vtable = {
 	NULL, /* get_lines */
 	NULL, /* get_available */
 	NULL, /* configure */
+	dc_usbhid_poll, /* poll */
 	dc_usbhid_read, /* read */
 	dc_usbhid_write, /* write */
 	NULL, /* flush */
@@ -683,6 +685,12 @@ dc_usbhid_set_timeout (dc_iostream_t *abstract, int timeout)
 #endif
 
 	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+dc_usbhid_poll (dc_iostream_t *abstract, int timeout)
+{
+	return DC_STATUS_UNSUPPORTED;
 }
 
 static dc_status_t

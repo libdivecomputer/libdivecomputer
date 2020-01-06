@@ -74,6 +74,7 @@ static dc_status_t dc_serial_set_rts (dc_iostream_t *iostream, unsigned int valu
 static dc_status_t dc_serial_get_lines (dc_iostream_t *iostream, unsigned int *value);
 static dc_status_t dc_serial_get_available (dc_iostream_t *iostream, size_t *value);
 static dc_status_t dc_serial_configure (dc_iostream_t *iostream, unsigned int baudrate, unsigned int databits, dc_parity_t parity, dc_stopbits_t stopbits, dc_flowcontrol_t flowcontrol);
+static dc_status_t dc_serial_poll (dc_iostream_t *iostream, int timeout);
 static dc_status_t dc_serial_read (dc_iostream_t *iostream, void *data, size_t size, size_t *actual);
 static dc_status_t dc_serial_write (dc_iostream_t *iostream, const void *data, size_t size, size_t *actual);
 static dc_status_t dc_serial_flush (dc_iostream_t *iostream);
@@ -123,6 +124,7 @@ static const dc_iostream_vtable_t dc_serial_vtable = {
 	dc_serial_get_lines, /* get_lines */
 	dc_serial_get_available, /* get_available */
 	dc_serial_configure, /* configure */
+	dc_serial_poll, /* poll */
 	dc_serial_read, /* read */
 	dc_serial_write, /* write */
 	dc_serial_flush, /* flush */
@@ -661,6 +663,42 @@ dc_serial_set_latency (dc_iostream_t *abstract, unsigned int milliseconds)
 #endif
 
 	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+dc_serial_poll (dc_iostream_t *abstract, int timeout)
+{
+	dc_serial_t *device = (dc_serial_t *) abstract;
+	int rc = 0;
+
+	do {
+		fd_set fds;
+		FD_ZERO (&fds);
+		FD_SET (device->fd, &fds);
+
+		struct timeval tv, *ptv = NULL;
+		if (timeout > 0) {
+			tv.tv_sec  = (timeout / 1000);
+			tv.tv_usec = (timeout % 1000) * 1000;
+			ptv = &tv;
+		} else if (timeout == 0) {
+			tv.tv_sec  = 0;
+			tv.tv_usec = 0;
+			ptv = &tv;
+		}
+
+		rc = select (device->fd + 1, &fds, NULL, NULL, ptv);
+	} while (rc < 0 && errno == EINTR);
+
+	if (rc < 0) {
+		int errcode = errno;
+		SYSERROR (abstract->context, errcode);
+		return syserror (errcode);
+	} else if (rc == 0) {
+		return DC_STATUS_TIMEOUT;
+	} else {
+		return DC_STATUS_SUCCESS;
+	}
 }
 
 static dc_status_t
