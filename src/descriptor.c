@@ -47,6 +47,7 @@ static int dc_filter_hw (dc_transport_t transport, const void *userdata);
 static int dc_filter_tecdiving (dc_transport_t transport, const void *userdata);
 static int dc_filter_mares (dc_transport_t transport, const void *userdata);
 static int dc_filter_divesystem (dc_transport_t transport, const void *userdata);
+static int dc_filter_oceanic (dc_transport_t transport, const void *userdata);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -225,7 +226,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Aeris",    "A300CS",              DC_FAMILY_OCEANIC_ATOM2, 0x454C, DC_TRANSPORT_SERIAL, NULL},
 	{"Tusa",     "Talis",               DC_FAMILY_OCEANIC_ATOM2, 0x454E, DC_TRANSPORT_SERIAL, NULL},
 	{"Beuchat",  "Mundial 3",           DC_FAMILY_OCEANIC_ATOM2, 0x4550, DC_TRANSPORT_SERIAL, NULL},
-	{"Oceanic",  "Pro Plus X",          DC_FAMILY_OCEANIC_ATOM2, 0x4552, DC_TRANSPORT_SERIAL, NULL},
+	{"Oceanic",  "Pro Plus X",          DC_FAMILY_OCEANIC_ATOM2, 0x4552, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Oceanic",  "F10",                 DC_FAMILY_OCEANIC_ATOM2, 0x4553, DC_TRANSPORT_SERIAL, NULL},
 	{"Oceanic",  "F11",                 DC_FAMILY_OCEANIC_ATOM2, 0x4554, DC_TRANSPORT_SERIAL, NULL},
 	{"Subgear",  "XP-Air",              DC_FAMILY_OCEANIC_ATOM2, 0x4555, DC_TRANSPORT_SERIAL, NULL},
@@ -236,14 +237,14 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Aqualung", "i450T",               DC_FAMILY_OCEANIC_ATOM2, 0x4641, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i550",                DC_FAMILY_OCEANIC_ATOM2, 0x4642, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i200",                DC_FAMILY_OCEANIC_ATOM2, 0x4646, DC_TRANSPORT_SERIAL, NULL},
-	{"Aqualung", "i300C",               DC_FAMILY_OCEANIC_ATOM2, 0x4648, DC_TRANSPORT_SERIAL, NULL},
-	{"Aqualung", "i200C",               DC_FAMILY_OCEANIC_ATOM2, 0x4649, DC_TRANSPORT_SERIAL, NULL},
+	{"Aqualung", "i300C",               DC_FAMILY_OCEANIC_ATOM2, 0x4648, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Aqualung", "i200C",               DC_FAMILY_OCEANIC_ATOM2, 0x4649, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Aqualung", "i100",                DC_FAMILY_OCEANIC_ATOM2, 0x464E, DC_TRANSPORT_SERIAL, NULL},
-	{"Aqualung", "i770R",               DC_FAMILY_OCEANIC_ATOM2, 0x4651, DC_TRANSPORT_SERIAL, NULL},
-	{"Aqualung", "i550C",               DC_FAMILY_OCEANIC_ATOM2, 0x4652, DC_TRANSPORT_SERIAL, NULL},
-	{"Oceanic",  "Geo 4.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4653, DC_TRANSPORT_SERIAL, NULL},
-	{"Oceanic",  "Veo 4.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4654, DC_TRANSPORT_SERIAL, NULL},
-	{"Oceanic",  "Pro Plus 4",          DC_FAMILY_OCEANIC_ATOM2, 0x4656, DC_TRANSPORT_SERIAL, NULL},
+	{"Aqualung", "i770R",               DC_FAMILY_OCEANIC_ATOM2, 0x4651, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Aqualung", "i550C",               DC_FAMILY_OCEANIC_ATOM2, 0x4652, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Oceanic",  "Geo 4.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4653, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Oceanic",  "Veo 4.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4654, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Oceanic",  "Pro Plus 4",          DC_FAMILY_OCEANIC_ATOM2, 0x4656, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	/* Mares Nemo */
 	{"Mares", "Nemo",         DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Nemo Steel",   DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
@@ -435,6 +436,20 @@ dc_match_number_with_prefix (const void *key, const void *value)
 }
 
 static int
+dc_match_oceanic (const void *key, const void *value)
+{
+	unsigned int model = *(const unsigned int *) value;
+
+	const char prefix[] = {
+		(model >> 8) & 0xFF,
+		(model     ) & 0xFF,
+		0
+	};
+
+	return dc_match_number_with_prefix (key, &prefix);
+}
+
+static int
 dc_filter_internal (const void *key, const void *values, size_t count, size_t size, dc_match_t match)
 {
 	if (key == NULL)
@@ -585,6 +600,26 @@ static int dc_filter_divesystem (dc_transport_t transport, const void *userdata)
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_number_with_prefix);
+	}
+
+	return 1;
+}
+
+static int dc_filter_oceanic (dc_transport_t transport, const void *userdata)
+{
+	static const unsigned int model[] = {
+		0x4552, // Oceanic Pro Plus X
+		0x4648, // Aqualung i300C
+		0x4649, // Aqualung i200C
+		0x4651, // Aqualung i770R
+		0x4652, // Aqualung i550C
+		0x4653, // Oceanic Geo 4.0
+		0x4654, // Oceanic Veo 4.0
+		0x4656, // Oceanic Pro Plus 4
+	};
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return DC_FILTER_INTERNAL (userdata, model, 0, dc_match_oceanic);
 	}
 
 	return 1;
