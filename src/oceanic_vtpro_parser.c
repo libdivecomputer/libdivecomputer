@@ -129,7 +129,7 @@ oceanic_vtpro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			else
 				datetime->year = bcd2dec (((p[32 + 3] & 0xC0) >> 2) + ((p[32 + 2] & 0xF0) >> 4)) + 2000;
 			datetime->month  = (p[4] & 0xF0) >> 4;
-			datetime->day    = bcd2dec (p[3]);
+			datetime->day    = bcd2dec (p[3] & 0x7F);
 			datetime->hour   = bcd2dec (p[1] & 0x7F);
 			pm = p[1] & 0x80;
 		}
