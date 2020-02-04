@@ -94,6 +94,7 @@
 #define I550C       0x4652
 #define GEO40       0x4653
 #define VEO40       0x4654
+#define WISDOM4     0x4655
 #define PROPLUS4    0x4656
 
 #define NORMAL   0
@@ -190,7 +191,7 @@ oceanic_atom2_parser_create (dc_parser_t **out, dc_context_t *context, unsigned 
 		parser->headersize = 5 * PAGESIZE;
 	} else if (model == PROPLUSX) {
 		parser->headersize = 3 * PAGESIZE;
-	} else if (model == I550C) {
+	} else if (model == I550C || model == WISDOM4) {
 		parser->headersize = 5 * PAGESIZE / 2;
 	}
 
@@ -269,6 +270,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case I550C:
 		case VISION:
 		case XPAIR:
+		case WISDOM4:
 			datetime->year   = ((p[5] & 0xE0) >> 5) + ((p[7] & 0xE0) >> 2) + 2000;
 			datetime->month  = (p[3] & 0x0F);
 			datetime->day    = ((p[0] & 0x80) >> 3) + ((p[3] & 0xF0) >> 4);
@@ -481,6 +483,9 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 		o2_offset = 0x30;
 		ngasmixes = 4;
 		o2_step = 2;
+	} else if (parser->model == WISDOM4) {
+		o2_offset = header + 4;
+		ngasmixes = 1;
 	} else {
 		o2_offset = header + 4;
 		ngasmixes = 3;
@@ -907,7 +912,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					unsigned int sign;
 					if (parser->model == DG03 || parser->model == PROPLUS3 ||
 						parser->model == I550 || parser->model == I550C ||
-						parser->model == PROPLUS4)
+						parser->model == PROPLUS4 || parser->model == WISDOM4)
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == VOYAGER2G || parser->model == AMPHOS ||
 						parser->model == AMPHOSAIR || parser->model == ZENAIR)
@@ -940,7 +945,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == DG03 || parser->model == PROPLUS3 ||
 					parser->model == AMPHOSAIR || parser->model == I550 ||
 					parser->model == VISION || parser->model == XPAIR ||
-					parser->model == I550C || parser->model == PROPLUS4)
+					parser->model == I550C || parser->model == PROPLUS4 ||
+					parser->model == WISDOM4)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else if (parser->model == TX1 || parser->model == A300CS ||
 					parser->model == VTX || parser->model == I750TC ||
@@ -1009,7 +1015,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				have_deco = 1;
 			} else if (parser->model == ATOM31 || parser->model == VISION ||
 				parser->model == XPAIR || parser->model == I550 ||
-				parser->model == I550C) {
+				parser->model == I550C || parser->model == WISDOM4) {
 				decostop = (data[offset + 5] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 4) & 0x03FF;
 				have_deco = 1;
@@ -1047,7 +1053,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				rbt = array_uint16_le(data + offset + 8) & 0x01FF;
 				have_rbt = 1;
 			} else if (parser->model == VISION || parser->model == XPAIR ||
-				parser->model == I550 || parser->model == I550C) {
+				parser->model == I550 || parser->model == I550C ||
+				parser->model == WISDOM4) {
 				rbt = array_uint16_le(data + offset + 6) & 0x03FF;
 				have_rbt = 1;
 			}
