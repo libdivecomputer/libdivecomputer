@@ -190,7 +190,7 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 		if (type == DEPTH) {
 			// Depth (1/10 m).
-			unsigned int depth = value & 0x0FFF;
+			unsigned int depth = value & 0x07FF;
 			sample.depth = depth / 10.0;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			complete = 1;
