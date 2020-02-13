@@ -170,6 +170,7 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	unsigned int time = 0;
 	unsigned int interval = 5;
 	unsigned int complete = 1;
+	unsigned int gasmix_previous = 0xFFFFFFFF;
 
 	unsigned int offset = SZ_HEADER;
 	while (offset + 2 <= size) {
@@ -190,9 +191,18 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 		if (type == DEPTH) {
 			// Depth (1/10 m).
-			unsigned int depth = value & 0x0FFF;
+			unsigned int depth = value & 0x07FF;
 			sample.depth = depth / 10.0;
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+
+			// Gas change.
+			unsigned int gasmix = (value & 0x0800) >> 11;
+			if (gasmix != gasmix_previous) {
+				sample.gasmix = gasmix;
+				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				gasmix_previous = gasmix;
+			}
+
 			complete = 1;
 		} else if (type == TEMPERATURE) {
 			// Temperature (1/10 °C).
