@@ -330,6 +330,7 @@ dc_status_t
 oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	assert (device != NULL);
@@ -379,6 +380,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
 				rb_entry_first, rb_entry_last);
+			status = DC_STATUS_DATAFORMAT;
 			break;
 		}
 
@@ -419,7 +421,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 	// Exit if there are no dives.
 	if (rb_profile_size == 0) {
-		return DC_STATUS_SUCCESS;
+		return status;
 	}
 
 	// Create the ringbuffer stream.
