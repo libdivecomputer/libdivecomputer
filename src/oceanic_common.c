@@ -417,6 +417,11 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	progress->maximum -= (layout->rb_profile_end - layout->rb_profile_begin) - rb_profile_size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
+	// Exit if there are no dives.
+	if (rb_profile_size == 0) {
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
 	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_profile_begin, layout->rb_profile_end, rb_profile_end);
