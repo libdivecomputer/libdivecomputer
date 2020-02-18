@@ -281,6 +281,7 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// entries first. If an already downloaded entry is identified (by means
 	// of its fingerprint), the transfer is aborted immediately to reduce
 	// the transfer time.
+	unsigned int count = 0;
 	unsigned int nbytes = 0;
 	unsigned int offset = rb_logbook_size;
 	while (nbytes < rb_logbook_size) {
@@ -312,13 +313,19 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 			offset += layout->rb_logbook_entry_size;
 			break;
 		}
+
+		count++;
 	}
 
 	// Update and emit a progress event.
 	progress->maximum -= rb_logbook_size - nbytes;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
-	dc_buffer_slice (logbook, offset, rb_logbook_size - offset);
+	if (count) {
+		dc_buffer_slice (logbook, offset, rb_logbook_size - offset);
+	} else {
+		dc_buffer_clear (logbook);
+	}
 
 	dc_rbstream_free (rbstream);
 
