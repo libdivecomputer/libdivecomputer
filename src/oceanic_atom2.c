@@ -920,7 +920,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
-	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE &&
+		model != PROPLUSX) {
 		status = oceanic_atom2_ble_handshake(device);
 		if (status != DC_STATUS_SUCCESS) {
 			goto error_free;
