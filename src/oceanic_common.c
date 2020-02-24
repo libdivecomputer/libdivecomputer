@@ -281,6 +281,7 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// entries first. If an already downloaded entry is identified (by means
 	// of its fingerprint), the transfer is aborted immediately to reduce
 	// the transfer time.
+	unsigned int count = 0;
 	unsigned int nbytes = 0;
 	unsigned int offset = rb_logbook_size;
 	while (nbytes < rb_logbook_size) {
@@ -312,13 +313,19 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 			offset += layout->rb_logbook_entry_size;
 			break;
 		}
+
+		count++;
 	}
 
 	// Update and emit a progress event.
 	progress->maximum -= rb_logbook_size - nbytes;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
-	dc_buffer_slice (logbook, offset, rb_logbook_size - offset);
+	if (count) {
+		dc_buffer_slice (logbook, offset, rb_logbook_size - offset);
+	} else {
+		dc_buffer_clear (logbook);
+	}
 
 	dc_rbstream_free (rbstream);
 
@@ -330,6 +337,7 @@ dc_status_t
 oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	assert (device != NULL);
@@ -379,6 +387,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
 				rb_entry_first, rb_entry_last);
+			status = DC_STATUS_DATAFORMAT;
 			break;
 		}
 
@@ -416,6 +425,11 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	// that needs to be transfered for the profiles.
 	progress->maximum -= (layout->rb_profile_end - layout->rb_profile_begin) - rb_profile_size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+
+	// Exit if there are no dives.
+	if (rb_profile_size == 0) {
+		return status;
+	}
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
