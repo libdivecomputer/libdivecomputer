@@ -65,6 +65,7 @@ typedef struct oceanic_atom2_device_t {
 	dc_iostream_t *iostream;
 	unsigned int sequence;
 	unsigned int delay;
+	unsigned int extra;
 	unsigned int bigpage;
 	unsigned char cache[256];
 	unsigned int cached_page;
@@ -590,7 +591,7 @@ oceanic_atom2_ble_write (oceanic_atom2_device_t *device, const unsigned char dat
 }
 
 static dc_status_t
-oceanic_atom2_ble_read (oceanic_atom2_device_t *device, unsigned char data[], unsigned int size)
+oceanic_atom2_ble_read (oceanic_atom2_device_t *device, unsigned char data[], unsigned int size, unsigned int *actual)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -656,9 +657,13 @@ oceanic_atom2_ble_read (oceanic_atom2_device_t *device, unsigned char data[], un
 	}
 
 	// Verify the expected number of bytes.
-	if (nbytes != size) {
+	if (nbytes > size) {
 		ERROR (abstract->context, "Unexpected number of bytes received (%u %u).", nbytes, size);
 		return DC_STATUS_PROTOCOL;
+	}
+
+	if (actual) {
+		*actual = nbytes;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -699,8 +704,13 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 
 	// Receive the answer of the dive computer.
 	unsigned char packet[1 + MAXPACKET + 2];
+	unsigned int nbytes = 1 + asize + crc_size;
 	if (transport == DC_TRANSPORT_BLE) {
-		status = oceanic_atom2_ble_read (device, packet, 1 + asize + crc_size);
+		// Accept excess bytes for some models.
+		if (asize && device->extra) {
+			nbytes = 1 + MAXPACKET + crc_size;
+		}
+		status = oceanic_atom2_ble_read (device, packet, nbytes, &nbytes);
 	} else {
 		status = dc_iostream_read (device->iostream, packet, 1 + asize + crc_size, NULL);
 	}
@@ -708,6 +718,14 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
 	}
+
+	// Verify the number of bytes.
+	if (nbytes < 1 + asize + crc_size) {
+		ERROR (abstract->context, "Unexpected number of bytes received (%u %u).", nbytes, 1 + asize + crc_size);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	nbytes -= 1 + crc_size;
 
 	// Verify the ACK byte of the answer.
 	if (packet[0] != ack) {
@@ -719,11 +737,11 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 		// Verify the checksum of the answer.
 		unsigned short crc, ccrc;
 		if (crc_size == 2) {
-			crc = array_uint16_le (packet + 1 + asize);
-			ccrc = checksum_add_uint16 (packet + 1, asize, 0x0000);
+			crc = array_uint16_le (packet + 1 + nbytes);
+			ccrc = checksum_add_uint16 (packet + 1, nbytes, 0x0000);
 		} else {
-			crc = packet[1 + asize];
-			ccrc = checksum_add_uint8 (packet + 1, asize, 0x00);
+			crc = packet[1 + nbytes];
+			ccrc = checksum_add_uint8 (packet + 1, nbytes, 0x00);
 		}
 		if (crc != ccrc) {
 			ERROR (abstract->context, "Unexpected answer checksum.");
@@ -731,6 +749,10 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 		}
 
 		memcpy (answer, packet + 1, asize);
+	}
+
+	if (nbytes > asize) {
+		WARNING (abstract->context, "Ignored %u excess byte(s).", nbytes - asize);
 	}
 
 	device->sequence++;
@@ -852,6 +874,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	// Set the default values.
 	device->iostream = iostream;
 	device->delay = 0;
+	device->extra = model == PROPLUSX || model == I770R;
 	device->sequence = 0;
 	device->bigpage = 1; // no big pages
 	device->cached_page = INVALID;
