@@ -81,6 +81,7 @@
 #define CR         0x05
 
 #define NODELAY 0
+#define TIMEOUT 400
 
 typedef enum hw_ostc3_state_t {
 	OPEN,
@@ -1253,7 +1254,7 @@ hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, con
 	array_uint24_be_set (buffer, addr);
 	memcpy (buffer + 3, block, block_size);
 
-	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, NODELAY);
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, TIMEOUT);
 }
 
 static dc_status_t
