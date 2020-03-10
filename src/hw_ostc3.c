@@ -69,6 +69,7 @@
 #define S_UPLOAD   0x73
 #define WRITE      0x77
 #define RESET      0x78
+#define S_INIT     0xAA
 #define INIT       0xBB
 #define EXIT       0xFF
 
@@ -456,33 +457,43 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
-	dc_context_t *context = (abstract ? abstract->context : NULL);
 
-	unsigned char command[] = {0xAA, 0xAB, 0xCD, 0xEF};
-	unsigned char output[5];
+	const unsigned char command[] = {S_INIT, 0xAB, 0xCD, 0xEF};
+	unsigned char answer[5] = {0};
 
-	// We cant use hw_ostc3_transfer here, due to the different echos
-	status = hw_ostc3_write (device, NULL, command, sizeof (command));
+	for (size_t i = 0; i < 4; ++i) {
+		// Send the command.
+		status = hw_ostc3_write (device, NULL, command + i, 1);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the command.");
+			return status;
+		}
+
+		// Read the answer.
+		status = hw_ostc3_read (device, NULL, answer + i, 1);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
+		}
+
+		// Verify the answer.
+		const unsigned char expected = (i == 0 ? 0x4B : command[i]);
+		if (answer[i] != expected) {
+			ERROR (abstract->context, "Unexpected answer byte.");
+			return DC_STATUS_PROTOCOL;
+		}
+	}
+
+	// Read the ready byte.
+	status = hw_ostc3_read (device, NULL, answer + 4, 1);
 	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to send the command.");
+		ERROR (abstract->context, "Failed to receive the ready byte.");
 		return status;
 	}
 
-	// Give the device some time to enter service mode
-	dc_iostream_sleep (device->iostream, 100);
-
-	// Read the response
-	status = hw_ostc3_read (device, NULL, output, sizeof (output));
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to receive the echo.");
-		return status;
-	}
-
-	// Verify the response to service mode
-	if (output[0] != 0x4B || output[1] != 0xAB ||
-			output[2] != 0xCD || output[3] != 0xEF ||
-			output[4] != S_READY) {
-		ERROR (context, "Failed to verify echo.");
+	// Verify the ready byte.
+	if (answer[4] != S_READY) {
+		ERROR (abstract->context, "Unexpected ready byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
