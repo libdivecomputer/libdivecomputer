@@ -1219,12 +1219,16 @@ hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned 
 	// Convert size to number of pages, rounded up.
 	unsigned char blocks = ((size + SZ_FIRMWARE_BLOCK - 1) / SZ_FIRMWARE_BLOCK);
 
+	// Estimate the required delay. Erasing a 4K flash memory page
+	// takes around 25 milliseconds.
+	unsigned int delay = blocks * 25;
+
 	// Erase just the needed pages.
 	unsigned char buffer[4];
 	array_uint24_be_set (buffer, addr);
 	buffer[3] = blocks;
 
-	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, NODELAY);
+	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, delay);
 }
 
 static dc_status_t
