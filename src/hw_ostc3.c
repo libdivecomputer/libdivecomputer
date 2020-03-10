@@ -113,8 +113,8 @@ typedef struct hw_ostc3_firmware_t {
 	unsigned int checksum;
 } hw_ostc3_firmware_t;
 
-// This key is used both for the Ostc3 and its cousin,
-// the Ostc Sport.
+// This key is used both for the OSTC3 and its cousin,
+// the OSTC Sport.
 // The Frog uses a similar protocol, and with another key.
 static const unsigned char ostc3_key[16] = {
 	0xF1, 0xE9, 0xB0, 0x30,
@@ -317,7 +317,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	}
 
 	if (output) {
-		// Read the ouput data packet.
+		// Read the output data packet.
 		status = hw_ostc3_read (device, progress, output, osize);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
@@ -1231,7 +1231,7 @@ hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, con
 {
 	unsigned char buffer[3 + SZ_FIRMWARE_BLOCK];
 
-	// We currenty only support writing max SZ_FIRMWARE_BLOCK sized blocks.
+	// We currently only support writing max SZ_FIRMWARE_BLOCK sized blocks.
 	if (block_size > SZ_FIRMWARE_BLOCK)
 		return DC_STATUS_INVALIDARGS;
 
@@ -1599,7 +1599,7 @@ hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	unsigned int nbytes = 0;
 	while (nbytes < SZ_MEMORY) {
-		// packet size. Can be almost arbetary size.
+		// packet size. Can be almost arbitrary size.
 		unsigned int len = SZ_FIRMWARE_BLOCK;
 
 		// Read a block
