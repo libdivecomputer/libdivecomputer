@@ -96,6 +96,8 @@ typedef struct hw_ostc3_device_t {
 	unsigned int hardware;
 	unsigned int feature;
 	unsigned int model;
+	unsigned int serial;
+	unsigned int firmware;
 	unsigned char fingerprint[5];
 	hw_ostc3_state_t state;
 	unsigned char cache[20];
@@ -372,6 +374,8 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *i
 	device->hardware = INVALID;
 	device->feature = 0;
 	device->model = 0;
+	device->serial = 0;
+	device->firmware = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->cache, 0, sizeof (device->cache));
 	device->available = 0;
@@ -546,10 +550,24 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		return rc;
 	}
 
+	// Read the version information.
+	unsigned char version[SZ_VERSION] = {0};
+	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, version, sizeof(version), NODELAY);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the version information.");
+		return rc;
+	}
+
 	// Cache the descriptor.
 	device->hardware = array_uint16_be(hardware + 0);
 	device->feature = array_uint16_be(hardware + 2);
 	device->model = hardware[4];
+	device->serial = array_uint16_le (version + 0);
+	if (device->hardware == OSTC4) {
+		device->firmware = array_uint16_le (version + 2);
+	} else {
+		device->firmware = array_uint16_be (version + 2);
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -654,22 +672,10 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	// Download the version data.
-	unsigned char id[SZ_VERSION] = {0};
-	rc = hw_ostc3_device_version (abstract, id, sizeof (id));
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the version.");
-		return rc;
-	}
-
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	if (device->hardware == OSTC4) {
-		devinfo.firmware = array_uint16_le (id + 2);
-	} else {
-		devinfo.firmware = array_uint16_be (id + 2);
-	}
-	devinfo.serial = array_uint16_le (id + 0);
+	devinfo.firmware = device->firmware;
+	devinfo.serial = device->serial;
 	if (device->hardware != UNKNOWN) {
 		devinfo.model = device->hardware;
 	} else {
