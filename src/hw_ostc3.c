@@ -43,6 +43,7 @@
 #define SZ_FWINFO     4
 #define SZ_FIRMWARE   0x01E000        // 120KB
 #define SZ_FIRMWARE_BLOCK    0x1000   //   4KB
+#define SZ_FIRMWARE_BLOCK2   0x0100   //  256B
 #define FIRMWARE_AREA      0x3E0000
 
 #define RB_LOGBOOK_SIZE_COMPACT  16
@@ -51,6 +52,7 @@
 
 #define S_BLOCK_READ 0x20
 #define S_BLOCK_WRITE 0x30
+#define S_BLOCK_WRITE2 0x31
 #define S_ERASE    0x42
 #define S_READY    0x4C
 #define READY      0x4D
@@ -1249,7 +1251,7 @@ hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsi
 }
 
 static dc_status_t
-hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, const unsigned char block[], unsigned int block_size)
+hw_ostc3_firmware_block_write1 (hw_ostc3_device_t *device, unsigned int addr, const unsigned char block[], unsigned int block_size)
 {
 	unsigned char buffer[3 + SZ_FIRMWARE_BLOCK];
 
@@ -1261,6 +1263,44 @@ hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, con
 	memcpy (buffer + 3, block, block_size);
 
 	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, TIMEOUT);
+}
+
+static dc_status_t
+hw_ostc3_firmware_block_write2 (hw_ostc3_device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+
+	if ((address % SZ_FIRMWARE_BLOCK2 != 0) ||
+		(size % SZ_FIRMWARE_BLOCK2 != 0)) {
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		unsigned char buffer[3 + SZ_FIRMWARE_BLOCK2];
+		array_uint24_be_set (buffer, address);
+		memcpy (buffer + 3, data + nbytes, SZ_FIRMWARE_BLOCK2);
+
+		status = hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE2, buffer, sizeof(buffer), NULL, 0, NODELAY);
+		if (status != DC_STATUS_SUCCESS) {
+			return status;
+		}
+
+		address += SZ_FIRMWARE_BLOCK2;
+		nbytes += SZ_FIRMWARE_BLOCK2;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
+{
+	if (device->firmware >= 0x0309) {
+		return hw_ostc3_firmware_block_write2 (device, address, data, size);
+	} else {
+		return hw_ostc3_firmware_block_write1 (device, address, data, size);
+	}
 }
 
 static dc_status_t
