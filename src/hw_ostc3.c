@@ -43,6 +43,7 @@
 #define SZ_FWINFO     4
 #define SZ_FIRMWARE   0x01E000        // 120KB
 #define SZ_FIRMWARE_BLOCK    0x1000   //   4KB
+#define SZ_FIRMWARE_BLOCK2   0x0100   //  256B
 #define FIRMWARE_AREA      0x3E0000
 
 #define RB_LOGBOOK_SIZE_COMPACT  16
@@ -51,6 +52,7 @@
 
 #define S_BLOCK_READ 0x20
 #define S_BLOCK_WRITE 0x30
+#define S_BLOCK_WRITE2 0x31
 #define S_ERASE    0x42
 #define S_READY    0x4C
 #define READY      0x4D
@@ -69,6 +71,7 @@
 #define S_UPLOAD   0x73
 #define WRITE      0x77
 #define RESET      0x78
+#define S_INIT     0xAA
 #define INIT       0xBB
 #define EXIT       0xFF
 
@@ -80,6 +83,7 @@
 #define CR         0x05
 
 #define NODELAY 0
+#define TIMEOUT 400
 
 typedef enum hw_ostc3_state_t {
 	OPEN,
@@ -94,6 +98,8 @@ typedef struct hw_ostc3_device_t {
 	unsigned int hardware;
 	unsigned int feature;
 	unsigned int model;
+	unsigned int serial;
+	unsigned int firmware;
 	unsigned char fingerprint[5];
 	hw_ostc3_state_t state;
 	unsigned char cache[20];
@@ -113,8 +119,8 @@ typedef struct hw_ostc3_firmware_t {
 	unsigned int checksum;
 } hw_ostc3_firmware_t;
 
-// This key is used both for the Ostc3 and its cousin,
-// the Ostc Sport.
+// This key is used both for the OSTC3 and its cousin,
+// the OSTC Sport.
 // The Frog uses a similar protocol, and with another key.
 static const unsigned char ostc3_key[16] = {
 	0xF1, 0xE9, 0xB0, 0x30,
@@ -317,7 +323,7 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	}
 
 	if (output) {
-		// Read the ouput data packet.
+		// Read the output data packet.
 		status = hw_ostc3_read (device, progress, output, osize);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the answer.");
@@ -370,6 +376,8 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *i
 	device->hardware = INVALID;
 	device->feature = 0;
 	device->model = 0;
+	device->serial = 0;
+	device->firmware = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	memset (device->cache, 0, sizeof (device->cache));
 	device->available = 0;
@@ -456,33 +464,43 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
-	dc_context_t *context = (abstract ? abstract->context : NULL);
 
-	unsigned char command[] = {0xAA, 0xAB, 0xCD, 0xEF};
-	unsigned char output[5];
+	const unsigned char command[] = {S_INIT, 0xAB, 0xCD, 0xEF};
+	unsigned char answer[5] = {0};
 
-	// We cant use hw_ostc3_transfer here, due to the different echos
-	status = hw_ostc3_write (device, NULL, command, sizeof (command));
+	for (size_t i = 0; i < 4; ++i) {
+		// Send the command.
+		status = hw_ostc3_write (device, NULL, command + i, 1);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the command.");
+			return status;
+		}
+
+		// Read the answer.
+		status = hw_ostc3_read (device, NULL, answer + i, 1);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
+		}
+
+		// Verify the answer.
+		const unsigned char expected = (i == 0 ? 0x4B : command[i]);
+		if (answer[i] != expected) {
+			ERROR (abstract->context, "Unexpected answer byte.");
+			return DC_STATUS_PROTOCOL;
+		}
+	}
+
+	// Read the ready byte.
+	status = hw_ostc3_read (device, NULL, answer + 4, 1);
 	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to send the command.");
+		ERROR (abstract->context, "Failed to receive the ready byte.");
 		return status;
 	}
 
-	// Give the device some time to enter service mode
-	dc_iostream_sleep (device->iostream, 100);
-
-	// Read the response
-	status = hw_ostc3_read (device, NULL, output, sizeof (output));
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to receive the echo.");
-		return status;
-	}
-
-	// Verify the response to service mode
-	if (output[0] != 0x4B || output[1] != 0xAB ||
-			output[2] != 0xCD || output[3] != 0xEF ||
-			output[4] != S_READY) {
-		ERROR (context, "Failed to verify echo.");
+	// Verify the ready byte.
+	if (answer[4] != S_READY) {
+		ERROR (abstract->context, "Unexpected ready byte.");
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -534,10 +552,24 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		return rc;
 	}
 
+	// Read the version information.
+	unsigned char version[SZ_VERSION] = {0};
+	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, version, sizeof(version), NODELAY);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the version information.");
+		return rc;
+	}
+
 	// Cache the descriptor.
 	device->hardware = array_uint16_be(hardware + 0);
 	device->feature = array_uint16_be(hardware + 2);
 	device->model = hardware[4];
+	device->serial = array_uint16_le (version + 0);
+	if (device->hardware == OSTC4) {
+		device->firmware = array_uint16_le (version + 2);
+	} else {
+		device->firmware = array_uint16_be (version + 2);
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -642,22 +674,10 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	// Download the version data.
-	unsigned char id[SZ_VERSION] = {0};
-	rc = hw_ostc3_device_version (abstract, id, sizeof (id));
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the version.");
-		return rc;
-	}
-
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	if (device->hardware == OSTC4) {
-		devinfo.firmware = array_uint16_le (id + 2);
-	} else {
-		devinfo.firmware = array_uint16_be (id + 2);
-	}
-	devinfo.serial = array_uint16_le (id + 0);
+	devinfo.firmware = device->firmware;
+	devinfo.serial = device->serial;
 	if (device->hardware != UNKNOWN) {
 		devinfo.model = device->hardware;
 	} else {
@@ -1208,12 +1228,16 @@ hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned 
 	// Convert size to number of pages, rounded up.
 	unsigned char blocks = ((size + SZ_FIRMWARE_BLOCK - 1) / SZ_FIRMWARE_BLOCK);
 
+	// Estimate the required delay. Erasing a 4K flash memory page
+	// takes around 25 milliseconds.
+	unsigned int delay = blocks * 25;
+
 	// Erase just the needed pages.
 	unsigned char buffer[4];
 	array_uint24_be_set (buffer, addr);
 	buffer[3] = blocks;
 
-	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, NODELAY);
+	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, delay);
 }
 
 static dc_status_t
@@ -1227,18 +1251,56 @@ hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsi
 }
 
 static dc_status_t
-hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int addr, const unsigned char block[], unsigned int block_size)
+hw_ostc3_firmware_block_write1 (hw_ostc3_device_t *device, unsigned int addr, const unsigned char block[], unsigned int block_size)
 {
 	unsigned char buffer[3 + SZ_FIRMWARE_BLOCK];
 
-	// We currenty only support writing max SZ_FIRMWARE_BLOCK sized blocks.
+	// We currently only support writing max SZ_FIRMWARE_BLOCK sized blocks.
 	if (block_size > SZ_FIRMWARE_BLOCK)
 		return DC_STATUS_INVALIDARGS;
 
 	array_uint24_be_set (buffer, addr);
 	memcpy (buffer + 3, block, block_size);
 
-	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, NODELAY);
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, TIMEOUT);
+}
+
+static dc_status_t
+hw_ostc3_firmware_block_write2 (hw_ostc3_device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+
+	if ((address % SZ_FIRMWARE_BLOCK2 != 0) ||
+		(size % SZ_FIRMWARE_BLOCK2 != 0)) {
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		unsigned char buffer[3 + SZ_FIRMWARE_BLOCK2];
+		array_uint24_be_set (buffer, address);
+		memcpy (buffer + 3, data + nbytes, SZ_FIRMWARE_BLOCK2);
+
+		status = hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE2, buffer, sizeof(buffer), NULL, 0, NODELAY);
+		if (status != DC_STATUS_SUCCESS) {
+			return status;
+		}
+
+		address += SZ_FIRMWARE_BLOCK2;
+		nbytes += SZ_FIRMWARE_BLOCK2;
+	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
+{
+	if (device->firmware >= 0x0309) {
+		return hw_ostc3_firmware_block_write2 (device, address, data, size);
+	} else {
+		return hw_ostc3_firmware_block_write1 (device, address, data, size);
+	}
 }
 
 static dc_status_t
@@ -1599,7 +1661,7 @@ hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	unsigned int nbytes = 0;
 	while (nbytes < SZ_MEMORY) {
-		// packet size. Can be almost arbetary size.
+		// packet size. Can be almost arbitrary size.
 		unsigned int len = SZ_FIRMWARE_BLOCK;
 
 		// Read a block
