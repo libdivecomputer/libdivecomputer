@@ -99,11 +99,31 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 
 
 static int
-oceanic_common_match_pattern (const unsigned char *string, const unsigned char *pattern)
+oceanic_common_match_pattern (const unsigned char *string, const unsigned char *pattern, unsigned int *firmware)
 {
+	unsigned int value = 0;
+	unsigned int count = 0;
+
 	for (unsigned int i = 0; i < PAGESIZE; ++i, ++pattern, ++string) {
-		if (*pattern != '\0' && *pattern != *string)
-			return 0;
+		if (*pattern != '\0') {
+			// Compare the pattern.
+			if (*pattern != *string)
+				return 0;
+		} else {
+			// Extract the firmware version.
+			// This is based on the assumption that (only) the first block of
+			// zeros in the pattern contains the firmware version.
+			if (i == 0 || *(pattern - 1) != '\0')
+				count++;
+			if (count == 1) {
+				value <<= 8;
+				value |= *string;
+			}
+		}
+	}
+
+	if (firmware) {
+		*firmware = value;
 	}
 
 	return 1;
@@ -114,7 +134,7 @@ int
 oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n)
 {
 	for (unsigned int i = 0; i < n; ++i) {
-		if (oceanic_common_match_pattern (version, patterns[i]))
+		if (oceanic_common_match_pattern (version, patterns[i], NULL))
 			return 1;
 	}
 
