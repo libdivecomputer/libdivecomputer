@@ -130,13 +130,16 @@ oceanic_common_match_pattern (const unsigned char *string, const unsigned char *
 }
 
 const oceanic_common_layout_t *
-oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n)
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n, unsigned int *firmware)
 {
 	for (size_t i = 0; i < n; ++i) {
 		unsigned int fw = 0;
 		if (oceanic_common_match_pattern (version, patterns[i].pattern, &fw) &&
 			fw >= patterns[i].firmware)
 		{
+			if (firmware) {
+				*firmware = fw;
+			}
 			return patterns[i].layout;
 		}
 	}
@@ -151,6 +154,7 @@ oceanic_common_device_init (oceanic_common_device_t *device)
 	assert (device != NULL);
 
 	// Set the default values.
+	device->firmware = 0;
 	memset (device->version, 0, sizeof (device->version));
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->layout = NULL;
@@ -608,7 +612,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
-	devinfo.firmware = 0;
+	devinfo.firmware = device->firmware;
 	if (layout->pt_mode_serial == 0)
 		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
 	else if (layout->pt_mode_serial == 1)

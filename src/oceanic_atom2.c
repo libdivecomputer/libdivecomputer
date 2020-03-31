@@ -910,7 +910,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	}
 
 	// Detect the memory layout.
-	device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions);
+	device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
 	if (device->base.layout == NULL) {
 		WARNING (context, "Unsupported device detected!");
 		if (memcmp(device->base.version + 12, "256K", 4) == 0) {

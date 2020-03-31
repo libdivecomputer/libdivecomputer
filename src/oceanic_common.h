@@ -31,9 +31,9 @@ extern "C" {
 #define PAGESIZE 0x10
 #define FPMAXSIZE 0x20
 
-#define OCEANIC_COMMON_MATCH(version,patterns) \
+#define OCEANIC_COMMON_MATCH(version,patterns,firmware) \
 	oceanic_common_match ((version), (patterns), \
-	sizeof (patterns) / sizeof *(patterns))
+	sizeof (patterns) / sizeof *(patterns), (firmware))
 
 typedef struct oceanic_common_layout_t {
 	// Memory size.
@@ -61,6 +61,7 @@ typedef struct oceanic_common_layout_t {
 
 typedef struct oceanic_common_device_t {
 	dc_device_t base;
+	unsigned int firmware;
 	unsigned char version[PAGESIZE];
 	unsigned char fingerprint[FPMAXSIZE];
 	const oceanic_common_layout_t *layout;
@@ -80,7 +81,7 @@ typedef struct oceanic_common_version_t {
 } oceanic_common_version_t;
 
 const oceanic_common_layout_t *
-oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n);
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n, unsigned int *firmware);
 
 void
 oceanic_common_device_init (oceanic_common_device_t *device);
