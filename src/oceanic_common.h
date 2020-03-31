@@ -73,10 +73,14 @@ typedef struct oceanic_common_device_vtable_t {
 	dc_status_t (*profile) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata);
 } oceanic_common_device_vtable_t;
 
-typedef unsigned char oceanic_common_version_t[PAGESIZE + 1];
+typedef struct oceanic_common_version_t {
+	unsigned char pattern[PAGESIZE + 1];
+	unsigned int firmware;
+	const oceanic_common_layout_t *layout;
+} oceanic_common_version_t;
 
-int
-oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n);
+const oceanic_common_layout_t *
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n);
 
 void
 oceanic_common_device_init (oceanic_common_device_t *device);

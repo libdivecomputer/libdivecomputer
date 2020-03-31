@@ -129,16 +129,19 @@ oceanic_common_match_pattern (const unsigned char *string, const unsigned char *
 	return 1;
 }
 
-
-int
-oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n)
+const oceanic_common_layout_t *
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n)
 {
-	for (unsigned int i = 0; i < n; ++i) {
-		if (oceanic_common_match_pattern (version, patterns[i], NULL))
-			return 1;
+	for (size_t i = 0; i < n; ++i) {
+		unsigned int fw = 0;
+		if (oceanic_common_match_pattern (version, patterns[i].pattern, &fw) &&
+			fw >= patterns[i].firmware)
+		{
+			return patterns[i].layout;
+		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 
