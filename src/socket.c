@@ -24,6 +24,10 @@
 #include "common-private.h"
 #include "context-private.h"
 
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
 dc_status_t
 dc_socket_syserror (s_errcode_t errcode)
 {
@@ -106,8 +110,22 @@ dc_socket_open (dc_iostream_t *abstract, int family, int type, int protocol)
 		goto error;
 	}
 
+#ifdef SO_NOSIGPIPE
+	int optval = 1;
+	if (setsockopt(device->fd, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval)) != 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (abstract->context, errcode);
+		status = dc_socket_syserror(errcode);
+		goto error_close;
+	}
+#endif
+
 	return DC_STATUS_SUCCESS;
 
+#ifdef SO_NOSIGPIPE
+error_close:
+	S_CLOSE (device->fd);
+#endif
 error:
 	dc_socket_exit (abstract->context);
 	return status;
@@ -304,7 +322,7 @@ dc_socket_write (dc_iostream_t *abstract, const void *data, size_t size, size_t 
 			break; // Timeout.
 		}
 
-		s_ssize_t n = send (socket->fd, (const char *) data + nbytes, size - nbytes, 0);
+		s_ssize_t n = send (socket->fd, (const char *) data + nbytes, size - nbytes, MSG_NOSIGNAL);
 		if (n < 0) {
 			s_errcode_t errcode = S_ERRNO;
 			if (errcode == S_EINTR || errcode == S_EAGAIN)
