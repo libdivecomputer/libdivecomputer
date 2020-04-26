@@ -58,6 +58,7 @@
 #include "cochran_commander.h"
 #include "tecdiving_divecomputereu.h"
 #include "mclean_extreme.h"
+#include "liquivision_lynx.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -175,6 +176,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_MCLEAN_EXTREME:
 		rc = mclean_extreme_parser_create (&parser, context);
+		break;
+	case DC_FAMILY_LIQUIVISION_LYNX:
+		rc = liquivision_lynx_parser_create (&parser, context, model);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

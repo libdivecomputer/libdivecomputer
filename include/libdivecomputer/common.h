@@ -106,6 +106,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_TECDIVING_DIVECOMPUTEREU = (15 << 16),
 	/* McLean */
 	DC_FAMILY_MCLEAN_EXTREME = (16 << 16),
+	/* Liquivision */
+	DC_FAMILY_LIQUIVISION_LYNX = (17 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

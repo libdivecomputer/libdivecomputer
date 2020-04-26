@@ -58,6 +58,7 @@
 #include "cochran_commander.h"
 #include "tecdiving_divecomputereu.h"
 #include "mclean_extreme.h"
+#include "liquivision_lynx.h"
 
 #include "device-private.h"
 #include "context-private.h"
@@ -214,6 +215,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_MCLEAN_EXTREME:
 		rc = mclean_extreme_device_open (&device, context, iostream);
+		break;
+	case DC_FAMILY_LIQUIVISION_LYNX:
+		rc = liquivision_lynx_device_open (&device, context, iostream);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

@@ -91,6 +91,7 @@ static const backend_table_t g_backends[] = {
 	{"cochran",     DC_FAMILY_COCHRAN_COMMANDER,   0},
 	{"divecomputereu", DC_FAMILY_TECDIVING_DIVECOMPUTEREU, 0},
 	{"mclean",      DC_FAMILY_MCLEAN_EXTREME,      0},
+	{"lynx",        DC_FAMILY_LIQUIVISION_LYNX,    0},
 };
 
 static const transport_table_t g_transports[] = {

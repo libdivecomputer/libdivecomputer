@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2008 Jef Driesen
+ * Copyright (C) 2020 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,36 +19,25 @@
  * MA 02110-1301 USA
  */
 
-#ifndef CHECKSUM_H
-#define CHECKSUM_H
+#ifndef LIQUIVISION_LYNX_H
+#define LIQUIVISION_LYNX_H
+
+#include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
+#include <libdivecomputer/device.h>
+#include <libdivecomputer/parser.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-unsigned char
-checksum_add_uint4 (const unsigned char data[], unsigned int size, unsigned char init);
+dc_status_t
+liquivision_lynx_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
-unsigned char
-checksum_add_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
-
-unsigned short
-checksum_add_uint16 (const unsigned char data[], unsigned int size, unsigned short init);
-
-unsigned char
-checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
-
-unsigned short
-checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init);
-
-unsigned int
-checksum_crc32 (const unsigned char data[], unsigned int size);
-
-unsigned int
-checksum_crc32b (const unsigned char data[], unsigned int size);
+dc_status_t
+liquivision_lynx_parser_create (dc_parser_t **parser, dc_context_t *context, unsigned int model);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* CHECKSUM_H */
+#endif /* LIQUIVISION_LYNX_H */
