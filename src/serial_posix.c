@@ -230,7 +230,7 @@ dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
 				return DC_STATUS_NOMEMORY;
 			}
 
-			if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, filename)) {
+			if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, filename, NULL)) {
 				continue;
 			}
 

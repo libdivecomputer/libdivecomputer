@@ -435,7 +435,7 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 		}
 
 		dc_usb_desc_t usb = {dev.idVendor, dev.idProduct};
-		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_USBHID, &usb)) {
+		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_USBHID, &usb, NULL)) {
 			continue;
 		}
 

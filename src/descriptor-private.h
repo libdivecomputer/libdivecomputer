@@ -34,7 +34,7 @@ typedef struct dc_usb_desc_t {
 } dc_usb_desc_t;
 
 int
-dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
+dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata, void *params);
 
 #ifdef __cplusplus
 }
