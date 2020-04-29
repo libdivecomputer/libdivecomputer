@@ -40,6 +40,8 @@
 
 typedef int (*dc_match_t)(const void *, const void *);
 
+typedef int (*dc_filter_t) (dc_transport_t transport, const void *userdata);
+
 static int dc_filter_uwatec (dc_transport_t transport, const void *userdata);
 static int dc_filter_suunto (dc_transport_t transport, const void *userdata);
 static int dc_filter_shearwater (dc_transport_t transport, const void *userdata);
@@ -745,11 +747,11 @@ dc_descriptor_get_transports (dc_descriptor_t *descriptor)
 	return descriptor->transports;
 }
 
-dc_filter_t
-dc_descriptor_get_filter (dc_descriptor_t *descriptor)
+int
+dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata)
 {
-	if (descriptor == NULL)
-		return NULL;
+	if (descriptor == NULL || descriptor->filter == NULL)
+		return 1;
 
-	return descriptor->filter;
+	return descriptor->filter (transport, userdata);
 }
