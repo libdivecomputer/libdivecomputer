@@ -76,6 +76,7 @@ libdivecomputer_la_SOURCES = \
 	liquivision_lynx.h liquivision_lynx.c liquivision_lynx_parser.c \
 	socket.h socket.c \
 	irda.c \
+	usb.c \
 	usbhid.c \
 	bluetooth.c \
 	custom.c

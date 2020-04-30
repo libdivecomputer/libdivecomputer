@@ -12,6 +12,7 @@ libdivecomputer_HEADERS = 	\
 	bluetooth.h \
 	ble.h \
 	irda.h \
+	usb.h \
 	usbhid.h \
 	custom.h \
 	device.h \

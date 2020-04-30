@@ -70,6 +70,12 @@ dc_irda_device_free
 dc_irda_iterator_new
 dc_irda_open
 
+dc_usb_device_get_vid
+dc_usb_device_get_pid
+dc_usb_device_free
+dc_usb_iterator_new
+dc_usb_open
+
 dc_usbhid_device_get_vid
 dc_usbhid_device_get_pid
 dc_usbhid_device_free
