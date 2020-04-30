@@ -61,6 +61,7 @@ static int dc_filter_mares (dc_transport_t transport, const void *userdata, void
 static int dc_filter_divesystem (dc_transport_t transport, const void *userdata, void *params);
 static int dc_filter_oceanic (dc_transport_t transport, const void *userdata, void *params);
 static int dc_filter_mclean (dc_transport_t transport, const void *userdata, void *params);
+static int dc_filter_atomic (dc_transport_t transport, const void *userdata, void *params);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -326,8 +327,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Dive Rite", "NiTek Trio", DC_FAMILY_ZEAGLE_N2ITION3, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro",  "XTender 5",  DC_FAMILY_ZEAGLE_N2ITION3, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Atomic Aquatics Cobalt */
-	{"Atomic Aquatics", "Cobalt", DC_FAMILY_ATOMICS_COBALT, 0, DC_TRANSPORT_USB, NULL},
-	{"Atomic Aquatics", "Cobalt 2", DC_FAMILY_ATOMICS_COBALT, 2, DC_TRANSPORT_USB, NULL},
+	{"Atomic Aquatics", "Cobalt",   DC_FAMILY_ATOMICS_COBALT, 0, DC_TRANSPORT_USB, dc_filter_atomic},
+	{"Atomic Aquatics", "Cobalt 2", DC_FAMILY_ATOMICS_COBALT, 2, DC_TRANSPORT_USB, dc_filter_atomic},
 	/* Shearwater Predator */
 	{"Shearwater", "Predator", DC_FAMILY_SHEARWATER_PREDATOR, 2, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_shearwater},
 	/* Shearwater Petrel */
@@ -664,6 +665,23 @@ static int dc_filter_mclean(dc_transport_t transport, const void *userdata, void
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	} else if (transport == DC_TRANSPORT_SERIAL) {
 		return DC_FILTER_INTERNAL(userdata, rfcomm, 1, dc_match_devname);
+	}
+
+	return 1;
+}
+
+static int dc_filter_atomic (dc_transport_t transport, const void *userdata, void *params)
+{
+	static const dc_usb_desc_t usb[] = {
+		{0x0471, 0x0888}, // Atomic Aquatics Cobalt
+	};
+
+	static const dc_usb_params_t usb_params = {
+		0, 0x82, 0x02
+	};
+
+	if (transport == DC_TRANSPORT_USB) {
+		return DC_FILTER_INTERNAL_WITH_PARAMS (userdata, usb, 0, dc_match_usb, params, &usb_params);
 	}
 
 	return 1;

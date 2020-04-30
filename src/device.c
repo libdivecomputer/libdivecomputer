@@ -190,7 +190,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = zeagle_n2ition3_device_open (&device, context, iostream);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
-		rc = atomics_cobalt_device_open (&device, context);
+		rc = atomics_cobalt_device_open (&device, context, iostream);
 		break;
 	case DC_FAMILY_SHEARWATER_PREDATOR:
 		rc = shearwater_predator_device_open (&device, context, iostream);

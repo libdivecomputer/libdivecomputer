@@ -19,19 +19,10 @@
  * MA 02110-1301 USA
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
-#ifdef HAVE_LIBUSB
-#ifdef _WIN32
-#define NOGDI
-#endif
-#include <libusb.h>
-#endif
+#include <libdivecomputer/usb.h>
 
 #include "atomics_cobalt.h"
 #include "context-private.h"
@@ -40,8 +31,6 @@
 #include "array.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &atomics_cobalt_device_vtable)
-
-#define EXITCODE(rc) (rc == LIBUSB_ERROR_TIMEOUT ? DC_STATUS_TIMEOUT : DC_STATUS_IO)
 
 #define COBALT1 0
 #define COBALT2 2
@@ -58,10 +47,7 @@
 
 typedef struct atomics_cobalt_device_t {
 	dc_device_t base;
-#ifdef HAVE_LIBUSB
-	libusb_context *context;
-	libusb_device_handle *handle;
-#endif
+	dc_iostream_t *iostream;
 	unsigned int simulation;
 	unsigned char fingerprint[6];
 	unsigned char version[SZ_VERSION];
@@ -69,7 +55,6 @@ typedef struct atomics_cobalt_device_t {
 
 static dc_status_t atomics_cobalt_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-static dc_status_t atomics_cobalt_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t atomics_cobalt_device_vtable = {
 	sizeof(atomics_cobalt_device_t),
@@ -80,22 +65,19 @@ static const dc_device_vtable_t atomics_cobalt_device_vtable = {
 	NULL, /* dump */
 	atomics_cobalt_device_foreach, /* foreach */
 	NULL, /* timesync */
-	atomics_cobalt_device_close /* close */
+	NULL /* close */
 };
 
 
 dc_status_t
-atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
+atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
 {
-#ifdef HAVE_LIBUSB
 	dc_status_t status = DC_STATUS_SUCCESS;
 	atomics_cobalt_device_t *device = NULL;
-#endif
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-#ifdef HAVE_LIBUSB
 	// Allocate memory.
 	device = (atomics_cobalt_device_t *) dc_device_allocate (context, &atomics_cobalt_device_vtable);
 	if (device == NULL) {
@@ -104,67 +86,30 @@ atomics_cobalt_device_open (dc_device_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
-	device->context = NULL;
-	device->handle = NULL;
+	device->iostream = iostream;
 	device->simulation = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
-	int rc = libusb_init (&device->context);
-	if (rc < 0) {
-		ERROR (context, "Failed to initialize usb support.");
-		status = DC_STATUS_IO;
+	// Set the timeout for receiving data (2000 ms).
+	status = dc_iostream_set_timeout (device->iostream, TIMEOUT);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the timeout.");
 		goto error_free;
-	}
-
-	device->handle = libusb_open_device_with_vid_pid (device->context, VID, PID);
-	if (device->handle == NULL) {
-		ERROR (context, "Failed to open the usb device.");
-		status = DC_STATUS_IO;
-		goto error_usb_exit;
-	}
-
-	rc = libusb_claim_interface (device->handle, 0);
-	if (rc < 0) {
-		ERROR (context, "Failed to claim the usb interface.");
-		status = DC_STATUS_IO;
-		goto error_usb_close;
 	}
 
 	status = atomics_cobalt_device_version ((dc_device_t *) device, device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to identify the dive computer.");
-		goto error_usb_close;
+		goto error_free;
 	}
 
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
 
-error_usb_close:
-	libusb_close (device->handle);
-error_usb_exit:
-	libusb_exit (device->context);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
-}
-
-
-static dc_status_t
-atomics_cobalt_device_close (dc_device_t *abstract)
-{
-	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
-
-#ifdef HAVE_LIBUSB
-	libusb_release_interface(device->handle, 0);
-	libusb_close (device->handle);
-	libusb_exit (device->context);
-#endif
-
-	return DC_STATUS_SUCCESS;
 }
 
 
@@ -202,6 +147,7 @@ atomics_cobalt_device_set_simulation (dc_device_t *abstract, unsigned int simula
 dc_status_t
 atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (!ISINSTANCE (abstract))
@@ -210,30 +156,30 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 	if (size < SZ_VERSION)
 		return DC_STATUS_INVALIDARGS;
 
-#ifdef HAVE_LIBUSB
 	// Send the command to the dive computer.
-	uint8_t bRequest = 0x01;
-	int rc = libusb_control_transfer (device->handle,
-		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-		bRequest, 0, 0, NULL, 0, TIMEOUT);
-	if (rc != LIBUSB_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE(rc);
-	}
+	unsigned char bRequest = 0x01;
+	dc_usb_control_t control = {
+		DC_USB_REQUEST_VENDOR | DC_USB_RECIPIENT_DEVICE | DC_USB_ENDPOINT_OUT, /* bmRequestType */
+		bRequest, /* bRequest */
+		0, /* wValue */
+		0, /* wIndex */
+		0, /* wLength */
+	};
 
-	HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Write", &bRequest, 1);
+	status = dc_iostream_ioctl (device->iostream, DC_IOCTL_USB_CONTROL_WRITE, &control, sizeof(control));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to send the command.");
+		return status;
+	}
 
 	// Receive the answer from the dive computer.
-	int length = 0;
+	size_t length = 0;
 	unsigned char packet[SZ_VERSION + 2] = {0};
-	rc = libusb_bulk_transfer (device->handle, 0x82,
-		packet, sizeof (packet), &length, TIMEOUT);
-	if (rc != LIBUSB_SUCCESS || length != sizeof (packet)) {
+	status = dc_iostream_read (device->iostream, packet, sizeof(packet), &length);
+	if (status != DC_STATUS_SUCCESS || length != sizeof (packet)) {
 		ERROR (abstract->context, "Failed to receive the answer.");
-		return EXITCODE(rc);
+		return status;
 	}
-
-	HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Read", packet, length);
 
 	// Verify the checksum of the packet.
 	unsigned short crc = array_uint16_le (packet + SZ_VERSION);
@@ -246,16 +192,13 @@ atomics_cobalt_device_version (dc_device_t *abstract, unsigned char data[], unsi
 	memcpy (data, packet, SZ_VERSION);
 
 	return DC_STATUS_SUCCESS;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
 
 static dc_status_t
 atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc_event_progress_t *progress)
 {
-#ifdef HAVE_LIBUSB
+	dc_status_t status = DC_STATUS_SUCCESS;
 	atomics_cobalt_device_t *device = (atomics_cobalt_device_t *) abstract;
 
 	if (device_is_cancelled (abstract))
@@ -268,34 +211,36 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 	}
 
 	// Send the command to the dive computer.
-	uint8_t bRequest = 0;
+	unsigned char bRequest = 0;
 	if (device->simulation)
 		bRequest = init ? 0x02 : 0x03;
 	else
 		bRequest = init ? 0x09 : 0x0A;
-	int rc = libusb_control_transfer (device->handle,
-		LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-		bRequest, 0, 0, NULL, 0, TIMEOUT);
-	if (rc != LIBUSB_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the command.");
-		return EXITCODE(rc);
-	}
 
-	HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Write", &bRequest, 1);
+	dc_usb_control_t control = {
+		DC_USB_REQUEST_VENDOR | DC_USB_RECIPIENT_DEVICE | DC_USB_ENDPOINT_OUT, /* bmRequestType */
+		bRequest, /* bRequest */
+		0, /* wValue */
+		0, /* wIndex */
+		0, /* wLength */
+	};
+
+	status = dc_iostream_ioctl (device->iostream, DC_IOCTL_USB_CONTROL_WRITE, &control, sizeof(control));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to send the command.");
+		return status;
+	}
 
 	unsigned int nbytes = 0;
 	while (1) {
 		// Receive the answer from the dive computer.
-		int length = 0;
+		size_t length = 0;
 		unsigned char packet[8 * 1024] = {0};
-		rc = libusb_bulk_transfer (device->handle, 0x82,
-			packet, sizeof (packet), &length, TIMEOUT);
-		if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT) {
+		status = dc_iostream_read (device->iostream, packet, sizeof(packet), &length);
+		if (status != DC_STATUS_SUCCESS && status != DC_STATUS_TIMEOUT) {
 			ERROR (abstract->context, "Failed to receive the answer.");
-			return EXITCODE(rc);
+			return status;
 		}
-
-		HEXDUMP (abstract->context, DC_LOGLEVEL_INFO, "Read", packet, length);
 
 		// Update and emit a progress event.
 		if (progress) {
@@ -343,9 +288,6 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 	dc_buffer_slice (buffer, 0, nbytes - 2);
 
 	return DC_STATUS_SUCCESS;
-#else
-	return DC_STATUS_UNSUPPORTED;
-#endif
 }
 
 
