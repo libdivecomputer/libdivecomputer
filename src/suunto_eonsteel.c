@@ -642,11 +642,34 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 }
 
 /*
+ * Insert a directory entry in the sorted list, most recent entry
+ * first.
+ *
+ * The directory entry names are the timestamps as hex, so ordering
+ * in alphabetical order ends up also ordering in date order!
+ */
+static struct directory_entry *insert_dirent(struct directory_entry *entry, struct directory_entry *list)
+{
+	struct directory_entry **pos = &list, *next;
+
+	while ((next = *pos) != NULL) {
+		/* Is this bigger (more recent) than the next entry? We're good! */
+		if (strcmp(entry->name, next->name) > 0)
+			break;
+		pos = &next->next;
+	}
+	entry->next = next;
+	*pos = entry;
+
+	return list;
+}
+
+/*
  * NOTE! This will create the list of dirent's in reverse order,
  * with the last dirent first. That's intentional: for dives,
  * we will want to look up the last dive first.
  */
-static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int nr, const unsigned char *p, unsigned int len, struct directory_entry *old)
+static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int nr, const unsigned char *p, unsigned int len, struct directory_entry *list)
 {
 	while (len > 8) {
 		unsigned int type = array_uint32_le(p);
@@ -667,10 +690,9 @@ static struct directory_entry *parse_dirent(suunto_eonsteel_device_t *eon, int n
 			ERROR(eon->base.context, "out of memory");
 			break;
 		}
-		entry->next = old;
-		old = entry;
+		list = insert_dirent(entry, list);
 	}
-	return old;
+	return list;
 }
 
 static dc_status_t
@@ -729,6 +751,19 @@ get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 	*res = de;
 
 	return DC_STATUS_SUCCESS;
+}
+
+static int
+count_file_list(struct directory_entry *list)
+{
+	int count = 0;
+
+	while (list) {
+		count++;
+		list = list->next;
+	}
+
+	return count;
 }
 
 dc_status_t
@@ -802,7 +837,6 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 	dc_buffer_t *file;
 	char pathname[64];
 	unsigned int time;
-	unsigned int count = 0;
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 
 	// Emit a device info event.
@@ -820,46 +854,17 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 		return DC_STATUS_SUCCESS;
 	}
 
-	// Locate the most recent dive.
-	// The filename represent the time of the dive, encoded as a hexadecimal
-	// number. Thus the most recent dive can be found by simply sorting the
-	// filenames alphabetically.
-	struct directory_entry *head = de, *tail = de, *latest = de;
-	while (de) {
-		if (strcmp (de->name, latest->name) > 0) {
-			latest = de;
-		}
-		tail = de;
-		count++;
-		de = de->next;
-	}
-
-	// Make the most recent dive the head of the list.
-	// The linked list is made circular, by attaching the head to the tail and
-	// then cut open again just before the most recent dive.
-	de = head;
-	while (de) {
-		if (de->next == latest) {
-			de->next = NULL;
-			tail->next = head;
-			break;
-		}
-
-		de = de->next;
-	}
-
 	file = dc_buffer_new (16384);
 	if (file == NULL) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
-		file_list_free (latest);
+		file_list_free(de);
 		return DC_STATUS_NOMEMORY;
 	}
 
-	progress.maximum = count;
+	progress.maximum = count_file_list(de);
 	progress.current = 0;
 	device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);
 
-	de = latest;
 	while (de) {
 		int len;
 		struct directory_entry *next = de->next;
