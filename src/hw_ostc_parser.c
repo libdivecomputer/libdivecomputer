@@ -880,12 +880,12 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		for (unsigned int i = 0; i < nconfig; ++i) {
 			if (info[i].divisor && (nsamples % info[i].divisor) == 0) {
 				if (length < info[i].size) {
-					// Due to a bug in the hwOS Tech firmware v3.03 to v3.07, and
+					// Due to a bug in the hwOS Tech firmware v3.03 to v3.08, and
 					// the hwOS Sport firmware v10.57 to v10.63, the ppO2 divisor
 					// is sometimes not correctly reset to zero when no ppO2
 					// samples are being recorded.
 					if (info[i].type == PPO2 && parser->hwos && parser->model != OSTC4 &&
-						((firmware >= OSTC3FW(3,3) && firmware <= OSTC3FW(3,7)) ||
+						((firmware >= OSTC3FW(3,3) && firmware <= OSTC3FW(3,8)) ||
 						(firmware >= OSTC3FW(10,57) && firmware <= OSTC3FW(10,63)))) {
 						WARNING (abstract->context, "Reset invalid ppO2 divisor to zero.");
 						info[i].divisor = 0;
