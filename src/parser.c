@@ -57,6 +57,7 @@
 #include "divesystem_idive.h"
 #include "cochran_commander.h"
 #include "tecdiving_divecomputereu.h"
+#include "mclean_extreme.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -171,6 +172,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_TECDIVING_DIVECOMPUTEREU:
 		rc = tecdiving_divecomputereu_parser_create (&parser, context);
+		break;
+	case DC_FAMILY_MCLEAN_EXTREME:
+		rc = mclean_extreme_parser_create (&parser, context);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
