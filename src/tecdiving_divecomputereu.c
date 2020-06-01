@@ -376,6 +376,10 @@ tecdiving_divecomputereu_device_open (dc_device_t **out, dc_context_t *context, 
 		goto error_free;
 	}
 
+	// Make sure everything is in a sane state.
+	dc_iostream_sleep (device->iostream, 100);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
+
 	// Send the init command.
 	status = tecdiving_divecomputereu_send (device, CMD_INIT, NULL, 0);
 	if (status != DC_STATUS_SUCCESS) {

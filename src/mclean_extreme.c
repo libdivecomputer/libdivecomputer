@@ -420,6 +420,10 @@ mclean_extreme_device_open(dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
+	// Make sure everything is in a sane state.
+	dc_iostream_sleep (device->iostream, 100);
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
+
 	*out = (dc_device_t *)device;
 
 	return DC_STATUS_SUCCESS;
