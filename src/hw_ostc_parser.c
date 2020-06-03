@@ -617,14 +617,6 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	else
 		samplerate = data[36];
 
-	// Get the salinity factor.
-	unsigned int salinity = data[layout->salinity];
-	if (version == 0x23 || version == 0x24)
-		salinity += 100;
-	if (salinity < 100 || salinity > 104)
-		salinity = 100;
-	double hydrostatic = GRAVITY * salinity * 10.0;
-
 	// Get the number of sample descriptors.
 	unsigned int nconfig = 0;
 	if (version == 0x23 || version == 0x24)
@@ -728,9 +720,9 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 		}
 
-		// Depth (mbar).
+		// Depth (1/100 m).
 		unsigned int depth = array_uint16_le (data + offset);
-		sample.depth = (depth * BAR / 1000.0) / hydrostatic;
+		sample.depth = depth / 100.0;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 		offset += 2;
 
