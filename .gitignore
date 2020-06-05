@@ -37,32 +37,7 @@ Makefile.in
 /doc/html/
 /doc/latex/
 
-/examples/aladin
-/examples/atom2
-/examples/d9
-/examples/darwin
-/examples/edy
-/examples/eon
-/examples/frog
-/examples/iconhd
-/examples/leonardo
-/examples/memomouse
-/examples/n2ition3
-/examples/nemo
-/examples/ostc
-/examples/ostc-fwupdate
-/examples/predator
-/examples/puck
-/examples/sensus
-/examples/sensuspro
-/examples/sensusultra
-/examples/smart
-/examples/solution
-/examples/universal
-/examples/veo250
-/examples/vtpro
-/examples/vyper
-/examples/vyper2
+/examples/dctool
 
 /include/libdivecomputer/version.h
 
