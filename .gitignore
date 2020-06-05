@@ -37,6 +37,7 @@ Makefile.in
 /doc/html/
 /doc/latex/
 
+/examples/dctool
 /examples/aladin
 /examples/atom2
 /examples/d9
