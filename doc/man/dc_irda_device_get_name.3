@@ -1,0 +1,58 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2020 Vincent Hagen <vinnie@script4web.nl>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd June 5, 2020
+.Dt DC_IRDA_DEVICE_GET_NAME 3
+.Os
+.Sh NAME
+.Nm dc_irda_device_get_name
+.Nd Get the address of the IrDA device.
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/irda.h
+.Ft "const char *"
+.Fo dc_irda_device_get_name
+.Fa "dc_irda_device_t *device"
+.Fc
+.Sh DESCRIPTION
+Get the name of the IrDA device. Used for displaying.
+Requires a valid irda
+.Fa device
+of type
+.Ft dc_irda_device_t
+which can be retrieved using
+.Xr dc_irda_iterator_new 3 .
+.Sh RETURN VALUES
+Returns the IrDA name of given
+.Fa irda_device
+.Sh SEE ALSO
+.Xr dc_irda_device_get_address 3 .
+.Xr dc_irda_iterator_new 3 .
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+.br
+This manpage is written by
+.An Vincent Hagen ,
+.Mt vinnie@script4web.nl .

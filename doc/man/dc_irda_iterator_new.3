@@ -1,0 +1,102 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2020 Vincent Hagen <vinnie@script4web.nl>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd June 5, 2020
+.Dt DC_IRDA_ITERATOR_NEW 3
+.Os
+.Sh NAME
+.Nm dc_irda_iterator_new
+.Nd Create an iterator to enumerate the IrDA devices.
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/irda.h
+.Ft dc_status_t
+.Fo dc_irda_iterator_new
+.Fa "dc_iterator_t **iterator"
+.Fa "dc_context_t *context"
+.Fa "dc_descriptor_t *descriptor"
+.Fc
+.Sh DESCRIPTION
+Iterates through the available IrDA devices which matches the given
+.Fa descriptor .
+Accepts a
+.Fa context
+opened with
+.Xr dc_context_new 3
+and a
+.Fa descriptor
+usually found by searching through
+.Xr dc_descriptor_iterator 3 .
+.Pp
+On returning
+.Dv DC_STATUS_SUCCESS
+the
+.Fa iterator
+will be set to an
+.Ft dc_iterator_t
+which can be used to iterate the available IrDA devices using
+.Xr dc_iterator_next 3 .
+.Pp
+The value type of the iterator is of type
+.Ft dc_irda_device_t .
+This value can be used in functions to extract information about this specific IrDA device, namely
+.Xr dc_irda_device_get_name 3
+and
+.Xr dc_irda_device_get_address 3 .
+When done the IrDA device needs to be freed with
+.Xr dc_irda_device_free 3 .
+.Pp
+After iterating the
+.Fa iterator
+needs to be freed using
+.Xr dc_iterator_free 3 .
+
+.Sh RETURN VALUES
+Returns
+.Dv DC_STATUS_SUCCESS
+on success, or another
+.Ft dc_status_t
+code on failure.
+
+On
+.Dv DC_STATUS_SUCCESS
+the returned
+.Fa iterator
+needs to be freed when done using
+.Xr dc_iterator_free 3 .
+.Sh SEE ALSO
+.Xr dc_context_new 3 ,
+.Xr dc_usbhid_iterator_new 3 ,
+.Xr dc_serial_iterator_new 3 ,
+.Xr dc_bluetooth_iterator_new 3 ,
+.Xr dc_irda_device_get_name 3 ,
+.Xr dc_irda_device_get_address 3 ,
+.Xr dc_irda_device_free 3 .
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+.br
+This manpage is written by
+.An Vincent Hagen ,
+.Mt vinnie@script4web.nl .

@@ -1,7 +1,7 @@
 .\"
 .\" libdivecomputer
 .\"
-.\" Copyright (C) 2017 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (C) 2020 Vincent Hagen <vinnie@script4web.nl>
 .\"
 .\" This library is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU Lesser General Public
@@ -19,59 +19,35 @@
 .\" MA 02110-1301 USA
 .\"
 .Dd June 5, 2020
-.Dt DC_DEVICE_OPEN 3
+.Dt DC_IOSTREAM_CLOSE 3
 .Os
 .Sh NAME
-.Nm dc_device_open
-.Nd open a dive computer device
+.Nm dc_iostream_close
+.Nd Close the I/O stream and free all resources.
 .Sh LIBRARY
 .Lb libdivecomputer
 .Sh SYNOPSIS
-.In libdivecomputer/device.h
+.In libdivecomputer/iostream.h
 .Ft dc_status_t
-.Fo dc_device_open
-.Fa "dc_device_t **device"
-.Fa "dc_context_t *context"
-.Fa "dc_descriptor_t *descriptor"
+.Fo dc_iostream_close
 .Fa "dc_iostream_t *iostream"
 .Fc
 .Sh DESCRIPTION
-Open a dive computer device for processing.
-Accepts a
-.Fa context
-opened with
-.Xr dc_context_new 3 ,
-a dive computer
-.Fa descriptor
-usually found by searching through
-.Xr dc_descriptor_iterator 3 ,
-and a 
+Close the I/O stream and free all resources.
+Accepts the
 .Fa iostream
-opened with a transport specific open function like
-.Xr dc_usbhid_open 3 ,
-.Xr dc_irda_open 3 ,
-.Xr dc_serial_open 3 ,
-or
-.Xr dc_bluetooth_open 3
-.Pc .
-.Pp
-Upon returning
-.Dv DC_STATUS_SUCCESS ,
-the
-.Fa device
-pointer must be freed with
-.Xr dc_device_close 3 .
+to close and free.
 .Sh RETURN VALUES
 Returns
 .Dv DC_STATUS_SUCCESS
-on success or one of several error values on error.
-On success, the
-.Fa device
-pointer is filled in with an open handle.
+on success, or another
+.Ft dc_status_t
+code on failure.
 .Sh SEE ALSO
-.Xr dc_context_new 3 ,
-.Xr dc_descriptor_iterator 3 ,
-.Xr dc_device_close 3
+.Xr dc_usbhid_open 3 ,
+.Xr dc_serial_open 3 ,
+.Xr dc_irda_open 3 ,
+.Xr dc_bluetooth_open 3 .
 .Sh AUTHORS
 The
 .Lb libdivecomputer
@@ -79,9 +55,6 @@ library was written by
 .An Jef Driesen ,
 .Mt jef@libdivecomputer.org .
 .br
-The manpages were written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
-and
+This manpage is written by
 .An Vincent Hagen ,
-.Mt vinnie@script4web.nl
+.Mt vinnie@script4web.nl .

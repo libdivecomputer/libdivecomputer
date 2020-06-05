@@ -41,9 +41,8 @@ these steps:
 .Bl -enum
 .It
 Create a new context with
-.Xr dc_context_new 3 .
-This supplies a parse context: logging, error handling, etc.
-Override the values with
+.Xr dc_context_new 3
+to initialize the library. Logging can be controlled with
 .Xr dc_context_set_logfunc 3
 and
 .Xr dc_context_set_loglevel 3 .
@@ -52,11 +51,28 @@ Find a descriptor for their dive computer by iterating through
 .Xr dc_descriptor_iterator 3
 and searching by name, vendor, or product family.
 .It
-Open the hardware device to which the dive computer is connected with
-.Xr dc_device_open 3 ,
-then invoke
+Find the transport to use for the communication. To determine the supported transports use
+.Xr dc_descriptor_get_transports 3 .
+.It
+Find the hardware device corresponding to the connected dive computer by iterating through
+.Xr dc_usbhid_iterator_new 3 ,
+.Xr dc_serial_iterator_new 3 ,
+.Xr dc_irda_iterator_new 3
+or
+.Xr dc_bluetooth_iterator_new 3 .
+.It
+Open the transport communcations with
+.Xr dc_usbhid_open 3 ,
+.Xr dc_serial_open 3 ,
+.Xr dc_irda_open 3 
+or
+.Xr dc_bluetooth_open 3 .
+.It
+Open a connection to the dive computer with
+.Xr dc_device_open 3 .
+Optionally use
 .Xr dc_device_set_events 3 ,
-.Xr dc_device_set_fingerprint 3 ,
+.Xr dc_device_set_fingerprint 3
 and
 .Xr dc_device_set_cancel 3
 to set the logging events, last-seen fingerprint, and cancel routine,
@@ -71,8 +87,9 @@ and set the parsed data with
 .Xr dc_parser_set_data 3 .
 .It
 Get attributes of the parsed dive with
-.Xr dc_parser_get_field 3 ,
-then iterate through the dive's samples (recorded data) with
+.Xr dc_parser_get_field 3 .
+.It
+Iterate through the dive's samples (recorded data) with
 .Xr dc_parser_samples_foreach 3 .
 .El
 .Sh RETURN VALUES
@@ -129,7 +146,10 @@ return
 .Dv DC_STATUS_SUCCESS .
 .El
 .Sh SEE ALSO
-.Xr dc_buffer_new 3
+.Xr dc_context_new 3 ,
+.Xr dc_descriptor_iterator 3
+.Xr dc_device_open 3
+.Xr dc_parser_new 3
 .Sh AUTHORS
 The
 .Lb libdivecomputer
