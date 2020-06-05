@@ -1,0 +1,60 @@
+.\"
+.\" libdivecomputer
+.\"
+.\" Copyright (C) 2020 Vincent Hagen <vinnie@script4web.nl>
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library; if not, write to the Free Software
+.\" Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+.\" MA 02110-1301 USA
+.\"
+.Dd June 5, 2020
+.Dt DC_BLUETOOTH_DEVICE_FREE 3
+.Os
+.Sh NAME
+.Nm dc_bluetooth_device_free
+.Nd Destroy the bluetooth device and free all resources.
+.Sh LIBRARY
+.Lb libdivecomputer
+.Sh SYNOPSIS
+.In libdivecomputer/bluetooth.h
+.Ft dc_status_t
+.Fo dc_bluetooth_device_free
+.Fa "dc_bluetooth_device_t *bluetooth_device"
+.Fc
+.Sh DESCRIPTION
+Destroy the bluetooth device and free all resources.
+The
+.Fa bluetooth_device
+usually found by searching through
+.Xr dc_bluetooth_iterator_new 3 .
+.Sh RETURN VALUES
+This returns
+.Dv DC_STATUS_SUCCESS
+on success (or if
+.Fa bluetooth_device
+is
+.Dv NULL )
+or other values on failure.
+.Sh SEE ALSO
+.Xr dc_bluetooth_iterator_new 3 .
+.Sh AUTHORS
+The
+.Lb libdivecomputer
+library was written by
+.An Jef Driesen ,
+.Mt jef@libdivecomputer.org .
+.br
+This manpage is written by
+.An Vincent Hagen ,
+.Mt vinnie@script4web.nl .

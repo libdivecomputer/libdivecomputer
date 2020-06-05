@@ -38,17 +38,21 @@ MANPAGES = \
 	dc_bluetooth_device_get_name.3 \
 	dc_bluetooth_addr2str.3 \
 	dc_bluetooth_str2addr.3 \
+	dc_bluetooth_device_free.3 \
 	dc_usbhid_open.3 \
 	dc_usbhid_device_get_pid.3 \
 	dc_usbhid_device_get_vid.3 \
 	dc_usbhid_iterator_new.3 \
+	dc_usbhid_device_free.3 \
 	dc_serial_open.3 \
 	dc_serial_device_get_name.3 \
 	dc_serial_iterator_new.3 \
+	dc_serial_device_free.3 \
 	dc_irda_open.3 \
 	dc_irda_device_get_name.3 \
 	dc_irda_device_get_address.3 \
 	dc_irda_iterator_new.3 \
+	dc_irda_device_free.3 \
 	dc_iostream_close.3 \
 	libdivecomputer.3  
 
