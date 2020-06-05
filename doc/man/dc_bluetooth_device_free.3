@@ -28,7 +28,7 @@
 .Lb libdivecomputer
 .Sh SYNOPSIS
 .In libdivecomputer/bluetooth.h
-.Ft dc_status_t
+.Ft void
 .Fo dc_bluetooth_device_free
 .Fa "dc_bluetooth_device_t *bluetooth_device"
 .Fc
@@ -38,14 +38,6 @@ The
 .Fa bluetooth_device
 usually found by searching through
 .Xr dc_bluetooth_iterator_new 3 .
-.Sh RETURN VALUES
-This returns
-.Dv DC_STATUS_SUCCESS
-on success (or if
-.Fa bluetooth_device
-is
-.Dv NULL )
-or other values on failure.
 .Sh SEE ALSO
 .Xr dc_bluetooth_iterator_new 3 .
 .Sh AUTHORS

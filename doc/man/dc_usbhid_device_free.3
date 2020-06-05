@@ -28,7 +28,7 @@
 .Lb libdivecomputer
 .Sh SYNOPSIS
 .In libdivecomputer/usbhid.h
-.Ft dc_status_t
+.Ft void
 .Fo dc_usbhid_device_free
 .Fa "dc_usbhid_device_t *usbhid_device"
 .Fc
@@ -38,14 +38,6 @@ The
 .Fa usbhid_device
 usually found by searching through
 .Xr dc_usbhid_iterator_new 3 .
-.Sh RETURN VALUES
-This returns
-.Dv DC_STATUS_SUCCESS
-on success (or if
-.Fa usbhid_device
-is
-.Dv NULL )
-or other values on failure.
 .Sh SEE ALSO
 .Xr dc_usbhid_iterator_new 3 .
 .Sh AUTHORS
