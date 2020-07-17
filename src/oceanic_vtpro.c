@@ -592,8 +592,8 @@ oceanic_vtpro_device_version (dc_device_t *abstract, unsigned char data[], unsig
 				return rc;
 
 			// Verify the checksum of the answer.
-			unsigned char crc = answer[PAGESIZE / 2];
-			unsigned char ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
+			crc = answer[PAGESIZE / 2];
+			ccrc = checksum_add_uint4 (answer, PAGESIZE / 2, 0x00);
 			if (crc != ccrc) {
 				ERROR (abstract->context, "Unexpected answer checksum.");
 				return DC_STATUS_PROTOCOL;

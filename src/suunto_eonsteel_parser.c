@@ -366,10 +366,10 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 	return 0;
 }
 
-static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p, int len, eon_data_cb_t callback, void *user)
+static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p, int size, eon_data_cb_t callback, void *user)
 {
-	const unsigned char *name, *data, *end, *last, *one_past_end = p + len;
-	int textlen, type;
+	const unsigned char *name, *data, *end, *last, *one_past_end = p + size;
+	int textlen, id;
 	int rc;
 
 	// First two bytes: zero and text length
@@ -388,7 +388,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 
 	// Two bytes of 'type' followed by the name/descriptor, followed by the data
 	data = name + textlen;
-	type = array_uint16_le(name);
+	id = array_uint16_le(name);
 	name += 2;
 
 	if (*name != '<') {
@@ -396,7 +396,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 		return -1;
 	}
 
-	record_type(eon, type, (const char *) name, textlen-3);
+	record_type(eon, id, (const char *) name, textlen-3);
 
 	end = data;
 	last = data;
@@ -982,8 +982,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 	info->ceiling = 0.0;
 
 	for (i = 0; i < EON_MAX_GROUP; i++) {
-		enum eon_sample type = desc->type[i];
-		int bytes = handle_sample_type(desc, info, type, data);
+		int bytes = handle_sample_type(desc, info, desc->type[i], data);
 
 		if (!bytes)
 			break;

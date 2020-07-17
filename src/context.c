@@ -130,7 +130,7 @@ l_hexdump (char *str, size_t size, const unsigned char data[], size_t n)
 }
 
 static void
-logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
+loghandler (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
 {
 	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
 
@@ -166,7 +166,7 @@ dc_context_new (dc_context_t **out)
 
 #ifdef ENABLE_LOGGING
 	context->loglevel = DC_LOGLEVEL_WARNING;
-	context->logfunc = logfunc;
+	context->logfunc = loghandler;
 #else
 	context->loglevel = DC_LOGLEVEL_NONE;
 	context->logfunc = NULL;
