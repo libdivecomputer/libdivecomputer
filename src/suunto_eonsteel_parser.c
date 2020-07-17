@@ -1427,6 +1427,8 @@ static int traverse_sample_fields(suunto_eonsteel_parser_t *eon, const struct ty
 			set_depth_field(eon, array_uint16_le(data));
 			data += 2;
 			continue;
+		default:
+			break;
 		}
 		break;
 	}
