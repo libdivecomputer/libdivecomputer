@@ -240,7 +240,8 @@ main (int argc, char *argv[])
 	}
 
 	// Translate the help option into a command.
-	char *argv_help[] = {(char *) "help", NULL, NULL};
+	char helpcmd[] = "help";
+	char *argv_help[] = {helpcmd, NULL, NULL};
 	if (help || argv[0] == NULL) {
 		if (argv[0]) {
 			argv_help[1] = argv[0];
