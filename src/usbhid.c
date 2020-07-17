@@ -703,10 +703,12 @@ dc_usbhid_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual
 
 #if defined(USE_LIBUSB)
 	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_in, data, size, &nbytes, usbhid->timeout);
-	if (rc != LIBUSB_SUCCESS) {
+	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb read interrupt transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
+		if (nbytes < 0)
+			nbytes = 0;
 		goto out;
 	}
 #elif defined(USE_HIDAPI)
@@ -749,10 +751,12 @@ dc_usbhid_write (dc_iostream_t *abstract, const void *data, size_t size, size_t 
 	}
 
 	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_out, (void *) buffer, length, &nbytes, 0);
-	if (rc != LIBUSB_SUCCESS) {
+	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb write interrupt transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
+		if (nbytes < 0)
+			nbytes = 0;
 		goto out;
 	}
 

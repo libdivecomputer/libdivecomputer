@@ -513,10 +513,12 @@ dc_usb_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
 	int nbytes = 0;
 
 	int rc = libusb_bulk_transfer (usb->handle, usb->endpoint_in, data, size, &nbytes, usb->timeout);
-	if (rc != LIBUSB_SUCCESS) {
+	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb read bulk transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
+		if (nbytes < 0)
+			nbytes = 0;
 		goto out;
 	}
 
@@ -535,10 +537,12 @@ dc_usb_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *ac
 	int nbytes = 0;
 
 	int rc = libusb_bulk_transfer (usb->handle, usb->endpoint_out, (void *) data, size, &nbytes, 0);
-	if (rc != LIBUSB_SUCCESS) {
+	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb write bulk transfer failed (%s).",
 			libusb_error_name (rc));
 		status = syserror (rc);
+		if (nbytes < 0)
+			nbytes = 0;
 		goto out;
 	}
 
