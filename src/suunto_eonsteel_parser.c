@@ -1246,8 +1246,6 @@ static float get_le32_float(const unsigned char *src)
 static int traverse_device_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc,
                                   const unsigned char *data, int len)
 {
-	const char *name = desc->desc + strlen("sml.DeviceLog.Device.");
-
 	return 0;
 }
 
