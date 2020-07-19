@@ -777,7 +777,7 @@ dc_usbhid_write (dc_iostream_t *abstract, const void *data, size_t size, size_t 
 
 out:
 #ifdef _WIN32
-	if (nbytes > size) {
+	if ((size_t) nbytes > size) {
 		WARNING (abstract->context, "Number of bytes exceeds the buffer size (" DC_PRINTF_SIZE " > " DC_PRINTF_SIZE ")!", nbytes, size);
 		nbytes = size;
 	}

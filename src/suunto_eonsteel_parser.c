@@ -137,7 +137,6 @@ static const struct {
 
 static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
 {
-	int i;
 	const char *name = desc->desc;
 
 	// Not a sample type? Skip it
@@ -160,7 +159,7 @@ static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, str
 	name += 8;
 
 	// .. and look it up in the table of sample type strings
-	for (i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
+	for (size_t i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
 		if (!strcmp(name, type_translation[i].name))
 			return type_translation[i].type;
 	}
@@ -179,8 +178,7 @@ static parser_sample_event_t lookup_event(const char *name, const eon_event_t ev
 
 static const char *desc_type_name(enum eon_sample type)
 {
-	int i;
-	for (i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
+	for (size_t i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
 		if (type == type_translation[i].type)
 			return type_translation[i].name;
 	}

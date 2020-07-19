@@ -1024,7 +1024,7 @@ hw_ostc3_firmware_readline (FILE *fp, dc_context_t *context, unsigned int addr, 
 	unsigned char ascii[39];
 	unsigned char faddr_byte[3];
 	unsigned int faddr = 0;
-	int n = 0;
+	size_t n = 0;
 
 	if (size > 16) {
 		ERROR (context, "Invalid arguments.");

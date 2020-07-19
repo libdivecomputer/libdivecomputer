@@ -77,7 +77,7 @@ l_vsnprintf (char *str, size_t size, const char *format, va_list ap)
 	 * enough.
 	 */
 	n = vsnprintf (str, size, format, ap);
-	if (n >= size)
+	if (n >= 0 && (size_t) n >= size)
 		n = -1;
 #endif
 
