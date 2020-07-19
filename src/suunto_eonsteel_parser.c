@@ -95,7 +95,7 @@ typedef struct suunto_eonsteel_parser_t {
 	} cache;
 } suunto_eonsteel_parser_t;
 
-typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user);
+typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, unsigned int len, void *user);
 
 typedef struct eon_event_t {
 	const char *name;
@@ -858,7 +858,7 @@ static void sample_setpoint_automatic(struct sample_data *info, unsigned char va
 	DEBUG(info->eon->base.context, "sample_setpoint_automatic(%u)", value);
 }
 
-static int handle_sample_type(const struct type_desc *desc, struct sample_data *info, enum eon_sample type, const unsigned char *data)
+static unsigned int handle_sample_type(const struct type_desc *desc, struct sample_data *info, enum eon_sample type, const unsigned char *data)
 {
 	switch (type) {
 	case ES_dtime:
@@ -966,7 +966,7 @@ static int handle_sample_type(const struct type_desc *desc, struct sample_data *
 	}
 }
 
-static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
+static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, unsigned int len, void *user)
 {
 	struct sample_data *info = (struct sample_data *) user;
 	suunto_eonsteel_parser_t *eon = info->eon;
@@ -980,7 +980,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 	info->ceiling = 0.0;
 
 	for (i = 0; i < EON_MAX_GROUP; i++) {
-		int bytes = handle_sample_type(desc, info, desc->type[i], data);
+		unsigned int bytes = handle_sample_type(desc, info, desc->type[i], data);
 
 		if (!bytes)
 			break;
@@ -1432,7 +1432,7 @@ static int traverse_sample_fields(suunto_eonsteel_parser_t *eon, const struct ty
 	return 0;
 }
 
-static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
+static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, unsigned int len, void *user)
 {
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) user;
 
