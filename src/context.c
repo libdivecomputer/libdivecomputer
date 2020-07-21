@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <limits.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -104,7 +105,7 @@ l_hexdump (char *str, size_t size, const unsigned char data[], size_t n)
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
-	if (size == 0)
+	if (size == 0 || size > INT_MAX)
 		return -1;
 
 	/* The maximum number of bytes. */
@@ -126,7 +127,7 @@ l_hexdump (char *str, size_t size, const unsigned char data[], size_t n)
 	/* Null terminate the hex string. */
 	str[length * 2] = 0;
 
-	return (n > maxlength ? -1 : length * 2);
+	return (n > maxlength ? -1 : (int) (length * 2));
 }
 
 static void
