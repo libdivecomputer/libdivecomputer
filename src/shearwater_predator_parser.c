@@ -51,7 +51,10 @@
 #define LOG_RECORD_CLOSING_5       0x25
 #define LOG_RECORD_CLOSING_6       0x26
 #define LOG_RECORD_CLOSING_7       0x27
+#define LOG_RECORD_INFO_EVENT      0x30
 #define LOG_RECORD_FINAL           0xFF
+
+#define INFO_EVENT_TAG_LOG         38
 
 #define SZ_BLOCK   0x80
 #define SZ_SAMPLE_PREDATOR  0x10
@@ -810,6 +813,26 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				int temperature = (signed short) array_uint16_be (data + idx + 3);
 				sample.temperature = temperature / 10.0;
 				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+			}
+		} else if (type == LOG_RECORD_INFO_EVENT) {
+			unsigned int event = data[offset + 1];
+			unsigned int timestamp = array_uint32_be (data + offset + 4);
+			unsigned int w1 = array_uint32_be (data + offset + 8);
+			unsigned int w2 = array_uint32_be (data + offset + 12);
+
+			if (event == INFO_EVENT_TAG_LOG) {
+				// Compass heading
+				if (w1 != 0xFFFFFFFF) {
+					sample.bearing = w1;
+					if (callback) callback (DC_SAMPLE_BEARING, sample, userdata);
+				}
+
+				// Tag
+				sample.event.type = SAMPLE_EVENT_BOOKMARK;
+				sample.event.time = 0;
+				sample.event.flags = 0;
+				sample.event.value = w2;
+				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
 			}
 		}
 
