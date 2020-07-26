@@ -642,7 +642,7 @@ static int dc_filter_oceanic (dc_transport_t transport, const void *userdata)
 static int dc_filter_mclean(dc_transport_t transport, const void *userdata)
 {
 	static const char * const bluetooth[] = {
-		"Extreme",
+		"McLean Extreme",
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
