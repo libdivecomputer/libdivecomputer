@@ -232,6 +232,9 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	case 0x0F0F:
 		model = TERIC;
 		break;
+	case 0x1512:
+		model = PEREGRINE;
+		break;
 	default:
 		WARNING (abstract->context, "Unknown hardware type %04x.", hardware);
 	}
