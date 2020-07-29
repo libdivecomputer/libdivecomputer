@@ -477,8 +477,8 @@ uwatec_smart_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 		goto error_free;
 	}
 
-	// Set the timeout for receiving data (3000ms).
-	status  = dc_iostream_set_timeout (device->iostream, 3000);
+	// Set the timeout for receiving data (5000ms).
+	status  = dc_iostream_set_timeout (device->iostream, 5000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_free;
