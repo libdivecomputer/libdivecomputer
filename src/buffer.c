@@ -232,6 +232,72 @@ dc_buffer_prepend (dc_buffer_t *buffer, const unsigned char data[], size_t size)
 
 
 int
+dc_buffer_insert (dc_buffer_t *buffer, size_t offset, const unsigned char data[], size_t size)
+{
+	if (buffer == NULL)
+		return 0;
+
+	if (offset > buffer->size)
+		return 0;
+
+	size_t head = buffer->offset;
+	size_t tail = buffer->capacity - (buffer->offset + buffer->size);
+
+	unsigned char *ptr = buffer->data + buffer->offset;
+
+	if (size <= head) {
+		if (buffer->size)
+			memmove (ptr - size, ptr, offset);
+		buffer->offset -= size;
+	} else if (size <= tail) {
+		if (buffer->size)
+			memmove (ptr + offset + size, ptr + offset, buffer->size - offset);
+	} else if (size <= tail + head) {
+		size_t n = buffer->size + size;
+		size_t available = buffer->capacity - n;
+
+		size_t tmp_offset = head > tail ? available : 0;
+
+		unsigned char *tmp = buffer->data;
+
+		if (buffer->size) {
+			memmove (tmp + tmp_offset, ptr, offset);
+			memmove (tmp + tmp_offset + offset + size, ptr + offset, buffer->size - offset);
+		}
+
+		buffer->offset = tmp_offset;
+	} else {
+		size_t n = buffer->size + size;
+		size_t capacity = dc_buffer_expand_calc (buffer, n);
+		size_t available = capacity - n;
+
+		size_t tmp_offset = head > tail ? available : 0;
+
+		unsigned char *tmp = (unsigned char *) malloc (capacity);
+		if (tmp == NULL)
+			return 0;
+
+		if (buffer->size) {
+			memcpy (tmp + tmp_offset, ptr, offset);
+			memcpy (tmp + tmp_offset + offset + size, ptr + offset, buffer->size - offset);
+		}
+
+		free (buffer->data);
+		buffer->data = tmp;
+		buffer->capacity = capacity;
+		buffer->offset = tmp_offset;
+	}
+
+	if (size)
+		memcpy (buffer->data + buffer->offset + offset, data, size);
+
+	buffer->size += size;
+
+	return 1;
+}
+
+
+int
 dc_buffer_slice (dc_buffer_t *buffer, size_t offset, size_t size)
 {
 	if (buffer == NULL)
