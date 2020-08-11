@@ -88,7 +88,7 @@ struct dc_serial_device_t {
 
 typedef struct dc_serial_iterator_t {
 	dc_iterator_t base;
-	dc_filter_t filter;
+	dc_descriptor_t *descriptor;
 	DIR *dp;
 } dc_serial_iterator_t;
 
@@ -189,7 +189,7 @@ dc_serial_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descripto
 		goto error_free;
 	}
 
-	iterator->filter = dc_descriptor_get_filter (descriptor);
+	iterator->descriptor = descriptor;
 
 	*out = (dc_iterator_t *) iterator;
 
@@ -230,7 +230,7 @@ dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
 				return DC_STATUS_NOMEMORY;
 			}
 
-			if (iterator->filter && !iterator->filter (DC_TRANSPORT_SERIAL, filename)) {
+			if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, filename, NULL)) {
 				continue;
 			}
 

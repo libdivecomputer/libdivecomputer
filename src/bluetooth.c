@@ -79,7 +79,7 @@ static dc_status_t dc_bluetooth_iterator_free (dc_iterator_t *iterator);
 
 typedef struct dc_bluetooth_iterator_t {
 	dc_iterator_t base;
-	dc_filter_t filter;
+	dc_descriptor_t *descriptor;
 #ifdef _WIN32
 	HANDLE hLookup;
 #else
@@ -376,7 +376,7 @@ dc_bluetooth_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descri
 	iterator->count = ndevices;
 	iterator->current = 0;
 #endif
-	iterator->filter = dc_descriptor_get_filter (descriptor);
+	iterator->descriptor = descriptor;
 
 	*out = (dc_iterator_t *) iterator;
 
@@ -456,7 +456,7 @@ dc_bluetooth_iterator_next (dc_iterator_t *abstract, void *out)
 		INFO (abstract->context, "Discover: address=" DC_ADDRESS_FORMAT ", name=%s",
 			address, name ? name : "");
 
-		if (iterator->filter && !iterator->filter (DC_TRANSPORT_BLUETOOTH, name)) {
+		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_BLUETOOTH, name, NULL)) {
 			continue;
 		}
 

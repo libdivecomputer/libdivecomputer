@@ -33,10 +33,14 @@ typedef struct dc_usb_desc_t {
 	unsigned short pid;
 } dc_usb_desc_t;
 
-typedef int (*dc_filter_t) (dc_transport_t transport, const void *userdata);
+typedef struct dc_usb_params_t {
+	unsigned int interface;
+	unsigned char endpoint_in;
+	unsigned char endpoint_out;
+} dc_usb_params_t;
 
-dc_filter_t
-dc_descriptor_get_filter (dc_descriptor_t *descriptor);
+int
+dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata, void *params);
 
 #ifdef __cplusplus
 }

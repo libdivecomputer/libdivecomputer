@@ -31,6 +31,7 @@
 #include <libdivecomputer/serial.h>
 #include <libdivecomputer/bluetooth.h>
 #include <libdivecomputer/irda.h>
+#include <libdivecomputer/usb.h>
 #include <libdivecomputer/usbhid.h>
 
 #include "common.h"
@@ -399,6 +400,41 @@ dctool_file_read (const char *filename)
 }
 
 static dc_status_t
+dctool_usb_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_iostream_t *iostream = NULL;
+
+	// Discover the usb device.
+	dc_iterator_t *iterator = NULL;
+	dc_usb_device_t *device = NULL;
+	dc_usb_iterator_new (&iterator, context, descriptor);
+	while (dc_iterator_next (iterator, &device) == DC_STATUS_SUCCESS) {
+		break;
+	}
+	dc_iterator_free (iterator);
+
+	if (device == NULL) {
+		ERROR ("No dive computer found.");
+		status = DC_STATUS_NODEVICE;
+		goto cleanup;
+	}
+
+	// Open the usb device.
+	status = dc_usb_open (&iostream, context, device);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR ("Failed to open the usb device.");
+		goto cleanup;
+	}
+
+	*out = iostream;
+
+cleanup:
+	dc_usb_device_free (device);
+	return status;
+}
+
+static dc_status_t
 dctool_usbhid_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
@@ -532,7 +568,7 @@ dctool_iostream_open (dc_iostream_t **iostream, dc_context_t *context, dc_descri
 	case DC_TRANSPORT_SERIAL:
 		return dc_serial_open (iostream, context, devname);
 	case DC_TRANSPORT_USB:
-		return DC_STATUS_SUCCESS;
+		return dctool_usb_open(iostream, context, descriptor);
 	case DC_TRANSPORT_USBHID:
 		return dctool_usbhid_open(iostream, context, descriptor);
 	case DC_TRANSPORT_IRDA:

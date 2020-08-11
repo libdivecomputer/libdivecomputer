@@ -212,8 +212,6 @@ dc_irda_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_
 	S_CLOSE (fd);
 	dc_socket_exit (context);
 
-	dc_filter_t filter = dc_descriptor_get_filter (descriptor);
-
 	unsigned int count = 0;
 #ifdef _WIN32
 	for (size_t i = 0; i < list->numDevice; ++i) {
@@ -233,7 +231,7 @@ dc_irda_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_
 		INFO (context, "Discover: address=%08x, name=%s, charset=%02x, hints=%04x",
 			address, name, charset, hints);
 
-		if (filter && !filter (DC_TRANSPORT_IRDA, name)) {
+		if (!dc_descriptor_filter (descriptor, DC_TRANSPORT_IRDA, name, NULL)) {
 			continue;
 		}
 
