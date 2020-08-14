@@ -468,39 +468,25 @@ hw_ostc3_device_init_service (hw_ostc3_device_t *device)
 	const unsigned char command[] = {S_INIT, 0xAB, 0xCD, 0xEF};
 	unsigned char answer[5] = {0};
 
-	for (size_t i = 0; i < 4; ++i) {
-		// Send the command.
-		status = hw_ostc3_write (device, NULL, command + i, 1);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to send the command.");
-			return status;
-		}
-
-		// Read the answer.
-		status = hw_ostc3_read (device, NULL, answer + i, 1);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to receive the answer.");
-			return status;
-		}
-
-		// Verify the answer.
-		const unsigned char expected = (i == 0 ? 0x4B : command[i]);
-		if (answer[i] != expected) {
-			ERROR (abstract->context, "Unexpected answer byte.");
-			return DC_STATUS_PROTOCOL;
-		}
-	}
-
-	// Read the ready byte.
-	status = hw_ostc3_read (device, NULL, answer + 4, 1);
+	// Send the command and service key.
+	status = hw_ostc3_write (device, NULL, command, sizeof (command));
 	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the ready byte.");
+		ERROR (abstract->context, "Failed to send the command.");
 		return status;
 	}
 
-	// Verify the ready byte.
-	if (answer[4] != S_READY) {
-		ERROR (abstract->context, "Unexpected ready byte.");
+	// Read the response.
+	status = hw_ostc3_read (device, NULL, answer, sizeof (answer));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to receive the answer.");
+		return status;
+	}
+
+	// Verify the response to service mode.
+	if (answer[0] != 0x4B || answer[1] != 0xAB ||
+			answer[2] != 0xCD || answer[3] != 0xEF ||
+			answer[4] != S_READY) {
+		ERROR (abstract->context, "Failed to verify the answer.");
 		return DC_STATUS_PROTOCOL;
 	}
 
