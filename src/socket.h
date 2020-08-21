@@ -23,6 +23,7 @@
 #define DC_SOCKET_H
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #define NOGDI
 #include <winsock2.h>
 #include <windows.h>
