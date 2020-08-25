@@ -757,7 +757,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					if ((type & 0x80) == 0) {
 						idx += parser->nccr;
 					}
-					if (idx >= parser->ngasmixes) {
+					if (idx >= parser->ngasmixes || o2 != parser->oxygen[idx] || he != parser->helium[idx]) {
 						ERROR (abstract->context, "Invalid gas mix.");
 						return DC_STATUS_DATAFORMAT;
 					}
