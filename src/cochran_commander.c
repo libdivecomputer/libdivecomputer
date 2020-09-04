@@ -41,6 +41,8 @@
 #define COCHRAN_MODEL_EMC_16 4
 #define COCHRAN_MODEL_EMC_20 5
 
+#define UNDEFINED 0xFFFFFFFF
+
 typedef enum cochran_endian_t {
 	ENDIAN_LE,
 	ENDIAN_BE,
@@ -57,8 +59,8 @@ typedef struct cochran_data_t {
 	unsigned char *logbook;
 
 	unsigned short int dive_count;
-	int fp_dive_num;
-	int invalid_profile_dive_num;
+	unsigned int fp_dive_num;
+	unsigned int invalid_profile_dive_num;
 
 	unsigned int logbook_size;
 } cochran_data_t;
@@ -622,7 +624,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	int profile_capacity_remaining = device->layout->rb_profile_end - device->layout->rb_profile_begin;
 
 	unsigned int dive_count = 0;
-	data->fp_dive_num = -1;
+	data->fp_dive_num = UNDEFINED;
 
 	// Start at end of log
 	if (data->dive_count < device->layout->rb_logbook_entry_count)
@@ -631,7 +633,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 		dive_count = device->layout->rb_logbook_entry_count;
 
 	unsigned int sample_read_size = 0;
-	data->invalid_profile_dive_num = -1;
+	data->invalid_profile_dive_num = UNDEFINED;
 
 	// Remove the pre-dive events that occur after the last dive
 	unsigned int rb_head_ptr = 0;
@@ -952,7 +954,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	}
 
 	// Change tail to dive following the fingerprint dive.
-	if (data.fp_dive_num > -1)
+	if (data.fp_dive_num != UNDEFINED)
 		tail_dive = (data.fp_dive_num + 1) % layout->rb_logbook_entry_count;
 
 	// Number of dives to read
