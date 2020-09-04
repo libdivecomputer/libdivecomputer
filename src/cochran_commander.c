@@ -621,7 +621,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 	// We track profile ringbuffer usage to determine which dives have profile data
 	int profile_capacity_remaining = device->layout->rb_profile_end - device->layout->rb_profile_begin;
 
-	int dive_count = -1;
+	unsigned int dive_count = 0;
 	data->fp_dive_num = -1;
 
 	// Start at end of log
@@ -629,7 +629,6 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 		dive_count = data->dive_count;
 	else
 		dive_count = device->layout->rb_logbook_entry_count;
-	dive_count--;
 
 	unsigned int sample_read_size = 0;
 	data->invalid_profile_dive_num = -1;
@@ -676,7 +675,7 @@ cochran_commander_find_fingerprint(cochran_commander_device_t *device, cochran_d
 
 	// Loop through dives to find FP, Accumulate profile data size,
 	// and find the last dive with invalid profile
-	for (unsigned int i = 0; i <= dive_count; ++i) {
+	for (unsigned int i = 0; i < dive_count; ++i) {
 		unsigned int idx = (device->layout->rb_logbook_entry_count + head_dive - (i + 1)) % device->layout->rb_logbook_entry_count;
 
 		unsigned char *log_entry = data->logbook + idx * device->layout->rb_logbook_entry_size;
