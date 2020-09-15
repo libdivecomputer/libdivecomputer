@@ -28,10 +28,15 @@
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &cressi_goa_parser_vtable)
 
-#define SZ_HEADER 0x5C
+#define SZ_HEADER 0x61
 
 #define DEPTH       0
 #define TEMPERATURE 3
+
+#define SCUBA       0
+#define NITROX      1
+#define FREEDIVE    2
+#define GAUGE       3
 
 typedef struct cressi_goa_parser_t cressi_goa_parser_t;
 
@@ -100,14 +105,14 @@ cressi_goa_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
-	const unsigned char *p = abstract->data;
+	const unsigned char *p = abstract->data + 0x11;
 
 	if (datetime) {
-		datetime->year = array_uint16_le(p + 0x0C);
-		datetime->month = p[0x0E];
-		datetime->day = p[0x0F];
-		datetime->hour = p[0x10];
-		datetime->minute = p[0x11];
+		datetime->year = array_uint16_le(p);
+		datetime->month = p[2];
+		datetime->day = p[3];
+		datetime->hour = p[4];
+		datetime->minute = p[5];
 		datetime->second = 0;
 		datetime->timezone = DC_TIMEZONE_NONE;
 	}
@@ -119,10 +124,12 @@ static dc_status_t
 cressi_goa_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	cressi_goa_parser_t *parser = (cressi_goa_parser_t *) abstract;
+	const unsigned char *data = abstract->data;
+
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
-	const unsigned char *data = abstract->data;
+	unsigned int divemode = data[2];
 
 	if (!parser->cached) {
 		sample_statistics_t statistics = SAMPLE_STATISTICS_INITIALIZER;
@@ -140,7 +147,7 @@ cressi_goa_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 	if (value) {
 		switch (type) {
 		case DC_FIELD_DIVETIME:
-			*((unsigned int *) value) = array_uint16_le (data + 0x14);
+			*((unsigned int *) value) = array_uint16_le (data + 0x19);
 			break;
 		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = parser->maxdepth;
@@ -150,8 +157,24 @@ cressi_goa_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->helium = 0.0;
-			gasmix->oxygen = data[0x1B + 2 * flags] / 100.0;
+			gasmix->oxygen = data[0x20 + 2 * flags] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+			break;
+		case DC_FIELD_DIVEMODE:
+			switch (divemode) {
+			case SCUBA:
+			case NITROX:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case GAUGE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			case FREEDIVE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

@@ -485,7 +485,19 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			goto error_free_dive;
 		}
 
-		if (callback && !callback(dive_data, dive_size, dive_data + FP_OFFSET - 5, sizeof(device->fingerprint), userdata))
+		// Those 5 extra bytes contain the dive mode, which is required for
+		// parsing the dive data. Therefore, insert all 5 bytes again. The
+		// remaining 4 bytes appear to be some 32 bit address.
+		if (!dc_buffer_insert (dive, 2, logbook_data + offset + 2, 5)) {
+			ERROR (abstract->context, "Out of memory.");
+			status = DC_STATUS_NOMEMORY;
+			goto error_free_dive;
+		}
+
+		dive_data = dc_buffer_get_data (dive);
+		dive_size = dc_buffer_get_size (dive);
+
+		if (callback && !callback(dive_data, dive_size, dive_data + FP_OFFSET, sizeof(device->fingerprint), userdata))
 			break;
 	}
 
