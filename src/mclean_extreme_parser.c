@@ -249,7 +249,7 @@ mclean_extreme_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_
 	unsigned int gasmix[NGASMIXES] = {0};
 	unsigned int gasmix_previous = INVALID;
 
-	const unsigned int interval = 20;
+	const unsigned int interval = 10;
 	unsigned int time = 0;
 	size_t offset = SZ_HEADER;
 	for (unsigned int i = 0; i < nsamples; ++i) {
