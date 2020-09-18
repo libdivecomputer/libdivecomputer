@@ -76,8 +76,8 @@
 #define GASMIX_INUSE 2
 #define GASMIX_IGNRD 3
 
-#define WATER_SALT    0
-#define WATER_FRESH   1
+#define WATER_FRESH   0
+#define WATER_SALT    1
 #define WATER_EN13319 2
 
 #define ALARM_NONE                 0
