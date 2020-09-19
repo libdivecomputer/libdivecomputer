@@ -468,7 +468,10 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	}
 
 	// Verify the required opening/closing records.
-	for (unsigned int i = 0; i < NRECORDS - 2; ++i) {
+	// At least in firmware v71 and newer, Petrel and Petrel 2 also use PNF,
+	// and there opening/closing record 5 (which contains AI information plus
+	// the sample interval) don't appear to exist - so don't mark them as required
+	for (unsigned int i = 0; i <= 4; ++i) {
 		if (parser->opening[i] == UNDEFINED || parser->closing[i] == UNDEFINED) {
 			ERROR (abstract->context, "Opening or closing record %u not found.", i);
 			return DC_STATUS_DATAFORMAT;
@@ -627,7 +630,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 	// Sample interval.
 	unsigned int time = 0;
 	unsigned int interval = 10;
-	if (parser->pnf && parser->logversion >= 9) {
+	if (parser->pnf && parser->logversion >= 9 && parser->opening[5] != UNDEFINED) {
 		interval = array_uint16_be (data + parser->opening[5] + 23);
 		if (interval % 1000 != 0) {
 			ERROR (abstract->context, "Unsupported sample interval (%u ms).", interval);
