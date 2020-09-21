@@ -333,7 +333,7 @@ liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	// Get the sample interval.
 	unsigned int interval_idx = data[39];
 	const unsigned int intervals[] = {1, 2, 5, 10, 30, 60};
-	if (interval_idx > C_ARRAY_SIZE(intervals)) {
+	if (interval_idx >= C_ARRAY_SIZE(intervals)) {
 		ERROR (abstract->context, "Invalid sample interval index %u", interval_idx);
 		return DC_STATUS_DATAFORMAT;
 	}
