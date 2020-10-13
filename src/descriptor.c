@@ -167,6 +167,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "Chromis",             DC_FAMILY_UWATEC_SMART, 0x24, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro", "Aladin A1",           DC_FAMILY_UWATEC_SMART, 0x25, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "Mantis 2",            DC_FAMILY_UWATEC_SMART, 0x26, DC_TRANSPORT_SERIAL, NULL},
+	{"Scubapro", "Aladin A2",           DC_FAMILY_UWATEC_SMART, 0x28, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_SMART, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2 Console",          DC_FAMILY_UWATEC_SMART, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2 HUD",              DC_FAMILY_UWATEC_SMART, 0x42, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
@@ -521,6 +522,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata, voi
 		"Aladin",
 		"HUD",
 		"A1",
+		"A2",
 	};
 
 	if (transport == DC_TRANSPORT_IRDA) {
