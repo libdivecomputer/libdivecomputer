@@ -52,6 +52,9 @@ int
 dc_buffer_prepend (dc_buffer_t *buffer, const unsigned char data[], size_t size);
 
 int
+dc_buffer_insert (dc_buffer_t *buffer, size_t offset, const unsigned char data[], size_t size);
+
+int
 dc_buffer_slice (dc_buffer_t *buffer, size_t offset, size_t size);
 
 size_t
