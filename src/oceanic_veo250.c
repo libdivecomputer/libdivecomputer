@@ -62,17 +62,6 @@ static const oceanic_common_device_vtable_t oceanic_veo250_device_vtable = {
 	oceanic_common_device_profile,
 };
 
-static const oceanic_common_version_t oceanic_veo250_version[] = {
-	{"GENREACT \0\0 256K"},
-	{"VEO 200 R\0\0 256K"},
-	{"VEO 250 R\0\0 256K"},
-	{"SEEMANN R\0\0 256K"},
-	{"VEO 180 R\0\0 256K"},
-	{"AERISXR2 \0\0 256K"},
-	{"INSIGHT R\0\0 256K"},
-	{"HO DGO2 R\0\0 256K"},
-};
-
 static const oceanic_common_layout_t oceanic_veo250_layout = {
 	0x8000, /* memsize */
 	0, /* highmem */
@@ -88,6 +77,16 @@ static const oceanic_common_layout_t oceanic_veo250_layout = {
 	1, /* pt_mode_serial */
 };
 
+static const oceanic_common_version_t versions[] = {
+	{"GENREACT \0\0 256K", 0, &oceanic_veo250_layout},
+	{"VEO 200 R\0\0 256K", 0, &oceanic_veo250_layout},
+	{"VEO 250 R\0\0 256K", 0, &oceanic_veo250_layout},
+	{"SEEMANN R\0\0 256K", 0, &oceanic_veo250_layout},
+	{"VEO 180 R\0\0 256K", 0, &oceanic_veo250_layout},
+	{"AERISXR2 \0\0 256K", 0, &oceanic_veo250_layout},
+	{"INSIGHT R\0\0 256K", 0, &oceanic_veo250_layout},
+	{"HO DGO2 R\0\0 256K", 0, &oceanic_veo250_layout},
+};
 
 static dc_status_t
 oceanic_veo250_send (oceanic_veo250_device_t *device, const unsigned char command[], unsigned int csize)
@@ -316,10 +315,9 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, dc_iostrea
 		goto error_free;
 	}
 
-	// Override the base class values.
-	if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_veo250_version)) {
-		device->base.layout = &oceanic_veo250_layout;
-	} else {
+	// Detect the memory layout.
+	device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
+	if (device->base.layout == NULL) {
 		WARNING (context, "Unsupported device detected!");
 		device->base.layout = &oceanic_veo250_layout;
 	}

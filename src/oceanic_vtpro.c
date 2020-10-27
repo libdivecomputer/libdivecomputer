@@ -74,19 +74,6 @@ static const oceanic_common_device_vtable_t oceanic_vtpro_device_vtable = {
 	oceanic_common_device_profile,
 };
 
-static const oceanic_common_version_t oceanic_vtpro_version[] = {
-	{"VERSAPRO \0\0 256K"},
-	{"ATMOSTWO \0\0 256K"},
-	{"PROPLUS2 \0\0 256K"},
-	{"ATMOSAIR \0\0 256K"},
-	{"VTPRO  r\0\0  256K"},
-	{"ELITE  r\0\0  256K"},
-};
-
-static const oceanic_common_version_t oceanic_wisdom_version[] = {
-	{"WISDOM r\0\0  256K"},
-};
-
 static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0x8000, /* memsize */
 	0, /* highmem */
@@ -130,6 +117,17 @@ static const oceanic_common_layout_t aeris_500ai_layout = {
 	0, /* pt_mode_global */
 	1, /* pt_mode_logbook */
 	2, /* pt_mode_serial */
+};
+
+static const oceanic_common_version_t versions[] = {
+	{"VERSAPRO \0\0 256K", 0, &oceanic_vtpro_layout},
+	{"ATMOSTWO \0\0 256K", 0, &oceanic_vtpro_layout},
+	{"PROPLUS2 \0\0 256K", 0, &oceanic_vtpro_layout},
+	{"ATMOSAIR \0\0 256K", 0, &oceanic_vtpro_layout},
+	{"VTPRO  r\0\0  256K", 0, &oceanic_vtpro_layout},
+	{"ELITE  r\0\0  256K", 0, &oceanic_vtpro_layout},
+
+	{"WISDOM r\0\0  256K", 0, &oceanic_wisdom_layout},
 };
 
 static dc_status_t
@@ -491,16 +489,15 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
-	// Override the base class values.
+	// Detect the memory layout.
 	if (model == AERIS500AI) {
 		device->base.layout = &aeris_500ai_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_wisdom_version)) {
-		device->base.layout = &oceanic_wisdom_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_vtpro_version)) {
-		device->base.layout = &oceanic_vtpro_layout;
 	} else {
-		WARNING (context, "Unsupported device detected!");
-		device->base.layout = &oceanic_vtpro_layout;
+		device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
+		if (device->base.layout == NULL) {
+			WARNING (context, "Unsupported device detected!");
+			device->base.layout = &oceanic_vtpro_layout;
+		}
 	}
 
 	*out = (dc_device_t*) device;

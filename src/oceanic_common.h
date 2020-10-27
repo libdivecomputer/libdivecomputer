@@ -31,9 +31,9 @@ extern "C" {
 #define PAGESIZE 0x10
 #define FPMAXSIZE 0x20
 
-#define OCEANIC_COMMON_MATCH(version,patterns) \
+#define OCEANIC_COMMON_MATCH(version,patterns,firmware) \
 	oceanic_common_match ((version), (patterns), \
-	sizeof (patterns) / sizeof *(patterns))
+	sizeof (patterns) / sizeof *(patterns), (firmware))
 
 typedef struct oceanic_common_layout_t {
 	// Memory size.
@@ -61,6 +61,7 @@ typedef struct oceanic_common_layout_t {
 
 typedef struct oceanic_common_device_t {
 	dc_device_t base;
+	unsigned int firmware;
 	unsigned char version[PAGESIZE];
 	unsigned char fingerprint[FPMAXSIZE];
 	const oceanic_common_layout_t *layout;
@@ -73,10 +74,14 @@ typedef struct oceanic_common_device_vtable_t {
 	dc_status_t (*profile) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata);
 } oceanic_common_device_vtable_t;
 
-typedef unsigned char oceanic_common_version_t[PAGESIZE + 1];
+typedef struct oceanic_common_version_t {
+	unsigned char pattern[PAGESIZE + 1];
+	unsigned int firmware;
+	const oceanic_common_layout_t *layout;
+} oceanic_common_version_t;
 
-int
-oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n);
+const oceanic_common_layout_t *
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n, unsigned int *firmware);
 
 void
 oceanic_common_device_init (oceanic_common_device_t *device);

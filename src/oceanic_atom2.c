@@ -92,141 +92,6 @@ static const oceanic_common_device_vtable_t oceanic_atom2_device_vtable = {
 	oceanic_common_device_profile,
 };
 
-static const oceanic_common_version_t aeris_f10_version[] = {
-	{"FREEWAER \0\0 512K"},
-	{"OCEANF10 \0\0 512K"},
-	{"MUNDIAL R\0\0 512K"},
-};
-
-static const oceanic_common_version_t aeris_f11_version[] = {
-	{"AERISF11 \0\0 1024"},
-	{"OCEANF11 \0\0 1024"},
-};
-
-static const oceanic_common_version_t aeris_manta_version[] = {
-	{"MANTA  R\0\0  512K"},
-};
-
-static const oceanic_common_version_t oceanic_atom1_version[] = {
-	{"ATOM rev\0\0  256K"},
-};
-
-static const oceanic_common_version_t oceanic_atom2_version[] = {
-	{"2M ATOM r\0\0 512K"},
-};
-
-static const oceanic_common_version_t oceanic_atom2a_version[] = {
-	{"INSIGHT2 \0\0 512K"},
-	{"OCEVEO30 \0\0 512K"},
-	{"ATMOSAI R\0\0 512K"},
-	{"PROPLUS2 \0\0 512K"},
-	{"OCEGEO20 \0\0 512K"},
-	{"OCE GEO R\0\0 512K"},
-	{"AQUAI200 \0\0 512K"},
-	{"AQUA200C \0\0 512K"},
-};
-
-static const oceanic_common_version_t oceanic_atom2b_version[] = {
-	{"ELEMENT2 \0\0 512K"},
-	{"OCEVEO20 \0\0 512K"},
-	{"TUSAZEN \0\0  512K"},
-	{"AQUAI300 \0\0 512K"},
-	{"HOLLDG03 \0\0 512K"},
-	{"AQUAI100 \0\0 512K"},
-	{"AQUA300C \0\0 512K"},
-	{"OCEGEO40 \0\0 512K"},
-	{"VEOSMART \0\0 512K"},
-};
-
-static const oceanic_common_version_t oceanic_atom2c_version[] = {
-	{"2M EPIC r\0\0 512K"},
-	{"EPIC1  R\0\0  512K"},
-	{"AERIA300 \0\0 512K"},
-};
-
-static const oceanic_common_version_t oceanic_default_version[] = {
-	{"OCE VT3 R\0\0 512K"},
-	{"ELITET3 R\0\0 512K"},
-	{"ELITET31 \0\0 512K"},
-	{"DATAMASK \0\0 512K"},
-	{"COMPMASK \0\0 512K"},
-};
-
-static const oceanic_common_version_t sherwood_wisdom_version[] = {
-	{"WISDOM R\0\0  512K"},
-};
-
-static const oceanic_common_version_t oceanic_proplus3_version[] = {
-	{"PROPLUS3 \0\0 512K"},
-	{"PROPLUS4 \0\0 512K"},
-};
-
-static const oceanic_common_version_t tusa_zenair_version[] = {
-	{"TUZENAIR \0\0 512K"},
-	{"AMPHOSSW \0\0 512K"},
-	{"AMPHOAIR \0\0 512K"},
-	{"VOYAGE2G \0\0 512K"},
-	{"TUSTALIS \0\0 512K"},
-};
-
-static const oceanic_common_version_t oceanic_oc1_version[] = {
-	{"OCWATCH R\0\0 1024"},
-	{"OC1WATCH \0\0 1024"},
-	{"OCSWATCH \0\0 1024"},
-	{"AQUAI550 \0\0 1024"},
-	{"AQUA550C \0\0 1024"},
-	{"WISDOM04 \0\0 1024"},
-	{"AQUA470C \0\0 1024"},
-};
-
-static const oceanic_common_version_t oceanic_oci_version[] = {
-	{"OCEANOCI \0\0 1024"},
-};
-
-static const oceanic_common_version_t oceanic_atom3_version[] = {
-	{"OCEATOM3 \0\0 1024"},
-	{"ATOM31  \0\0  1024"},
-};
-
-static const oceanic_common_version_t oceanic_vt4_version[] = {
-	{"OCEANVT4 \0\0 1024"},
-	{"OCEAVT41 \0\0 1024"},
-	{"AERISAIR \0\0 1024"},
-	{"SWVISION \0\0 1024"},
-	{"XPSUBAIR \0\0 1024"},
-};
-
-static const oceanic_common_version_t hollis_tx1_version[] = {
-	{"HOLLDG04 \0\0 2048"},
-};
-
-static const oceanic_common_version_t oceanic_veo1_version[] = {
-	{"OCEVEO10 \0\0   8K"},
-	{"AERIS XR1 NX R\0\0"},
-};
-
-static const oceanic_common_version_t oceanic_reactpro_version[] = {
-	{"REACPRO2 \0\0 512K"},
-};
-
-static const oceanic_common_version_t oceanic_proplusx_version[] = {
-	{"OCEANOCX \0\0 \0\0\0\0"},
-};
-
-static const oceanic_common_version_t aqualung_i770r_version[] = {
-	{"AQUA770R \0\0 \0\0\0\0"},
-};
-
-static const oceanic_common_version_t aeris_a300cs_version[] = {
-	{"AER300CS \0\0 2048"},
-	{"OCEANVTX \0\0 2048"},
-	{"AQUAI750 \0\0 2048"},
-};
-
-static const oceanic_common_version_t aqualung_i450t_version[] = {
-	{"AQUAI450 \0\0 2048"},
-};
-
 static const oceanic_common_layout_t aeris_f10_layout = {
 	0x10000, /* memsize */
 	0, /* highmem */
@@ -540,6 +405,98 @@ static const oceanic_common_layout_t aqualung_i450t_layout = {
 	0, /* pt_mode_global */
 	1, /* pt_mode_logbook */
 	0, /* pt_mode_serial */
+};
+
+static const oceanic_common_version_t versions[] = {
+	{"OCEVEO10 \0\0   8K", 0,      &oceanic_veo1_layout},
+	{"AERIS XR1 NX R\0\0", 0,      &oceanic_veo1_layout},
+
+	{"ATOM rev\0\0  256K", 0,      &oceanic_atom1_layout},
+
+	{"MANTA  R\0\0  512K", 0x3242, &oceanic_atom2a_layout},
+	{"MANTA  R\0\0  512K", 0,      &oceanic_atom2c_layout},
+	{"2M ATOM r\0\0 512K", 0x3349, &oceanic_atom2a_layout},
+	{"2M ATOM r\0\0 512K", 0,      &oceanic_atom2c_layout},
+
+	{"INSIGHT2 \0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"OCEVEO30 \0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"ATMOSAI R\0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"PROPLUS2 \0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"OCEGEO20 \0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"OCE GEO R\0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"AQUAI200 \0\0 512K", 0,      &oceanic_atom2a_layout},
+	{"AQUA200C \0\0 512K", 0,      &oceanic_atom2a_layout},
+
+	{"ELEMENT2 \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"OCEVEO20 \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"TUSAZEN \0\0  512K", 0,      &oceanic_atom2b_layout},
+	{"AQUAI300 \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"HOLLDG03 \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"AQUAI100 \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"AQUA300C \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"OCEGEO40 \0\0 512K", 0,      &oceanic_atom2b_layout},
+	{"VEOSMART \0\0 512K", 0,      &oceanic_atom2b_layout},
+
+	{"2M EPIC r\0\0 512K", 0,      &oceanic_atom2c_layout},
+	{"EPIC1  R\0\0  512K", 0,      &oceanic_atom2c_layout},
+	{"AERIA300 \0\0 512K", 0,      &oceanic_atom2c_layout},
+
+	{"OCE VT3 R\0\0 512K", 0,      &oceanic_default_layout},
+	{"ELITET3 R\0\0 512K", 0,      &oceanic_default_layout},
+	{"ELITET31 \0\0 512K", 0,      &oceanic_default_layout},
+	{"DATAMASK \0\0 512K", 0,      &oceanic_default_layout},
+	{"COMPMASK \0\0 512K", 0,      &oceanic_default_layout},
+
+	{"WISDOM R\0\0  512K", 0,      &sherwood_wisdom_layout},
+
+	{"PROPLUS3 \0\0 512K", 0,      &oceanic_proplus3_layout},
+	{"PROPLUS4 \0\0 512K", 0,      &oceanic_proplus3_layout},
+
+	{"TUZENAIR \0\0 512K", 0,      &tusa_zenair_layout},
+	{"AMPHOSSW \0\0 512K", 0,      &tusa_zenair_layout},
+	{"AMPHOAIR \0\0 512K", 0,      &tusa_zenair_layout},
+	{"VOYAGE2G \0\0 512K", 0,      &tusa_zenair_layout},
+	{"TUSTALIS \0\0 512K", 0,      &tusa_zenair_layout},
+
+	{"REACPRO2 \0\0 512K", 0,      &oceanic_reactpro_layout},
+
+	{"FREEWAER \0\0 512K", 0,      &aeris_f10_layout},
+	{"OCEANF10 \0\0 512K", 0,      &aeris_f10_layout},
+	{"MUNDIAL R\0\0 512K", 0,      &aeris_f10_layout},
+
+	{"AERISF11 \0\0 1024", 0,      &aeris_f11_layout},
+	{"OCEANF11 \0\0 1024", 0,      &aeris_f11_layout},
+
+	{"OCWATCH R\0\0 1024", 0,      &oceanic_oc1_layout},
+	{"OC1WATCH \0\0 1024", 0,      &oceanic_oc1_layout},
+	{"OCSWATCH \0\0 1024", 0,      &oceanic_oc1_layout},
+	{"AQUAI550 \0\0 1024", 0,      &oceanic_oc1_layout},
+	{"AQUA550C \0\0 1024", 0,      &oceanic_oc1_layout},
+	{"WISDOM04 \0\0 1024", 0,      &oceanic_oc1_layout},
+	{"AQUA470C \0\0 1024", 0,      &oceanic_oc1_layout},
+
+	{"OCEANOCI \0\0 1024", 0,      &oceanic_oci_layout},
+
+	{"OCEATOM3 \0\0 1024", 0,      &oceanic_atom3_layout},
+	{"ATOM31  \0\0  1024", 0,      &oceanic_atom3_layout},
+
+	{"OCEANVT4 \0\0 1024", 0,      &oceanic_vt4_layout},
+	{"OCEAVT41 \0\0 1024", 0,      &oceanic_vt4_layout},
+	{"AERISAIR \0\0 1024", 0,      &oceanic_vt4_layout},
+	{"SWVISION \0\0 1024", 0,      &oceanic_vt4_layout},
+	{"XPSUBAIR \0\0 1024", 0,      &oceanic_vt4_layout},
+
+	{"HOLLDG04 \0\0 2048", 0,      &hollis_tx1_layout},
+
+	{"AER300CS \0\0 2048", 0,      &aeris_a300cs_layout},
+	{"OCEANVTX \0\0 2048", 0,      &aeris_a300cs_layout},
+	{"AQUAI750 \0\0 2048", 0,      &aeris_a300cs_layout},
+
+	{"AQUAI450 \0\0 2048", 0,      &aqualung_i450t_layout},
+
+	{"OCEANOCX \0\0 \0\0\0\0", 0,  &oceanic_proplusx_layout},
+
+	{"AQUA770R \0\0 \0\0\0\0", 0,  &aqualung_i770r_layout},
 };
 
 /*
@@ -952,68 +909,10 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		}
 	}
 
-	// Override the base class values.
-	if (OCEANIC_COMMON_MATCH (device->base.version, aeris_f10_version)) {
-		device->base.layout = &aeris_f10_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_f11_version)) {
-		device->base.layout = &aeris_f11_layout;
-		device->bigpage = 8;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_manta_version)) {
-		if (array_uint16_be (device->base.version + 0x08) >= 0x3242) {
-			device->base.layout = &oceanic_atom2a_layout;
-		} else {
-			device->base.layout = &oceanic_atom2c_layout;
-		}
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom1_version)) {
-		device->base.layout = &oceanic_atom1_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2_version)) {
-		if (array_uint16_be (device->base.version + 0x09) >= 0x3349) {
-			device->base.layout = &oceanic_atom2a_layout;
-		} else {
-			device->base.layout = &oceanic_atom2c_layout;
-		}
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2a_version)) {
-		device->base.layout = &oceanic_atom2a_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2b_version)) {
-		device->base.layout = &oceanic_atom2b_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom2c_version)) {
-		device->base.layout = &oceanic_atom2c_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, sherwood_wisdom_version)) {
-		device->base.layout = &sherwood_wisdom_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_proplus3_version)) {
-		device->base.layout = &oceanic_proplus3_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, tusa_zenair_version)) {
-		device->base.layout = &tusa_zenair_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_oc1_version)) {
-		device->base.layout = &oceanic_oc1_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_oci_version)) {
-		device->base.layout = &oceanic_oci_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_atom3_version)) {
-		device->base.layout = &oceanic_atom3_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_vt4_version)) {
-		device->base.layout = &oceanic_vt4_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, hollis_tx1_version)) {
-		device->base.layout = &hollis_tx1_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_veo1_version)) {
-		device->base.layout = &oceanic_veo1_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_reactpro_version)) {
-		device->base.layout = &oceanic_reactpro_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_proplusx_version)) {
-		device->base.layout = &oceanic_proplusx_layout;
-		device->bigpage = 16;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, aqualung_i770r_version)) {
-		device->base.layout = &aqualung_i770r_layout;
-		device->bigpage = 16;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, aeris_a300cs_version)) {
-		device->base.layout = &aeris_a300cs_layout;
-		device->bigpage = 16;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, aqualung_i450t_version)) {
-		device->base.layout = &aqualung_i450t_layout;
-	} else if (OCEANIC_COMMON_MATCH (device->base.version, oceanic_default_version)) {
-		device->base.layout = &oceanic_default_layout;
-	} else {
+	// Detect the memory layout.
+	device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
+	if (device->base.layout == NULL) {
 		WARNING (context, "Unsupported device detected!");
-		device->base.layout = &oceanic_default_layout;
 		if (memcmp(device->base.version + 12, "256K", 4) == 0) {
 			device->base.layout = &oceanic_atom1_layout;
 		} else if (memcmp(device->base.version + 12, "512K", 4) == 0) {
@@ -1025,6 +924,15 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		} else {
 			device->base.layout = &oceanic_default_layout;
 		}
+	}
+
+	// Set the big page support.
+	if (device->base.layout == &aeris_f11_layout) {
+		device->bigpage = 8;
+	} else if (device->base.layout == &oceanic_proplusx_layout ||
+		device->base.layout == &aqualung_i770r_layout ||
+		device->base.layout == &aeris_a300cs_layout) {
+		device->bigpage = 16;
 	}
 
 	*out = (dc_device_t*) device;

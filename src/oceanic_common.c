@@ -99,26 +99,52 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 
 
 static int
-oceanic_common_match_pattern (const unsigned char *string, const unsigned char *pattern)
+oceanic_common_match_pattern (const unsigned char *string, const unsigned char *pattern, unsigned int *firmware)
 {
+	unsigned int value = 0;
+	unsigned int count = 0;
+
 	for (unsigned int i = 0; i < PAGESIZE; ++i, ++pattern, ++string) {
-		if (*pattern != '\0' && *pattern != *string)
-			return 0;
+		if (*pattern != '\0') {
+			// Compare the pattern.
+			if (*pattern != *string)
+				return 0;
+		} else {
+			// Extract the firmware version.
+			// This is based on the assumption that (only) the first block of
+			// zeros in the pattern contains the firmware version.
+			if (i == 0 || *(pattern - 1) != '\0')
+				count++;
+			if (count == 1) {
+				value <<= 8;
+				value |= *string;
+			}
+		}
+	}
+
+	if (firmware) {
+		*firmware = value;
 	}
 
 	return 1;
 }
 
-
-int
-oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], unsigned int n)
+const oceanic_common_layout_t *
+oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n, unsigned int *firmware)
 {
-	for (unsigned int i = 0; i < n; ++i) {
-		if (oceanic_common_match_pattern (version, patterns[i]))
-			return 1;
+	for (size_t i = 0; i < n; ++i) {
+		unsigned int fw = 0;
+		if (oceanic_common_match_pattern (version, patterns[i].pattern, &fw) &&
+			fw >= patterns[i].firmware)
+		{
+			if (firmware) {
+				*firmware = fw;
+			}
+			return patterns[i].layout;
+		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 
@@ -128,6 +154,7 @@ oceanic_common_device_init (oceanic_common_device_t *device)
 	assert (device != NULL);
 
 	// Set the default values.
+	device->firmware = 0;
 	memset (device->version, 0, sizeof (device->version));
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->layout = NULL;
@@ -585,7 +612,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
-	devinfo.firmware = 0;
+	devinfo.firmware = device->firmware;
 	if (layout->pt_mode_serial == 0)
 		devinfo.serial = bcd2dec (id[10]) * 10000 + bcd2dec (id[11]) * 100 + bcd2dec (id[12]);
 	else if (layout->pt_mode_serial == 1)
