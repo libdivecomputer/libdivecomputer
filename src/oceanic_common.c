@@ -415,7 +415,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
 				rb_entry_first, rb_entry_last);
 			status = DC_STATUS_DATAFORMAT;
-			break;
+			continue;
 		}
 
 		// Calculate the end pointer and the number of bytes.
@@ -505,7 +505,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
 				rb_entry_first, rb_entry_last);
 			status = DC_STATUS_DATAFORMAT;
-			break;
+			continue;
 		}
 
 		// Calculate the end pointer and the number of bytes.
