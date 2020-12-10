@@ -294,6 +294,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Quad Air",          DC_FAMILY_MARES_ICONHD , 0x23, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Smart Air",         DC_FAMILY_MARES_ICONHD , 0x24, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Quad",              DC_FAMILY_MARES_ICONHD , 0x29, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_mares},
+	{"Mares", "Horizon",           DC_FAMILY_MARES_ICONHD , 0x2C, DC_TRANSPORT_SERIAL, NULL},
 	/* Heinrichs Weikamp */
 	{"Heinrichs Weikamp", "OSTC",     DC_FAMILY_HW_OSTC, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1, DC_TRANSPORT_SERIAL, NULL},
