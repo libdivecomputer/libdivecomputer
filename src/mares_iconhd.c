@@ -128,6 +128,12 @@ static const mares_iconhd_layout_t mares_iconhdnet_layout = {
 	0x100000, /* rb_profile_end */
 };
 
+static const mares_iconhd_layout_t mares_genius_layout = {
+	0x1000000, /* memsize */
+	0x0100000, /* rb_profile_begin */
+	0x1000000, /* rb_profile_end */
+};
+
 static const mares_iconhd_layout_t mares_matrix_layout = {
 	0x40000, /* memsize */
 	0x0A000, /* rb_profile_begin */
@@ -560,8 +566,8 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 		device->packetsize = 256;
 		break;
 	case GENIUS:
-		device->layout = &mares_iconhdnet_layout;
-		device->packetsize = 256;
+		device->layout = &mares_genius_layout;
+		device->packetsize = 4096;
 		device->fingerprint_size = 4;
 		break;
 	case ICONHDNET:
