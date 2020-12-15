@@ -365,8 +365,8 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 
 	// Check the header type and version.
 	unsigned int type = array_uint16_le (data);
-	unsigned int major = data[2];
-	unsigned int minor = data[3];
+	unsigned int minor = data[2];
+	unsigned int major = data[3];
 	if (type != 1 || major != 0 || minor != 0) {
 		ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 			type, major, minor);
@@ -833,9 +833,9 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 		// Check the profile type and version.
 		unsigned int type = array_uint16_le (data);
-		unsigned int major = data[2];
-		unsigned int minor = data[3];
-		if (type != 0 || major != 2 || minor != 0) {
+		unsigned int minor = data[2];
+		unsigned int major = data[3];
+		if (type != 0 || major != 0 || minor != 2) {
 			ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 				type, major, minor);
 			return DC_STATUS_DATAFORMAT;
