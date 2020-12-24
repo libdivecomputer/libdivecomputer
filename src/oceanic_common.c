@@ -415,7 +415,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
 				rb_entry_first, rb_entry_last);
 			status = DC_STATUS_DATAFORMAT;
-			break;
+			continue;
 		}
 
 		// Calculate the end pointer and the number of bytes.
@@ -504,9 +504,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
 				rb_entry_first, rb_entry_last);
-			dc_rbstream_free (rbstream);
-			free (profiles);
-			return DC_STATUS_DATAFORMAT;
+			status = DC_STATUS_DATAFORMAT;
+			continue;
 		}
 
 		// Calculate the end pointer and the number of bytes.
@@ -533,9 +532,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		rc = dc_rbstream_read (rbstream, progress, profiles + offset, rb_entry_size + gap);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive.");
-			dc_rbstream_free (rbstream);
-			free (profiles);
-			return rc;
+			status = rc;
+			break;
 		}
 
 		remaining -= rb_entry_size + gap;
@@ -570,7 +568,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	dc_rbstream_free (rbstream);
 	free (profiles);
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 
