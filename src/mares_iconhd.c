@@ -49,6 +49,7 @@
 #define QUADAIR   0x23
 #define SMARTAIR  0x24
 #define QUAD      0x29
+#define HORIZON   0x2C
 
 #define MAXRETRIES 4
 
@@ -128,6 +129,12 @@ static const mares_iconhd_layout_t mares_iconhdnet_layout = {
 	0x100000, /* rb_profile_end */
 };
 
+static const mares_iconhd_layout_t mares_genius_layout = {
+	0x1000000, /* memsize */
+	0x0100000, /* rb_profile_begin */
+	0x1000000, /* rb_profile_end */
+};
+
 static const mares_iconhd_layout_t mares_matrix_layout = {
 	0x40000, /* memsize */
 	0x0A000, /* rb_profile_begin */
@@ -156,6 +163,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 		{"Quad Air",    QUADAIR},
 		{"Smart Air",   SMARTAIR},
 		{"Quad",        QUAD},
+		{"Horizon",     HORIZON},
 	};
 
 	// Check the product name in the version packet against the list
@@ -560,8 +568,9 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 		device->packetsize = 256;
 		break;
 	case GENIUS:
-		device->layout = &mares_iconhdnet_layout;
-		device->packetsize = 256;
+	case HORIZON:
+		device->layout = &mares_genius_layout;
+		device->packetsize = 4096;
 		device->fingerprint_size = 4;
 		break;
 	case ICONHDNET:
@@ -952,7 +961,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	devinfo.serial = array_uint32_le (serial);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	if (device->model == GENIUS) {
+	if (device->model == GENIUS || device->model == HORIZON) {
 		return mares_iconhd_device_foreach_object (abstract, callback, userdata);
 	} else {
 		return mares_iconhd_device_foreach_raw (abstract, callback, userdata);
