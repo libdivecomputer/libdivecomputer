@@ -551,7 +551,8 @@ static void sample_gastime(struct sample_data *info, short gastime)
 	if (gastime < 0)
 		return;
 
-	// Hmm. We have no good way to report airtime remaining
+	sample.rbt = gastime / 60;
+	if (info->callback) info->callback (DC_SAMPLE_RBT, sample, info->userdata);
 }
 
 /*
