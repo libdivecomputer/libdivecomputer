@@ -527,9 +527,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_atom2_parser_t *parser = (oceanic_atom2_parser_t *) abstract;
-
 	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
 
 	// Cache the header data.
 	status = oceanic_atom2_parser_cache (parser);

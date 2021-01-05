@@ -261,7 +261,8 @@ suunto_d9_device_packet (dc_device_t *abstract, const unsigned char command[], u
 	}
 
 	// Verify the size of the package.
-	if (array_uint16_be (answer + 1) + 4 != asize) {
+	unsigned int len = array_uint16_be (answer + 1);
+	if (len + 4 != asize) {
 		ERROR (abstract->context, "Unexpected answer size.");
 		return DC_STATUS_PROTOCOL;
 	}

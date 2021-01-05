@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <limits.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -77,7 +78,7 @@ l_vsnprintf (char *str, size_t size, const char *format, va_list ap)
 	 * enough.
 	 */
 	n = vsnprintf (str, size, format, ap);
-	if (n >= size)
+	if (n >= 0 && (size_t) n >= size)
 		n = -1;
 #endif
 
@@ -104,7 +105,7 @@ l_hexdump (char *str, size_t size, const unsigned char data[], size_t n)
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
-	if (size == 0)
+	if (size == 0 || size > INT_MAX)
 		return -1;
 
 	/* The maximum number of bytes. */
@@ -126,11 +127,11 @@ l_hexdump (char *str, size_t size, const unsigned char data[], size_t n)
 	/* Null terminate the hex string. */
 	str[length * 2] = 0;
 
-	return (n > maxlength ? -1 : length * 2);
+	return (n > maxlength ? -1 : (int) (length * 2));
 }
 
 static void
-logfunc (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
+loghandler (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *msg, void *userdata)
 {
 	const char *loglevels[] = {"NONE", "ERROR", "WARNING", "INFO", "DEBUG", "ALL"};
 
@@ -166,7 +167,7 @@ dc_context_new (dc_context_t **out)
 
 #ifdef ENABLE_LOGGING
 	context->loglevel = DC_LOGLEVEL_WARNING;
-	context->logfunc = logfunc;
+	context->logfunc = loghandler;
 #else
 	context->loglevel = DC_LOGLEVEL_NONE;
 	context->logfunc = NULL;

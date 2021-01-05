@@ -155,7 +155,7 @@ dc_irda_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_
 	}
 
 	// Open the socket.
-	int fd = socket (AF_IRDA, SOCK_STREAM, 0);
+	s_socket_t fd = socket (AF_IRDA, SOCK_STREAM, 0);
 	if (fd == S_INVALID) {
 		s_errcode_t errcode = S_ERRNO;
 		SYSERROR (context, errcode);

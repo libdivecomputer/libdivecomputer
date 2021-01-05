@@ -80,7 +80,7 @@ mktemplate_datetime (char *buffer, size_t size, dc_parser_t *parser)
 	n = snprintf (buffer, size, "%04i%02i%02iT%02i%02i%02i",
 		datetime.year, datetime.month, datetime.day,
 		datetime.hour, datetime.minute, datetime.second);
-	if (n < 0 || n >= size)
+	if (n < 0 || (size_t) n >= size)
 		return -1;
 
 	return n;
@@ -92,7 +92,7 @@ mktemplate_number (char *buffer, size_t size, unsigned int number)
 	int n = 0;
 
 	n = snprintf (buffer, size, "%04u", number);
-	if (n < 0 || n >= size)
+	if (n < 0 || (size_t) n >= size)
 		return -1;
 
 	return n;

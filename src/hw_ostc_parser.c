@@ -390,7 +390,6 @@ hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
 	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
 
 	// Cache the header data.
 	dc_status_t rc = hw_ostc_parser_cache (parser);
@@ -451,7 +450,6 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 {
 	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
 	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
 
 	// Cache the header data.
 	dc_status_t rc = hw_ostc_parser_cache (parser);

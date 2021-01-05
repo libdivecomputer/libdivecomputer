@@ -22,11 +22,13 @@
 #ifndef DC_DATETIME_H
 #define DC_DATETIME_H
 
+#include <limits.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define DC_TIMEZONE_NONE 0x80000000
+#define DC_TIMEZONE_NONE INT_MIN
 
 #if defined (_WIN32) && !defined (__GNUC__)
 typedef __int64 dc_ticks_t;

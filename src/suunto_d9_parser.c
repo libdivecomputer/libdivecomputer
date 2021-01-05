@@ -348,9 +348,7 @@ static dc_status_t
 suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	suunto_d9_parser_t *parser = (suunto_d9_parser_t*) abstract;
-
 	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
 
 	// Cache the gas mix data.
 	dc_status_t rc = suunto_d9_parser_cache (parser);

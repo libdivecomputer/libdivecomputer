@@ -95,7 +95,7 @@ typedef struct suunto_eonsteel_parser_t {
 	} cache;
 } suunto_eonsteel_parser_t;
 
-typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user);
+typedef int (*eon_data_cb_t)(unsigned short type, const struct type_desc *desc, const unsigned char *data, unsigned int len, void *user);
 
 typedef struct eon_event_t {
 	const char *name;
@@ -137,7 +137,6 @@ static const struct {
 
 static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, struct type_desc *desc)
 {
-	int i;
 	const char *name = desc->desc;
 
 	// Not a sample type? Skip it
@@ -160,7 +159,7 @@ static enum eon_sample lookup_descriptor_type(suunto_eonsteel_parser_t *eon, str
 	name += 8;
 
 	// .. and look it up in the table of sample type strings
-	for (i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
+	for (size_t i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
 		if (!strcmp(name, type_translation[i].name))
 			return type_translation[i].type;
 	}
@@ -179,8 +178,7 @@ static parser_sample_event_t lookup_event(const char *name, const eon_event_t ev
 
 static const char *desc_type_name(enum eon_sample type)
 {
-	int i;
-	for (i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
+	for (size_t i = 0; i < C_ARRAY_SIZE(type_translation); i++) {
 		if (type == type_translation[i].type)
 			return type_translation[i].name;
 	}
@@ -366,10 +364,10 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 	return 0;
 }
 
-static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p, int len, eon_data_cb_t callback, void *user)
+static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p, int size, eon_data_cb_t callback, void *user)
 {
-	const unsigned char *name, *data, *end, *last, *one_past_end = p + len;
-	int textlen, type;
+	const unsigned char *name, *data, *end, *last, *one_past_end = p + size;
+	int textlen, id;
 	int rc;
 
 	// First two bytes: zero and text length
@@ -388,7 +386,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 
 	// Two bytes of 'type' followed by the name/descriptor, followed by the data
 	data = name + textlen;
-	type = array_uint16_le(name);
+	id = array_uint16_le(name);
 	name += 2;
 
 	if (*name != '<') {
@@ -396,7 +394,7 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 		return -1;
 	}
 
-	record_type(eon, type, (const char *) name, textlen-3);
+	record_type(eon, id, (const char *) name, textlen-3);
 
 	end = data;
 	last = data;
@@ -860,7 +858,7 @@ static void sample_setpoint_automatic(struct sample_data *info, unsigned char va
 	DEBUG(info->eon->base.context, "sample_setpoint_automatic(%u)", value);
 }
 
-static int handle_sample_type(const struct type_desc *desc, struct sample_data *info, enum eon_sample type, const unsigned char *data)
+static unsigned int handle_sample_type(const struct type_desc *desc, struct sample_data *info, enum eon_sample type, const unsigned char *data)
 {
 	switch (type) {
 	case ES_dtime:
@@ -968,7 +966,7 @@ static int handle_sample_type(const struct type_desc *desc, struct sample_data *
 	}
 }
 
-static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
+static int traverse_samples(unsigned short type, const struct type_desc *desc, const unsigned char *data, unsigned int len, void *user)
 {
 	struct sample_data *info = (struct sample_data *) user;
 	suunto_eonsteel_parser_t *eon = info->eon;
@@ -982,8 +980,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 	info->ceiling = 0.0;
 
 	for (i = 0; i < EON_MAX_GROUP; i++) {
-		enum eon_sample type = desc->type[i];
-		int bytes = handle_sample_type(desc, info, type, data);
+		unsigned int bytes = handle_sample_type(desc, info, desc->type[i], data);
 
 		if (!bytes)
 			break;
@@ -1246,8 +1243,6 @@ static float get_le32_float(const unsigned char *src)
 static int traverse_device_fields(suunto_eonsteel_parser_t *eon, const struct type_desc *desc,
                                   const unsigned char *data, int len)
 {
-	const char *name = desc->desc + strlen("sml.DeviceLog.Device.");
-
 	return 0;
 }
 
@@ -1429,13 +1424,15 @@ static int traverse_sample_fields(suunto_eonsteel_parser_t *eon, const struct ty
 			set_depth_field(eon, array_uint16_le(data));
 			data += 2;
 			continue;
+		default:
+			break;
 		}
 		break;
 	}
 	return 0;
 }
 
-static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, int len, void *user)
+static int traverse_fields(unsigned short type, const struct type_desc *desc, const unsigned char *data, unsigned int len, void *user)
 {
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) user;
 

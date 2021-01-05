@@ -163,8 +163,8 @@ reefnet_sensuspro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 		while (offset + sizeof (footer) <= size &&
 			memcmp (data + offset, footer, sizeof (footer)) != 0)
 		{
-			unsigned int value = array_uint16_le (data + offset);
-			unsigned int depth = (value & 0x01FF);
+			unsigned int raw = array_uint16_le (data + offset);
+			unsigned int depth = (raw & 0x01FF);
 			if (depth > maxdepth)
 				maxdepth = depth;
 
