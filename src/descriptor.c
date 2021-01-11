@@ -384,6 +384,18 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Ratio",      "iDive Color Deep", DC_FAMILY_DIVESYSTEM_IDIVE, 0x54, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iDive Color Tech+",DC_FAMILY_DIVESYSTEM_IDIVE, 0x55, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iDive Color Reb",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x56, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2021 GPS Fancy", DC_FAMILY_DIVESYSTEM_IDIVE, 0x60, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2021 GPS Easy",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x61, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2021 GPS Pro ",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x62, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2021 GPS Deep",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x63, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2021 GPS Tech+", DC_FAMILY_DIVESYSTEM_IDIVE, 0x64, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2021 GPS Reb",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x65, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2021 Pro Fancy", DC_FAMILY_DIVESYSTEM_IDIVE, 0x70, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2021 Pro Easy",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x71, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2021 Pro Pro",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x72, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2021 Pro Deep",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x73, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2021 Pro Tech+", DC_FAMILY_DIVESYSTEM_IDIVE, 0x74, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2021 Pro Reb",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x75, DC_TRANSPORT_SERIAL, NULL},
 	{"Seac",       "Jack",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x1000, DC_TRANSPORT_SERIAL, NULL},
 	{"Seac",       "Guru",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x1002, DC_TRANSPORT_SERIAL, NULL},
 	/* Cochran Commander */
@@ -630,6 +642,7 @@ static int dc_filter_divesystem (dc_transport_t transport, const void *userdata,
 {
 	static const char * const bluetooth[] = {
 		"DS",
+		"IX5M",
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
