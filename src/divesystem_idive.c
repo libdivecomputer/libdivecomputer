@@ -903,6 +903,9 @@ divesystem_idive_device_fwupdate (dc_device_t *abstract, const char *filename)
 		goto error_free;
 	}
 
+	// Wait before sending the firmware data.
+	dc_iostream_sleep (device->iostream, 100);
+
 	// Upload the firmware.
 	unsigned int offset = 0;
 	while (offset + 2 <= size) {
