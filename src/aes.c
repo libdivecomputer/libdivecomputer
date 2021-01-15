@@ -98,7 +98,7 @@ typedef struct aes_state_t {
 
 #if defined(CBC) && CBC
 	// Initial Vector used only for CBC mode
-	uint8_t* Iv;
+	const uint8_t* Iv;
 #endif
 } aes_state_t;
 
@@ -542,7 +542,7 @@ void AES128_CBC_encrypt_buffer(uint8_t* output, uint8_t* input, uint32_t length,
 
   if(iv != 0)
   {
-    state.Iv = (uint8_t*)iv;
+    state.Iv = iv;
   }
 
   for(i = 0; i < length; i += KEYLEN)
@@ -584,7 +584,7 @@ void AES128_CBC_decrypt_buffer(uint8_t* output, uint8_t* input, uint32_t length,
   // If iv is passed as 0, we continue to encrypt without re-setting the Iv
   if(iv != 0)
   {
-    state.Iv = (uint8_t*)iv;
+    state.Iv = iv;
   }
 
   for(i = 0; i < length; i += KEYLEN)
