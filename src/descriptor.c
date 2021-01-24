@@ -486,7 +486,9 @@ dc_match_oceanic (const void *key, const void *value)
 		0
 	};
 
-	return dc_match_number_with_prefix (key, &prefix);
+	const char *p = prefix;
+
+	return dc_match_number_with_prefix (key, &p);
 }
 
 static int
