@@ -495,7 +495,7 @@ static int
 dc_filter_internal (const void *key, const void *values, size_t count, size_t size, dc_match_t match, void *params_dst, const void *params_src, size_t params_size)
 {
 	if (key == NULL)
-		return 0;
+		return 1;
 
 	for (size_t i = 0; i < count; ++i) {
 		if (match (key, (const unsigned char *) values + i * size)) {
