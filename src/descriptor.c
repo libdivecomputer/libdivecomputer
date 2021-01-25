@@ -803,7 +803,7 @@ dc_descriptor_get_transports (dc_descriptor_t *descriptor)
 int
 dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata, void *params)
 {
-	if (descriptor == NULL || descriptor->filter == NULL)
+	if (descriptor == NULL || descriptor->filter == NULL || userdata == NULL)
 		return 1;
 
 	return descriptor->filter (transport, userdata, params);
