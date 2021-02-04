@@ -41,6 +41,7 @@
 #define SAGE       0x4647
 #define I770R      0x4651
 #define GEO40      0x4653
+#define BEACON     0x4742
 
 #define MAXPACKET  256
 #define MAXRETRIES 2
@@ -493,6 +494,7 @@ static const oceanic_common_version_t versions[] = {
 	{"OCEANVTX \0\0 2048", 0,      &aeris_a300cs_layout},
 	{"AQUAI750 \0\0 2048", 0,      &aeris_a300cs_layout},
 	{"SWDRAGON \0\0 2048", 0,      &aeris_a300cs_layout},
+	{"SWBEACON \0\0 2048", 0,      &aeris_a300cs_layout},
 
 	{"AQUAI450 \0\0 2048", 0,      &aqualung_i450t_layout},
 
@@ -904,7 +906,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	}
 
 	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE &&
-		model != PROPLUSX && model != SAGE ) {
+		model != PROPLUSX && model != SAGE && model != BEACON) {
 		status = oceanic_atom2_ble_handshake(device);
 		if (status != DC_STATUS_SUCCESS) {
 			goto error_free;
