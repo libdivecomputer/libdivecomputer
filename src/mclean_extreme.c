@@ -42,7 +42,7 @@
 #define CMD_FIRMWARE        0xAD
 
 #define SZ_PACKET           512
-#define SZ_FINGERPRINT      7
+#define SZ_FINGERPRINT      4
 #define SZ_CFG              0x002D
 #define SZ_COMPUTER         (SZ_CFG + 0x6A)
 #define SZ_HEADER           (SZ_CFG + 0x31)
@@ -580,10 +580,10 @@ mclean_extreme_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback
 		unsigned char *data = dc_buffer_get_data(buffer);
 		unsigned int size = dc_buffer_get_size(buffer);
 
-		if (memcmp(data, device->fingerprint, sizeof(device->fingerprint)) == 0)
+		if (memcmp(data + SZ_CFG, device->fingerprint, sizeof(device->fingerprint)) == 0)
 			break;
 
-		if (callback && !callback (data, size, data, sizeof(device->fingerprint), userdata)) {
+		if (callback && !callback (data, size, data + SZ_CFG, sizeof(device->fingerprint), userdata)) {
 			break;
 		}
 	}
