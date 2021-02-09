@@ -164,7 +164,8 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned char answer[SZ_MEMORY + 2] = {0};
 
 	// Receive the header of the package.
-	for (unsigned int i = 0; i < 4;) {
+	unsigned int i = 0;
+	while (i < 4) {
 		if (device_is_cancelled (abstract))
 			return DC_STATUS_CANCELLED;
 
@@ -173,11 +174,13 @@ uwatec_aladin_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return status;
 		}
-		if (answer[i] == (i < 3 ? 0x55 : 0x00)) {
-			i++; // Continue.
-		} else {
-			i = 0; // Reset.
+
+		const unsigned char expected = i < 3 ? 0x55 : 0x00;
+		if (answer[i] != expected) {
 			device_event_emit (abstract, DC_EVENT_WAITING, NULL);
+			i = 0;
+		} else {
+			i++;
 		}
 	}
 
