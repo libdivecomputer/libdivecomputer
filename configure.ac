@@ -72,18 +72,18 @@ AM_CONDITIONAL([HAVE_MANDOC],[test -n "$MANDOC"])
 # Enable automake silent build rules.
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
-# Checks for native Windows.
-AC_MSG_CHECKING([for native Win32])
+# Checks for operating system.
+AC_MSG_CHECKING([for operating system])
 case "$host" in
   *-*-mingw*)
-    os_win32=yes
+    platform=windows
     ;;
   *)
-    os_win32=no
+    platform=default
     ;;
 esac
-AC_MSG_RESULT([$os_win32])
-AM_CONDITIONAL([OS_WIN32], [test "$os_win32" = "yes"])
+AC_MSG_RESULT([$platform])
+AM_CONDITIONAL([OS_WIN32], [test "$platform" = "windows"])
 
 DEPENDENCIES=""
 
@@ -192,7 +192,7 @@ AX_APPEND_COMPILE_FLAGS([ \
 ])
 
 # Windows specific compiler options.
-AS_IF([test "$os_win32" = "yes"], [
+AS_IF([test "$platform" = "windows"], [
 	AX_APPEND_COMPILE_FLAGS([-Wno-pedantic-ms-format])
 ])
 
