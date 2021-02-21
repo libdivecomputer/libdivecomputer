@@ -78,6 +78,9 @@ case "$host" in
   *-*-mingw*)
     platform=windows
     ;;
+  *-*-darwin*)
+    platform=mac
+    ;;
   *)
     platform=default
     ;;
@@ -208,6 +211,25 @@ m4_ifset([dc_version_suffix],[
 	AC_DEFINE(HAVE_VERSION_SUFFIX, [1], [Define if a version suffix is present.])
 ])
 
+# Supported transports
+transport_serial="yes"
+transport_usb="${have_libusb-no}"
+if test "$have_hidapi" = "yes"; then
+	transport_usbhid="yes"
+elif test "$have_libusb" = "yes" && test "$platform" != "mac"; then
+	transport_usbhid="yes"
+else
+	transport_usbhid="no"
+fi
+if test "$platform" = "windows"; then
+	transport_irda="$ac_cv_header_af_irda_h"
+	transport_bluetooth="$ac_cv_header_ws2bth_h"
+else
+	transport_irda="$ac_cv_header_linux_irda_h"
+	transport_bluetooth="${have_bluez-no}"
+fi
+transport_ble="no"
+
 AC_CONFIG_FILES([
    libdivecomputer.pc
    Makefile
@@ -222,3 +244,35 @@ AC_CONFIG_FILES([
    examples/Makefile
 ])
 AC_OUTPUT
+AC_MSG_NOTICE([
+  $PACKAGE $VERSION
+  ===============
+
+  Compiler:
+
+    CC      : $CC
+    CFLAGS  : $CFLAGS
+    LDFLAGS : $LDFLAGS
+
+  Features:
+
+    Logging              : $enable_logging
+    Pseudo terminal      : $enable_pty
+    Example applications : $enable_examples
+    Documentation        : $enable_doc
+
+  Transports:
+
+    Serial    : $transport_serial
+    USB       : $transport_usb
+    USBHID    : $transport_usbhid
+    IrDA      : $transport_irda
+    Bluetooth : $transport_bluetooth
+    BLE       : $transport_ble
+
+  Building:
+
+    Type 'make' to compile $PACKAGE.
+
+    Type 'make install' to install $PACKAGE.
+])
