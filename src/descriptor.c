@@ -409,7 +409,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Tecdiving DiveComputer.eu */
 	{"Tecdiving", "DiveComputer.eu", DC_FAMILY_TECDIVING_DIVECOMPUTEREU, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_tecdiving},
 	/* McLean Extreme */
-	{ "McLean", "Extreme", DC_FAMILY_MCLEAN_EXTREME, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_mclean},
+	{ "McLean", "Extreme", DC_FAMILY_MCLEAN_EXTREME, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_mclean},
 	/* Liquivision */
 	{"Liquivision", "Xen",  DC_FAMILY_LIQUIVISION_LYNX, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Liquivision", "Xeo",  DC_FAMILY_LIQUIVISION_LYNX, 1, DC_TRANSPORT_SERIAL, NULL},
@@ -685,7 +685,7 @@ static int dc_filter_mclean(dc_transport_t transport, const void *userdata, void
 		"McLean Extreme",
 	};
 
-	if (transport == DC_TRANSPORT_BLUETOOTH) {
+	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	} else if (transport == DC_TRANSPORT_SERIAL) {
 		return DC_FILTER_INTERNAL(userdata, rfcomm, 1, dc_match_devname);
