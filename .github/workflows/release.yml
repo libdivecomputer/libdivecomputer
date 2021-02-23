@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags: 'v*'
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Version number
+        id: version
+        run: |
+          VERSION="${GITHUB_REF/refs\/tags\/v/}"
+          if [ "${VERSION}" = "${VERSION%%-*}" ]; then
+             PRERELEASE=false
+          else
+             PRERELEASE=true
+          fi
+          echo ::set-output name=version::${VERSION}
+          echo ::set-output name=prerelease::${PRERELEASE}
+
+      - name: Build distribution tarball
+        id: build
+        run: |
+          sudo apt-get install libbluetooth-dev libusb-1.0-0-dev
+          autoreconf --install --force
+          ./configure
+          make
+          make distcheck
+
+      - name: Check tarball version number
+        id: check
+        run: |
+          FILENAME="libdivecomputer-${{ steps.version.outputs.version }}.tar.gz"
+          if [ ! -f "${FILENAME}" ]; then
+             echo ::error ::Tarball \'${FILENAME}\' not found!
+             exit 1
+          fi
+
+      - uses: actions/create-release@v1
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+
+      - uses: actions/upload-release-asset@v1
+        id: upload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
+          asset_path: libdivecomputer-${{ steps.version.outputs.version }}.tar.gz
+          asset_name: libdivecomputer-${{ steps.version.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
