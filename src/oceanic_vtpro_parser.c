@@ -181,7 +181,7 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		maxdepth = data[footer + 1];
 	} else {
 		oxygen = data[footer + 3];
-		maxdepth = array_uint16_le(data + footer + 0) & 0x0FFF;
+		maxdepth = array_uint16_le(data + footer + 0) & 0x01FF;
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
