@@ -181,7 +181,7 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		maxdepth = data[footer + 1];
 	} else {
 		oxygen = data[footer + 3];
-		maxdepth = array_uint16_le(data + footer + 0) & 0x0FFF;
+		maxdepth = array_uint16_le(data + footer + 0) & 0x01FF;
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
@@ -358,6 +358,21 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		}
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
 		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+
+		// NDL / Deco
+		if (parser->model != AERIS500AI) {
+			unsigned int decostop = (data[offset + 5] & 0xF0) >> 4;
+			unsigned int decotime = array_uint16_le(data + offset + 4) & 0x0FFF;
+			if (decostop) {
+				sample.deco.type = DC_DECO_DECOSTOP;
+				sample.deco.depth = decostop * 10 * FEET;
+			} else {
+				sample.deco.type = DC_DECO_NDL;
+				sample.deco.depth = 0.0;
+			}
+			sample.deco.time = decotime * 60;
+			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		}
 
 		offset += PAGESIZE / 2;
 	}
