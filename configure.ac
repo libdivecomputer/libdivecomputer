@@ -177,6 +177,7 @@ AC_CHECK_FUNCS([clock_gettime mach_absolute_time])
 AC_CHECK_FUNCS([getopt_long])
 
 # Checks for supported compiler options.
+AX_APPEND_COMPILE_FLAGS([-Werror=unknown-warning-option],[ERROR_CFLAGS])
 AX_APPEND_COMPILE_FLAGS([ \
 	-pedantic \
 	-Wall \
@@ -192,7 +193,7 @@ AX_APPEND_COMPILE_FLAGS([ \
 	-Wmissing-declarations \
 	-Wno-unused-parameter \
 	-fmacro-prefix-map='$(top_srcdir)/'= \
-])
+],,[$ERROR_CFLAGS])
 
 # Windows specific compiler options.
 AS_IF([test "$platform" = "windows"], [
