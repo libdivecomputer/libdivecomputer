@@ -459,6 +459,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\sporasub_sp2.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\sporasub_sp2_parser.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\suunto_common.c"
 				>
 			</File>
@@ -822,6 +830,10 @@
 			</File>
 			<File
 				RelativePath="..\src\socket.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\sporasub_sp2.h"
 				>
 			</File>
 			<File

@@ -415,6 +415,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Liquivision", "Xeo",  DC_FAMILY_LIQUIVISION_LYNX, 1, DC_TRANSPORT_SERIAL, NULL},
 	{"Liquivision", "Lynx", DC_FAMILY_LIQUIVISION_LYNX, 2, DC_TRANSPORT_SERIAL, NULL},
 	{"Liquivision", "Kaon", DC_FAMILY_LIQUIVISION_LYNX, 3, DC_TRANSPORT_SERIAL, NULL},
+	/* Sporasub */
+	{"Sporasub", "SP2", DC_FAMILY_SPORASUB_SP2, 0, DC_TRANSPORT_SERIAL, NULL},
 };
 
 static int
