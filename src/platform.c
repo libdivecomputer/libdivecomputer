@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2017 Jef Driesen
+ * Copyright (C) 2021 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,35 +19,33 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_PLATFORM_H
-#define DC_PLATFORM_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 #ifdef _WIN32
-#define DC_PRINTF_SIZE "%Iu"
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#include <windows.h>
 #else
-#define DC_PRINTF_SIZE "%zu"
+#include <time.h>
+#include <errno.h>
 #endif
 
-#ifdef _MSC_VER
-#define snprintf _snprintf
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-#if _MSC_VER < 1800
-// The rint() function is only available in MSVC 2013 and later
-// versions. Our replacement macro isn't entirely correct, because the
-// rounding rules for halfway cases are slightly different (away from
-// zero vs to even). But for our use-case, that's not a problem.
-#define rint(x) ((x) >= 0.0 ? floor((x) + 0.5): ceil((x) - 0.5))
-#endif
+#include "platform.h"
+
+int
+dc_platform_sleep (unsigned int milliseconds)
+{
+#ifdef _WIN32
+	Sleep (milliseconds);
+#else
+	struct timespec ts;
+	ts.tv_sec  = (milliseconds / 1000);
+	ts.tv_nsec = (milliseconds % 1000) * 1000000;
+
+	while (nanosleep (&ts, &ts) != 0) {
+		if (errno != EINTR ) {
+			return -1;
+		}
+	}
 #endif
 
-int dc_platform_sleep(unsigned int milliseconds);
-
-#ifdef __cplusplus
+	return 0;
 }
-#endif /* __cplusplus */
-#endif /* DC_PLATFORM_H */

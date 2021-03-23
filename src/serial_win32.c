@@ -32,6 +32,7 @@
 #include "iostream-private.h"
 #include "iterator-private.h"
 #include "descriptor-private.h"
+#include "platform.h"
 
 static dc_status_t dc_serial_iterator_next (dc_iterator_t *iterator, void *item);
 static dc_status_t dc_serial_iterator_free (dc_iterator_t *iterator);
@@ -836,7 +837,11 @@ dc_serial_get_lines (dc_iostream_t *abstract, unsigned int *value)
 static dc_status_t
 dc_serial_sleep (dc_iostream_t *abstract, unsigned int timeout)
 {
-	Sleep (timeout);
+	if (dc_platform_sleep (timeout) != 0) {
+		DWORD errcode = GetLastError ();
+		SYSERROR (abstract->context, errcode);
+		return syserror (errcode);
+	}
 
 	return DC_STATUS_SUCCESS;
 }

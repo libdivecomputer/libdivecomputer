@@ -202,11 +202,7 @@ dc_irda_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_
 		// modified by the previous getsockopt call.
 		size = sizeof (data);
 
-#ifdef _WIN32
-		Sleep (1000);
-#else
-		sleep (1);
-#endif
+		dc_platform_sleep (1000);
 	}
 
 	S_CLOSE (fd);

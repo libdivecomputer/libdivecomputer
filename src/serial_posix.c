@@ -30,7 +30,6 @@
 #include <fcntl.h>	// fcntl
 #include <termios.h>	// tcgetattr, tcsetattr, cfsetispeed, cfsetospeed, tcflush, tcsendbreak
 #include <sys/ioctl.h>	// ioctl
-#include <time.h>	// nanosleep
 #ifdef HAVE_LINUX_SERIAL_H
 #include <linux/serial.h>
 #endif
@@ -59,6 +58,7 @@
 #include "iostream-private.h"
 #include "iterator-private.h"
 #include "descriptor-private.h"
+#include "platform.h"
 #include "timer.h"
 
 #define DIRNAME "/dev"
@@ -995,16 +995,10 @@ dc_serial_get_lines (dc_iostream_t *abstract, unsigned int *value)
 static dc_status_t
 dc_serial_sleep (dc_iostream_t *abstract, unsigned int timeout)
 {
-	struct timespec ts;
-	ts.tv_sec  = (timeout / 1000);
-	ts.tv_nsec = (timeout % 1000) * 1000000;
-
-	while (nanosleep (&ts, &ts) != 0) {
+	if (dc_platform_sleep (timeout) != 0) {
 		int errcode = errno;
-		if (errcode != EINTR ) {
-			SYSERROR (abstract->context, errcode);
-			return syserror (errcode);
-		}
+		SYSERROR (abstract->context, errcode);
+		return syserror (errcode);
 	}
 
 	return DC_STATUS_SUCCESS;

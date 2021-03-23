@@ -20,6 +20,7 @@
  */
 
 #include "socket.h"
+#include "platform.h"
 
 #include "common-private.h"
 #include "context-private.h"
@@ -357,21 +358,11 @@ dc_socket_ioctl (dc_iostream_t *abstract, unsigned int request, void *data, size
 dc_status_t
 dc_socket_sleep (dc_iostream_t *abstract, unsigned int timeout)
 {
-#ifdef _WIN32
-	Sleep (timeout);
-#else
-	struct timespec ts;
-	ts.tv_sec  = (timeout / 1000);
-	ts.tv_nsec = (timeout % 1000) * 1000000;
-
-	while (nanosleep (&ts, &ts) != 0) {
-		int errcode = errno;
-		if (errcode != EINTR ) {
-			SYSERROR (abstract->context, errcode);
-			return dc_socket_syserror (errcode);
-		}
+	if (dc_platform_sleep (timeout) != 0) {
+		s_errcode_t errcode = S_ERRNO;
+		SYSERROR (abstract->context, errcode);
+		return dc_socket_syserror(errcode);
 	}
-#endif
 
 	return DC_STATUS_SUCCESS;
 }
