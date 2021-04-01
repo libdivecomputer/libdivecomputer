@@ -210,6 +210,15 @@ atomics_cobalt_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, 
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Adjust the maximum value to take into account the two byte checksum and
+	// the 8 byte serial number. Those extra bytes are not stored inside the
+	// dive header and are added dynamically during the data transfer. Since we
+	// don't know the total number of dives in advance, we can't calculate the
+	// total number of extra bytes and adjust the maximum on the fly.
+	if (progress) {
+		progress->maximum += 2 + 8;
+	}
+
 	// Send the command to the dive computer.
 	unsigned char bRequest = 0;
 	if (device->simulation)
@@ -347,12 +356,6 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			dc_buffer_free (buffer);
 			return DC_STATUS_SUCCESS;
 		}
-
-		// Adjust the maximum value to take into account the two checksum bytes
-		// for the next dive. Since we don't know the total number of dives in
-		// advance, we can't calculate the total number of checksum bytes and
-		// adjust the maximum on the fly.
-		progress.maximum += 2;
 
 		ndives++;
 	}
