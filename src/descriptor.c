@@ -125,6 +125,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "DX",         DC_FAMILY_SUUNTO_D9, 0x1C, DC_TRANSPORT_SERIAL, NULL},
 	{"Suunto", "Vyper Novo", DC_FAMILY_SUUNTO_D9, 0x1D, DC_TRANSPORT_SERIAL, NULL},
 	{"Suunto", "Zoop Novo",  DC_FAMILY_SUUNTO_D9, 0x1E, DC_TRANSPORT_SERIAL, NULL},
+	{"Suunto", "Zoop Novo",  DC_FAMILY_SUUNTO_D9, 0x1F, DC_TRANSPORT_SERIAL, NULL},
 	{"Suunto", "D4f",        DC_FAMILY_SUUNTO_D9, 0x20, DC_TRANSPORT_SERIAL, NULL},
 	/* Suunto EON Steel */
 	{"Suunto", "EON Steel",       DC_FAMILY_SUUNTO_EONSTEEL, 0, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},

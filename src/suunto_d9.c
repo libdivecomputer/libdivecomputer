@@ -33,13 +33,14 @@
 
 #define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
-#define D4i      0x19
-#define D6i      0x1A
-#define D9tx     0x1B
-#define DX       0x1C
-#define VYPERNOVO 0x1D
-#define ZOOPNOVO  0x1E
-#define D4F       0x20
+#define D4i         0x19
+#define D6i         0x1A
+#define D9tx        0x1B
+#define DX          0x1C
+#define VYPERNOVO   0x1D
+#define ZOOPNOVO_A  0x1E
+#define ZOOPNOVO_B  0x1F
+#define D4F         0x20
 
 typedef struct suunto_d9_device_t {
 	suunto_common2_device_t base;
@@ -100,7 +101,7 @@ suunto_d9_device_autodetect (suunto_d9_device_t *device, unsigned int model)
 	// Use the model number as a hint to speedup the detection.
 	unsigned int hint = 0;
 	if (model == D4i || model == D6i || model == D9tx ||
-		model == DX || model == VYPERNOVO || model == ZOOPNOVO ||
+		model == DX || model == VYPERNOVO || model == ZOOPNOVO_A || model == ZOOPNOVO_B ||
 		model == D4F)
 		hint = 1;
 
@@ -184,7 +185,7 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *
 	// Override the base class values.
 	model = device->base.version[0];
 	if (model == D4i || model == D6i || model == D9tx ||
-		model == VYPERNOVO || model == ZOOPNOVO ||
+		model == VYPERNOVO || model == ZOOPNOVO_A || model == ZOOPNOVO_B ||
 		model == D4F)
 		device->base.layout = &suunto_d9tx_layout;
 	else if (model == DX)
