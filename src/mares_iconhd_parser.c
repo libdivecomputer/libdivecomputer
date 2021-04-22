@@ -1159,6 +1159,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 					sample.deco.depth = 0.0;
 				}
 				sample.deco.time = decotime * 60;
+				sample.deco.tts = tts;
 				if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 
 				// Alarms

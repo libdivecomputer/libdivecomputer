@@ -257,6 +257,7 @@ typedef union dc_sample_value_t {
 		unsigned int type;
 		unsigned int time;
 		double depth;
+		unsigned int tts;
 	} deco;
 	unsigned int gasmix; /* Gas mix index */
 } dc_sample_value_t;

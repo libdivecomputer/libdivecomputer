@@ -298,6 +298,7 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			}
 			sample.deco.depth = 0.0;
 			sample.deco.time = 0;
+			sample.deco.tts = 0;
 			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 		}
 	}

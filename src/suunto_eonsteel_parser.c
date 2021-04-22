@@ -510,6 +510,7 @@ static void sample_ndl(struct sample_data *info, short ndl)
 
 	sample.deco.type = DC_DECO_NDL;
 	sample.deco.time = ndl;
+	sample.deco.tts = 0;
 	if (info->callback) info->callback(DC_SAMPLE_DECO, sample, info->userdata);
 }
 
@@ -996,8 +997,9 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 		dc_sample_value_t sample = {0};
 
 		sample.deco.type = DC_DECO_DECOSTOP;
-		sample.deco.time = info->tts;
+		sample.deco.time = 0;
 		sample.deco.depth = info->ceiling;
+		sample.deco.tts = info->tts;
 		if (info->callback) info->callback(DC_SAMPLE_DECO, sample, info->userdata);
 	}
 

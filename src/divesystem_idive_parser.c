@@ -566,11 +566,13 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		if (decostop) {
 			sample.deco.type = DC_DECO_DECOSTOP;
 			sample.deco.depth = decostop / 10.0;
-			sample.deco.time = apos4 ? decotime : tts;
+			sample.deco.time = decotime;
+			sample.deco.tts = tts;
 		} else {
 			sample.deco.type = DC_DECO_NDL;
 			sample.deco.depth = 0.0;
 			sample.deco.time = tts;
+			sample.deco.tts = 0;
 		}
 		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 

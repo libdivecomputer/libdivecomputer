@@ -171,6 +171,10 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 			value.deco.time,
 			convert_depth(value.deco.depth, sampledata->units),
 			decostop[value.deco.type]);
+		if (value.deco.tts) {
+			fprintf (sampledata->ostream, "   <tts>%u</tts>\n",
+				value.deco.tts);
+		}
 		break;
 	case DC_SAMPLE_GASMIX:
 		fprintf (sampledata->ostream, "   <gasmix>%u</gasmix>\n", value.gasmix);

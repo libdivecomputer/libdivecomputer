@@ -1053,6 +1053,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						sample.deco.depth = 0.0;
 					}
 					sample.deco.time = data[offset + 1] * 60;
+					sample.deco.tts = 0;
 					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 					break;
 				case PPO2:

@@ -978,6 +978,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					sample.deco.time = ndl * 60;
 					sample.deco.depth = 0.0;
 				}
+				sample.deco.tts = tts * 60;
 				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
 
 				// Setpoint

@@ -615,6 +615,7 @@ cochran_commander_parser_samples_foreach_tm (dc_parser_t *abstract, dc_sample_ca
 					sample.deco.type = DC_DECO_DECOSTOP;
 					sample.deco.time = 60; // We don't know the duration
 					sample.deco.depth = deco_ceiling * FEET;
+					sample.deco.tts = 0;
 					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
 					break;
 				case 0xAD:  // Increment ceiling (shallower)
@@ -623,6 +624,7 @@ cochran_commander_parser_samples_foreach_tm (dc_parser_t *abstract, dc_sample_ca
 					sample.deco.type = DC_DECO_DECOSTOP;
 					sample.deco.depth = deco_ceiling * FEET;
 					sample.deco.time = 60; // We don't know the duration
+					sample.deco.tts = 0;
 					if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
 					break;
 				default:
@@ -774,6 +776,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 				sample.deco.type = DC_DECO_DECOSTOP;
 				sample.deco.time = (array_uint16_le(s + 3) + 1) * 60;
 				sample.deco.depth = deco_ceiling * FEET;
+				sample.deco.tts = 0;
 				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
 				break;
 			case 0xAD:  // Increment ceiling (shallower)
@@ -782,6 +785,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 				sample.deco.type = DC_DECO_DECOSTOP;
 				sample.deco.depth = deco_ceiling * FEET;
 				sample.deco.time = (array_uint16_le(s + 3) + 1) * 60;
+				sample.deco.tts = 0;
 				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
 				break;
 			case 0xC0:  // Switched to FO2 21% mode (surface)
@@ -855,6 +859,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 					sample.deco.type = DC_DECO_NDL;
 					sample.deco.time = deco_time * 60;
 					sample.deco.depth = 0;
+					sample.deco.tts = 0;
 					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 				}
 				break;
@@ -865,6 +870,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 					sample.deco.type = DC_DECO_DECOSTOP;
 					sample.deco.depth = deco_ceiling * FEET;
 					sample.deco.time = deco_time * 60;
+					sample.deco.tts = 0;
 					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 				}
 				break;

@@ -344,6 +344,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 			sample.deco.type = DC_DECO_NDL;
 		sample.deco.time = ndl;
 		sample.deco.depth = 0.0;
+		sample.deco.tts = 0;
 		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 
 		offset += SZ_SEGMENT;

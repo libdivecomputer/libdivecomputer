@@ -995,6 +995,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				sample.deco.depth = 0.0;
 			}
 			sample.deco.time = data[offset + pnf + 9] * 60;
+			sample.deco.tts = array_uint16_be (data + offset + pnf + 4) * 60;
 			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
 
 			// for logversion 7 and newer (introduced for Perdix AI)
