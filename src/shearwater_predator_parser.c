@@ -871,14 +871,9 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 	// Sample interval.
 	unsigned int time = 0;
-	unsigned int interval = 10;
+	unsigned int interval = 10000;
 	if (parser->pnf && parser->logversion >= 9 && parser->opening[5] != UNDEFINED) {
 		interval = array_uint16_be (data + parser->opening[5] + 23);
-		if (interval % 1000 != 0) {
-			ERROR (abstract->context, "Unsupported sample interval (%u ms).", interval);
-			return DC_STATUS_DATAFORMAT;
-		}
-		interval /= 1000;
 	}
 
 	unsigned int pnf = parser->pnf;
@@ -899,7 +894,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		if (type == LOG_RECORD_DIVE_SAMPLE) {
 			// Time (seconds).
 			time += interval;
-			sample.time = time * 1000;
+			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (1/10 m or ft).
@@ -1076,7 +1071,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 				// Time (seconds).
 				time += interval;
-				sample.time = time * 1000;
+				sample.time = time;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Depth (absolute pressure in millibar)

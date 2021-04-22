@@ -401,12 +401,12 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 	unsigned int samplerate = 0;
 	if (parser->model == SMARTAPNEA) {
 		unsigned int idx = (settings & 0x0600) >> 9;
-		interval = 1;
 		samplerate = 1 << idx;
+		interval = 1000 / samplerate;
 	} else {
 		const unsigned int intervals[] = {1, 5, 10, 20};
 		unsigned int idx = (settings & 0x0C00) >> 10;
-		interval = intervals[idx];
+		interval = intervals[idx] * 1000;
 		samplerate = 1;
 	}
 
@@ -625,7 +625,7 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 	parser->headersize = headersize;
 	parser->settings = settings;
 	parser->surftime = surftime * 60;
-	parser->interval = 5;
+	parser->interval = 5000;
 	parser->samplerate = 1;
 	parser->ntanks = ntanks;
 	parser->ngasmixes = ngasmixes;
@@ -820,7 +820,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			if (parser->layout->divetime != UNSUPPORTED) {
 				*((unsigned int *) value) = array_uint16_le (p + parser->layout->divetime);
 			} else {
-				*((unsigned int *) value) = parser->nsamples * parser->interval - parser->surftime;
+				*((unsigned int *) value) = parser->nsamples * parser->interval / 1000 - parser->surftime;
 			}
 			break;
 		case DC_FIELD_MAXDEPTH:
@@ -963,14 +963,6 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	const unsigned char *data = abstract->data;
 
-	if (parser->samplerate > 1) {
-		// The Smart Apnea supports multiple samples per second
-		// (e.g. 2, 4 or 8). Since our smallest unit of time is one
-		// second, we can't represent this, and the extra samples
-		// will get dropped.
-		WARNING(abstract->context, "Multiple samples per second are not supported!");
-	}
-
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
@@ -1021,8 +1013,8 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			unsigned int surftime = array_uint16_le (data + offset + 4);
 
 			// Surface Time (seconds).
-			time += surftime;
-			sample.time = time * 1000;
+			time += surftime * 1000;
+			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Surface Depth (0 m).
@@ -1032,10 +1024,11 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			offset += parser->samplesize;
 			nsamples++;
 
-			for (unsigned int i = 0; i < divetime; ++i) {
+			unsigned int count = divetime * parser->samplerate;
+			for (unsigned int i = 0; i < count; ++i) {
 				// Time (seconds).
 				time += parser->interval;
-				sample.time = time * 1000;
+				sample.time = time;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Depth (1/10 m).
@@ -1043,7 +1036,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.depth = depth / 10.0;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
-				offset += 2 * parser->samplerate;
+				offset += 2;
 			}
 		} else if (parser->model != GENIUS && parser->model != HORIZON && parser->mode == ICONHD_FREEDIVE) {
 			unsigned int maxdepth = array_uint16_le (data + offset + 0);
@@ -1051,8 +1044,8 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			unsigned int surftime = array_uint16_le (data + offset + 4);
 
 			// Surface Time (seconds).
-			time += surftime;
-			sample.time = time * 1000;
+			time += surftime * 1000;
+			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Surface Depth (0 m).
@@ -1060,8 +1053,8 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 			// Dive Time (seconds).
-			time += divetime;
-			sample.time = time * 1000;
+			time += divetime * 1000;
+			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Maximum Depth (1/10 m).
@@ -1123,7 +1116,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 			// Time (seconds).
 			time += parser->interval;
-			sample.time = time * 1000;
+			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Depth (1/10 m).

@@ -608,8 +608,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 	unsigned int extratime = 0;
 	unsigned int time = 0;
-	unsigned int interval = 1;
-	unsigned int samplerate = 1;
+	unsigned int interval = 1000;
 	if (parser->mode != FREEDIVE) {
 		unsigned int offset = 0x17;
 		if (parser->model == A300CS || parser->model == VTX ||
@@ -617,21 +616,13 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			parser->model == PROPLUSX || parser->model == I770R ||
 			parser->model == SAGE || parser->model == BEACON)
 			offset = 0x1f;
-		const unsigned int intervals[] = {2, 15, 30, 60};
+		const unsigned int intervals[] = {2000, 15000, 30000, 60000};
 		unsigned int idx = data[offset] & 0x03;
 		interval = intervals[idx];
 	} else if (parser->model == F11A || parser->model == F11B) {
-		const unsigned int intervals[] = {1, 1, 1, 2};
-		const unsigned int samplerates[] = {4, 2, 1, 1};
+		const unsigned int intervals[] = {250, 500, 1000, 2000};
 		unsigned int idx = data[0x29] & 0x03;
 		interval = intervals[idx];
-		samplerate = samplerates[idx];
-		if (samplerate > 1) {
-			// Some models supports multiple samples per second.
-			// Since our smallest unit of time is one second, we can't
-			// represent this, and the extra samples will get dropped.
-			WARNING(abstract->context, "Multiple samples per second are not supported!");
-		}
 	}
 
 	unsigned int samplesize = PAGESIZE / 2;
@@ -752,13 +743,13 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			// The surface time is not always a nice multiple of the samplerate.
 			// The number of inserted surface samples is therefore rounded down
 			// to keep the timestamps aligned at multiples of the samplerate.
-			unsigned int surftime = 60 * bcd2dec (data[offset + 1]) + bcd2dec (data[offset + 2]);
+			unsigned int surftime = (60 * bcd2dec (data[offset + 1]) + bcd2dec (data[offset + 2])) * 1000;
 			unsigned int nsamples = surftime / interval;
 
 			for (unsigned int i = 0; i < nsamples; ++i) {
 				// Time
 				time += interval;
-				sample.time = time * 1000;
+				sample.time = time;
 				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 				// Vendor specific data
@@ -777,19 +768,12 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 			extratime += surftime;
 		} else {
-			// Skip the extra samples.
-			if ((count % samplerate) != 0) {
-				offset += samplesize;
-				count++;
-				continue;
-			}
-
 			// Time.
 			if (parser->model == I450T || parser->model == I470TC) {
 				unsigned int minute = bcd2dec(data[offset + 0]);
 				unsigned int hour   = bcd2dec(data[offset + 1] & 0x0F);
 				unsigned int second = bcd2dec(data[offset + 2]);
-				unsigned int timestamp = (hour * 3600) + (minute * 60 ) + second + extratime;
+				unsigned int timestamp = ((hour * 3600) + (minute * 60 ) + second) * 1000 + extratime;
 				if (timestamp < time) {
 					ERROR (abstract->context, "Timestamp moved backwards.");
 					return DC_STATUS_DATAFORMAT;
@@ -802,7 +786,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			} else {
 				time += interval;
 			}
-			sample.time = time * 1000;
+			sample.time = time;
 			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
 
 			// Vendor specific data
