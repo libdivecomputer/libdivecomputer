@@ -293,7 +293,8 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				if (offset + 1 > size)
 					return DC_STATUS_DATAFORMAT;
 				unsigned int ppo2 = data[offset];
-				sample.ppo2 = ppo2 / 100.0;
+				sample.ppo2.sensor = DC_SENSOR_NONE;
+				sample.ppo2.value = ppo2 / 100.0;
 				if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
 				offset++;
 			}

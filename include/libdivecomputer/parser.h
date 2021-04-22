@@ -147,6 +147,7 @@ typedef struct dc_gasmix_t {
 	double nitrogen;
 } dc_gasmix_t;
 
+#define DC_SENSOR_NONE    0xFFFFFFFF
 #define DC_GASMIX_UNKNOWN 0xFFFFFFFF
 
 typedef enum dc_tankvolume_t {
@@ -247,7 +248,10 @@ typedef union dc_sample_value_t {
 		const void *data;
 	} vendor;
 	double setpoint;
-	double ppo2;
+	struct {
+		unsigned int sensor;
+		double value;
+	} ppo2;
 	double cns;
 	struct {
 		unsigned int type;

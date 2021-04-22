@@ -946,7 +946,8 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			if (callback) callback(DC_SAMPLE_DEPTH, sample, userdata);
 
 			if (ppo2) {
-				sample.ppo2 = ppo2 * 10.0 / BAR;
+				sample.ppo2.sensor = DC_SENSOR_NONE;
+				sample.ppo2.value = ppo2 * 10.0 / BAR;
 				if (callback) callback(DC_SAMPLE_PPO2, sample, userdata);
 			}
 
@@ -1045,7 +1046,8 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					unsigned int ppo2 = array_uint16_le (data + offset + 4 + i * 2);
 					if (ppo2 == 0 || ppo2 == 0xFFFF)
 						continue;
-					sample.ppo2 = ppo2 * 10.0 / BAR;
+					sample.ppo2.sensor = i;
+					sample.ppo2.value = ppo2 * 10.0 / BAR;
 					if (callback) callback(DC_SAMPLE_PPO2, sample, userdata);
 				}
 			} else if (id == MEASURE_ID_OXYGEN_MV) {
@@ -1055,7 +1057,8 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					if (!parser->calibrated || state == SENSTAT_UNCALIBRATED ||
 						state == SENSTAT_NOT_EXIST)
 						continue;
-					sample.ppo2 = value / 100.0 * parser->calibration[i] / BAR;
+					sample.ppo2.sensor = i;
+					sample.ppo2.value = value / 100.0 * parser->calibration[i] / BAR;
 					if (callback) callback(DC_SAMPLE_PPO2, sample, userdata);
 				}
 			}

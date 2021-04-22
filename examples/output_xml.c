@@ -157,7 +157,11 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		fprintf (sampledata->ostream, "   <setpoint>%.2f</setpoint>\n", value.setpoint);
 		break;
 	case DC_SAMPLE_PPO2:
-		fprintf (sampledata->ostream, "   <ppo2>%.2f</ppo2>\n", value.ppo2);
+		if (value.ppo2.sensor != DC_SENSOR_NONE) {
+			fprintf (sampledata->ostream, "   <ppo2 sensor=\"%u\">%.2f</ppo2>\n", value.ppo2.sensor, value.ppo2.value);
+		} else {
+			fprintf (sampledata->ostream, "   <ppo2>%.2f</ppo2>\n", value.ppo2.value);
+		}
 		break;
 	case DC_SAMPLE_CNS:
 		fprintf (sampledata->ostream, "   <cns>%.1f</cns>\n", value.cns * 100.0);
