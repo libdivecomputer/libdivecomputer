@@ -87,6 +87,8 @@ dc_custom_open
 
 dc_parser_new
 dc_parser_new2
+dc_parser_set_atmospheric
+dc_parser_set_density
 dc_parser_get_type
 dc_parser_set_data
 dc_parser_get_datetime

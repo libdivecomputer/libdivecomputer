@@ -271,6 +271,32 @@ dc_parser_get_type (dc_parser_t *parser)
 
 
 dc_status_t
+dc_parser_set_atmospheric (dc_parser_t *parser, double atmospheric)
+{
+	if (parser == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	if (parser->vtable->set_atmospheric == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	return parser->vtable->set_atmospheric (parser, atmospheric);
+}
+
+
+dc_status_t
+dc_parser_set_density (dc_parser_t *parser, double density)
+{
+	if (parser == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	if (parser->vtable->set_density == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	return parser->vtable->set_density (parser, density);
+}
+
+
+dc_status_t
 dc_parser_set_data (dc_parser_t *parser, const unsigned char *data, unsigned int size)
 {
 	if (parser == NULL)

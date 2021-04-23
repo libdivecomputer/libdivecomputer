@@ -271,6 +271,12 @@ dc_family_t
 dc_parser_get_type (dc_parser_t *parser);
 
 dc_status_t
+dc_parser_set_atmospheric (dc_parser_t *parser, double atmospheric);
+
+dc_status_t
+dc_parser_set_density (dc_parser_t *parser, double density);
+
+dc_status_t
 dc_parser_set_data (dc_parser_t *parser, const unsigned char *data, unsigned int size);
 
 dc_status_t

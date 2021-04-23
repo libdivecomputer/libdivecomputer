@@ -49,6 +49,8 @@ struct reefnet_sensus_parser_t {
 };
 
 static dc_status_t reefnet_sensus_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t reefnet_sensus_parser_set_atmospheric (dc_parser_t *abstract, double atmospheric);
+static dc_status_t reefnet_sensus_parser_set_density (dc_parser_t *abstract, double density);
 static dc_status_t reefnet_sensus_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t reefnet_sensus_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -57,6 +59,8 @@ static const dc_parser_vtable_t reefnet_sensus_parser_vtable = {
 	sizeof(reefnet_sensus_parser_t),
 	DC_FAMILY_REEFNET_SENSUS,
 	reefnet_sensus_parser_set_data, /* set_data */
+	reefnet_sensus_parser_set_atmospheric, /* set_atmospheric */
+	reefnet_sensus_parser_set_density, /* set_density */
 	reefnet_sensus_parser_get_datetime, /* datetime */
 	reefnet_sensus_parser_get_field, /* fields */
 	reefnet_sensus_parser_samples_foreach, /* samples_foreach */
@@ -118,6 +122,28 @@ reefnet_sensus_parser_set_calibration (dc_parser_t *abstract, double atmospheric
 
 	parser->atmospheric = atmospheric;
 	parser->hydrostatic = hydrostatic;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+reefnet_sensus_parser_set_atmospheric (dc_parser_t *abstract, double atmospheric)
+{
+	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
+
+	parser->atmospheric = atmospheric;
+
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+reefnet_sensus_parser_set_density (dc_parser_t *abstract, double density)
+{
+	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
+
+	parser->hydrostatic = density * GRAVITY;
 
 	return DC_STATUS_SUCCESS;
 }

@@ -152,6 +152,8 @@ static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 	sizeof(shearwater_predator_parser_t),
 	DC_FAMILY_SHEARWATER_PREDATOR,
 	shearwater_predator_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	shearwater_predator_parser_get_datetime, /* datetime */
 	shearwater_predator_parser_get_field, /* fields */
 	shearwater_predator_parser_samples_foreach, /* samples_foreach */
@@ -162,6 +164,8 @@ static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
 	sizeof(shearwater_predator_parser_t),
 	DC_FAMILY_SHEARWATER_PETREL,
 	shearwater_predator_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	shearwater_predator_parser_get_datetime, /* datetime */
 	shearwater_predator_parser_get_field, /* fields */
 	shearwater_predator_parser_samples_foreach, /* samples_foreach */

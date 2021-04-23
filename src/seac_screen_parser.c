@@ -57,6 +57,8 @@ static const dc_parser_vtable_t seac_screen_parser_vtable = {
 	sizeof(seac_screen_parser_t),
 	DC_FAMILY_SEAC_SCREEN,
 	seac_screen_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	seac_screen_parser_get_datetime, /* datetime */
 	seac_screen_parser_get_field, /* fields */
 	seac_screen_parser_samples_foreach, /* samples_foreach */

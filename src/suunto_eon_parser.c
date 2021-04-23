@@ -52,6 +52,8 @@ static const dc_parser_vtable_t suunto_eon_parser_vtable = {
 	sizeof(suunto_eon_parser_t),
 	DC_FAMILY_SUUNTO_EON,
 	suunto_eon_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	suunto_eon_parser_get_datetime, /* datetime */
 	suunto_eon_parser_get_field, /* fields */
 	suunto_eon_parser_samples_foreach, /* samples_foreach */

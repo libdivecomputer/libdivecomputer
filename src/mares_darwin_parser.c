@@ -56,6 +56,8 @@ static const dc_parser_vtable_t mares_darwin_parser_vtable = {
 	sizeof(mares_darwin_parser_t),
 	DC_FAMILY_MARES_DARWIN,
 	mares_darwin_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	mares_darwin_parser_get_datetime, /* datetime */
 	mares_darwin_parser_get_field, /* fields */
 	mares_darwin_parser_samples_foreach, /* samples_foreach */

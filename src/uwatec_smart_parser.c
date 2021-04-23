@@ -167,6 +167,8 @@ static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 	sizeof(uwatec_smart_parser_t),
 	DC_FAMILY_UWATEC_SMART,
 	uwatec_smart_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	uwatec_smart_parser_get_datetime, /* datetime */
 	uwatec_smart_parser_get_field, /* fields */
 	uwatec_smart_parser_samples_foreach, /* samples_foreach */

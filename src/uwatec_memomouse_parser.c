@@ -47,6 +47,8 @@ static const dc_parser_vtable_t uwatec_memomouse_parser_vtable = {
 	sizeof(uwatec_memomouse_parser_t),
 	DC_FAMILY_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	uwatec_memomouse_parser_get_datetime, /* datetime */
 	uwatec_memomouse_parser_get_field, /* fields */
 	uwatec_memomouse_parser_samples_foreach, /* samples_foreach */

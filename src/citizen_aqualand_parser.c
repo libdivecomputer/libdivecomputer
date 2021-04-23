@@ -45,6 +45,8 @@ static const dc_parser_vtable_t citizen_aqualand_parser_vtable = {
 	sizeof(citizen_aqualand_parser_t),
 	DC_FAMILY_CITIZEN_AQUALAND,
 	citizen_aqualand_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	citizen_aqualand_parser_get_datetime, /* datetime */
 	citizen_aqualand_parser_get_field, /* fields */
 	citizen_aqualand_parser_samples_foreach, /* samples_foreach */

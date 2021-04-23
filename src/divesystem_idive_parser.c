@@ -91,6 +91,8 @@ static const dc_parser_vtable_t divesystem_idive_parser_vtable = {
 	sizeof(divesystem_idive_parser_t),
 	DC_FAMILY_DIVESYSTEM_IDIVE,
 	divesystem_idive_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	divesystem_idive_parser_get_datetime, /* datetime */
 	divesystem_idive_parser_get_field, /* fields */
 	divesystem_idive_parser_samples_foreach, /* samples_foreach */

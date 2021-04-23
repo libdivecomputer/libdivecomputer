@@ -48,6 +48,8 @@ static const dc_parser_vtable_t cressi_leonardo_parser_vtable = {
 	sizeof(cressi_leonardo_parser_t),
 	DC_FAMILY_CRESSI_LEONARDO,
 	cressi_leonardo_parser_set_data, /* set_data */
+	NULL, /* set_atmospheric */
+	NULL, /* set_density */
 	cressi_leonardo_parser_get_datetime, /* datetime */
 	cressi_leonardo_parser_get_field, /* fields */
 	cressi_leonardo_parser_samples_foreach, /* samples_foreach */
