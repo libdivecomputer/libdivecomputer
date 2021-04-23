@@ -56,9 +56,6 @@ reefnet_sensusultra_device_write_parameter (dc_device_t *device, reefnet_sensusu
 dc_status_t
 reefnet_sensusultra_device_sense (dc_device_t *device, unsigned char data[], unsigned int size);
 
-dc_status_t
-reefnet_sensusultra_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

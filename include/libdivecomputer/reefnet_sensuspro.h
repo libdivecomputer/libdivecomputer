@@ -38,9 +38,6 @@ reefnet_sensuspro_device_get_handshake (dc_device_t *device, unsigned char data[
 dc_status_t
 reefnet_sensuspro_device_write_interval (dc_device_t *device, unsigned char interval);
 
-dc_status_t
-reefnet_sensuspro_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

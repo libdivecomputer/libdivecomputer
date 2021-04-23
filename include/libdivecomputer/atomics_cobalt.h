@@ -36,9 +36,6 @@ atomics_cobalt_device_version (dc_device_t *device, unsigned char data[], unsign
 dc_status_t
 atomics_cobalt_device_set_simulation (dc_device_t *device, unsigned int simulation);
 
-dc_status_t
-atomics_cobalt_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -35,9 +35,6 @@ extern "C" {
 dc_status_t
 reefnet_sensus_device_get_handshake (dc_device_t *device, unsigned char data[], unsigned int size);
 
-dc_status_t
-reefnet_sensus_parser_set_calibration (dc_parser_t *parser, double atmospheric, double hydrostatic);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

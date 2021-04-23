@@ -94,20 +94,6 @@ atomics_cobalt_parser_set_data (dc_parser_t *abstract, const unsigned char *data
 }
 
 
-dc_status_t
-atomics_cobalt_parser_set_calibration (dc_parser_t *abstract, double atmospheric, double hydrostatic)
-{
-	atomics_cobalt_parser_t *parser = (atomics_cobalt_parser_t*) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	parser->hydrostatic = hydrostatic;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
 static dc_status_t
 atomics_cobalt_parser_set_density (dc_parser_t *abstract, double density)
 {

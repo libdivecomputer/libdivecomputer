@@ -97,11 +97,6 @@ dc_parser_get_field
 dc_parser_samples_foreach
 dc_parser_destroy
 
-reefnet_sensus_parser_set_calibration
-reefnet_sensuspro_parser_set_calibration
-reefnet_sensusultra_parser_set_calibration
-atomics_cobalt_parser_set_calibration
-
 dc_device_open
 dc_device_close
 dc_device_dump

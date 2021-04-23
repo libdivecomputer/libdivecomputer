@@ -114,21 +114,6 @@ reefnet_sensus_parser_set_data (dc_parser_t *abstract, const unsigned char *data
 }
 
 
-dc_status_t
-reefnet_sensus_parser_set_calibration (dc_parser_t *abstract, double atmospheric, double hydrostatic)
-{
-	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t*) abstract;
-
-	if (!ISINSTANCE (abstract))
-		return DC_STATUS_INVALIDARGS;
-
-	parser->atmospheric = atmospheric;
-	parser->hydrostatic = hydrostatic;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
 static dc_status_t
 reefnet_sensus_parser_set_clock (dc_parser_t *abstract, unsigned int devtime, dc_ticks_t systime)
 {
