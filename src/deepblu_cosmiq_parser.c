@@ -41,7 +41,6 @@ typedef struct deepblu_cosmiq_parser_t {
 	double hydrostatic;
 } deepblu_cosmiq_parser_t;
 
-static dc_status_t deepblu_cosmiq_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t deepblu_cosmiq_parser_set_density (dc_parser_t *abstract, double density);
 static dc_status_t deepblu_cosmiq_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t deepblu_cosmiq_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
@@ -50,7 +49,6 @@ static dc_status_t deepblu_cosmiq_parser_samples_foreach (dc_parser_t *abstract,
 static const dc_parser_vtable_t deepblu_cosmiq_parser_vtable = {
 	sizeof(deepblu_cosmiq_parser_t),
 	DC_FAMILY_DEEPBLU_COSMIQ,
-	deepblu_cosmiq_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	deepblu_cosmiq_parser_set_density, /* set_density */
@@ -61,7 +59,7 @@ static const dc_parser_vtable_t deepblu_cosmiq_parser_vtable = {
 };
 
 dc_status_t
-deepblu_cosmiq_parser_create (dc_parser_t **out, dc_context_t *context)
+deepblu_cosmiq_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	deepblu_cosmiq_parser_t *parser = NULL;
 
@@ -69,7 +67,7 @@ deepblu_cosmiq_parser_create (dc_parser_t **out, dc_context_t *context)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (deepblu_cosmiq_parser_t *) dc_parser_allocate (context, &deepblu_cosmiq_parser_vtable);
+	parser = (deepblu_cosmiq_parser_t *) dc_parser_allocate (context, &deepblu_cosmiq_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -80,12 +78,6 @@ deepblu_cosmiq_parser_create (dc_parser_t **out, dc_context_t *context)
 
 	*out = (dc_parser_t *) parser;
 
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
-deepblu_cosmiq_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
 	return DC_STATUS_SUCCESS;
 }
 

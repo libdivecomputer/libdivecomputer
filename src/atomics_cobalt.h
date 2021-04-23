@@ -36,7 +36,7 @@ dc_status_t
 atomics_cobalt_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 dc_status_t
-atomics_cobalt_parser_create (dc_parser_t **parser, dc_context_t *context);
+atomics_cobalt_parser_create (dc_parser_t **parser, dc_context_t *context, const unsigned char data[], size_t size);
 
 #ifdef __cplusplus
 }

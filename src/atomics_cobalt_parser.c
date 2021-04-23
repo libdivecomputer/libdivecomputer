@@ -43,7 +43,6 @@ struct atomics_cobalt_parser_t {
 	double hydrostatic;
 };
 
-static dc_status_t atomics_cobalt_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t atomics_cobalt_parser_set_density (dc_parser_t *abstract, double density);
 static dc_status_t atomics_cobalt_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
@@ -52,7 +51,6 @@ static dc_status_t atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract,
 static const dc_parser_vtable_t atomics_cobalt_parser_vtable = {
 	sizeof(atomics_cobalt_parser_t),
 	DC_FAMILY_ATOMICS_COBALT,
-	atomics_cobalt_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	atomics_cobalt_parser_set_density, /* set_density */
@@ -64,7 +62,7 @@ static const dc_parser_vtable_t atomics_cobalt_parser_vtable = {
 
 
 dc_status_t
-atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
+atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	atomics_cobalt_parser_t *parser = NULL;
 
@@ -72,7 +70,7 @@ atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (atomics_cobalt_parser_t *) dc_parser_allocate (context, &atomics_cobalt_parser_vtable);
+	parser = (atomics_cobalt_parser_t *) dc_parser_allocate (context, &atomics_cobalt_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -83,13 +81,6 @@ atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
 
 	*out = (dc_parser_t*) parser;
 
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-atomics_cobalt_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
 	return DC_STATUS_SUCCESS;
 }
 

@@ -53,7 +53,7 @@ with
 Each dive invokes
 .Fa callback
 with the dive data, which should be parsed with
-.Xr dc_parser_set_data 3 ,
+.Xr dc_parser_new 3 ,
 and the binary fingerprint of the dive.
 The fingerprint can be used to record the newest dive and stop
 processing (on subsequent invocations) when the same dive fingerprint is
@@ -72,7 +72,7 @@ If
 returns zero, this will not be reflected in the return value (usually
 .Dv DC_STATUS_SUCCESS ) .
 .Sh SEE ALSO
-.Xr dc_parser_set_data 3
+.Xr dc_parser_new 3
 .Sh AUTHORS
 The
 .Lb libdivecomputer

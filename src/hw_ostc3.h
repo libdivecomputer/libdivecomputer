@@ -36,7 +36,7 @@ dc_status_t
 hw_ostc3_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 dc_status_t
-hw_ostc3_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model);
+hw_ostc3_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model);
 
 #ifdef __cplusplus
 }

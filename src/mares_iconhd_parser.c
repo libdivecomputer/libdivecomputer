@@ -264,7 +264,6 @@ static const mares_iconhd_layout_t horizon = {
 	0x54 + 8, /* tanks */
 };
 
-static dc_status_t mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -272,7 +271,6 @@ static dc_status_t mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, d
 static const dc_parser_vtable_t mares_iconhd_parser_vtable = {
 	sizeof(mares_iconhd_parser_t),
 	DC_FAMILY_MARES_ICONHD,
-	mares_iconhd_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -656,7 +654,7 @@ mares_iconhd_parser_cache (mares_iconhd_parser_t *parser)
 }
 
 dc_status_t
-mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
 	mares_iconhd_parser_t *parser = NULL;
 
@@ -664,7 +662,7 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (mares_iconhd_parser_t *) dc_parser_allocate (context, &mares_iconhd_parser_vtable);
+	parser = (mares_iconhd_parser_t *) dc_parser_allocate (context, &mares_iconhd_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -700,41 +698,6 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 
 	return DC_STATUS_SUCCESS;
 }
-
-
-static dc_status_t
-mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	mares_iconhd_parser_t *parser = (mares_iconhd_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->logformat = 0;
-	parser->mode = (parser->model == GENIUS || parser->model == HORIZON) ? GENIUS_AIR : ICONHD_AIR;
-	parser->nsamples = 0;
-	parser->samplesize = 0;
-	parser->headersize = 0;
-	parser->settings = 0;
-	parser->surftime = 0;
-	parser->interval = 0;
-	parser->samplerate = 0;
-	parser->ntanks = 0;
-	parser->ngasmixes = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i].oxygen = 0;
-		parser->gasmix[i].helium = 0;
-	}
-	for (unsigned int i = 0; i < NTANKS; ++i) {
-		parser->tank[i].volume = 0;
-		parser->tank[i].workpressure = 0;
-		parser->tank[i].beginpressure = 0;
-		parser->tank[i].endpressure = 0;
-	}
-	parser->layout = NULL;
-
-	return DC_STATUS_SUCCESS;
-}
-
 
 static dc_status_t
 mares_iconhd_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)

@@ -47,7 +47,6 @@ struct mares_darwin_parser_t {
 	unsigned int samplesize;
 };
 
-static dc_status_t mares_darwin_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t mares_darwin_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -55,7 +54,6 @@ static dc_status_t mares_darwin_parser_samples_foreach (dc_parser_t *abstract, d
 static const dc_parser_vtable_t mares_darwin_parser_vtable = {
 	sizeof(mares_darwin_parser_t),
 	DC_FAMILY_MARES_DARWIN,
-	mares_darwin_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -67,7 +65,7 @@ static const dc_parser_vtable_t mares_darwin_parser_vtable = {
 
 
 dc_status_t
-mares_darwin_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+mares_darwin_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
 	mares_darwin_parser_t *parser = NULL;
 
@@ -75,7 +73,7 @@ mares_darwin_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (mares_darwin_parser_t *) dc_parser_allocate (context, &mares_darwin_parser_vtable);
+	parser = (mares_darwin_parser_t *) dc_parser_allocate (context, &mares_darwin_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -93,13 +91,6 @@ mares_darwin_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 
 	*out = (dc_parser_t *) parser;
 
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-mares_darwin_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
 	return DC_STATUS_SUCCESS;
 }
 

@@ -132,7 +132,6 @@ typedef struct hw_ostc_parser_t {
 	hw_ostc_gasmix_t gasmix[NGASMIXES];
 } hw_ostc_parser_t;
 
-static dc_status_t hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -140,7 +139,6 @@ static dc_status_t hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sam
 static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 	sizeof(hw_ostc_parser_t),
 	DC_FAMILY_HW_OSTC,
-	hw_ostc_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -367,7 +365,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 }
 
 static dc_status_t
-hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsigned int hwos, unsigned int model)
+hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int hwos, unsigned int model)
 {
 	hw_ostc_parser_t *parser = NULL;
 
@@ -375,7 +373,7 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsign
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (hw_ostc_parser_t *) dc_parser_allocate (context, &hw_ostc_parser_vtable);
+	parser = (hw_ostc_parser_t *) dc_parser_allocate (context, &hw_ostc_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -408,43 +406,16 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsign
 
 
 dc_status_t
-hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context)
+hw_ostc_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
-	return hw_ostc_parser_create_internal (out, context, 0, 0);
+	return hw_ostc_parser_create_internal (out, context, data, size, 0, 0);
 }
 
 dc_status_t
-hw_ostc3_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+hw_ostc3_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
-	return hw_ostc_parser_create_internal (out, context, 1, model);
+	return hw_ostc_parser_create_internal (out, context, data, size, 1, model);
 }
-
-static dc_status_t
-hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	hw_ostc_parser_t *parser = (hw_ostc_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->version = 0;
-	parser->header = 0;
-	parser->layout = NULL;
-	parser->ngasmixes = 0;
-	parser->nfixed = 0;
-	parser->initial = 0;
-	parser->initial_setpoint = 0;
-	parser->initial_cns = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i].oxygen = 0;
-		parser->gasmix[i].helium = 0;
-		parser->gasmix[i].type = 0;
-		parser->gasmix[i].enabled = 0;
-		parser->gasmix[i].diluent = 0;
-	}
-
-	return DC_STATUS_SUCCESS;
-}
-
 
 static dc_status_t
 hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)

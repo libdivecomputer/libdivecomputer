@@ -92,7 +92,6 @@ typedef struct sample_info_t {
 	unsigned int divisor;
 } sample_info_t;
 
-static dc_status_t suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t suunto_d9_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -100,7 +99,6 @@ static dc_status_t suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_s
 static const dc_parser_vtable_t suunto_d9_parser_vtable = {
 	sizeof(suunto_d9_parser_t),
 	DC_FAMILY_SUUNTO_D9,
-	suunto_d9_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -251,7 +249,7 @@ suunto_d9_parser_cache (suunto_d9_parser_t *parser)
 }
 
 dc_status_t
-suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
 	suunto_d9_parser_t *parser = NULL;
 
@@ -259,7 +257,7 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (suunto_d9_parser_t *) dc_parser_allocate (context, &suunto_d9_parser_vtable);
+	parser = (suunto_d9_parser_t *) dc_parser_allocate (context, &suunto_d9_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -280,28 +278,6 @@ suunto_d9_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int 
 	parser->config = 0;
 
 	*out = (dc_parser_t*) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-suunto_d9_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	suunto_d9_parser_t *parser = (suunto_d9_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->id = 0;
-	parser->mode = AIR;
-	parser->ngasmixes = 0;
-	parser->nccr = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->oxygen[i] = 0;
-		parser->helium[i] = 0;
-	}
-	parser->gasmix = 0;
-	parser->config = 0;
 
 	return DC_STATUS_SUCCESS;
 }

@@ -117,7 +117,6 @@ struct liquivision_lynx_parser_t {
 	liquivision_lynx_tank_t tank[NTANKS];
 };
 
-static dc_status_t liquivision_lynx_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t liquivision_lynx_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t liquivision_lynx_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -125,7 +124,6 @@ static dc_status_t liquivision_lynx_parser_samples_foreach (dc_parser_t *abstrac
 static const dc_parser_vtable_t liquivision_lynx_parser_vtable = {
 	sizeof(liquivision_lynx_parser_t),
 	DC_FAMILY_LIQUIVISION_LYNX,
-	liquivision_lynx_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -137,7 +135,7 @@ static const dc_parser_vtable_t liquivision_lynx_parser_vtable = {
 
 
 dc_status_t
-liquivision_lynx_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+liquivision_lynx_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
 	liquivision_lynx_parser_t *parser = NULL;
 
@@ -145,7 +143,7 @@ liquivision_lynx_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (liquivision_lynx_parser_t *) dc_parser_allocate (context, &liquivision_lynx_parser_vtable);
+	parser = (liquivision_lynx_parser_t *) dc_parser_allocate (context, &liquivision_lynx_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -168,29 +166,6 @@ liquivision_lynx_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 	}
 
 	*out = (dc_parser_t *) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-liquivision_lynx_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	liquivision_lynx_parser_t *parser = (liquivision_lynx_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->ngasmixes = 0;
-	parser->ntanks = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i].oxygen = 0;
-		parser->gasmix[i].helium = 0;
-	}
-	for (unsigned int i = 0; i < NTANKS; ++i) {
-		parser->tank[i].id = 0;
-		parser->tank[i].beginpressure = 0;
-		parser->tank[i].endpressure = 0;
-	}
 
 	return DC_STATUS_SUCCESS;
 }

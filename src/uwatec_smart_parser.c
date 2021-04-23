@@ -157,7 +157,6 @@ struct uwatec_smart_parser_t {
 	dc_divemode_t divemode;
 };
 
-static dc_status_t uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t uwatec_smart_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t uwatec_smart_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -167,7 +166,6 @@ static dc_status_t uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_
 static const dc_parser_vtable_t uwatec_smart_parser_vtable = {
 	sizeof(uwatec_smart_parser_t),
 	DC_FAMILY_UWATEC_SMART,
-	uwatec_smart_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -573,7 +571,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 
 
 dc_status_t
-uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_parser_t *parser = NULL;
@@ -582,7 +580,7 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (uwatec_smart_parser_t *) dc_parser_allocate (context, &uwatec_smart_parser_vtable);
+	parser = (uwatec_smart_parser_t *) dc_parser_allocate (context, &uwatec_smart_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -704,31 +702,6 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 error_free:
 	dc_parser_deallocate ((dc_parser_t *) parser);
 	return status;
-}
-
-
-static dc_status_t
-uwatec_smart_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	uwatec_smart_parser_t *parser = (uwatec_smart_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->ngasmixes = 0;
-	parser->ntanks = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i].id = 0;
-		parser->gasmix[i].oxygen = 0;
-		parser->gasmix[i].helium = 0;
-		parser->tank[i].id = 0;
-		parser->tank[i].beginpressure = 0;
-		parser->tank[i].endpressure = 0;
-		parser->tank[i].gasmix = 0;
-	}
-	parser->watertype = DC_WATER_FRESH;
-	parser->divemode = DC_DIVEMODE_OC;
-
-	return DC_STATUS_SUCCESS;
 }
 
 

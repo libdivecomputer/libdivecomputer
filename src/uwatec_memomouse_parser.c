@@ -38,7 +38,6 @@ struct uwatec_memomouse_parser_t {
 	dc_ticks_t systime;
 };
 
-static dc_status_t uwatec_memomouse_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t uwatec_memomouse_parser_set_clock (dc_parser_t *abstract, unsigned int devtime, dc_ticks_t systime);
 static dc_status_t uwatec_memomouse_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t uwatec_memomouse_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
@@ -47,7 +46,6 @@ static dc_status_t uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstrac
 static const dc_parser_vtable_t uwatec_memomouse_parser_vtable = {
 	sizeof(uwatec_memomouse_parser_t),
 	DC_FAMILY_UWATEC_MEMOMOUSE,
-	uwatec_memomouse_parser_set_data, /* set_data */
 	uwatec_memomouse_parser_set_clock, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -59,7 +57,7 @@ static const dc_parser_vtable_t uwatec_memomouse_parser_vtable = {
 
 
 dc_status_t
-uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context)
+uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	uwatec_memomouse_parser_t *parser = NULL;
 
@@ -67,7 +65,7 @@ uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (uwatec_memomouse_parser_t *) dc_parser_allocate (context, &uwatec_memomouse_parser_vtable);
+	parser = (uwatec_memomouse_parser_t *) dc_parser_allocate (context, &uwatec_memomouse_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -79,13 +77,6 @@ uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context)
 
 	*out = (dc_parser_t*) parser;
 
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-uwatec_memomouse_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
 	return DC_STATUS_SUCCESS;
 }
 

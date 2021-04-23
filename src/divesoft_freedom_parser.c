@@ -254,7 +254,6 @@ typedef struct divesoft_freedom_parser_t {
 	unsigned int calibrated;
 } divesoft_freedom_parser_t;
 
-static dc_status_t divesoft_freedom_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t divesoft_freedom_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t divesoft_freedom_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -262,7 +261,6 @@ static dc_status_t divesoft_freedom_parser_samples_foreach (dc_parser_t *abstrac
 static const dc_parser_vtable_t divesoft_freedom_parser_vtable = {
 	sizeof(divesoft_freedom_parser_t),
 	DC_FAMILY_DIVESOFT_FREEDOM,
-	divesoft_freedom_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -643,7 +641,7 @@ divesoft_freedom_cache (divesoft_freedom_parser_t *parser)
 }
 
 dc_status_t
-divesoft_freedom_parser_create (dc_parser_t **out, dc_context_t *context)
+divesoft_freedom_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	divesoft_freedom_parser_t *parser = NULL;
 
@@ -651,7 +649,7 @@ divesoft_freedom_parser_create (dc_parser_t **out, dc_context_t *context)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (divesoft_freedom_parser_t *) dc_parser_allocate (context, &divesoft_freedom_parser_vtable);
+	parser = (divesoft_freedom_parser_t *) dc_parser_allocate (context, &divesoft_freedom_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -694,50 +692,6 @@ divesoft_freedom_parser_create (dc_parser_t **out, dc_context_t *context)
 	parser->calibrated = 0;
 
 	*out = (dc_parser_t *) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
-divesoft_freedom_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	divesoft_freedom_parser_t *parser = (divesoft_freedom_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->version = 0;
-	parser->headersize = 0;
-	parser->divetime = 0;
-	parser->divemode = 0;
-	parser->temperature_min = 0;
-	parser->maxdepth = 0;
-	parser->atmospheric = 0;
-	parser->avgdepth = 0;
-	parser->ngasmixes = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i].oxygen = 0;
-		parser->gasmix[i].helium = 0;
-		parser->gasmix[i].type = 0;
-		parser->gasmix[i].id = 0;
-	}
-	parser->diluent = UNDEFINED;
-	parser->ntanks = 0;
-	for (unsigned int i = 0; i < NTANKS; ++i) {
-		parser->tank[i].volume = 0;
-		parser->tank[i].workpressure = 0;
-		parser->tank[i].beginpressure = 0;
-		parser->tank[i].endpressure = 0;
-		parser->tank[i].transmitter = 0;
-		parser->tank[i].active = 0;
-	}
-	parser->vpm = 0;
-	parser->gf_lo = 0;
-	parser->gf_hi = 0;
-	parser->seawater = 0;
-	for (unsigned int i = 0; i < NSENSORS; ++i) {
-		parser->calibration[i] = 0;
-	}
-	parser->calibrated = 0;
 
 	return DC_STATUS_SUCCESS;
 }

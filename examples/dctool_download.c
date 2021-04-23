@@ -80,17 +80,9 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 
 	// Create the parser.
 	message ("Creating the parser.\n");
-	rc = dc_parser_new (&parser, divedata->device);
+	rc = dc_parser_new (&parser, divedata->device, data, size);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error creating the parser.");
-		goto cleanup;
-	}
-
-	// Register the data.
-	message ("Registering the data.\n");
-	rc = dc_parser_set_data (parser, data, size);
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR ("Error registering the data.");
 		goto cleanup;
 	}
 

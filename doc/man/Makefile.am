@@ -32,7 +32,6 @@ MANPAGES = \
 	dc_parser_get_field.3 \
 	dc_parser_new.3 \
 	dc_parser_samples_foreach.3 \
-	dc_parser_set_data.3 \
 	dc_bluetooth_open.3 \
 	dc_bluetooth_iterator_new.3 \
 	dc_bluetooth_device_get_address.3 \

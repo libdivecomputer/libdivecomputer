@@ -148,7 +148,6 @@ struct shearwater_predator_parser_t {
 	unsigned int density;
 };
 
-static dc_status_t shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -158,7 +157,6 @@ static dc_status_t shearwater_predator_parser_cache (shearwater_predator_parser_
 static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 	sizeof(shearwater_predator_parser_t),
 	DC_FAMILY_SHEARWATER_PREDATOR,
-	shearwater_predator_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -171,7 +169,6 @@ static const dc_parser_vtable_t shearwater_predator_parser_vtable = {
 static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
 	sizeof(shearwater_predator_parser_t),
 	DC_FAMILY_SHEARWATER_PETREL,
-	shearwater_predator_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -197,7 +194,7 @@ shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned 
 
 
 static dc_status_t
-shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model, unsigned int petrel)
+shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model, unsigned int petrel)
 {
 	shearwater_predator_parser_t *parser = NULL;
 	const dc_parser_vtable_t *vtable = NULL;
@@ -215,7 +212,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	}
 
 	// Allocate memory.
-	parser = (shearwater_predator_parser_t *) dc_parser_allocate (context, vtable);
+	parser = (shearwater_predator_parser_t *) dc_parser_allocate (context, vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -270,64 +267,16 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 
 
 dc_status_t
-shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+shearwater_predator_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
-	return shearwater_common_parser_create (out, context, model, 0);
+	return shearwater_common_parser_create (out, context, data, size, model, 0);
 }
 
 
 dc_status_t
-shearwater_petrel_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
+shearwater_petrel_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
-	return shearwater_common_parser_create (out, context, model, 1);
-}
-
-
-static dc_status_t
-shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	shearwater_predator_parser_t *parser = (shearwater_predator_parser_t *) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->pnf = 0;
-	parser->logversion = 0;
-	parser->headersize = 0;
-	parser->footersize = 0;
-	for (unsigned int i = 0; i < NRECORDS; ++i) {
-		parser->opening[i] = UNDEFINED;
-		parser->closing[i] = UNDEFINED;
-	}
-	parser->final = UNDEFINED;
-	parser->ngasmixes = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i].oxygen = 0;
-		parser->gasmix[i].helium = 0;
-		parser->gasmix[i].diluent = 0;
-	}
-	parser->ntanks = 0;
-	for (unsigned int i = 0; i < NTANKS; ++i) {
-		parser->tank[i].enabled = 0;
-		parser->tank[i].active = 0;
-		parser->tank[i].beginpressure = 0;
-		parser->tank[i].endpressure = 0;
-		parser->tank[i].pressure_max = 0;
-		parser->tank[i].pressure_reserve = 0;
-		parser->tank[i].serial = 0;
-		memset (parser->tank[i].name, 0, sizeof (parser->tank[i].name));
-		parser->tankidx[i] = i;
-	}
-	parser->aimode = AI_OFF;
-	parser->calibrated = 0;
-	for (unsigned int i = 0; i < 3; ++i) {
-		parser->calibration[i] = 0.0;
-	}
-	parser->divemode = M_OC_TEC;
-	parser->units = METRIC;
-	parser->density = DEF_DENSITY_SALT;
-	parser->atmospheric = DEF_ATMOSPHERIC / (BAR / 1000);
-
-	return DC_STATUS_SUCCESS;
+	return shearwater_common_parser_create (out, context, data, size, model, 1);
 }
 
 

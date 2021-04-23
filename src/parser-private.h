@@ -41,7 +41,7 @@ typedef struct dc_parser_vtable_t dc_parser_vtable_t;
 struct dc_parser_t {
 	const dc_parser_vtable_t *vtable;
 	dc_context_t *context;
-	const unsigned char *data;
+	unsigned char *data;
 	unsigned int size;
 };
 
@@ -49,8 +49,6 @@ struct dc_parser_vtable_t {
 	size_t size;
 
 	dc_family_t type;
-
-	dc_status_t (*set_data) (dc_parser_t *parser, const unsigned char *data, unsigned int size);
 
 	dc_status_t (*set_clock) (dc_parser_t *parser, unsigned int devtime, dc_ticks_t systime);
 
@@ -68,7 +66,7 @@ struct dc_parser_vtable_t {
 };
 
 dc_parser_t *
-dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable);
+dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable, const unsigned char data[], size_t size);
 
 void
 dc_parser_deallocate (dc_parser_t *parser);

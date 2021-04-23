@@ -47,7 +47,6 @@ struct reefnet_sensusultra_parser_t {
 	unsigned int maxdepth;
 };
 
-static dc_status_t reefnet_sensusultra_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t reefnet_sensusultra_parser_set_clock (dc_parser_t *abstract, unsigned int devtime, dc_ticks_t systime);
 static dc_status_t reefnet_sensusultra_parser_set_atmospheric (dc_parser_t *abstract, double atmospheric);
 static dc_status_t reefnet_sensusultra_parser_set_density (dc_parser_t *abstract, double density);
@@ -58,7 +57,6 @@ static dc_status_t reefnet_sensusultra_parser_samples_foreach (dc_parser_t *abst
 static const dc_parser_vtable_t reefnet_sensusultra_parser_vtable = {
 	sizeof(reefnet_sensusultra_parser_t),
 	DC_FAMILY_REEFNET_SENSUSULTRA,
-	reefnet_sensusultra_parser_set_data, /* set_data */
 	reefnet_sensusultra_parser_set_clock, /* set_clock */
 	reefnet_sensusultra_parser_set_atmospheric, /* set_atmospheric */
 	reefnet_sensusultra_parser_set_density, /* set_density */
@@ -70,7 +68,7 @@ static const dc_parser_vtable_t reefnet_sensusultra_parser_vtable = {
 
 
 dc_status_t
-reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context)
+reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	reefnet_sensusultra_parser_t *parser = NULL;
 
@@ -78,7 +76,7 @@ reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context)
 		return DC_STATUS_INVALIDARGS;
 
 	// Allocate memory.
-	parser = (reefnet_sensusultra_parser_t *) dc_parser_allocate (context, &reefnet_sensusultra_parser_vtable);
+	parser = (reefnet_sensusultra_parser_t *) dc_parser_allocate (context, &reefnet_sensusultra_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -94,20 +92,6 @@ reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context)
 	parser->maxdepth = 0;
 
 	*out = (dc_parser_t*) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
-reefnet_sensusultra_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	reefnet_sensusultra_parser_t *parser = (reefnet_sensusultra_parser_t*) abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->divetime = 0;
-	parser->maxdepth = 0;
 
 	return DC_STATUS_SUCCESS;
 }

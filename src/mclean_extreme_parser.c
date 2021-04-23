@@ -58,7 +58,6 @@ struct mclean_extreme_parser_t {
 	unsigned int gasmix[NGASMIXES];
 };
 
-static dc_status_t mclean_extreme_parser_set_data(dc_parser_t *abstract, const unsigned char *data, unsigned int size);
 static dc_status_t mclean_extreme_parser_get_datetime(dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t mclean_extreme_parser_get_field(dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t mclean_extreme_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -66,7 +65,6 @@ static dc_status_t mclean_extreme_parser_samples_foreach(dc_parser_t *abstract, 
 static const dc_parser_vtable_t mclean_extreme_parser_vtable = {
 	sizeof(mclean_extreme_parser_t),
 	DC_FAMILY_MCLEAN_EXTREME,
-	mclean_extreme_parser_set_data, /* set_data */
 	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
@@ -77,7 +75,7 @@ static const dc_parser_vtable_t mclean_extreme_parser_vtable = {
 };
 
 dc_status_t
-mclean_extreme_parser_create(dc_parser_t **out, dc_context_t *context)
+mclean_extreme_parser_create(dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	mclean_extreme_parser_t *parser = NULL;
 
@@ -86,7 +84,7 @@ mclean_extreme_parser_create(dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Allocate memory.
-	parser = (mclean_extreme_parser_t *)dc_parser_allocate(context, &mclean_extreme_parser_vtable);
+	parser = (mclean_extreme_parser_t *)dc_parser_allocate(context, &mclean_extreme_parser_vtable, data, size);
 	if (parser == NULL) {
 		ERROR(context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
@@ -100,21 +98,6 @@ mclean_extreme_parser_create(dc_parser_t **out, dc_context_t *context)
 	}
 
 	*out = (dc_parser_t *)parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
-static dc_status_t
-mclean_extreme_parser_set_data(dc_parser_t *abstract, const unsigned char *data, unsigned int size)
-{
-	mclean_extreme_parser_t *parser = (mclean_extreme_parser_t *)abstract;
-
-	// Reset the cache.
-	parser->cached = 0;
-	parser->ngasmixes = 0;
-	for (unsigned int i = 0; i < NGASMIXES; ++i) {
-		parser->gasmix[i] = INVALID;
-	}
 
 	return DC_STATUS_SUCCESS;
 }

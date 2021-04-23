@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "suunto_d9.h"
@@ -72,7 +73,7 @@
 #define REACTPROWHITE 0x4354
 
 static dc_status_t
-dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t family, unsigned int model)
+dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, dc_family_t family, unsigned int model)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_parser_t *parser = NULL;
@@ -82,126 +83,126 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 
 	switch (family) {
 	case DC_FAMILY_SUUNTO_SOLUTION:
-		rc = suunto_solution_parser_create (&parser, context);
+		rc = suunto_solution_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_SUUNTO_EON:
-		rc = suunto_eon_parser_create (&parser, context, 0);
+		rc = suunto_eon_parser_create (&parser, context, data, size, 0);
 		break;
 	case DC_FAMILY_SUUNTO_VYPER:
 		if (model == 0x01)
-			rc = suunto_eon_parser_create (&parser, context, 1);
+			rc = suunto_eon_parser_create (&parser, context, data, size, 1);
 		else
-			rc = suunto_vyper_parser_create (&parser, context);
+			rc = suunto_vyper_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_SUUNTO_VYPER2:
 	case DC_FAMILY_SUUNTO_D9:
-		rc = suunto_d9_parser_create (&parser, context, model);
+		rc = suunto_d9_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_SUUNTO_EONSTEEL:
-		rc = suunto_eonsteel_parser_create(&parser, context, model);
+		rc = suunto_eonsteel_parser_create(&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 	case DC_FAMILY_UWATEC_MEMOMOUSE:
-		rc = uwatec_memomouse_parser_create (&parser, context);
+		rc = uwatec_memomouse_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_UWATEC_SMART:
-		rc = uwatec_smart_parser_create (&parser, context, model);
+		rc = uwatec_smart_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
-		rc = reefnet_sensus_parser_create (&parser, context);
+		rc = reefnet_sensus_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_REEFNET_SENSUSPRO:
-		rc = reefnet_sensuspro_parser_create (&parser, context);
+		rc = reefnet_sensuspro_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_REEFNET_SENSUSULTRA:
-		rc = reefnet_sensusultra_parser_create (&parser, context);
+		rc = reefnet_sensusultra_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
-		rc = oceanic_vtpro_parser_create (&parser, context, model);
+		rc = oceanic_vtpro_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_OCEANIC_VEO250:
-		rc = oceanic_veo250_parser_create (&parser, context, model);
+		rc = oceanic_veo250_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
 		if (model == REACTPROWHITE)
-			rc = oceanic_veo250_parser_create (&parser, context, model);
+			rc = oceanic_veo250_parser_create (&parser, context, data, size, model);
 		else
-			rc = oceanic_atom2_parser_create (&parser, context, model);
+			rc = oceanic_atom2_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_MARES_NEMO:
 	case DC_FAMILY_MARES_PUCK:
-		rc = mares_nemo_parser_create (&parser, context, model);
+		rc = mares_nemo_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_MARES_DARWIN:
-		rc = mares_darwin_parser_create (&parser, context, model);
+		rc = mares_darwin_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_MARES_ICONHD:
-		rc = mares_iconhd_parser_create (&parser, context, model);
+		rc = mares_iconhd_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_HW_OSTC:
-		rc = hw_ostc_parser_create (&parser, context);
+		rc = hw_ostc_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_HW_FROG:
 	case DC_FAMILY_HW_OSTC3:
-		rc = hw_ostc3_parser_create (&parser, context, model);
+		rc = hw_ostc3_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_CRESSI_EDY:
 	case DC_FAMILY_ZEAGLE_N2ITION3:
-		rc = cressi_edy_parser_create (&parser, context, model);
+		rc = cressi_edy_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_CRESSI_LEONARDO:
-		rc = cressi_leonardo_parser_create (&parser, context, model);
+		rc = cressi_leonardo_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_CRESSI_GOA:
-		rc = cressi_goa_parser_create (&parser, context, model);
+		rc = cressi_goa_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
-		rc = atomics_cobalt_parser_create (&parser, context);
+		rc = atomics_cobalt_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_SHEARWATER_PREDATOR:
-		rc = shearwater_predator_parser_create (&parser, context, model);
+		rc = shearwater_predator_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_SHEARWATER_PETREL:
-		rc = shearwater_petrel_parser_create (&parser, context, model);
+		rc = shearwater_petrel_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_DIVERITE_NITEKQ:
-		rc = diverite_nitekq_parser_create (&parser, context);
+		rc = diverite_nitekq_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_CITIZEN_AQUALAND:
-		rc = citizen_aqualand_parser_create (&parser, context);
+		rc = citizen_aqualand_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_DIVESYSTEM_IDIVE:
-		rc = divesystem_idive_parser_create (&parser, context, model);
+		rc = divesystem_idive_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_COCHRAN_COMMANDER:
-		rc = cochran_commander_parser_create (&parser, context, model);
+		rc = cochran_commander_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_TECDIVING_DIVECOMPUTEREU:
-		rc = tecdiving_divecomputereu_parser_create (&parser, context);
+		rc = tecdiving_divecomputereu_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_MCLEAN_EXTREME:
-		rc = mclean_extreme_parser_create (&parser, context);
+		rc = mclean_extreme_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_LIQUIVISION_LYNX:
-		rc = liquivision_lynx_parser_create (&parser, context, model);
+		rc = liquivision_lynx_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_SPORASUB_SP2:
-		rc = sporasub_sp2_parser_create (&parser, context);
+		rc = sporasub_sp2_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_DEEPSIX_EXCURSION:
-		rc = deepsix_excursion_parser_create (&parser, context);
+		rc = deepsix_excursion_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_SEAC_SCREEN:
-		rc = seac_screen_parser_create (&parser, context);
+		rc = seac_screen_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_DEEPBLU_COSMIQ:
-		rc = deepblu_cosmiq_parser_create (&parser, context);
+		rc = deepblu_cosmiq_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_OCEANS_S1:
-		rc = oceans_s1_parser_create (&parser, context);
+		rc = oceans_s1_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_DIVESOFT_FREEDOM:
-		rc = divesoft_freedom_parser_create (&parser, context);
+		rc = divesoft_freedom_parser_create (&parser, context, data, size);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
@@ -213,7 +214,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 }
 
 dc_status_t
-dc_parser_new (dc_parser_t **out, dc_device_t *device)
+dc_parser_new (dc_parser_t **out, dc_device_t *device, const unsigned char data[], size_t size)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_parser_t *parser = NULL;
@@ -221,7 +222,7 @@ dc_parser_new (dc_parser_t **out, dc_device_t *device)
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	status = dc_parser_new_internal (&parser, device->context,
+	status = dc_parser_new_internal (&parser, device->context, data, size,
 		dc_device_get_type (device), device->devinfo.model);
 	if (status != DC_STATUS_SUCCESS)
 		goto error_exit;
@@ -241,14 +242,14 @@ error_exit:
 }
 
 dc_status_t
-dc_parser_new2 (dc_parser_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
+dc_parser_new2 (dc_parser_t **out, dc_context_t *context, dc_descriptor_t *descriptor, const unsigned char data[], size_t size)
 {
-	return dc_parser_new_internal (out, context,
+	return dc_parser_new_internal (out, context, data, size,
 		dc_descriptor_get_type (descriptor), dc_descriptor_get_model (descriptor));
 }
 
 dc_parser_t *
-dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable)
+dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable, const unsigned char data[], size_t size)
 {
 	dc_parser_t *parser = NULL;
 
@@ -265,15 +266,34 @@ dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable)
 	// Initialize the base class.
 	parser->vtable = vtable;
 	parser->context = context;
-	parser->data = NULL;
-	parser->size = 0;
 
+	if (size) {
+		// Allocate memory for the data.
+		parser->data = malloc (size);
+		if (parser->data == NULL) {
+			ERROR (context, "Failed to allocate memory.");
+			free (parser);
+			return NULL;
+		}
+
+		// Copy the data.
+		memcpy (parser->data, data, size);
+		parser->size = size;
+	} else {
+		parser->data = NULL;
+		parser->size = 0;
+
+	}
 	return parser;
 }
 
 void
 dc_parser_deallocate (dc_parser_t *parser)
 {
+	if (parser == NULL)
+		return;
+
+	free (parser->data);
 	free (parser);
 }
 
@@ -333,22 +353,6 @@ dc_parser_set_density (dc_parser_t *parser, double density)
 		return DC_STATUS_UNSUPPORTED;
 
 	return parser->vtable->set_density (parser, density);
-}
-
-
-dc_status_t
-dc_parser_set_data (dc_parser_t *parser, const unsigned char *data, unsigned int size)
-{
-	if (parser == NULL)
-		return DC_STATUS_UNSUPPORTED;
-
-	if (parser->vtable->set_data == NULL)
-		return DC_STATUS_UNSUPPORTED;
-
-	parser->data = data;
-	parser->size = size;
-
-	return parser->vtable->set_data (parser, data, size);
 }
 
 

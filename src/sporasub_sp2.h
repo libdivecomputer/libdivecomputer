@@ -35,7 +35,7 @@ dc_status_t
 sporasub_sp2_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
 
 dc_status_t
-sporasub_sp2_parser_create (dc_parser_t **parser, dc_context_t *context);
+sporasub_sp2_parser_create (dc_parser_t **parser, dc_context_t *context, const unsigned char data[], size_t size);
 
 #ifdef __cplusplus
 }
