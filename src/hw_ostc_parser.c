@@ -137,6 +137,7 @@ static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 	sizeof(hw_ostc_parser_t),
 	DC_FAMILY_HW_OSTC,
 	hw_ostc_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	hw_ostc_parser_get_datetime, /* datetime */

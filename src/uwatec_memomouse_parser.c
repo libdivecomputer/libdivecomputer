@@ -39,6 +39,7 @@ struct uwatec_memomouse_parser_t {
 };
 
 static dc_status_t uwatec_memomouse_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
+static dc_status_t uwatec_memomouse_parser_set_clock (dc_parser_t *abstract, unsigned int devtime, dc_ticks_t systime);
 static dc_status_t uwatec_memomouse_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t uwatec_memomouse_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
 static dc_status_t uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata);
@@ -47,6 +48,7 @@ static const dc_parser_vtable_t uwatec_memomouse_parser_vtable = {
 	sizeof(uwatec_memomouse_parser_t),
 	DC_FAMILY_UWATEC_MEMOMOUSE,
 	uwatec_memomouse_parser_set_data, /* set_data */
+	uwatec_memomouse_parser_set_clock, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	uwatec_memomouse_parser_get_datetime, /* datetime */
@@ -84,6 +86,18 @@ uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 static dc_status_t
 uwatec_memomouse_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size)
 {
+	return DC_STATUS_SUCCESS;
+}
+
+
+static dc_status_t
+uwatec_memomouse_parser_set_clock (dc_parser_t *abstract, unsigned int devtime, dc_ticks_t systime)
+{
+	uwatec_memomouse_parser_t *parser = (uwatec_memomouse_parser_t *) abstract;
+
+	parser->devtime = devtime;
+	parser->systime = systime;
+
 	return DC_STATUS_SUCCESS;
 }
 

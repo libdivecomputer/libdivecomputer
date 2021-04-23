@@ -67,6 +67,7 @@ static const dc_parser_vtable_t mclean_extreme_parser_vtable = {
 	sizeof(mclean_extreme_parser_t),
 	DC_FAMILY_MCLEAN_EXTREME,
 	mclean_extreme_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	mclean_extreme_parser_get_datetime, /* datetime */

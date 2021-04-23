@@ -52,6 +52,8 @@ struct dc_parser_vtable_t {
 
 	dc_status_t (*set_data) (dc_parser_t *parser, const unsigned char *data, unsigned int size);
 
+	dc_status_t (*set_clock) (dc_parser_t *parser, unsigned int devtime, dc_ticks_t systime);
+
 	dc_status_t (*set_atmospheric) (dc_parser_t *parser, double atmospheric);
 
 	dc_status_t (*set_density) (dc_parser_t *parser, double density);

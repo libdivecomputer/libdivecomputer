@@ -53,6 +53,7 @@ static const dc_parser_vtable_t suunto_vyper_parser_vtable = {
 	sizeof(suunto_vyper_parser_t),
 	DC_FAMILY_SUUNTO_VYPER,
 	suunto_vyper_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	suunto_vyper_parser_get_datetime, /* datetime */

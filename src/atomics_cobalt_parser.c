@@ -53,6 +53,7 @@ static const dc_parser_vtable_t atomics_cobalt_parser_vtable = {
 	sizeof(atomics_cobalt_parser_t),
 	DC_FAMILY_ATOMICS_COBALT,
 	atomics_cobalt_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	atomics_cobalt_parser_set_density, /* set_density */
 	atomics_cobalt_parser_get_datetime, /* datetime */

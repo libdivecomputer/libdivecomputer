@@ -271,6 +271,9 @@ dc_family_t
 dc_parser_get_type (dc_parser_t *parser);
 
 dc_status_t
+dc_parser_set_clock (dc_parser_t *parser, unsigned int devtime, dc_ticks_t systime);
+
+dc_status_t
 dc_parser_set_atmospheric (dc_parser_t *parser, double atmospheric);
 
 dc_status_t

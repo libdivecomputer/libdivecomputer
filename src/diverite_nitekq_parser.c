@@ -58,6 +58,7 @@ static const dc_parser_vtable_t diverite_nitekq_parser_vtable = {
 	sizeof(diverite_nitekq_parser_t),
 	DC_FAMILY_DIVERITE_NITEKQ,
 	diverite_nitekq_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	diverite_nitekq_parser_get_datetime, /* datetime */

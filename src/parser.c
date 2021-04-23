@@ -271,6 +271,19 @@ dc_parser_get_type (dc_parser_t *parser)
 
 
 dc_status_t
+dc_parser_set_clock (dc_parser_t *parser, unsigned int devtime, dc_ticks_t systime)
+{
+	if (parser == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	if (parser->vtable->set_clock == NULL)
+		return DC_STATUS_UNSUPPORTED;
+
+	return parser->vtable->set_clock (parser, devtime, systime);
+}
+
+
+dc_status_t
 dc_parser_set_atmospheric (dc_parser_t *parser, double atmospheric)
 {
 	if (parser == NULL)

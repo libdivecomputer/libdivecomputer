@@ -68,6 +68,7 @@ static const dc_parser_vtable_t mares_nemo_parser_vtable = {
 	sizeof(mares_nemo_parser_t),
 	DC_FAMILY_MARES_NEMO,
 	mares_nemo_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	mares_nemo_parser_get_datetime, /* datetime */

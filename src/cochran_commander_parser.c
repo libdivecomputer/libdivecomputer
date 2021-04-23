@@ -108,6 +108,7 @@ static const dc_parser_vtable_t cochran_commander_parser_vtable = {
 	sizeof(cochran_commander_parser_t),
 	DC_FAMILY_COCHRAN_COMMANDER,
 	cochran_commander_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	cochran_commander_parser_get_datetime, /* datetime */

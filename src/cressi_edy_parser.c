@@ -47,6 +47,7 @@ static const dc_parser_vtable_t cressi_edy_parser_vtable = {
 	sizeof(cressi_edy_parser_t),
 	DC_FAMILY_CRESSI_EDY,
 	cressi_edy_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	cressi_edy_parser_get_datetime, /* datetime */

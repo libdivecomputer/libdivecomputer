@@ -140,6 +140,7 @@ static const dc_parser_vtable_t oceanic_atom2_parser_vtable = {
 	sizeof(oceanic_atom2_parser_t),
 	DC_FAMILY_OCEANIC_ATOM2,
 	oceanic_atom2_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	oceanic_atom2_parser_get_datetime, /* datetime */

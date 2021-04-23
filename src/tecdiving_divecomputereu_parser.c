@@ -45,6 +45,7 @@ static const dc_parser_vtable_t tecdiving_divecomputereu_parser_vtable = {
 	sizeof(tecdiving_divecomputereu_parser_t),
 	DC_FAMILY_TECDIVING_DIVECOMPUTEREU,
 	tecdiving_divecomputereu_parser_set_data, /* set_data */
+	NULL, /* set_clock */
 	NULL, /* set_atmospheric */
 	NULL, /* set_density */
 	tecdiving_divecomputereu_parser_get_datetime, /* datetime */
