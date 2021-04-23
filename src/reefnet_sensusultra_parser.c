@@ -70,7 +70,7 @@ static const dc_parser_vtable_t reefnet_sensusultra_parser_vtable = {
 
 
 dc_status_t
-reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int devtime, dc_ticks_t systime)
+reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context)
 {
 	reefnet_sensusultra_parser_t *parser = NULL;
 
@@ -87,8 +87,8 @@ reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context, uns
 	// Set the default values.
 	parser->atmospheric = DEF_ATMOSPHERIC;
 	parser->hydrostatic = DEF_DENSITY_SALT * GRAVITY;
-	parser->devtime = devtime;
-	parser->systime = systime;
+	parser->devtime = 0;
+	parser->systime = 0;
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;

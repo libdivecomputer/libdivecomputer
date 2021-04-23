@@ -72,7 +72,7 @@
 #define REACTPROWHITE 0x4354
 
 static dc_status_t
-dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t family, unsigned int model, unsigned int devtime, dc_ticks_t systime)
+dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t family, unsigned int model)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_parser_t *parser = NULL;
@@ -102,19 +102,19 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 	case DC_FAMILY_UWATEC_MEMOMOUSE:
-		rc = uwatec_memomouse_parser_create (&parser, context, devtime, systime);
+		rc = uwatec_memomouse_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_UWATEC_SMART:
 		rc = uwatec_smart_parser_create (&parser, context, model);
 		break;
 	case DC_FAMILY_REEFNET_SENSUS:
-		rc = reefnet_sensus_parser_create (&parser, context, devtime, systime);
+		rc = reefnet_sensus_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_REEFNET_SENSUSPRO:
-		rc = reefnet_sensuspro_parser_create (&parser, context, devtime, systime);
+		rc = reefnet_sensuspro_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_REEFNET_SENSUSULTRA:
-		rc = reefnet_sensusultra_parser_create (&parser, context, devtime, systime);
+		rc = reefnet_sensusultra_parser_create (&parser, context);
 		break;
 	case DC_FAMILY_OCEANIC_VTPRO:
 		rc = oceanic_vtpro_parser_create (&parser, context, model);
@@ -215,20 +215,36 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 dc_status_t
 dc_parser_new (dc_parser_t **out, dc_device_t *device)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_parser_t *parser = NULL;
+
 	if (device == NULL)
 		return DC_STATUS_INVALIDARGS;
 
-	return dc_parser_new_internal (out, device->context,
-		dc_device_get_type (device), device->devinfo.model,
-		device->clock.devtime, device->clock.systime);
+	status = dc_parser_new_internal (&parser, device->context,
+		dc_device_get_type (device), device->devinfo.model);
+	if (status != DC_STATUS_SUCCESS)
+		goto error_exit;
+
+	status = dc_parser_set_clock (parser, device->clock.devtime, device->clock.systime);
+	if (status != DC_STATUS_SUCCESS && status != DC_STATUS_UNSUPPORTED)
+		goto error_free;
+
+	*out = parser;
+
+	return DC_STATUS_SUCCESS;
+
+error_free:
+	dc_parser_deallocate (parser);
+error_exit:
+	return status;
 }
 
 dc_status_t
-dc_parser_new2 (dc_parser_t **out, dc_context_t *context, dc_descriptor_t *descriptor, unsigned int devtime, dc_ticks_t systime)
+dc_parser_new2 (dc_parser_t **out, dc_context_t *context, dc_descriptor_t *descriptor)
 {
 	return dc_parser_new_internal (out, context,
-		dc_descriptor_get_type (descriptor), dc_descriptor_get_model (descriptor),
-		devtime, systime);
+		dc_descriptor_get_type (descriptor), dc_descriptor_get_model (descriptor));
 }
 
 dc_parser_t *

@@ -59,7 +59,7 @@ static const dc_parser_vtable_t uwatec_memomouse_parser_vtable = {
 
 
 dc_status_t
-uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int devtime, dc_ticks_t systime)
+uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context)
 {
 	uwatec_memomouse_parser_t *parser = NULL;
 
@@ -74,8 +74,8 @@ uwatec_memomouse_parser_create (dc_parser_t **out, dc_context_t *context, unsign
 	}
 
 	// Set the default values.
-	parser->devtime = devtime;
-	parser->systime = systime;
+	parser->devtime = 0;
+	parser->systime = 0;
 
 	*out = (dc_parser_t*) parser;
 
