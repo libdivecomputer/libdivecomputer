@@ -459,6 +459,7 @@ static const oceanic_common_version_t versions[] = {
 	{"AMPHOAIR \0\0 512K", 0,      &tusa_zenair_layout},
 	{"VOYAGE2G \0\0 512K", 0,      &tusa_zenair_layout},
 	{"TUSTALIS \0\0 512K", 0,      &tusa_zenair_layout},
+	{"AMPHOS20 \0\0 512K", 0,      &tusa_zenair_layout},
 
 	{"REACPRO2 \0\0 512K", 0,      &oceanic_reactpro_layout},
 

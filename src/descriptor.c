@@ -265,6 +265,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Oceanic",  "Veo 4.0",             DC_FAMILY_OCEANIC_ATOM2, 0x4654, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Sherwood", "Wisdom 4",            DC_FAMILY_OCEANIC_ATOM2, 0x4655, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Oceanic",  "Pro Plus 4",          DC_FAMILY_OCEANIC_ATOM2, 0x4656, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Sherwood", "Amphos 2.0",          DC_FAMILY_OCEANIC_ATOM2, 0x4657, DC_TRANSPORT_SERIAL, NULL},
 	{"Sherwood", "Beacon",              DC_FAMILY_OCEANIC_ATOM2, 0x4742, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Aqualung", "i470TC",              DC_FAMILY_OCEANIC_ATOM2, 0x4743, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	/* Mares Nemo */
