@@ -1,3 +1,43 @@
+Version 0.7.0 (2020-05-07)
+==========================
+
+The main highlight of the v0.7.0 release is the introduction of the new
+I/O interface. With this common interface, the dive computer backends
+can more easily use different I/O implementations at runtime, including
+an application defined one. This is needed to support Bluetooth Low
+Energy (BLE), for which there is no built-in implementation available.
+
+Due to the fundamental changes to the I/O layer, this release is not
+backwards compatible.
+
+New features:
+
+ * A new I/O interface
+ * Add support for new backends:
+    - goa: Cressi Goa and Cartesio
+    - divecomputereu: Tecdiving DiveComputer.eu
+    - extreme: McLean Extreme
+    - lynx: Liquivision Xen, Xeo, Lynx and Kaon
+    - sp2: Sporasub SP2
+ * Add support for many new devices:
+    - Aqualung: i100, i200C, i300C, i470TC, i550C, i770R
+    - Heinrichs Weikamp: OSTC 2 TR
+    - Mares: Genius, Horizon, Quad Air, Smart Air
+    - Oceanic: Geo 4.0, Pro Plus 4, Pro Plus X, Veo 4.0
+    - Ratio: iDive Color, iX3M GPS, iX3M 2021
+    - Scubapro: A1, A2, Aladin H Matrix, G2 Console, G2 HUD
+    - Seac: Guru, Jack
+    - Shearwater: Peregrine, Teric
+    - Sherwood: Amphos 2.0, Beacon, Sage, Wisdom 4
+    - Suunto: D5, EON Steel Black
+    - Tusa: Talis
+ * Firmware upgrade support for the Ratio computers
+ * Support for semi-closed circuit diving
+
+Removed/changed features:
+
+ * Unify the Uwatec Smart, Meridian and G2 backends
+
 Version 0.6.0 (2017-11-24)
 ==========================
 
