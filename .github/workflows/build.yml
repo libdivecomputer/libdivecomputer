@@ -122,3 +122,33 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.arch }}
           path: ${{ github.job }}-${{ matrix.arch }}.tar.gz
+
+  msvc:
+
+    name: Visual Studio
+
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x86, x64]
+
+    env:
+      CONFIGURATION: Release
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: msys2/setup-msys2@v2
+        with:
+          install: autoconf automake libtool pkg-config make gcc
+      - run: |
+          autoreconf --install --force
+          ./configure --prefix=/usr
+        shell: msys2 {0}
+      - uses: microsoft/setup-msbuild@v1.0.2
+      - run: msbuild -m -p:Platform=${{ matrix.platform }} -p:Configuration=${{ env.CONFIGURATION }} msvc/libdivecomputer.vcxproj
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.job }}-${{ matrix.platform }}
+          path: msvc/${{ matrix.platform }}/${{ env.CONFIGURATION }}/bin
