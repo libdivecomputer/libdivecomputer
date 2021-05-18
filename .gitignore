@@ -47,11 +47,10 @@ Makefile.in
 /m4/ltsugar.m4
 /m4/ltversion.m4
 
-/msvc/Debug/
-/msvc/Release/
+/msvc/x64/
+/msvc/x86/
 /msvc/*.ncb
 /msvc/*.suo
-/msvc/*.vcproj.*.user
 
 /src/libdivecomputer.exp
 /src/libdivecomputer.la

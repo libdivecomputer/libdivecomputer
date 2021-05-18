@@ -16,4 +16,5 @@ pkgconfig_DATA = libdivecomputer.pc
 
 EXTRA_DIST = \
 	libdivecomputer.pc.in \
-	msvc/libdivecomputer.vcproj
+	msvc/libdivecomputer.vcxproj \
+	msvc/libdivecomputer.vcxproj.filters

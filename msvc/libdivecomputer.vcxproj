@@ -1,0 +1,374 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{CEA7215A-D6B5-4840-8086-3C854F371997}</ProjectGuid>
+    <RootNamespace>libdivecomputer</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)$(PlatformTarget)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(PlatformTarget)\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)$(PlatformTarget)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(PlatformTarget)\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)$(PlatformTarget)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(PlatformTarget)\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)$(PlatformTarget)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(PlatformTarget)\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS;ENABLE_LOGGING;HAVE_AF_IRDA_H;HAVE_WS2BTH_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(OutDir)libdivecomputer.def</ModuleDefinitionFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS;ENABLE_LOGGING;HAVE_AF_IRDA_H;HAVE_WS2BTH_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(OutDir)libdivecomputer.def</ModuleDefinitionFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS;ENABLE_LOGGING;HAVE_AF_IRDA_H;HAVE_WS2BTH_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(OutDir)libdivecomputer.def</ModuleDefinitionFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBDIVECOMPUTER_EXPORTS;ENABLE_LOGGING;HAVE_AF_IRDA_H;HAVE_WS2BTH_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(OutDir)libdivecomputer.def</ModuleDefinitionFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\aes.c" />
+    <ClCompile Include="..\src\array.c" />
+    <ClCompile Include="..\src\atomics_cobalt.c" />
+    <ClCompile Include="..\src\atomics_cobalt_parser.c" />
+    <ClCompile Include="..\src\bluetooth.c" />
+    <ClCompile Include="..\src\buffer.c" />
+    <ClCompile Include="..\src\checksum.c" />
+    <ClCompile Include="..\src\citizen_aqualand.c" />
+    <ClCompile Include="..\src\citizen_aqualand_parser.c" />
+    <ClCompile Include="..\src\cochran_commander.c" />
+    <ClCompile Include="..\src\cochran_commander_parser.c" />
+    <ClCompile Include="..\src\common.c" />
+    <ClCompile Include="..\src\context.c" />
+    <ClCompile Include="..\src\cressi_edy.c" />
+    <ClCompile Include="..\src\cressi_edy_parser.c" />
+    <ClCompile Include="..\src\cressi_goa.c" />
+    <ClCompile Include="..\src\cressi_goa_parser.c" />
+    <ClCompile Include="..\src\cressi_leonardo.c" />
+    <ClCompile Include="..\src\cressi_leonardo_parser.c" />
+    <ClCompile Include="..\src\custom.c" />
+    <ClCompile Include="..\src\datetime.c" />
+    <ClCompile Include="..\src\descriptor.c" />
+    <ClCompile Include="..\src\device.c" />
+    <ClCompile Include="..\src\diverite_nitekq.c" />
+    <ClCompile Include="..\src\diverite_nitekq_parser.c" />
+    <ClCompile Include="..\src\divesystem_idive.c" />
+    <ClCompile Include="..\src\divesystem_idive_parser.c" />
+    <ClCompile Include="..\src\hw_frog.c" />
+    <ClCompile Include="..\src\hw_ostc.c" />
+    <ClCompile Include="..\src\hw_ostc3.c" />
+    <ClCompile Include="..\src\hw_ostc_parser.c" />
+    <ClCompile Include="..\src\ihex.c" />
+    <ClCompile Include="..\src\iostream.c" />
+    <ClCompile Include="..\src\irda.c" />
+    <ClCompile Include="..\src\iterator.c" />
+    <ClCompile Include="..\src\liquivision_lynx.c" />
+    <ClCompile Include="..\src\liquivision_lynx_parser.c" />
+    <ClCompile Include="..\src\mares_common.c" />
+    <ClCompile Include="..\src\mares_darwin.c" />
+    <ClCompile Include="..\src\mares_darwin_parser.c" />
+    <ClCompile Include="..\src\mares_iconhd.c" />
+    <ClCompile Include="..\src\mares_iconhd_parser.c" />
+    <ClCompile Include="..\src\mares_nemo.c" />
+    <ClCompile Include="..\src\mares_nemo_parser.c" />
+    <ClCompile Include="..\src\mares_puck.c" />
+    <ClCompile Include="..\src\mclean_extreme.c" />
+    <ClCompile Include="..\src\mclean_extreme_parser.c" />
+    <ClCompile Include="..\src\oceanic_atom2.c" />
+    <ClCompile Include="..\src\oceanic_atom2_parser.c" />
+    <ClCompile Include="..\src\oceanic_common.c" />
+    <ClCompile Include="..\src\oceanic_veo250.c" />
+    <ClCompile Include="..\src\oceanic_veo250_parser.c" />
+    <ClCompile Include="..\src\oceanic_vtpro.c" />
+    <ClCompile Include="..\src\oceanic_vtpro_parser.c" />
+    <ClCompile Include="..\src\parser.c" />
+    <ClCompile Include="..\src\platform.c" />
+    <ClCompile Include="..\src\rbstream.c" />
+    <ClCompile Include="..\src\reefnet_sensus.c" />
+    <ClCompile Include="..\src\reefnet_sensuspro.c" />
+    <ClCompile Include="..\src\reefnet_sensuspro_parser.c" />
+    <ClCompile Include="..\src\reefnet_sensusultra.c" />
+    <ClCompile Include="..\src\reefnet_sensusultra_parser.c" />
+    <ClCompile Include="..\src\reefnet_sensus_parser.c" />
+    <ClCompile Include="..\src\ringbuffer.c" />
+    <ClCompile Include="..\src\serial_win32.c" />
+    <ClCompile Include="..\src\shearwater_common.c" />
+    <ClCompile Include="..\src\shearwater_petrel.c" />
+    <ClCompile Include="..\src\shearwater_predator.c" />
+    <ClCompile Include="..\src\shearwater_predator_parser.c" />
+    <ClCompile Include="..\src\socket.c" />
+    <ClCompile Include="..\src\sporasub_sp2.c" />
+    <ClCompile Include="..\src\sporasub_sp2_parser.c" />
+    <ClCompile Include="..\src\suunto_common.c" />
+    <ClCompile Include="..\src\suunto_common2.c" />
+    <ClCompile Include="..\src\suunto_d9.c" />
+    <ClCompile Include="..\src\suunto_d9_parser.c" />
+    <ClCompile Include="..\src\suunto_eon.c" />
+    <ClCompile Include="..\src\suunto_eonsteel.c" />
+    <ClCompile Include="..\src\suunto_eonsteel_parser.c" />
+    <ClCompile Include="..\src\suunto_eon_parser.c" />
+    <ClCompile Include="..\src\suunto_solution.c" />
+    <ClCompile Include="..\src\suunto_solution_parser.c" />
+    <ClCompile Include="..\src\suunto_vyper.c" />
+    <ClCompile Include="..\src\suunto_vyper2.c" />
+    <ClCompile Include="..\src\suunto_vyper_parser.c" />
+    <ClCompile Include="..\src\tecdiving_divecomputereu.c" />
+    <ClCompile Include="..\src\tecdiving_divecomputereu_parser.c" />
+    <ClCompile Include="..\src\timer.c" />
+    <ClCompile Include="..\src\usb.c" />
+    <ClCompile Include="..\src\usbhid.c" />
+    <ClCompile Include="..\src\uwatec_aladin.c" />
+    <ClCompile Include="..\src\uwatec_memomouse.c" />
+    <ClCompile Include="..\src\uwatec_memomouse_parser.c" />
+    <ClCompile Include="..\src\uwatec_smart.c" />
+    <ClCompile Include="..\src\uwatec_smart_parser.c" />
+    <ClCompile Include="..\src\version.c" />
+    <ClCompile Include="..\src\zeagle_n2ition3.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\libdivecomputer\atomics_cobalt.h" />
+    <ClInclude Include="..\include\libdivecomputer\ble.h" />
+    <ClInclude Include="..\include\libdivecomputer\bluetooth.h" />
+    <ClInclude Include="..\include\libdivecomputer\buffer.h" />
+    <ClInclude Include="..\include\libdivecomputer\common.h" />
+    <ClInclude Include="..\include\libdivecomputer\context.h" />
+    <ClInclude Include="..\include\libdivecomputer\custom.h" />
+    <ClInclude Include="..\include\libdivecomputer\datetime.h" />
+    <ClInclude Include="..\include\libdivecomputer\descriptor.h" />
+    <ClInclude Include="..\include\libdivecomputer\device.h" />
+    <ClInclude Include="..\include\libdivecomputer\divesystem_idive.h" />
+    <ClInclude Include="..\include\libdivecomputer\hw_frog.h" />
+    <ClInclude Include="..\include\libdivecomputer\hw_ostc.h" />
+    <ClInclude Include="..\include\libdivecomputer\hw_ostc3.h" />
+    <ClInclude Include="..\include\libdivecomputer\ioctl.h" />
+    <ClInclude Include="..\include\libdivecomputer\iostream.h" />
+    <ClInclude Include="..\include\libdivecomputer\irda.h" />
+    <ClInclude Include="..\include\libdivecomputer\iterator.h" />
+    <ClInclude Include="..\include\libdivecomputer\oceanic_atom2.h" />
+    <ClInclude Include="..\include\libdivecomputer\oceanic_veo250.h" />
+    <ClInclude Include="..\include\libdivecomputer\oceanic_vtpro.h" />
+    <ClInclude Include="..\include\libdivecomputer\parser.h" />
+    <ClInclude Include="..\include\libdivecomputer\reefnet_sensus.h" />
+    <ClInclude Include="..\include\libdivecomputer\reefnet_sensuspro.h" />
+    <ClInclude Include="..\include\libdivecomputer\reefnet_sensusultra.h" />
+    <ClInclude Include="..\include\libdivecomputer\serial.h" />
+    <ClInclude Include="..\include\libdivecomputer\suunto_d9.h" />
+    <ClInclude Include="..\include\libdivecomputer\suunto_eon.h" />
+    <ClInclude Include="..\include\libdivecomputer\suunto_vyper2.h" />
+    <ClInclude Include="..\include\libdivecomputer\units.h" />
+    <ClInclude Include="..\include\libdivecomputer\usb.h" />
+    <ClInclude Include="..\include\libdivecomputer\usbhid.h" />
+    <ClInclude Include="..\include\libdivecomputer\version.h" />
+    <ClInclude Include="..\src\aes.h" />
+    <ClInclude Include="..\src\array.h" />
+    <ClInclude Include="..\src\atomics_cobalt.h" />
+    <ClInclude Include="..\src\checksum.h" />
+    <ClInclude Include="..\src\citizen_aqualand.h" />
+    <ClInclude Include="..\src\cochran_commander.h" />
+    <ClInclude Include="..\src\common-private.h" />
+    <ClInclude Include="..\src\context-private.h" />
+    <ClInclude Include="..\src\cressi_edy.h" />
+    <ClInclude Include="..\src\cressi_goa.h" />
+    <ClInclude Include="..\src\cressi_leonardo.h" />
+    <ClInclude Include="..\src\descriptor-private.h" />
+    <ClInclude Include="..\src\device-private.h" />
+    <ClInclude Include="..\src\diverite_nitekq.h" />
+    <ClInclude Include="..\src\divesystem_idive.h" />
+    <ClInclude Include="..\src\hw_frog.h" />
+    <ClInclude Include="..\src\hw_ostc.h" />
+    <ClInclude Include="..\src\hw_ostc3.h" />
+    <ClInclude Include="..\src\ihex.h" />
+    <ClInclude Include="..\src\iostream-private.h" />
+    <ClInclude Include="..\src\iterator-private.h" />
+    <ClInclude Include="..\src\liquivision_lynx.h" />
+    <ClInclude Include="..\src\mares_common.h" />
+    <ClInclude Include="..\src\mares_darwin.h" />
+    <ClInclude Include="..\src\mares_iconhd.h" />
+    <ClInclude Include="..\src\mares_nemo.h" />
+    <ClInclude Include="..\src\mares_puck.h" />
+    <ClInclude Include="..\src\mclean_extreme.h" />
+    <ClInclude Include="..\src\oceanic_atom2.h" />
+    <ClInclude Include="..\src\oceanic_common.h" />
+    <ClInclude Include="..\src\oceanic_veo250.h" />
+    <ClInclude Include="..\src\oceanic_vtpro.h" />
+    <ClInclude Include="..\src\parser-private.h" />
+    <ClInclude Include="..\src\platform.h" />
+    <ClInclude Include="..\src\rbstream.h" />
+    <ClInclude Include="..\src\reefnet_sensus.h" />
+    <ClInclude Include="..\src\reefnet_sensuspro.h" />
+    <ClInclude Include="..\src\reefnet_sensusultra.h" />
+    <ClInclude Include="..\src\revision.h" />
+    <ClInclude Include="..\src\ringbuffer.h" />
+    <ClInclude Include="..\src\shearwater_common.h" />
+    <ClInclude Include="..\src\shearwater_petrel.h" />
+    <ClInclude Include="..\src\shearwater_predator.h" />
+    <ClInclude Include="..\src\socket.h" />
+    <ClInclude Include="..\src\sporasub_sp2.h" />
+    <ClInclude Include="..\src\suunto_common.h" />
+    <ClInclude Include="..\src\suunto_common2.h" />
+    <ClInclude Include="..\src\suunto_d9.h" />
+    <ClInclude Include="..\src\suunto_eon.h" />
+    <ClInclude Include="..\src\suunto_eonsteel.h" />
+    <ClInclude Include="..\src\suunto_solution.h" />
+    <ClInclude Include="..\src\suunto_vyper.h" />
+    <ClInclude Include="..\src\suunto_vyper2.h" />
+    <ClInclude Include="..\src\tecdiving_divecomputereu.h" />
+    <ClInclude Include="..\src\timer.h" />
+    <ClInclude Include="..\src\uwatec_aladin.h" />
+    <ClInclude Include="..\src\uwatec_memomouse.h" />
+    <ClInclude Include="..\src\uwatec_smart.h" />
+    <ClInclude Include="..\src\zeagle_n2ition3.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\libdivecomputer.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\src\libdivecomputer.symbols">
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">echo EXPORTS &gt; "$(OutDir)libdivecomputer.def" &amp;&amp; type "%(FullPath)" &gt;&gt; "$(OutDir)libdivecomputer.def"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">echo EXPORTS &gt; "$(OutDir)libdivecomputer.def" &amp;&amp; type "%(FullPath)" &gt;&gt; "$(OutDir)libdivecomputer.def"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)libdivecomputer.def;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)libdivecomputer.def;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">echo EXPORTS &gt; "$(OutDir)libdivecomputer.def" &amp;&amp; type "%(FullPath)" &gt;&gt; "$(OutDir)libdivecomputer.def"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">echo EXPORTS &gt; "$(OutDir)libdivecomputer.def" &amp;&amp; type "%(FullPath)" &gt;&gt; "$(OutDir)libdivecomputer.def"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)libdivecomputer.def;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)libdivecomputer.def;%(Outputs)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
