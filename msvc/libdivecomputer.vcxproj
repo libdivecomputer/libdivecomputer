@@ -182,6 +182,8 @@
     <ClCompile Include="..\src\cressi_leonardo_parser.c" />
     <ClCompile Include="..\src\custom.c" />
     <ClCompile Include="..\src\datetime.c" />
+    <ClCompile Include="..\src\deepsix_excursion.c" />
+    <ClCompile Include="..\src\deepsix_excursion_parser.c" />
     <ClCompile Include="..\src\descriptor.c" />
     <ClCompile Include="..\src\device.c" />
     <ClCompile Include="..\src\diverite_nitekq.c" />
@@ -304,6 +306,7 @@
     <ClInclude Include="..\src\cressi_edy.h" />
     <ClInclude Include="..\src\cressi_goa.h" />
     <ClInclude Include="..\src\cressi_leonardo.h" />
+    <ClInclude Include="..\src\deepsix_excursion.h" />
     <ClInclude Include="..\src\descriptor-private.h" />
     <ClInclude Include="..\src\device-private.h" />
     <ClInclude Include="..\src\diverite_nitekq.h" />

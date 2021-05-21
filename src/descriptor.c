@@ -62,6 +62,7 @@ static int dc_filter_divesystem (dc_transport_t transport, const void *userdata,
 static int dc_filter_oceanic (dc_transport_t transport, const void *userdata, void *params);
 static int dc_filter_mclean (dc_transport_t transport, const void *userdata, void *params);
 static int dc_filter_atomic (dc_transport_t transport, const void *userdata, void *params);
+static int dc_filter_deepsix (dc_transport_t transport, const void *userdata, void *params);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -421,6 +422,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Liquivision", "Kaon", DC_FAMILY_LIQUIVISION_LYNX, 3, DC_TRANSPORT_SERIAL, NULL},
 	/* Sporasub */
 	{"Sporasub", "SP2", DC_FAMILY_SPORASUB_SP2, 0, DC_TRANSPORT_SERIAL, NULL},
+	/* Deep Six Excursion */
+	{"Deep Six", "Excursion", DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 };
 
 static int
@@ -719,6 +722,20 @@ static int dc_filter_atomic (dc_transport_t transport, const void *userdata, voi
 
 	return 1;
 }
+
+static int dc_filter_deepsix (dc_transport_t transport, const void *userdata, void *params)
+{
+	static const char * const bluetooth[] = {
+		"EXCURSION",
+	};
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
+	}
+
+	return 1;
+}
+
 
 dc_status_t
 dc_descriptor_iterator (dc_iterator_t **out)

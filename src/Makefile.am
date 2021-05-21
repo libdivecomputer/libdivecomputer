@@ -75,6 +75,7 @@ libdivecomputer_la_SOURCES = \
 	mclean_extreme.h mclean_extreme.c mclean_extreme_parser.c \
 	liquivision_lynx.h liquivision_lynx.c liquivision_lynx_parser.c \
 	sporasub_sp2.h sporasub_sp2.c sporasub_sp2_parser.c \
+	deepsix_excursion.h deepsix_excursion.c deepsix_excursion_parser.c \
 	socket.h socket.c \
 	irda.c \
 	usb.c \
