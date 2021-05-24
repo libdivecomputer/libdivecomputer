@@ -33,6 +33,10 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc3_device_vtable)
 
+#define OSTC3FW(major,minor) ( \
+		(((major) & 0xFF) << 8) | \
+		((minor) & 0xFF))
+
 #define SZ_DISPLAY    16
 #define SZ_CUSTOMTEXT 60
 #define SZ_VERSION    (SZ_CUSTOMTEXT + 4)
@@ -1282,10 +1286,13 @@ hw_ostc3_firmware_block_write2 (hw_ostc3_device_t *device, unsigned int address,
 static dc_status_t
 hw_ostc3_firmware_block_write (hw_ostc3_device_t *device, unsigned int address, const unsigned char data[], unsigned int size)
 {
-	if (device->firmware >= 0x0309) {
-		return hw_ostc3_firmware_block_write2 (device, address, data, size);
-	} else {
+	// Support for the S_BLOCK_WRITE2 command is only available since the
+	// hwOS Tech firmware v3.09 and the hwOS Sport firmware v10.64.
+	if ((device->firmware < OSTC3FW(3,9)) ||
+		(device->firmware >= OSTC3FW(10,0) && device->firmware < OSTC3FW(10,64))) {
 		return hw_ostc3_firmware_block_write1 (device, address, data, size);
+	} else {
+		return hw_ostc3_firmware_block_write2 (device, address, data, size);
 	}
 }
 
