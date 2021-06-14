@@ -200,6 +200,7 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			*((unsigned int *) value) = 1;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
 			if (oxygen)
 				gasmix->oxygen = oxygen / 100.0;
@@ -220,6 +221,7 @@ oceanic_vtpro_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			tank->gasmix = flags;
 			tank->beginpressure = beginpressure * 2 * PSI / BAR;
 			tank->endpressure = endpressure * 2 * PSI / BAR;
+			tank->usage = DC_USAGE_NONE;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

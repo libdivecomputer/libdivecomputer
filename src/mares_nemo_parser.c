@@ -251,6 +251,7 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				}
 				gasmix->helium = 0.0;
 				gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
+				gasmix->usage = DC_USAGE_NONE;
 				break;
 			case DC_FIELD_TANK_COUNT:
 				if (parser->extra)
@@ -290,6 +291,7 @@ mares_nemo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 				} else {
 					tank->gasmix = DC_GASMIX_UNKNOWN;
 				}
+				tank->usage = DC_USAGE_NONE;
 				break;
 			case DC_FIELD_TEMPERATURE_MINIMUM:
 				*((double *) value) = (signed char) p[53 - 11];

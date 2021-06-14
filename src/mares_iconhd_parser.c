@@ -830,6 +830,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
 			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -857,6 +858,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			} else {
 				tank->gasmix = DC_GASMIX_UNKNOWN;
 			}
+			tank->usage = DC_USAGE_NONE;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
 			*((double *) value) = array_uint16_le (p + parser->layout->atmospheric) / (1000.0 * parser->layout->atmospheric_divisor);

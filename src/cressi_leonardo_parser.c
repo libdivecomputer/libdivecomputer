@@ -146,6 +146,7 @@ cressi_leonardo_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			}
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
 			gasmix->oxygen = data[0x19] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;

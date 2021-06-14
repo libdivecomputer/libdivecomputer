@@ -774,6 +774,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = parser->gasmix[flags].diluent ? DC_USAGE_DILUENT : DC_USAGE_NONE;
 			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
 			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -788,6 +789,22 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			tank->beginpressure = parser->tank[flags].beginpressure * 2 * PSI / BAR;
 			tank->endpressure   = parser->tank[flags].endpressure   * 2 * PSI / BAR;
 			tank->gasmix = DC_GASMIX_UNKNOWN;
+			switch (parser->tank[flags].name[0]) {
+			case 'S':
+				tank->usage = DC_USAGE_SIDEMOUNT;
+				break;
+			case 'O':
+				tank->usage = DC_USAGE_OXYGEN;
+				break;
+			case 'D':
+				tank->usage = DC_USAGE_DILUENT;
+				break;
+			case 'T':
+			case 'B':
+			default:
+				tank->usage = DC_USAGE_NONE;
+				break;
+			}
 			break;
 		case DC_FIELD_SALINITY:
 			if (parser->density == 1000)

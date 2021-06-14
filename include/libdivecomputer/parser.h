@@ -141,10 +141,18 @@ typedef struct dc_salinity_t {
 	double density;
 } dc_salinity_t;
 
+typedef enum dc_usage_t {
+	DC_USAGE_NONE,
+	DC_USAGE_OXYGEN,
+	DC_USAGE_DILUENT,
+	DC_USAGE_SIDEMOUNT,
+} dc_usage_t;
+
 typedef struct dc_gasmix_t {
 	double helium;
 	double oxygen;
 	double nitrogen;
+	dc_usage_t usage;
 } dc_gasmix_t;
 
 #define DC_SENSOR_NONE    0xFFFFFFFF
@@ -186,6 +194,7 @@ typedef struct dc_tank_t {
     double workpressure;  /* Work pressure (bar) */
     double beginpressure; /* Begin pressure (bar) */
     double endpressure;   /* End pressure (bar) */
+    dc_usage_t usage;
 } dc_tank_t;
 
 typedef enum dc_decomodel_type_t {

@@ -171,6 +171,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			*((unsigned int *) value) = p[0x2a];
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = p[SZ_HEADER + SZ_GASMIX * flags + 5] / 100.0;
 			gasmix->oxygen = p[SZ_HEADER + SZ_GASMIX * flags + 4] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -202,6 +203,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			tank->gasmix = flags;
 			tank->beginpressure = array_uint16_le(p + 6) * PSI / BAR;
 			tank->endpressure = array_uint16_le(p + 14) * PSI / BAR;
+			tank->usage = DC_USAGE_NONE;
 			break;
 		case DC_FIELD_DIVEMODE:
 			switch(p[0x24]) {

@@ -152,6 +152,7 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			*((unsigned int *) value) = cressi_edy_parser_count_gasmixes(p);
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
 			gasmix->oxygen = bcd2dec (p[0x17 - flags]) / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;

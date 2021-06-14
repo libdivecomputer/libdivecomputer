@@ -267,6 +267,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gas->usage = DC_USAGE_NONE;
 			gas->helium = 0.0;
 			gas->oxygen = parser->oxygen[flags] / 100.0;
 			gas->nitrogen = 1.0 - gas->oxygen - gas->helium;
@@ -287,6 +288,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				tank->gasmix = 0;
 			tank->beginpressure = beginpressure;
 			tank->endpressure = endpressure;
+			tank->usage = DC_USAGE_NONE;
 			break;
 		case DC_FIELD_TEMPERATURE_SURFACE:
 			*((double *) value) = (signed char) data[8];

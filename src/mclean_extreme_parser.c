@@ -221,6 +221,7 @@ mclean_extreme_parser_get_field(dc_parser_t *abstract, dc_field_type_t type, uns
 			*((unsigned int *)value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.01 * abstract->data[0x0001 + 1 + 2 * parser->gasmix[flags]];
 			gasmix->oxygen = 0.01 * abstract->data[0x0001 + 0 + 2 * parser->gasmix[flags]];
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;

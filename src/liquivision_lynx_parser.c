@@ -315,6 +315,7 @@ liquivision_lynx_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -329,6 +330,7 @@ liquivision_lynx_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			tank->beginpressure = parser->tank[flags].beginpressure / 100.0;
 			tank->endpressure   = parser->tank[flags].endpressure / 100.0;
 			tank->gasmix = DC_GASMIX_UNKNOWN;
+			tank->usage = DC_USAGE_NONE;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

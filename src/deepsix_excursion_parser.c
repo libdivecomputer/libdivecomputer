@@ -322,6 +322,7 @@ deepsix_excursion_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->oxygen   = parser->gasmix[flags].oxygen / 100.0;
 			gasmix->helium   = parser->gasmix[flags].helium / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;

@@ -159,6 +159,7 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			}
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
 			if (mode == NITROX) {
 				gasmix->oxygen = p[0x0E] / 100.0;
@@ -185,6 +186,7 @@ mares_darwin_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				tank->gasmix = 0;
 				tank->beginpressure = array_uint16_be (p + 0x17);
 				tank->endpressure = array_uint16_be (p + 0x19);
+				tank->usage = DC_USAGE_NONE;
 			} else {
 				return DC_STATUS_UNSUPPORTED;
 			}

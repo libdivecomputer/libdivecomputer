@@ -338,11 +338,19 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 			"<gasmix>\n"
 			"   <he>%.1f</he>\n"
 			"   <o2>%.1f</o2>\n"
-			"   <n2>%.1f</n2>\n"
-			"</gasmix>\n",
+			"   <n2>%.1f</n2>\n",
 			gasmix.helium * 100.0,
 			gasmix.oxygen * 100.0,
 			gasmix.nitrogen * 100.0);
+		if (gasmix.usage) {
+			const char *usage[] = {"none", "oxygen", "diluent", "sidemount"};
+			fprintf (output->ostream,
+				"   <usage>%s</usage>\n",
+				usage[gasmix.usage]);
+		}
+		fprintf (output->ostream,
+			"</gasmix>\n");
+
 	}
 
 	// Parse the tanks.
@@ -369,6 +377,12 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 			fprintf (output->ostream,
 				"   <gasmix>%u</gasmix>\n",
 				tank.gasmix);
+		}
+		if (tank.usage) {
+			const char *usage[] = {"none", "oxygen", "diluent", "sidemount"};
+			fprintf (output->ostream,
+				"   <usage>%s</usage>\n",
+				usage[tank.usage]);
 		}
 		if (tank.type != DC_TANKVOLUME_NONE) {
 			fprintf (output->ostream,

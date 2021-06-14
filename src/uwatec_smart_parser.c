@@ -807,6 +807,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = parser->gasmix[flags].helium / 100.0;
 			gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
@@ -821,6 +822,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			tank->beginpressure = parser->tank[flags].beginpressure / 128.0;
 			tank->endpressure   = parser->tank[flags].endpressure   / 128.0;
 			tank->gasmix = parser->tank[flags].gasmix;
+			tank->usage = DC_USAGE_NONE;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *) value) = (signed short) array_uint16_le (data + table->temp_minimum) / 10.0;

@@ -170,6 +170,7 @@ oceanic_veo250_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 				*((unsigned int *) value) = 1;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
 			if (data[footer + 6])
 				gasmix->oxygen = data[footer + 6] / 100.0;

@@ -514,6 +514,7 @@ cochran_commander_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 			// Gas percentages are decimal and encoded as
 			// highbyte = integer portion
 			// lowbyte = decimal portion, divide by 256 to get decimal value
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->oxygen = array_uint16_le (data + layout->oxygen + 2 * flags) / 256.0 / 100;
 			if (layout->helium == UNSUPPORTED) {
 				gasmix->helium = 0;

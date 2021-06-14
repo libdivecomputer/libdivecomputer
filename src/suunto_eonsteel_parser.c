@@ -88,6 +88,7 @@ typedef struct suunto_eonsteel_parser_t {
 		double highsetpoint;
 		double customsetpoint;
 		dc_tankvolume_t tankinfo[MAXGASES];
+		dc_usage_t tankusage[MAXGASES];
 		double tanksize[MAXGASES];
 		double tankworkingpressure[MAXGASES];
 		dc_decomodel_t decomodel;
@@ -1097,6 +1098,7 @@ suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsi
 			if (fabs(tank->volume - rint(tank->volume)) > 0.001)
 				tank->type = DC_TANKVOLUME_IMPERIAL;
 		}
+		tank->usage = eon->cache.tankusage[flags];
 		break;
 	case DC_FIELD_DECOMODEL:
 		field_value(value, eon->cache.decomodel);
@@ -1160,6 +1162,7 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 {
 	int idx = eon->cache.ngases;
 	dc_tankvolume_t tankinfo = DC_TANKVOLUME_METRIC;
+	dc_usage_t usage = DC_USAGE_NONE;
 	char *name;
 
 	if (idx >= MAXGASES)
@@ -1170,15 +1173,17 @@ static int add_gas_type(suunto_eonsteel_parser_t *eon, const struct type_desc *d
 	if (!name)
 		DEBUG(eon->base.context, "Unable to look up gas type %u in %s", type, desc->format);
 	else if (!strcasecmp(name, "Diluent"))
-		;
+		usage = DC_USAGE_DILUENT;
 	else if (!strcasecmp(name, "Oxygen"))
-		;
+		usage = DC_USAGE_OXYGEN;
 	else if (!strcasecmp(name, "None"))
 		tankinfo = DC_TANKVOLUME_NONE;
 	else if (strcasecmp(name, "Primary"))
 		DEBUG(eon->base.context, "Unknown gas type %u (%s)", type, name);
 
 	eon->cache.tankinfo[idx] = tankinfo;
+	eon->cache.tankusage[idx] = usage;
+	eon->cache.gasmix[idx].usage = usage;
 
 	eon->cache.initialized |= 1 << DC_FIELD_GASMIX_COUNT;
 	eon->cache.initialized |= 1 << DC_FIELD_TANK_COUNT;

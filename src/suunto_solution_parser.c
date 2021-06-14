@@ -151,6 +151,7 @@ suunto_solution_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			*((unsigned int *) value) = 1;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
 			gasmix->oxygen = 0.21;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;

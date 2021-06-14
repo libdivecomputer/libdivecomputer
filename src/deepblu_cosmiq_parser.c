@@ -151,6 +151,7 @@ deepblu_cosmiq_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			*((unsigned int *) value) = mode == SCUBA;
 			break;
 		case DC_FIELD_GASMIX:
+			gasmix->usage = DC_USAGE_NONE;
 			gasmix->oxygen = data[3] / 100.0;
 			gasmix->helium = 0.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
