@@ -40,7 +40,6 @@ typedef struct atomics_cobalt_parser_t atomics_cobalt_parser_t;
 struct atomics_cobalt_parser_t {
 	dc_parser_t base;
 	// Depth calibration.
-	double atmospheric;
 	double hydrostatic;
 };
 
@@ -76,7 +75,6 @@ atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
-	parser->atmospheric = 0.0;
 	parser->hydrostatic = 1025.0 * GRAVITY;
 
 	*out = (dc_parser_t*) parser;
@@ -100,7 +98,6 @@ atomics_cobalt_parser_set_calibration (dc_parser_t *abstract, double atmospheric
 	if (!ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
 
-	parser->atmospheric = atmospheric;
 	parser->hydrostatic = hydrostatic;
 
 	return DC_STATUS_SUCCESS;
@@ -142,11 +139,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 
-	double atmospheric = 0.0;
-	if (parser->atmospheric)
-		atmospheric = parser->atmospheric;
-	else
-		atmospheric = array_uint16_le (p + 0x26) * BAR / 1000.0;
+	unsigned int atmospheric = array_uint16_le (p + 0x26);
 
 	unsigned int workpressure = 0;
 
@@ -156,7 +149,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			*((unsigned int *) value) = array_uint16_le (p + 0x58) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = (array_uint16_le (p + 0x56) * BAR / 1000.0 - atmospheric) / parser->hydrostatic;
+			*((double *) value) = (array_uint16_le (p + 0x56) - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 		case DC_FIELD_TANK_COUNT:
@@ -239,11 +232,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	if (size < header + SZ_SEGMENT * nsegments)
 		return DC_STATUS_DATAFORMAT;
 
-	double atmospheric = 0.0;
-	if (parser->atmospheric)
-		atmospheric = parser->atmospheric;
-	else
-		atmospheric = array_uint16_le (data + 0x26) * BAR / 1000.0;
+	unsigned int atmospheric = array_uint16_le (data + 0x26);
 
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
@@ -274,7 +263,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		// Depth (1/1000 bar).
 		unsigned int depth = array_uint16_le (data + offset + 0);
-		sample.depth = (depth * BAR / 1000.0 - atmospheric) / parser->hydrostatic;
+		sample.depth = (depth - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Pressure (1 psi).
