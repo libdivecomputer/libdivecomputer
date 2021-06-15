@@ -201,6 +201,9 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 				return DC_STATUS_DATAFORMAT;
 			}
 			break;
+		case DC_FIELD_ATMOSPHERIC:
+			*((double *) value) = atmospheric / 1000.0;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
