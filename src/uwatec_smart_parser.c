@@ -940,9 +940,9 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 	unsigned int rbt = 99;
 	unsigned int tank = 0;
 	unsigned int gasmix = 0;
-	double depth = 0, depth_calibration = 0;
-	double temperature = 0;
-	double pressure = 0;
+	unsigned int depth = 0, depth_calibration = 0;
+	int temperature = 0;
+	unsigned int pressure = 0;
 	unsigned int heartrate = 0;
 	unsigned int bearing = 0;
 	unsigned int bookmark = 0;
@@ -1026,8 +1026,8 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 		const uwatec_smart_event_info_t *events = NULL;
 		switch (table[id].type) {
 		case PRESSURE_DEPTH:
-			pressure += ((signed char) ((svalue >> NBITS) & 0xFF)) / 4.0;
-			depth += ((signed char) (svalue & 0xFF)) / 50.0;
+			pressure += (signed char) ((svalue >> NBITS) & 0xFF);
+			depth += (signed char) (svalue & 0xFF);
 			complete = 1;
 			break;
 		case RBT:
@@ -1040,37 +1040,37 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 			break;
 		case TEMPERATURE:
 			if (table[id].absolute) {
-				temperature = svalue / 2.5;
+				temperature = svalue;
 				have_temperature = 1;
 			} else {
-				temperature += svalue / 2.5;
+				temperature += svalue;
 			}
 			break;
 		case PRESSURE:
 			if (table[id].absolute) {
 				if (parser->trimix) {
 					tank = (value & 0xF000) >> 12;
-					pressure = (value & 0x0FFF) / 4.0;
+					pressure = (value & 0x0FFF);
 				} else {
 					tank = table[id].index;
-					pressure = value / 4.0;
+					pressure = value;
 				}
 				have_pressure = 1;
 				gasmix = tank;
 			} else {
-				pressure += svalue / 4.0;
+				pressure += svalue;
 			}
 			break;
 		case DEPTH:
 			if (table[id].absolute) {
-				depth = value / 50.0;
+				depth = value;
 				if (!calibrated) {
 					calibrated = 1;
 					depth_calibration = depth;
 				}
 				have_depth = 1;
 			} else {
-				depth += svalue / 50.0;
+				depth += svalue;
 			}
 			complete = 1;
 			break;
@@ -1195,7 +1195,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 			}
 
 			if (have_temperature) {
-				sample.temperature = temperature;
+				sample.temperature = temperature / 2.5;
 				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
 			}
 
@@ -1216,7 +1216,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 				idx = uwatec_smart_find_tank(parser, tank);
 				if (idx < parser->ntanks) {
 					sample.pressure.tank = idx;
-					sample.pressure.value = pressure;
+					sample.pressure.value = pressure / 4.0;
 					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 				}
 			}
@@ -1233,7 +1233,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 			}
 
 			if (have_depth) {
-				sample.depth = (depth - depth_calibration) / salinity;
+				sample.depth = (depth - depth_calibration) / 50.0 / salinity;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 
