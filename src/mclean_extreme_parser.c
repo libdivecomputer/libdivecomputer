@@ -179,10 +179,10 @@ mclean_extreme_parser_get_field(dc_parser_t *abstract, dc_field_type_t type, uns
 			*((unsigned int *)value) = array_uint32_le(abstract->data + SZ_CFG + 0x000C) - array_uint32_le(abstract->data + SZ_CFG + 0x0000);
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *)value) = (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0016) - atmospheric) * (BAR / 1000.0) / (density * 10.0);
+			*((double *)value) = (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0016) - atmospheric) * (BAR / 1000.0) / (density * GRAVITY);
 			break;
 		case DC_FIELD_AVGDEPTH:
-			*((double *)value) = (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0018) - atmospheric) * (BAR / 1000.0) / (density * 10.0);
+			*((double *)value) = (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0018) - atmospheric) * (BAR / 1000.0) / (density * GRAVITY);
 			break;
 		case DC_FIELD_SALINITY:
 			salinity->density = density;
