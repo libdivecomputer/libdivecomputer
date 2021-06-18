@@ -62,8 +62,8 @@
 #define HEADER  1
 #define PROFILE 2
 
-#define FRESH 1.000
-#define SALT  1.025
+#define FRESH 1000.0
+#define SALT  1025.0
 
 #define FREEDIVE  0x00000080
 #define GAUGE     0x00001000
@@ -789,7 +789,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	const uwatec_smart_header_info_t *table = parser->header;
 	const unsigned char *data = abstract->data;
 
-	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
+	double density = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
@@ -801,7 +801,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = array_uint16_le (data + table->divetime) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = array_uint16_le (data + table->maxdepth) / 100.0 / salinity;
+			*((double *) value) = array_uint16_le (data + table->maxdepth) * (BAR / 1000.0) / (density * 10.0);
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = parser->ngasmixes;
@@ -844,7 +844,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			if (table->settings == UNSUPPORTED)
 				return DC_STATUS_UNSUPPORTED;
 			water->type = parser->watertype;
-			water->density = salinity * 1000.0;
+			water->density = density;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -950,7 +950,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 	// Previous gas mix - initialize with impossible value
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
-	double salinity = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
+	double density = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
 	unsigned int interval = 4;
 	if (parser->divemode == DC_DIVEMODE_FREEDIVE) {
@@ -1233,7 +1233,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 			}
 
 			if (have_depth) {
-				sample.depth = (signed int)(depth - depth_calibration) / 50.0 / salinity;
+				sample.depth = (signed int)(depth - depth_calibration) * (2.0 * BAR / 1000.0) / (density * 10.0);
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 

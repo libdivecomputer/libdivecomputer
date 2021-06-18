@@ -22,6 +22,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <libdivecomputer/units.h>
+
 #include "mclean_extreme.h"
 #include "context-private.h"
 #include "parser-private.h"
@@ -152,19 +154,19 @@ mclean_extreme_parser_get_field(dc_parser_t *abstract, dc_field_type_t type, uns
 	dc_gasmix_t *gasmix = (dc_gasmix_t *)value;
 	dc_salinity_t *salinity = (dc_salinity_t *)value;
 
-	const unsigned int psurf = array_uint16_le(abstract->data + 0x001E);
+	const unsigned int atmospheric = array_uint16_le(abstract->data + 0x001E);
 	const unsigned int density_index = abstract->data[0x0023];
 	double density = 0;
 
 	switch (density_index) {
 	case 0:
-		density = 1.000;
+		density = 1000.0;
 		break;
 	case 1:
-		density = 1.020;
+		density = 1020.0;
 		break;
 	case 2:
-		density = 1.030;
+		density = 1030.0;
 		break;
 	default:
 		ERROR(abstract->context, "Corrupt density index in dive data");
@@ -177,17 +179,17 @@ mclean_extreme_parser_get_field(dc_parser_t *abstract, dc_field_type_t type, uns
 			*((unsigned int *)value) = array_uint32_le(abstract->data + SZ_CFG + 0x000C) - array_uint32_le(abstract->data + SZ_CFG + 0x0000);
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *)value) = 0.01 * (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0016) - psurf) / density;
+			*((double *)value) = (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0016) - atmospheric) * (BAR / 1000.0) / (density * 10.0);
 			break;
 		case DC_FIELD_AVGDEPTH:
-			*((double *)value) = 0.01 * (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0018) - psurf) / density;
+			*((double *)value) = (signed int)(array_uint16_le(abstract->data + SZ_CFG + 0x0018) - atmospheric) * (BAR / 1000.0) / (density * 10.0);
 			break;
 		case DC_FIELD_SALINITY:
-			salinity->density = density * 1000.0;
+			salinity->density = density;
 			salinity->type = density_index == 0 ? DC_WATER_FRESH : DC_WATER_SALT;
 			break;
 		case DC_FIELD_ATMOSPHERIC:
-			*((double *)value) = 0.001 * array_uint16_le(abstract->data + 0x001E);
+			*((double *)value) = atmospheric / 1000.0;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			*((double *)value) = (double)abstract->data[SZ_CFG + 0x0010];
