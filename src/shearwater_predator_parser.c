@@ -809,7 +809,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 				// Depth (absolute pressure in millibar)
 				unsigned int depth = array_uint16_be (data + idx + 1);
-				sample.depth = (depth - parser->atmospheric) * (BAR / 1000.0) / (parser->density * GRAVITY);
+				sample.depth = (signed int)(depth - parser->atmospheric) * (BAR / 1000.0) / (parser->density * GRAVITY);
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 				// Temperature (1/10 °C).

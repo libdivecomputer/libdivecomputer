@@ -149,7 +149,7 @@ atomics_cobalt_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, un
 			*((unsigned int *) value) = array_uint16_le (p + 0x58) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = (array_uint16_le (p + 0x56) - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
+			*((double *) value) = (signed int)(array_uint16_le (p + 0x56) - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 		case DC_FIELD_TANK_COUNT:
@@ -266,7 +266,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		// Depth (1/1000 bar).
 		unsigned int depth = array_uint16_le (data + offset + 0);
-		sample.depth = (depth - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
+		sample.depth = (signed int)(depth - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
 		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 
 		// Pressure (1 psi).

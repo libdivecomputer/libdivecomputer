@@ -1233,7 +1233,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 			}
 
 			if (have_depth) {
-				sample.depth = (depth - depth_calibration) / 50.0 / salinity;
+				sample.depth = (signed int)(depth - depth_calibration) / 50.0 / salinity;
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 
