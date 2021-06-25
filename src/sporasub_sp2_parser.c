@@ -170,8 +170,7 @@ sporasub_sp2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		unsigned int value = array_uint32_le (data + offset);
 		unsigned int heartrate   = (value & 0xFF000000) >> 24;
 		unsigned int temperature = (value & 0x00FFC000) >> 14;
-		unsigned int unknown =     (value & 0x00003000) >> 12;
-		unsigned int depth =       (value & 0x00000FFF) >>  0;
+		unsigned int depth =       (value & 0x00003FFF) >>  0;
 
 		// Time (seconds)
 		time += interval;
