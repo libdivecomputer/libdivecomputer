@@ -342,21 +342,13 @@ sporasub_sp2_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 static dc_status_t
 sporasub_sp2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	sporasub_sp2_device_t *device = (sporasub_sp2_device_t *) abstract;
+
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), SZ_READ);
-}
-
-static dc_status_t
-sporasub_sp2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	sporasub_sp2_device_t *device = (sporasub_sp2_device_t *) abstract;
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
@@ -370,6 +362,16 @@ sporasub_sp2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	vendor.data = device->version;
 	vendor.size = sizeof (device->version);
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
+	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), SZ_READ);
+}
+
+static dc_status_t
+sporasub_sp2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	sporasub_sp2_device_t *device = (sporasub_sp2_device_t *) abstract;
 
 	dc_buffer_t *buffer = dc_buffer_new (SZ_MEMORY);
 	if (buffer == NULL) {
