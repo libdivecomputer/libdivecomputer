@@ -374,7 +374,7 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 	unsigned int type = array_uint16_le (data);
 	unsigned int minor = data[2];
 	unsigned int major = data[3];
-	if (type != 1 || major != 0 || minor > 1) {
+	if (type != 1 || major > 1 || minor > 1) {
 		ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 			type, major, minor);
 		return DC_STATUS_DATAFORMAT;
@@ -389,8 +389,14 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 		extra = 8;
 	}
 
+	// The Genius header (v1.x) has 10 bytes more at the end.
+	unsigned int more = 0;
+	if (major == 1) {
+		more = 16;
+	}
+
 	// Get the header size.
-	unsigned int headersize = 0xB8 + extra;
+	unsigned int headersize = 0xB8 + extra + more;
 	if (headersize > size) {
 		ERROR (abstract->context, "Buffer overflow detected!");
 		return DC_STATUS_DATAFORMAT;
