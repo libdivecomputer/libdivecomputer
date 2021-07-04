@@ -151,9 +151,10 @@ sporasub_sp2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned int nsamples = array_uint16_le(data);
+	unsigned int settings = data[0x1A];
 
 	// Get the sample interval.
-	unsigned int interval_idx = data[0x1A];
+	unsigned int interval_idx = settings & 0x03;
 	const unsigned int intervals[] = {1, 2, 5, 10};
 	if (interval_idx >= C_ARRAY_SIZE(intervals)) {
 		ERROR (abstract->context, "Invalid sample interval index %u", interval_idx);
