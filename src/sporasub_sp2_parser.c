@@ -112,8 +112,12 @@ sporasub_sp2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
+	dc_salinity_t *water = (dc_salinity_t *) value;
+
 	if (size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
+
+	unsigned int settings = data[0x1A];
 
 	if (value) {
 		switch (type) {
@@ -131,6 +135,10 @@ sporasub_sp2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_TEMPERATURE_MAXIMUM:
 			*((double *) value) = array_uint16_le (data + 0x16) / 10.0;
+			break;
+		case DC_FIELD_SALINITY:
+			water->type = settings & 0x08 ? DC_WATER_FRESH : DC_WATER_SALT;
+			water->density = 0.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
