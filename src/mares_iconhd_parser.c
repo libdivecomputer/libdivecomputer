@@ -31,6 +31,10 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &mares_iconhd_parser_vtable)
 
+#define OBJVERSION(major,minor) ( \
+		(((major) & 0xFF) << 8) | \
+		((minor) & 0xFF))
+
 #define SMART      0x000010
 #define SMARTAPNEA 0x010010
 #define ICONHD    0x14
@@ -374,7 +378,7 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 	unsigned int type = array_uint16_le (data);
 	unsigned int minor = data[2];
 	unsigned int major = data[3];
-	if (type != 1 || major > 1 || minor > 1) {
+	if (type != 1 || OBJVERSION(major,minor) > OBJVERSION(1,1)) {
 		ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 			type, major, minor);
 		return DC_STATUS_DATAFORMAT;
@@ -875,7 +879,9 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		unsigned int type = array_uint16_le (data);
 		unsigned int minor = data[2];
 		unsigned int major = data[3];
-		if (type > 1 || major != 0 || minor != 2) {
+		if (type > 1 ||
+			(type == 0 && OBJVERSION(major,minor) > OBJVERSION(1,0)) ||
+			(type == 1 && OBJVERSION(major,minor) > OBJVERSION(0,2))) {
 			ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 				type, major, minor);
 			return DC_STATUS_DATAFORMAT;
