@@ -322,7 +322,7 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 			water->density = 0.0;
 			break;
 		case DC_FIELD_DIVEMODE:
-			if (parser->divemode == 0xFFFFFFFF)
+			if (parser->divemode == INVALID)
 				return DC_STATUS_UNSUPPORTED;
 			switch (parser->divemode) {
 			case OC:
@@ -367,8 +367,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int ntanks = 0;
 	divesystem_idive_gasmix_t gasmix[NGASMIXES] = {0};
 	divesystem_idive_tank_t tank[NTANKS] = {0};
-	unsigned int o2_previous = 0xFFFFFFFF;
-	unsigned int he_previous = 0xFFFFFFFF;
+	unsigned int o2_previous = INVALID;
+	unsigned int he_previous = INVALID;
 	unsigned int mode_previous = INVALID;
 	unsigned int divemode = INVALID;
 	unsigned int tank_previous = INVALID;
