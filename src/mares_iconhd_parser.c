@@ -143,6 +143,7 @@ struct mares_iconhd_parser_t {
 	unsigned int samplesize;
 	unsigned int headersize;
 	unsigned int settings;
+	unsigned int surftime;
 	unsigned int interval;
 	unsigned int samplerate;
 	unsigned int ntanks;
@@ -347,6 +348,7 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 	parser->samplesize = samplesize;
 	parser->headersize = headersize;
 	parser->settings = settings;
+	parser->surftime = 3 * 60;
 	parser->interval = interval;
 	parser->samplerate = samplerate;
 	parser->ntanks = ntanks;
@@ -425,6 +427,22 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 		return DC_STATUS_DATAFORMAT;
 	}
 
+	// Get the profile type and version.
+	unsigned int profile_type = array_uint16_le (data + headersize);
+	unsigned int profile_minor = data[headersize + 2];
+	unsigned int profile_major = data[headersize + 3];
+
+	// Get the surface timeout setting (in minutes).
+	// For older firmware versions the value is hardcoded to 3 minutes, but
+	// starting with the newer v01.02.00 firmware the value is configurable and
+	// stored in the settings. To detect whether the setting is available, we
+	// need to check the profile version instead of the header version.
+	unsigned int surftime = 3;
+	if (profile_type == 0 &&
+		OBJVERSION(profile_major,profile_minor) >= OBJVERSION(1,0)) {
+		surftime = (settings >> 13) & 0x3F;
+	}
+
 	// Gas mixes and tanks.
 	unsigned int ntanks = 0;
 	unsigned int ngasmixes = 0;
@@ -476,6 +494,7 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 	parser->samplesize = samplesize;
 	parser->headersize = headersize;
 	parser->settings = settings;
+	parser->surftime = surftime * 60;
 	parser->interval = 5;
 	parser->samplerate = 1;
 	parser->ntanks = ntanks;
@@ -529,6 +548,7 @@ mares_iconhd_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 	parser->samplesize = 0;
 	parser->headersize = 0;
 	parser->settings = 0;
+	parser->surftime = 0;
 	parser->interval = 0;
 	parser->samplerate = 0;
 	parser->ntanks = 0;
@@ -563,6 +583,7 @@ mares_iconhd_parser_set_data (dc_parser_t *abstract, const unsigned char *data, 
 	parser->samplesize = 0;
 	parser->headersize = 0;
 	parser->settings = 0;
+	parser->surftime = 0;
 	parser->interval = 0;
 	parser->samplerate = 0;
 	parser->ntanks = 0;
@@ -672,7 +693,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 		switch (type) {
 		case DC_FIELD_DIVETIME:
 			if (parser->model == GENIUS || parser->model == HORIZON) {
-				*((unsigned int *) value) = parser->nsamples * parser->interval;
+				*((unsigned int *) value) = parser->nsamples * parser->interval - parser->surftime;
 			} else if (parser->model == SMARTAPNEA) {
 				*((unsigned int *) value) = array_uint16_le (p + 0x24);
 			} else if (parser->mode == ICONHD_FREEDIVE) {
@@ -684,7 +705,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 				}
 				*((unsigned int *) value) = divetime;
 			} else {
-				*((unsigned int *) value) = parser->nsamples * parser->interval;
+				*((unsigned int *) value) = parser->nsamples * parser->interval - parser->surftime;
 			}
 			break;
 		case DC_FIELD_MAXDEPTH:
