@@ -36,6 +36,7 @@
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
 #define PROPLUSX   0x4552
+#define I750TC     0x455A
 #define VTX        0x4557
 #define I750TC     0x455A
 #define SAGE       0x4647
@@ -907,7 +908,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	}
 
 	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE &&
-		model != PROPLUSX && model != SAGE && model != BEACON) {
+		model != PROPLUSX && model != I750TC && model != SAGE && model != BEACON) {
 		status = oceanic_atom2_ble_handshake(device);
 		if (status != DC_STATUS_SUCCESS) {
 			goto error_free;

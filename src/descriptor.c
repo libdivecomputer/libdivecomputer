@@ -251,7 +251,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Sherwood", "Vision",              DC_FAMILY_OCEANIC_ATOM2, 0x4556, DC_TRANSPORT_SERIAL, NULL},
 	{"Oceanic",  "VTX",                 DC_FAMILY_OCEANIC_ATOM2, 0x4557, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i300",                DC_FAMILY_OCEANIC_ATOM2, 0x4559, DC_TRANSPORT_SERIAL, NULL},
-	{"Aqualung", "i750TC",              DC_FAMILY_OCEANIC_ATOM2, 0x455A, DC_TRANSPORT_SERIAL, NULL},
+	{"Aqualung", "i750TC",              DC_FAMILY_OCEANIC_ATOM2, 0x455A, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, NULL},
 	{"Aqualung", "i450T",               DC_FAMILY_OCEANIC_ATOM2, 0x4641, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i550",                DC_FAMILY_OCEANIC_ATOM2, 0x4642, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i200",                DC_FAMILY_OCEANIC_ATOM2, 0x4646, DC_TRANSPORT_SERIAL, NULL},
@@ -666,6 +666,7 @@ static int dc_filter_oceanic (dc_transport_t transport, const void *userdata, vo
 {
 	static const unsigned int model[] = {
 		0x4552, // Oceanic Pro Plus X
+		0x455A, // Aqualung i750TC
 		0x4647, // Sherwood Sage
 		0x4648, // Aqualung i300C
 		0x4649, // Aqualung i200C
