@@ -36,7 +36,6 @@
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
 #define PROPLUSX   0x4552
-#define I750TC     0x455A
 #define VTX        0x4557
 #define I750TC     0x455A
 #define SAGE       0x4647
