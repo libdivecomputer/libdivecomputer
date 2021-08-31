@@ -228,6 +228,18 @@ static const mares_iconhd_layout_t smart_freedive = {
 	UNSUPPORTED, /* tanks */
 };
 
+static const mares_iconhd_layout_t smartair_freedive = {
+	0x08, /* settings */
+	0x22, /* datetime */
+	0x0E, /* divetime */
+	0x1C, /* maxdepth */
+	0x1A, 1, /* atmospheric */
+	0x20, /* temperature_min */
+	0x1E, /* temperature_max */
+	UNSUPPORTED, /* gasmixes */
+	UNSUPPORTED, /* tanks */
+};
+
 static const mares_iconhd_layout_t genius = {
 	0x0C, /* settings */
 	0x08, /* datetime */
@@ -338,7 +350,7 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 		headersize = 0x80;
 		samplesize = 12;
 		layout = &iconhdnet;
-	} else if (parser->model == QUADAIR || parser->model == SMARTAIR) {
+	} else if (parser->model == QUADAIR) {
 		headersize = 0x84;
 		samplesize = 12;
 		layout = &smartair;
@@ -356,6 +368,16 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 		headersize = 0x50;
 		samplesize = 14;
 		layout = &smartapnea;
+	} else if (parser->model == SMARTAIR) {
+		if (mode == ICONHD_FREEDIVE) {
+			headersize = 0x30;
+			samplesize = 6;
+			layout = &smartair_freedive;
+		} else {
+			headersize = 0x84;
+			samplesize = 12;
+			layout = &smartair;
+		}
 	}
 
 	if (length < 4 + headersize) {
