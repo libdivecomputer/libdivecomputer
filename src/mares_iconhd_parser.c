@@ -697,13 +697,7 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			} else if (parser->model == SMARTAPNEA) {
 				*((unsigned int *) value) = array_uint16_le (p + 0x24);
 			} else if (parser->mode == ICONHD_FREEDIVE) {
-				unsigned int divetime = 0;
-				unsigned int offset = 4;
-				for (unsigned int i = 0; i < parser->nsamples; ++i) {
-					divetime += array_uint16_le (abstract->data + offset + 2);
-					offset += parser->samplesize;
-				}
-				*((unsigned int *) value) = divetime;
+				*((unsigned int *) value) = array_uint16_le (p + 0x0C);
 			} else {
 				*((unsigned int *) value) = parser->nsamples * parser->interval - parser->surftime;
 			}
