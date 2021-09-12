@@ -266,7 +266,7 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 	unsigned int settings = 0;
 	if (parser->model == SMARTAPNEA) {
 		settings = array_uint16_le (p + 0x1C);
-	} else if (parser->mode == ICONHD_FREEDIVE) {
+	} else if (mode == ICONHD_FREEDIVE) {
 		settings = array_uint16_le (p + 0x08);
 	} else {
 		settings = array_uint16_le (p + 0x0C);
