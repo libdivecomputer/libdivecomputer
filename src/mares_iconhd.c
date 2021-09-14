@@ -790,9 +790,15 @@ mares_iconhd_device_foreach_raw (dc_device_t *abstract, dc_dive_callback_t callb
 			samplesize = 14;
 			fingerprint = 0x40;
 		} else if (model == SMARTAIR) {
-			headersize = 0x84;
-			samplesize = 12;
-			fingerprint = 2;
+			if (mode == FREEDIVE) {
+				headersize = 0x30;
+				samplesize = 6;
+				fingerprint = 0x22;
+			} else {
+				headersize = 0x84;
+				samplesize = 12;
+				fingerprint = 2;
+			}
 		}
 		if (offset < headersize)
 			break;
@@ -811,7 +817,7 @@ mares_iconhd_device_foreach_raw (dc_device_t *abstract, dc_dive_callback_t callb
 		// end of the ringbuffer. The current dive is incomplete (partially
 		// overwritten with newer data), and processing should stop.
 		unsigned int nbytes = 4 + headersize + nsamples * samplesize;
-		if (model == ICONHDNET || model == QUADAIR || model == SMARTAIR) {
+		if (model == ICONHDNET || model == QUADAIR || (model == SMARTAIR && mode != FREEDIVE)) {
 			nbytes += (nsamples / 4) * 8;
 		} else if (model == SMARTAPNEA) {
 			unsigned int settings = array_uint16_le (buffer + offset - headersize + 0x1C);
