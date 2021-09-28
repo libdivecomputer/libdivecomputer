@@ -801,7 +801,7 @@ uwatec_smart_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			*((unsigned int *) value) = array_uint16_le (data + table->divetime) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = array_uint16_le (data + table->maxdepth) * (BAR / 1000.0) / (density * GRAVITY);
+			*((double *) value) = array_uint16_le (data + table->maxdepth) * (BAR / 1000.0) / (density * 10.0);
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = parser->ngasmixes;
@@ -1233,7 +1233,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 			}
 
 			if (have_depth) {
-				sample.depth = (signed int)(depth - depth_calibration) * (2.0 * BAR / 1000.0) / (density * GRAVITY);
+				sample.depth = (signed int)(depth - depth_calibration) * (2.0 * BAR / 1000.0) / (density * 10.0);
 				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
 			}
 
