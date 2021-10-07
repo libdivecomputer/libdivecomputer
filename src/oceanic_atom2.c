@@ -683,18 +683,28 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 	}
 
 	// Verify the number of bytes.
+	if (nbytes < 1) {
+		ERROR (abstract->context, "Invalid packet size (%u).", nbytes);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Verify the ACK byte of the answer.
+	if (packet[0] != ack) {
+		ERROR (abstract->context, "Unexpected answer start byte(s).");
+		if (packet[0] == (unsigned char) ~ack) {
+			return DC_STATUS_UNSUPPORTED;
+		} else {
+			return DC_STATUS_PROTOCOL;
+		}
+	}
+
+	// Verify the number of bytes.
 	if (nbytes < 1 + asize + crc_size) {
 		ERROR (abstract->context, "Unexpected number of bytes received (%u %u).", nbytes, 1 + asize + crc_size);
 		return DC_STATUS_PROTOCOL;
 	}
 
 	nbytes -= 1 + crc_size;
-
-	// Verify the ACK byte of the answer.
-	if (packet[0] != ack) {
-		ERROR (abstract->context, "Unexpected answer start byte(s).");
-		return DC_STATUS_PROTOCOL;
-	}
 
 	if (asize) {
 		// Verify the checksum of the answer.
