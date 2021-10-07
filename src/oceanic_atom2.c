@@ -819,8 +819,14 @@ oceanic_atom2_ble_handshake(oceanic_atom2_device_t *device)
 
 	// Send the command to the dive computer.
 	rc = oceanic_atom2_transfer (device, handshake, sizeof(handshake), ACK, NULL, 0, 0);
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
+	if (rc != DC_STATUS_SUCCESS) {
+		if (rc == DC_STATUS_UNSUPPORTED) {
+			WARNING (abstract->context, "Bluetooth handshake not supported.");
+			return DC_STATUS_SUCCESS;
+		} else {
+			return rc;
+		}
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -916,8 +922,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
-	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE &&
-		model != PROPLUSX && model != I750TC && model != SAGE && model != BEACON) {
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
 		status = oceanic_atom2_ble_handshake(device);
 		if (status != DC_STATUS_SUCCESS) {
 			goto error_free;
