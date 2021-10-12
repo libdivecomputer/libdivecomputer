@@ -178,6 +178,9 @@ cressi_leonardo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 	unsigned int gasmix = 0;
+	if (parser->model == DRAKE) {
+		gasmix = gasmix_previous;
+	}
 
 	unsigned int offset = SZ_HEADER;
 	while (offset + 2 <= size) {
