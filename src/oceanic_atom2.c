@@ -683,18 +683,28 @@ oceanic_atom2_packet (oceanic_atom2_device_t *device, const unsigned char comman
 	}
 
 	// Verify the number of bytes.
+	if (nbytes < 1) {
+		ERROR (abstract->context, "Invalid packet size (%u).", nbytes);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Verify the ACK byte of the answer.
+	if (packet[0] != ack) {
+		ERROR (abstract->context, "Unexpected answer start byte(s).");
+		if (packet[0] == (unsigned char) ~ack) {
+			return DC_STATUS_UNSUPPORTED;
+		} else {
+			return DC_STATUS_PROTOCOL;
+		}
+	}
+
+	// Verify the number of bytes.
 	if (nbytes < 1 + asize + crc_size) {
 		ERROR (abstract->context, "Unexpected number of bytes received (%u %u).", nbytes, 1 + asize + crc_size);
 		return DC_STATUS_PROTOCOL;
 	}
 
 	nbytes -= 1 + crc_size;
-
-	// Verify the ACK byte of the answer.
-	if (packet[0] != ack) {
-		ERROR (abstract->context, "Unexpected answer start byte(s).");
-		return DC_STATUS_PROTOCOL;
-	}
 
 	if (asize) {
 		// Verify the checksum of the answer.
@@ -809,8 +819,14 @@ oceanic_atom2_ble_handshake(oceanic_atom2_device_t *device)
 
 	// Send the command to the dive computer.
 	rc = oceanic_atom2_transfer (device, handshake, sizeof(handshake), ACK, NULL, 0, 0);
-	if (rc != DC_STATUS_SUCCESS)
-		return rc;
+	if (rc != DC_STATUS_SUCCESS) {
+		if (rc == DC_STATUS_UNSUPPORTED) {
+			WARNING (abstract->context, "Bluetooth handshake not supported.");
+			return DC_STATUS_SUCCESS;
+		} else {
+			return rc;
+		}
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -906,8 +922,7 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
-	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE &&
-		model != PROPLUSX && model != I750TC && model != SAGE && model != BEACON) {
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
 		status = oceanic_atom2_ble_handshake(device);
 		if (status != DC_STATUS_SUCCESS) {
 			goto error_free;
