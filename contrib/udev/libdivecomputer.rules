@@ -10,6 +10,9 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0033", GROUP="plugde
 # Suunto D5
 SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0035", GROUP="plugdev"
 
+# Suunto EON Steel Black
+SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0036", GROUP="plugdev"
+
 # Scubapro G2
 SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="3201", GROUP="plugdev"
 
