@@ -425,6 +425,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Sporasub", "SP2", DC_FAMILY_SPORASUB_SP2, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Deep Six Excursion */
 	{"Deep Six", "Excursion", DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
+	{"Crest",    "CR-4",      DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 };
 
 static int
@@ -728,6 +729,7 @@ static int dc_filter_deepsix (dc_transport_t transport, const void *userdata, vo
 {
 	static const char * const bluetooth[] = {
 		"EXCURSION",
+		"Crest-CR4",
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {
