@@ -44,6 +44,8 @@
 #define DIR_READ           0x01
 
 #define GRP_INFO           0xA0
+#define CMD_INFO_HARDWARE  0x01
+#define CMD_INFO_SOFTWARE  0x02
 #define CMD_INFO_SERIAL    0x03
 #define CMD_INFO_LASTDIVE  0x04
 
@@ -265,6 +267,22 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return status;
 	}
 
+	// Read the hardware version.
+	unsigned char rsp_hardware[6] = {0};
+	status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_HARDWARE, DIR_READ, NULL, 0, rsp_hardware, sizeof(rsp_hardware), NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the hardware version.");
+		return status;
+	}
+
+	// Read the software version.
+	unsigned char rsp_software[6] = {0};
+	status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_SOFTWARE, DIR_READ, NULL, 0, rsp_software, sizeof(rsp_software), NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the software version.");
+		return status;
+	}
+
 	// Read the serial number
 	unsigned char rsp_serial[12] = {0};
 	status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_SERIAL, DIR_READ, NULL, 0, rsp_serial, sizeof(rsp_serial), NULL);
@@ -276,7 +294,7 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
-	devinfo.firmware = 0;
+	devinfo.firmware = array_uint16_be (rsp_software + 4);
 	devinfo.serial = array_convert_str2num (rsp_serial + 3, sizeof(rsp_serial) - 3);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
