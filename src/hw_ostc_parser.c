@@ -90,13 +90,13 @@ typedef struct hw_ostc_sample_info_t {
 typedef struct hw_ostc_layout_t {
 	unsigned int datetime;
 	unsigned int maxdepth;
-	unsigned int avgdepth;
 	unsigned int divetime;
-	unsigned int atmospheric;
-	unsigned int salinity;
-	unsigned int duration;
 	unsigned int temperature;
+	unsigned int atmospheric;
 	unsigned int firmware;
+	unsigned int salinity;
+	unsigned int avgdepth;
+	unsigned int duration;
 } hw_ostc_layout_t;
 
 typedef struct hw_ostc_gasmix_t {
@@ -139,37 +139,37 @@ static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	3,  /* datetime */
 	8,  /* maxdepth */
-	45, /* avgdepth */
 	10, /* divetime */
-	15, /* atmospheric */
-	43, /* salinity */
-	47, /* duration */
 	13, /* temperature */
+	15, /* atmospheric */
 	32, /* firmware */
+	43, /* salinity */
+	45, /* avgdepth */
+	47, /* duration */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	9,  /* datetime */
 	14, /* maxdepth */
-	45, /* avgdepth */
 	16, /* divetime */
-	21, /* atmospheric */
-	43, /* salinity */
-	47, /* duration */
 	19, /* temperature */
+	21, /* atmospheric */
 	32, /* firmware */
+	43, /* salinity */
+	45, /* avgdepth */
+	47, /* duration */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	12, /* datetime */
 	17, /* maxdepth */
-	73, /* avgdepth */
 	19, /* divetime */
-	24, /* atmospheric */
-	70, /* salinity */
-	75, /* duration */
 	22, /* temperature */
+	24, /* atmospheric */
 	48, /* firmware */
+	70, /* salinity */
+	73, /* avgdepth */
+	75, /* duration */
 };
 
 static unsigned int
