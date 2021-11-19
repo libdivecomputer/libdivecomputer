@@ -97,6 +97,7 @@ typedef struct hw_ostc_layout_t {
 	unsigned int salinity;
 	unsigned int avgdepth;
 	unsigned int duration;
+	unsigned int divemode;
 } hw_ostc_layout_t;
 
 typedef struct hw_ostc_gasmix_t {
@@ -146,6 +147,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	43, /* salinity */
 	45, /* avgdepth */
 	47, /* duration */
+	51, /* divemode */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_frog = {
@@ -158,6 +160,7 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	43, /* salinity */
 	45, /* avgdepth */
 	47, /* duration */
+	51, /* divemode */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
@@ -170,6 +173,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	70, /* salinity */
 	73, /* avgdepth */
 	75, /* duration */
+	82, /* divemode */
 };
 
 static unsigned int
@@ -269,7 +273,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			}
 		}
 		// The first fixed setpoint is the initial setpoint in CCR mode.
-		if (data[82] == OSTC3_CC) {
+		if (data[layout->divemode] == OSTC3_CC) {
 			initial_setpoint = data[60];
 		}
 		// Initial CNS
@@ -511,7 +515,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			break;
 		case DC_FIELD_DIVEMODE:
 			if (version == 0x21) {
-				switch (data[51]) {
+				switch (data[layout->divemode]) {
 				case OSTC_APNEA:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
 					break;
@@ -533,7 +537,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 					return DC_STATUS_DATAFORMAT;
 				}
 			} else if (version == 0x22) {
-				switch (data[51]) {
+				switch (data[layout->divemode]) {
 				case FROG_ZHL16:
 				case FROG_ZHL16_GF:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
@@ -545,7 +549,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 					return DC_STATUS_DATAFORMAT;
 				}
 			} else if (version == 0x23 || version == 0x24) {
-				switch (data[82]) {
+				switch (data[layout->divemode]) {
 				case OSTC3_OC:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 					break;
