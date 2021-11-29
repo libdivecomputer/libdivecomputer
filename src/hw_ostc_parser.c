@@ -273,7 +273,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			}
 		}
 		// The first fixed setpoint is the initial setpoint in CCR mode.
-		if (data[layout->divemode] == OSTC3_CC) {
+		if (data[layout->divemode] == OSTC3_CC || data[layout->divemode] == OSTC3_PSCR) {
 			initial_setpoint = data[60];
 		}
 		// Initial CNS
