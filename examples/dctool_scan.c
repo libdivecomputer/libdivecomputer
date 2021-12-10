@@ -158,7 +158,7 @@ dctool_scan_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 
 	// Show help message.
 	if (help) {
-		dctool_command_showhelp (&dctool_list);
+		dctool_command_showhelp (&dctool_scan);
 		return EXIT_SUCCESS;
 	}
 
