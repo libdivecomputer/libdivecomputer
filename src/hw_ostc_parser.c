@@ -90,13 +90,14 @@ typedef struct hw_ostc_sample_info_t {
 typedef struct hw_ostc_layout_t {
 	unsigned int datetime;
 	unsigned int maxdepth;
-	unsigned int avgdepth;
 	unsigned int divetime;
-	unsigned int atmospheric;
-	unsigned int salinity;
-	unsigned int duration;
 	unsigned int temperature;
+	unsigned int atmospheric;
 	unsigned int firmware;
+	unsigned int salinity;
+	unsigned int avgdepth;
+	unsigned int duration;
+	unsigned int divemode;
 } hw_ostc_layout_t;
 
 typedef struct hw_ostc_gasmix_t {
@@ -139,37 +140,40 @@ static const dc_parser_vtable_t hw_ostc_parser_vtable = {
 static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	3,  /* datetime */
 	8,  /* maxdepth */
-	45, /* avgdepth */
 	10, /* divetime */
-	15, /* atmospheric */
-	43, /* salinity */
-	47, /* duration */
 	13, /* temperature */
+	15, /* atmospheric */
 	32, /* firmware */
+	43, /* salinity */
+	45, /* avgdepth */
+	47, /* duration */
+	51, /* divemode */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	9,  /* datetime */
 	14, /* maxdepth */
-	45, /* avgdepth */
 	16, /* divetime */
-	21, /* atmospheric */
-	43, /* salinity */
-	47, /* duration */
 	19, /* temperature */
+	21, /* atmospheric */
 	32, /* firmware */
+	43, /* salinity */
+	45, /* avgdepth */
+	47, /* duration */
+	51, /* divemode */
 };
 
 static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	12, /* datetime */
 	17, /* maxdepth */
-	73, /* avgdepth */
 	19, /* divetime */
-	24, /* atmospheric */
-	70, /* salinity */
-	75, /* duration */
 	22, /* temperature */
+	24, /* atmospheric */
 	48, /* firmware */
+	70, /* salinity */
+	73, /* avgdepth */
+	75, /* duration */
+	82, /* divemode */
 };
 
 static unsigned int
@@ -269,7 +273,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			}
 		}
 		// The first fixed setpoint is the initial setpoint in CCR mode.
-		if (data[82] == OSTC3_CC) {
+		if (data[layout->divemode] == OSTC3_CC || data[layout->divemode] == OSTC3_PSCR) {
 			initial_setpoint = data[60];
 		}
 		// Initial CNS
@@ -511,7 +515,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			break;
 		case DC_FIELD_DIVEMODE:
 			if (version == 0x21) {
-				switch (data[51]) {
+				switch (data[layout->divemode]) {
 				case OSTC_APNEA:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
 					break;
@@ -533,7 +537,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 					return DC_STATUS_DATAFORMAT;
 				}
 			} else if (version == 0x22) {
-				switch (data[51]) {
+				switch (data[layout->divemode]) {
 				case FROG_ZHL16:
 				case FROG_ZHL16_GF:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
@@ -545,7 +549,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 					return DC_STATUS_DATAFORMAT;
 				}
 			} else if (version == 0x23 || version == 0x24) {
-				switch (data[82]) {
+				switch (data[layout->divemode]) {
 				case OSTC3_OC:
 					*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 					break;
