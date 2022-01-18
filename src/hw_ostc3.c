@@ -106,7 +106,7 @@ typedef struct hw_ostc3_device_t {
 	unsigned int firmware;
 	unsigned char fingerprint[5];
 	hw_ostc3_state_t state;
-	unsigned char cache[20];
+	unsigned char cache[244];
 	unsigned int available;
 	unsigned int offset;
 } hw_ostc3_device_t;
