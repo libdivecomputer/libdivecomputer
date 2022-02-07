@@ -67,6 +67,15 @@
 #define SC            0x08
 #define OC            0x10
 
+#define M_CC       0
+#define M_OC_TEC   1
+#define M_GAUGE    2
+#define M_PPO2     3
+#define M_SC       4
+#define M_CC2      5
+#define M_OC_REC   6
+#define M_FREEDIVE 7
+
 #define METRIC   0
 #define IMPERIAL 1
 
@@ -113,7 +122,7 @@ struct shearwater_predator_parser_t {
 	unsigned int tankidx[NTANKS];
 	unsigned int calibrated;
 	double calibration[3];
-	dc_divemode_t mode;
+	unsigned int divemode;
 	unsigned int units;
 	unsigned int atmospheric;
 	unsigned int density;
@@ -216,7 +225,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	for (unsigned int i = 0; i < 3; ++i) {
 		parser->calibration[i] = 0.0;
 	}
-	parser->mode = DC_DIVEMODE_OC;
+	parser->divemode = M_OC_TEC;
 	parser->units = METRIC;
 	parser->density = 1025;
 	parser->atmospheric = ATM / (BAR / 1000);
@@ -273,7 +282,7 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 	for (unsigned int i = 0; i < 3; ++i) {
 		parser->calibration[i] = 0.0;
 	}
-	parser->mode = DC_DIVEMODE_OC;
+	parser->divemode = M_OC_TEC;
 	parser->units = METRIC;
 	parser->density = 1025;
 	parser->atmospheric = ATM / (BAR / 1000);
@@ -367,7 +376,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	}
 
 	// Default dive mode.
-	dc_divemode_t mode = DC_DIVEMODE_OC;
+	unsigned int divemode = M_OC_TEC;
 
 	// Get the gas mixes.
 	unsigned int ngasmixes = 0;
@@ -391,7 +400,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			// Status flags.
 			unsigned int status = data[offset + 11 + pnf];
 			if ((status & OC) == 0) {
-				mode = status & SC ? DC_DIVEMODE_SCR : DC_DIVEMODE_CCR;
+				divemode = status & SC ? M_SC : M_CC;
 			}
 
 			// Gaschange.
@@ -447,7 +456,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			}
 		} else if (type == LOG_RECORD_FREEDIVE_SAMPLE) {
 			// Freedive record
-			mode = DC_DIVEMODE_FREEDIVE;
+			divemode = M_FREEDIVE;
 		} else if (type >= LOG_RECORD_OPENING_0 && type <= LOG_RECORD_OPENING_7) {
 			// Opening record
 			parser->opening[type - LOG_RECORD_OPENING_0] = offset;
@@ -510,6 +519,11 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		parser->calibrated = data[base];
 	}
 
+	// Get the dive mode from the header (if available).
+	if (logversion >= 8) {
+		divemode = data[parser->opening[4] + (pnf ? 1 : 112)];
+	}
+
 	// Cache the data for later use.
 	parser->pnf = pnf;
 	parser->logversion = logversion;
@@ -529,7 +543,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			parser->tankidx[i] = UNDEFINED;
 		}
 	}
-	parser->mode = mode;
+	parser->divemode = divemode;
 	parser->units = data[parser->opening[0] + 8];
 	parser->atmospheric = array_uint16_be (data + parser->opening[1] + (parser->pnf ? 16 : 47));
 	parser->density = array_uint16_be (data + parser->opening[3] + (parser->pnf ? 3 : 83));
@@ -600,7 +614,28 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			*((double *) value) = parser->atmospheric / 1000.0;
 			break;
 		case DC_FIELD_DIVEMODE:
-			*((dc_divemode_t *) value) = parser->mode;
+			switch (parser->divemode) {
+			case M_CC:
+			case M_CC2:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
+				break;
+			case M_SC:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_SCR;
+				break;
+			case M_OC_TEC:
+			case M_OC_REC:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
+				break;
+			case M_GAUGE:
+			case M_PPO2:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_GAUGE;
+				break;
+			case M_FREEDIVE:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
