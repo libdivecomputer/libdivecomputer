@@ -391,7 +391,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			// Status flags.
 			unsigned int status = data[offset + 11 + pnf];
 			if ((status & OC) == 0) {
-				mode = DC_DIVEMODE_CCR;
+				mode = status & SC ? DC_DIVEMODE_SCR : DC_DIVEMODE_CCR;
 			}
 
 			// Gaschange.
