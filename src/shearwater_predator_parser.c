@@ -524,6 +524,11 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		divemode = data[parser->opening[4] + (pnf ? 1 : 112)];
 	}
 
+	// Get the correct model number from the final block.
+	if (parser->final != UNDEFINED) {
+		parser->model = data[parser->final + 13];
+	}
+
 	// Cache the data for later use.
 	parser->pnf = pnf;
 	parser->logversion = logversion;
