@@ -373,7 +373,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		// byte opening and closing block. To minimize the differences
 		// with the PNF format, all record offsets are assigned the same
 		// value here.
-		for (unsigned int i = 0; i < NRECORDS; ++i) {
+		for (unsigned int i = 0; i <= 4; ++i) {
 			parser->opening[i] = 0;
 			parser->closing[i] = size - footersize;
 		}
