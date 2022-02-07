@@ -85,6 +85,7 @@
 
 #define PREDATOR 2
 #define PETREL   3
+#define TERIC    8
 
 #define UNDEFINED 0xFFFFFFFF
 
@@ -307,7 +308,13 @@ shearwater_predator_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *d
 	if (!dc_datetime_gmtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
 
-	datetime->timezone = DC_TIMEZONE_NONE;
+	if (parser->model == TERIC && parser->logversion >= 9 && parser->opening[5] != UNDEFINED) {
+		int utc_offset = (int) array_uint32_be (data + parser->opening[5] + 26);
+		int dst = data[parser->opening[5] + 30];
+		datetime->timezone = utc_offset * 60 + dst * 3600;
+	} else {
+		datetime->timezone = DC_TIMEZONE_NONE;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
