@@ -52,6 +52,7 @@
 #define LOG_RECORD_CLOSING_6       0x26
 #define LOG_RECORD_CLOSING_7       0x27
 #define LOG_RECORD_INFO_EVENT      0x30
+#define LOG_RECORD_DIVE_SAMPLE_EXT 0xE1
 #define LOG_RECORD_FINAL           0xFF
 
 #define INFO_EVENT_TAG_LOG         38
@@ -80,7 +81,7 @@
 #define IMPERIAL 1
 
 #define NGASMIXES 10
-#define NTANKS    2
+#define NTANKS    4
 #define NRECORDS  8
 
 #define PREDATOR 2
@@ -439,8 +440,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 
 			// Tank pressure
 			if (logversion >= 7) {
-				const unsigned int idx[NTANKS] = {27, 19};
-				for (unsigned int i = 0; i < NTANKS; ++i) {
+				const unsigned int idx[2] = {27, 19};
+				for (unsigned int i = 0; i < 2; ++i) {
 					// Values above 0xFFF0 are special codes:
 					//    0xFFFF AI is off
 					//    0xFFFE No comms for 90 seconds+
@@ -458,6 +459,22 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 							tank[i].endpressure = pressure;
 						}
 						tank[i].endpressure = pressure;
+					}
+				}
+			}
+		} else if (type == LOG_RECORD_DIVE_SAMPLE_EXT) {
+			// Tank pressure
+			if (logversion >= 13) {
+				for (unsigned int i = 0; i < 2; ++i) {
+					unsigned int pressure = array_uint16_be (data + offset + pnf + i * 2);
+					if (pressure < 0xFFF0) {
+						pressure &= 0x0FFF;
+						if (!tank[i + 2].enabled) {
+							tank[i + 2].enabled = 1;
+							tank[i + 2].beginpressure = pressure;
+							tank[i + 2].endpressure = pressure;
+						}
+						tank[i + 2].endpressure = pressure;
 					}
 				}
 			}
@@ -805,8 +822,8 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			// for logversion 7 and newer (introduced for Perdix AI)
 			// detect tank pressure
 			if (parser->logversion >= 7) {
-				const unsigned int idx[NTANKS] = {27, 19};
-				for (unsigned int i = 0; i < NTANKS; ++i) {
+				const unsigned int idx[2] = {27, 19};
+				for (unsigned int i = 0; i < 2; ++i) {
 					// Tank pressure
 					// Values above 0xFFF0 are special codes:
 					//    0xFFFF AI is off
@@ -835,6 +852,19 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				if (data[offset + pnf + 21] < 0xF0) {
 					sample.rbt = data[offset + pnf + 21];
 					if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
+				}
+			}
+		} else if (type == LOG_RECORD_DIVE_SAMPLE_EXT) {
+			// Tank pressure
+			if (parser->logversion >= 13) {
+				for (unsigned int i = 0; i < 2; ++i) {
+					unsigned int pressure = array_uint16_be (data + offset + pnf + i * 2);
+					if (pressure < 0xFFF0) {
+						pressure &= 0x0FFF;
+						sample.pressure.tank = parser->tankidx[i + 2];
+						sample.pressure.value = pressure * 2 * PSI / BAR;
+						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					}
 				}
 			}
 		} else if (type == LOG_RECORD_FREEDIVE_SAMPLE) {
