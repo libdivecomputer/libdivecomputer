@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <libdivecomputer/units.h>
 
@@ -99,8 +100,13 @@ typedef struct shearwater_predator_gasmix_t {
 
 typedef struct shearwater_predator_tank_t {
 	unsigned int enabled;
+	unsigned int active;
 	unsigned int beginpressure;
 	unsigned int endpressure;
+	unsigned int pressure_max;
+	unsigned int pressure_reserve;
+	unsigned int serial;
+	char name[2];
 } shearwater_predator_tank_t;
 
 struct shearwater_predator_parser_t {
@@ -219,8 +225,13 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
 		parser->tank[i].enabled = 0;
+		parser->tank[i].active = 0;
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
+		parser->tank[i].pressure_max = 0;
+		parser->tank[i].pressure_reserve = 0;
+		parser->tank[i].serial = 0;
+		memset (parser->tank[i].name, 0, sizeof (parser->tank[i].name));
 		parser->tankidx[i] = i;
 	}
 	parser->calibrated = 0;
@@ -276,8 +287,13 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
 		parser->tank[i].enabled = 0;
+		parser->tank[i].active = 0;
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
+		parser->tank[i].pressure_max = 0;
+		parser->tank[i].pressure_reserve = 0;
+		parser->tank[i].serial = 0;
+		memset (parser->tank[i].name, 0, sizeof (parser->tank[i].name));
 		parser->tankidx[i] = i;
 	}
 	parser->calibrated = 0;
@@ -453,8 +469,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 					unsigned int pressure = array_uint16_be (data + offset + pnf + idx[i]);
 					if (pressure < 0xFFF0) {
 						pressure &= 0x0FFF;
-						if (!tank[i].enabled) {
-							tank[i].enabled = 1;
+						if (!tank[i].active) {
+							tank[i].active = 1;
 							tank[i].beginpressure = pressure;
 							tank[i].endpressure = pressure;
 						}
@@ -469,8 +485,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 					unsigned int pressure = array_uint16_be (data + offset + pnf + i * 2);
 					if (pressure < 0xFFF0) {
 						pressure &= 0x0FFF;
-						if (!tank[i + 2].enabled) {
-							tank[i + 2].enabled = 1;
+						if (!tank[i + 2].active) {
+							tank[i + 2].active = 1;
 							tank[i + 2].beginpressure = pressure;
 							tank[i + 2].endpressure = pressure;
 						}
@@ -485,9 +501,59 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			// Opening record
 			parser->opening[type - LOG_RECORD_OPENING_0] = offset;
 
-			// Log version
 			if (type == LOG_RECORD_OPENING_4) {
+				// Log version
 				logversion = data[offset + 16];
+
+				// Air integration mode
+				if (logversion >= 7) {
+					unsigned int airmode = data[offset + 28];
+					if (logversion < 13) {
+						if (airmode == 1 || airmode == 2) {
+							tank[airmode - 1].enabled = 1;
+						} else if (airmode == 3) {
+							tank[0].enabled = 1;
+							tank[1].enabled = 1;
+						}
+					}
+					if (airmode == 4) {
+						tank[0].enabled = 1;
+						tank[1].enabled = 1;
+					}
+				}
+			} else if (type == LOG_RECORD_OPENING_5) {
+				if (logversion >= 9) {
+					tank[0].serial = array_convert_bcd2dec (data + offset + 1, 3);
+					tank[0].pressure_max = array_uint16_be(data + offset + 6);
+					tank[0].pressure_reserve = array_uint16_be(data + offset + 8);
+
+					tank[1].serial = array_convert_bcd2dec(data + offset + 10, 3);
+					tank[1].pressure_max = array_uint16_be(data + offset + 15);
+					tank[1].pressure_reserve = array_uint16_be(data + offset + 17);
+				}
+			} else if (type == LOG_RECORD_OPENING_6) {
+				if (logversion >= 13) {
+					tank[0].enabled = data[offset + 19];
+					memcpy (tank[0].name, data + offset + 20, sizeof (tank[0].name));
+
+					tank[1].enabled = data[offset + 22];
+					memcpy (tank[1].name, data + offset + 23, sizeof (tank[1].name));
+
+					tank[2].serial = array_convert_bcd2dec(data + offset + 25, 3);
+					tank[2].pressure_max = array_uint16_be(data + offset + 28);
+					tank[2].pressure_reserve = array_uint16_be(data + offset + 30);
+				}
+			} else if (type == LOG_RECORD_OPENING_7) {
+				if (logversion >= 13) {
+					tank[2].enabled =  data[offset + 1];
+					memcpy (tank[2].name, data + offset + 2, sizeof (tank[2].name));
+
+					tank[3].serial = array_convert_bcd2dec(data + offset + 4, 3);
+					tank[3].pressure_max = array_uint16_be(data + offset + 7);
+					tank[3].pressure_reserve = array_uint16_be(data + offset + 9);
+					tank[3].enabled = data[offset + 11];
+					memcpy (tank[3].name, data + offset + 12, sizeof (tank[3].name));
+				}
 			}
 		} else if (type >= LOG_RECORD_CLOSING_0 && type <= LOG_RECORD_CLOSING_7) {
 			// Closing record
@@ -553,6 +619,16 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		parser->model = data[parser->final + 13];
 	}
 
+	// Fix the Teric tank serial number.
+	if (parser->model == TERIC) {
+		for (unsigned int i = 0; i < NTANKS; ++i) {
+			tank[i].serial =
+				((tank[i].serial / 10000) % 100) +
+				((tank[i].serial /   100) % 100) * 100 +
+				((tank[i].serial        ) % 100) * 10000;
+		}
+	}
+
 	// Cache the data for later use.
 	parser->pnf = pnf;
 	parser->logversion = logversion;
@@ -564,7 +640,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	}
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
-		if (tank[i].enabled) {
+		if (tank[i].active) {
 			parser->tankidx[i] = parser->ntanks;
 			parser->tank[parser->ntanks] = tank[i];
 			parser->ntanks++;
