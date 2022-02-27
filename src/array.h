@@ -53,6 +53,9 @@ unsigned int
 array_convert_str2num (const unsigned char data[], unsigned int size);
 
 unsigned int
+array_convert_bcd2dec (const unsigned char data[], unsigned int size);
+
+unsigned int
 array_uint_be (const unsigned char data[], unsigned int n);
 
 unsigned int
