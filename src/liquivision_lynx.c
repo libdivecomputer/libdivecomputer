@@ -82,6 +82,8 @@ typedef struct liquivision_lynx_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
 	unsigned char fingerprint[4];
+	unsigned char info[6];
+	unsigned char more[12];
 } liquivision_lynx_device_t;
 
 static dc_status_t liquivision_lynx_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
@@ -274,6 +276,22 @@ liquivision_lynx_device_open (dc_device_t **out, dc_context_t *context, dc_iostr
 		dc_iostream_write (device->iostream, init, sizeof (init), NULL);
 	}
 
+	// Send the info command.
+	const unsigned char cmd_info[] = {0x49, 0x4E, 0x46, 0x4F, 0x49, 0x4E, 0x46, 0x4F, 0x49, 0x4E, 0x46, 0x4F};
+	status = liquivision_lynx_transfer (device, cmd_info, sizeof(cmd_info), device->info, sizeof(device->info));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to send the info command.");
+		goto error_free;
+	}
+
+	// Send the more info command.
+	const unsigned char cmd_more[] = {0x4D, 0x4F, 0x52, 0x45, 0x49, 0x4E, 0x46, 0x4F, 0x4D, 0x4F, 0x52, 0x45};
+	status = liquivision_lynx_transfer (device, cmd_more, sizeof(cmd_more), device->more, sizeof(device->more));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to send the more info command.");
+		goto error_free;
+	}
+
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
@@ -369,33 +387,15 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	progress.maximum = SEGMENTSIZE + RB_LOGBOOK_SIZE + RB_PROFILE_SIZE;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	// Send the info command.
-	unsigned char rsp_info[6] = {0};
-	const unsigned char cmd_info[] = {0x49, 0x4E, 0x46, 0x4F, 0x49, 0x4E, 0x46, 0x4F, 0x49, 0x4E, 0x46, 0x4F};
-	status = liquivision_lynx_transfer (device, cmd_info, sizeof(cmd_info), rsp_info, sizeof(rsp_info));
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the info command.");
-		goto error_exit;
-	}
-
 	// Get the model and version.
-	unsigned int model = array_uint16_le(rsp_info + 0);
-	unsigned int version = array_uint32_le(rsp_info + 2);
-
-	// Send the more info command.
-	unsigned char rsp_more[12] = {0};
-	const unsigned char cmd_more[] = {0x4D, 0x4F, 0x52, 0x45, 0x49, 0x4E, 0x46, 0x4F, 0x4D, 0x4F, 0x52, 0x45};
-	status = liquivision_lynx_transfer (device, cmd_more, sizeof(cmd_more), rsp_more, sizeof(rsp_more));
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the more info command.");
-		goto error_exit;
-	}
+	unsigned int model = array_uint16_le (device->info + 0);
+	unsigned int version = array_uint32_le (device->info + 2);
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = model;
 	devinfo.firmware = 0;
-	devinfo.serial = array_uint32_le(rsp_more + 0);
+	devinfo.serial = array_uint32_le (device->more + 0);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the config segment.
@@ -515,7 +515,7 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 			unused = 6;
 		}
 		unsigned char header[SZ_HEADER_MAX] = {0};
-		memcpy (header + 0, rsp_info + 2, 4);
+		memcpy (header + 0, device->info + 2, 4);
 		memcpy (header + 4, logbook + offset + 4, headersize - 4);
 		unsigned int crc  = array_uint32_le (logbook + offset + 0);
 		unsigned int ccrc = checksum_crc32b (header, headersize - unused);
@@ -638,7 +638,7 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		// Prepend the logbook entry to the profile data. The memory buffer is
 		// large enough to store this entry. The checksum is replaced with the
 		// flash version number.
-		memcpy (profile + remaining + 0, rsp_info + 2, 4);
+		memcpy (profile + remaining + 0, device->info + 2, 4);
 		memcpy (profile + remaining + 4, logbook + entry + 4, headersize - 4);
 
 		if (callback && !callback (profile + remaining, headersize + length, logbook + entry, sizeof(device->fingerprint), userdata)) {
