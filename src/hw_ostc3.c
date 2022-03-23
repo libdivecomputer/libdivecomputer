@@ -1662,6 +1662,21 @@ hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 	}
 
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.firmware = device->firmware;
+	devinfo.serial = device->serial;
+	if (device->hardware != UNKNOWN) {
+		devinfo.model = device->hardware;
+	} else {
+		// Fallback to the serial number.
+		if (devinfo.serial > 10000)
+			devinfo.model = SPORT;
+		else
+			devinfo.model = OSTC3;
+	}
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");

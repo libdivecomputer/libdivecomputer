@@ -188,13 +188,16 @@ oceanic_common_device_set_fingerprint (dc_device_t *abstract, const unsigned cha
 dc_status_t
 oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
 	assert (device != NULL);
 	assert (device->layout != NULL);
 
+	const oceanic_common_layout_t *layout = device->layout;
+
 	// Allocate the required amount of memory.
-	if (!dc_buffer_resize (buffer, device->layout->memsize)) {
+	if (!dc_buffer_resize (buffer, layout->memsize)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
@@ -205,8 +208,30 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	vendor.size = sizeof (device->version);
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	// Download the memory dump.
+	status = device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), PAGESIZE * device->multipage);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Emit a device info event.
+	unsigned char *id = dc_buffer_get_data (buffer) + layout->cf_devinfo;
+	dc_event_devinfo_t devinfo;
+	devinfo.model = array_uint16_be (id + 8);
+	devinfo.firmware = device->firmware;
+	if (layout->pt_mode_serial == 0)
+		devinfo.serial = array_convert_bcd2dec (id + 10, 3);
+	else if (layout->pt_mode_serial == 1)
+		devinfo.serial = array_convert_bin2dec (id + 11, 3);
+	else
+		devinfo.serial =
+			(id[11] & 0x0F) * 100000 + ((id[11] & 0xF0) >> 4) * 10000 +
+			(id[12] & 0x0F) * 1000   + ((id[12] & 0xF0) >> 4) * 100 +
+			(id[13] & 0x0F) * 10     + ((id[13] & 0xF0) >> 4) * 1;
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	return status;
 }
 
 

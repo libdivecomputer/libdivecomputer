@@ -221,6 +221,13 @@ suunto_solution_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	progress.current += 1;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = 0;
+	devinfo.firmware = 0;
+	devinfo.serial = array_convert_bcd2dec (data + 0x1D, 3);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
 	return DC_STATUS_SUCCESS;
 }
 
@@ -237,14 +244,6 @@ suunto_solution_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		dc_buffer_free (buffer);
 		return rc;
 	}
-
-	// Emit a device info event.
-	unsigned char *data = dc_buffer_get_data (buffer);
-	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
-	devinfo.firmware = 0;
-	devinfo.serial = array_convert_bcd2dec (data + 0x1D, 3);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = suunto_solution_extract_dives (abstract,
 		dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), callback, userdata);

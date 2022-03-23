@@ -366,12 +366,22 @@ liquivision_lynx_device_read (dc_device_t *abstract, unsigned int address, unsig
 static dc_status_t
 liquivision_lynx_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	liquivision_lynx_device_t *device = (liquivision_lynx_device_t *) abstract;
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = array_uint16_le (device->info + 0);
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint32_le (device->more + 0);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, MEMSIZE)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Download the memory dump.
 	return device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SEGMENTSIZE);
 }

@@ -650,6 +650,7 @@ mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 static dc_status_t
 mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
 	// Allocate the required amount of memory.
@@ -664,8 +665,22 @@ mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	vendor.size = sizeof (device->version);
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	// Download the memory dump.
+	status = device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), device->packetsize);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	dc_event_devinfo_t devinfo;
+	devinfo.model = device->model;
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint32_le (data + 0x0C);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	return status;
 }
 
 static dc_status_t

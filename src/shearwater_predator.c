@@ -115,6 +115,7 @@ shearwater_predator_device_set_fingerprint (dc_device_t *abstract, const unsigne
 static dc_status_t
 shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
 
 	// Pre-allocate the required amount of memory.
@@ -128,7 +129,21 @@ shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	progress.current = 0;
 	progress.maximum = NSTEPS;
 
-	return shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY, 0, &progress);
+	// Download the memory dump.
+	status = shearwater_common_download (device, buffer, 0xDD000000, SZ_MEMORY, 0, &progress);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	dc_event_devinfo_t devinfo;
+	devinfo.model = data[0x2000D];
+	devinfo.firmware = bcd2dec (data[0x2000A]);
+	devinfo.serial = array_uint32_be (data + 0x20002);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	return status;
 }
 
 
@@ -145,15 +160,8 @@ shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 		return rc;
 	}
 
-	// Emit a device info event.
-	unsigned char *data = dc_buffer_get_data (buffer);
-	dc_event_devinfo_t devinfo;
-	devinfo.model = data[0x2000D];
-	devinfo.firmware = bcd2dec (data[0x2000A]);
-	devinfo.serial = array_uint32_be (data + 0x20002);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
-
-	rc = shearwater_predator_extract_dives (abstract, data, SZ_MEMORY, callback, userdata);
+	rc = shearwater_predator_extract_dives (abstract, dc_buffer_get_data (buffer),
+		dc_buffer_get_size (buffer), callback, userdata);
 
 	dc_buffer_free (buffer);
 

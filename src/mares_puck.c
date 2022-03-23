@@ -192,6 +192,7 @@ mares_puck_device_set_fingerprint (dc_device_t *abstract, const unsigned char da
 static dc_status_t
 mares_puck_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_puck_device_t *device = (mares_puck_device_t *) abstract;
 
 	assert (device->layout != NULL);
@@ -202,8 +203,22 @@ mares_puck_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	// Download the memory dump.
+	status = device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), PACKETSIZE);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	dc_event_devinfo_t devinfo;
+	devinfo.model = data[1];
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint16_be (data + 8);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	return status;
 }
 
 
@@ -224,15 +239,8 @@ mares_puck_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		return rc;
 	}
 
-	// Emit a device info event.
-	unsigned char *data = dc_buffer_get_data (buffer);
-	dc_event_devinfo_t devinfo;
-	devinfo.model = data[1];
-	devinfo.firmware = 0;
-	devinfo.serial = array_uint16_be (data + 8);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
-
-	rc = mares_common_extract_dives (abstract->context, device->layout, device->fingerprint, data, callback, userdata);
+	rc = mares_common_extract_dives (abstract->context, device->layout, device->fingerprint,
+		dc_buffer_get_data (buffer), callback, userdata);
 
 	dc_buffer_free (buffer);
 

@@ -245,6 +245,14 @@ mares_nemo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		nbytes += PACKETSIZE;
 	}
 
+	// Emit a device info event.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	dc_event_devinfo_t devinfo;
+	devinfo.model = data[1];
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint16_be (data + 8);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
 	return DC_STATUS_SUCCESS;
 }
 
@@ -264,13 +272,7 @@ mares_nemo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		return rc;
 	}
 
-	// Emit a device info event.
 	unsigned char *data = dc_buffer_get_data (buffer);
-	dc_event_devinfo_t devinfo;
-	devinfo.model = data[1];
-	devinfo.firmware = 0;
-	devinfo.serial = array_uint16_be (data + 8);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	const mares_common_layout_t *layout = NULL;
 	switch (data[1]) {

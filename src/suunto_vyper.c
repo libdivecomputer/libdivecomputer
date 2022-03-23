@@ -426,14 +426,39 @@ suunto_vyper_read_dive (dc_device_t *abstract, dc_buffer_t *buffer, int init, dc
 static dc_status_t
 suunto_vyper_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
+
 	// Allocate the required amount of memory.
 	if (!dc_buffer_resize (buffer, SZ_MEMORY)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	// Download the memory dump.
+	status = device_dump_read (abstract, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SZ_PACKET);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Identify the connected device as a Vyper or a Spyder, by inspecting
+	// the Vyper model code. For a Spyder, this value will contain the
+	// sample interval (20, 30 or 60s) instead of the model code.
+	unsigned char *data = dc_buffer_get_data (buffer);
+	unsigned int hoffset = HDR_DEVINFO_VYPER;
+	if (data[hoffset] == 20 || data[hoffset] == 30 || data[hoffset] == 60) {
+		hoffset = HDR_DEVINFO_SPYDER;
+	}
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = data[hoffset + 0];
+	devinfo.firmware = data[hoffset + 1];
+	devinfo.serial = 0;
+	devinfo.serial = array_convert_bin2dec (data + hoffset + 2, 4);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	return status;
 }
 
 
