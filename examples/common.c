@@ -95,6 +95,7 @@ static const backend_table_t g_backends[] = {
 	{"lynx",        DC_FAMILY_LIQUIVISION_LYNX,    0},
 	{"sp2",         DC_FAMILY_SPORASUB_SP2,        0},
 	{"excursion",   DC_FAMILY_DEEPSIX_EXCURSION,   0},
+	{"screen",      DC_FAMILY_SEAC_SCREEN,         0},
 };
 
 static const transport_table_t g_transports[] = {

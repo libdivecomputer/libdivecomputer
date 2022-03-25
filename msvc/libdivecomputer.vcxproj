@@ -227,6 +227,8 @@
     <ClCompile Include="..\src\reefnet_sensusultra_parser.c" />
     <ClCompile Include="..\src\reefnet_sensus_parser.c" />
     <ClCompile Include="..\src\ringbuffer.c" />
+    <ClCompile Include="..\src\seac_screen.c" />
+    <ClCompile Include="..\src\seac_screen_parser.c" />
     <ClCompile Include="..\src\serial_win32.c" />
     <ClCompile Include="..\src\shearwater_common.c" />
     <ClCompile Include="..\src\shearwater_petrel.c" />
@@ -336,6 +338,7 @@
     <ClInclude Include="..\src\reefnet_sensusultra.h" />
     <ClInclude Include="..\src\revision.h" />
     <ClInclude Include="..\src\ringbuffer.h" />
+    <ClInclude Include="..\src\seac_screen.h" />
     <ClInclude Include="..\src\shearwater_common.h" />
     <ClInclude Include="..\src\shearwater_petrel.h" />
     <ClInclude Include="..\src\shearwater_predator.h" />
