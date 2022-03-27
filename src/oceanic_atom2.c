@@ -346,7 +346,7 @@ static const oceanic_common_layout_t oceanic_reactpro_layout = {
 	0xFFF0, /* rb_profile_end */
 	1, /* pt_mode_global */
 	1, /* pt_mode_logbook */
-	1, /* pt_mode_serial */
+	0, /* pt_mode_serial */
 };
 
 static const oceanic_common_layout_t oceanic_proplusx_layout = {
