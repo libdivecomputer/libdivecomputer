@@ -318,11 +318,29 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	}
 
 	if (input) {
-		// Send the input data packet.
-		status = hw_ostc3_write (device, progress, input, isize);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to send the data packet.");
-			return status;
+		if (cmd == WRITE) {
+			// Send the first byte of the input data packet.
+			status = hw_ostc3_write (device, progress, input, 1);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to send the data packet.");
+				return status;
+			}
+
+			dc_iostream_sleep (device->iostream, 10);
+
+			// Send the reamainder of the input data packet.
+			status = hw_ostc3_write (device, progress, input + 1, isize - 1);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to send the data packet.");
+				return status;
+			}
+		} else {
+			// Send the input data packet.
+			status = hw_ostc3_write (device, progress, input, isize);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to send the data packet.");
+				return status;
+			}
 		}
 	}
 
