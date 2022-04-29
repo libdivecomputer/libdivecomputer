@@ -205,11 +205,7 @@ suunto_eon_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;
 	devinfo.firmware = 0;
-	devinfo.serial = 0;
-	for (unsigned int i = 0; i < 3; ++i) {
-		devinfo.serial *= 100;
-		devinfo.serial += bcd2dec (data[244 + i]);
-	}
+	devinfo.serial = array_convert_bcd2dec (data + 244, 3);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	rc = suunto_common_extract_dives (device, &suunto_eon_layout, data, callback, userdata);

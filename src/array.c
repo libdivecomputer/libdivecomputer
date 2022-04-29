@@ -161,6 +161,18 @@ array_convert_str2num (const unsigned char data[], unsigned int size)
 }
 
 unsigned int
+array_convert_bin2dec (const unsigned char data[], unsigned int size)
+{
+	unsigned int value = 0;
+	for (unsigned int i = 0; i < size; ++i) {
+		value *= 100;
+		value += data[i];
+	}
+
+	return value;
+}
+
+unsigned int
 array_convert_bcd2dec (const unsigned char data[], unsigned int size)
 {
 	unsigned int value = 0;

@@ -476,11 +476,7 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	dc_event_devinfo_t devinfo;
 	devinfo.model = header[hoffset + 0];
 	devinfo.firmware = header[hoffset + 1];
-	devinfo.serial = 0;
-	for (unsigned int i = 0; i < 4; ++i) {
-		devinfo.serial *= 100;
-		devinfo.serial += header[hoffset + 2 + i];
-	}
+	devinfo.serial = array_convert_bin2dec (header + hoffset + 2, 4);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate a memory buffer.
