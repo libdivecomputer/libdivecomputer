@@ -382,7 +382,7 @@ liquivision_lynx_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Download the memory dump.
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	return device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SEGMENTSIZE);
 }
 

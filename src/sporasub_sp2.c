@@ -363,7 +363,7 @@ sporasub_sp2_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	vendor.size = sizeof (device->version);
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	return device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SZ_READ);
 }
 

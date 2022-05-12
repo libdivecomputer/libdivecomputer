@@ -209,7 +209,7 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Download the memory dump.
-	status = device_dump_read (abstract, dc_buffer_get_data (buffer),
+	status = device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), PAGESIZE * device->multipage);
 	if (status != DC_STATUS_SUCCESS) {
 		return status;

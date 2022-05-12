@@ -92,7 +92,7 @@ int
 device_is_cancelled (dc_device_t *device);
 
 dc_status_t
-device_dump_read (dc_device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize);
+device_dump_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size, unsigned int blocksize);
 
 #ifdef __cplusplus
 }

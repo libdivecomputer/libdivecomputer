@@ -386,7 +386,7 @@ cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	devinfo.serial = 0;
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	return device_dump_read (abstract, dc_buffer_get_data (buffer),
+	return device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SZ_PACKET);
 }
 

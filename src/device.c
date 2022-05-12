@@ -342,7 +342,7 @@ dc_device_dump (dc_device_t *device, dc_buffer_t *buffer)
 
 
 dc_status_t
-device_dump_read (dc_device_t *device, unsigned char data[], unsigned int size, unsigned int blocksize)
+device_dump_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size, unsigned int blocksize)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
@@ -363,7 +363,7 @@ device_dump_read (dc_device_t *device, unsigned char data[], unsigned int size, 
 			len = blocksize;
 
 		// Read the packet.
-		dc_status_t rc = device->vtable->read (device, nbytes, data + nbytes, len);
+		dc_status_t rc = device->vtable->read (device, address + nbytes, data + nbytes, len);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
