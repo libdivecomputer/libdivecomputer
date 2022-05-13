@@ -31,8 +31,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_smart_device_vtable)
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define DATASIZE 254
 #define PACKETSIZE_USBHID_RX 64
 #define PACKETSIZE_USBHID_TX 32

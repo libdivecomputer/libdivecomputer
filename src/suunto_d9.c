@@ -31,8 +31,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), (const dc_device_vtable_t *) &suunto_d9_device_vtable)
 
-#define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
-
 #define D4i         0x19
 #define D6i         0x1A
 #define D9tx        0x1B

@@ -30,8 +30,6 @@
 #include "checksum.h"
 #include "array.h"
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define ISINSTANCE(device) dc_device_isinstance((device), &divesystem_idive_device_vtable)
 
 #define ISIX3M(model) ((model) >= 0x21)

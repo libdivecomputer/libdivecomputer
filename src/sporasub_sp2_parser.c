@@ -28,8 +28,6 @@
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &sporasub_sp2_parser_vtable)
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define SZ_HEADER 0x20
 #define SZ_SAMPLE 0x04
 

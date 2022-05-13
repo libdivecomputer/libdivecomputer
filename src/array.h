@@ -22,6 +22,8 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
+#define C_ARRAY_SIZE(a) (sizeof (a) / sizeof *(a))
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

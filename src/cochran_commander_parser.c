@@ -29,8 +29,6 @@
 #include "parser-private.h"
 #include "array.h"
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define COCHRAN_MODEL_COMMANDER_TM 0
 #define COCHRAN_MODEL_COMMANDER_PRE21000 1
 #define COCHRAN_MODEL_COMMANDER_AIR_NITROX 2

@@ -31,8 +31,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc_device_vtable)
 
-#define C_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
-
 #define MAXRETRIES 9
 
 #define FW_190 0x015A

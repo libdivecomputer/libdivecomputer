@@ -28,8 +28,6 @@
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &cressi_goa_parser_vtable)
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define SZ_HEADER          23
 #define SZ_HEADER_SCUBA    0x61
 #define SZ_HEADER_FREEDIVE 0x2B

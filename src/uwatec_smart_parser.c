@@ -31,8 +31,6 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &uwatec_smart_parser_vtable)
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define NBITS 8
 
 #define SMARTPRO          0x10

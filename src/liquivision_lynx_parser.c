@@ -31,8 +31,6 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &liquivision_lynx_parser_vtable)
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define XEN  0
 #define XEO  1
 #define LYNX 2

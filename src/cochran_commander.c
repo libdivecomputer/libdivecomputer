@@ -30,8 +30,6 @@
 #include "ringbuffer.h"
 #include "rbstream.h"
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define MAXRETRIES 2
 
 #define COCHRAN_MODEL_COMMANDER_TM 0

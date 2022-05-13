@@ -30,8 +30,6 @@
 #include "rbstream.h"
 #include "platform.h"
 
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-
 #define ISINSTANCE(device) dc_device_isinstance((device), &mares_iconhd_device_vtable)
 
 #define NSTEPS    1000
