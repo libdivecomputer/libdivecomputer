@@ -238,7 +238,7 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 		fprintf (output->ostream, "<datetime>%04i-%02i-%02i %02i:%02i:%02i %+03i:%02i</datetime>\n",
 			dt.year, dt.month, dt.day,
 			dt.hour, dt.minute, dt.second,
-			dt.timezone / 3600, (dt.timezone % 3600) / 60);
+			dt.timezone / 3600, (abs(dt.timezone) % 3600) / 60);
 	}
 
 	// Parse the divetime.
