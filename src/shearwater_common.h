@@ -37,6 +37,7 @@ extern "C" {
 
 #define PREDATOR 2
 #define PETREL   3
+#define PETREL2  PETREL
 #define NERD     4
 #define PERDIX   5
 #define PERDIXAI 6
