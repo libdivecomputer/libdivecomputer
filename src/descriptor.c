@@ -352,6 +352,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Shearwater", "Nerd 2",    DC_FAMILY_SHEARWATER_PETREL, 7, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	{"Shearwater", "Teric",     DC_FAMILY_SHEARWATER_PETREL, 8, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	{"Shearwater", "Peregrine", DC_FAMILY_SHEARWATER_PETREL, 9, DC_TRANSPORT_BLE, dc_filter_shearwater},
+	{"Shearwater", "Petrel 3",  DC_FAMILY_SHEARWATER_PETREL, 10, DC_TRANSPORT_BLE, dc_filter_shearwater},
+	{"Shearwater", "Perdix 2",  DC_FAMILY_SHEARWATER_PETREL, 11, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Citizen Hyper Aqualand */
@@ -616,9 +618,11 @@ static int dc_filter_shearwater (dc_transport_t transport, const void *userdata,
 	static const char * const bluetooth[] = {
 		"Predator",
 		"Petrel",
+		"Petrel 3",
 		"NERD",
 		"NERD 2",
 		"Perdix",
+		"Perdix 2",
 		"Teric",
 		"Peregrine",
 	};
