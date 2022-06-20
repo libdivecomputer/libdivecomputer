@@ -139,8 +139,6 @@ typedef struct uwatec_smart_parser_t uwatec_smart_parser_t;
 struct uwatec_smart_parser_t {
 	dc_parser_t base;
 	unsigned int model;
-	unsigned int devtime;
-	dc_ticks_t systime;
 	const uwatec_smart_sample_info_t *samples;
 	const uwatec_smart_header_info_t *header;
 	unsigned int headersize;
@@ -570,7 +568,7 @@ uwatec_smart_parser_cache (uwatec_smart_parser_t *parser)
 
 
 dc_status_t
-uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model, unsigned int devtime, dc_ticks_t systime)
+uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	uwatec_smart_parser_t *parser = NULL;
@@ -587,8 +585,6 @@ uwatec_smart_parser_create (dc_parser_t **out, dc_context_t *context, unsigned i
 
 	// Set the default values.
 	parser->model = model;
-	parser->devtime = devtime;
-	parser->systime = systime;
 	parser->trimix = 0;
 	for (unsigned int i = 0; i < NEVENTS; ++i) {
 		parser->events[i] = NULL;
