@@ -132,7 +132,12 @@ reefnet_sensuspro_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dat
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 6);
 
-	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp);
+	dc_ticks_t ticks = parser->systime;
+	if (timestamp < parser->devtime) {
+		ticks -= parser->devtime - timestamp;
+	} else {
+		ticks += timestamp - parser->devtime;
+	}
 
 	if (!dc_datetime_localtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;

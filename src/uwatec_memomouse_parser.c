@@ -96,7 +96,12 @@ uwatec_memomouse_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *date
 
 	unsigned int timestamp = array_uint32_le (abstract->data + 11);
 
-	dc_ticks_t ticks = parser->systime - (parser->devtime - timestamp) / 2;
+	dc_ticks_t ticks = parser->systime;
+	if (timestamp < parser->devtime) {
+		ticks -= (parser->devtime - timestamp) / 2;
+	} else {
+		ticks += (timestamp - parser->devtime) / 2;
+	}
 
 	if (!dc_datetime_localtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
