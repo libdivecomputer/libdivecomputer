@@ -62,7 +62,8 @@ typedef enum dc_field_type_t {
 	DC_FIELD_TEMPERATURE_MAXIMUM,
 	DC_FIELD_TANK_COUNT,
 	DC_FIELD_TANK,
-	DC_FIELD_DIVEMODE
+	DC_FIELD_DIVEMODE,
+	DC_FIELD_DECOMODEL,
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
@@ -185,6 +186,43 @@ typedef struct dc_tank_t {
     double beginpressure; /* Begin pressure (bar) */
     double endpressure;   /* End pressure (bar) */
 } dc_tank_t;
+
+typedef enum dc_decomodel_type_t {
+	DC_DECOMODEL_NONE,
+	DC_DECOMODEL_BUHLMANN,
+	DC_DECOMODEL_VPM,
+	DC_DECOMODEL_RGBM,
+	DC_DECOMODEL_DCIEM,
+} dc_decomodel_type_t;
+
+/*
+ * Decompression model
+ *
+ * The type field contains the decompression algorithm.
+ *
+ * The (optional) conservatism field contains the personal adjustment
+ * setting of the algorithm. The exact interpretation depends on the
+ * dive computer, but the default value (zero) will typically correspond
+ * to the neutral setting, while a positive value is more conservative
+ * and a negative value more aggressive.
+ *
+ * The (optional) params field contains the parameters of the algorithm:
+ *
+ * DC_DECOMODEL_BUHLMANN: The Gradient Factor (GF) parameters low and
+ * high. For a pure Buhlmann algorithm (e.g. without GF enabled), both
+ * values are 100. If GF are enabled, but the actual parameter values
+ * are not available from the dive computer, both values are zero.
+ */
+typedef struct dc_decomodel_t {
+	dc_decomodel_type_t type;
+	int conservatism;
+	union {
+		struct {
+			unsigned int high;
+			unsigned int low;
+		} gf;
+	} params;
+} dc_decomodel_t;
 
 typedef union dc_sample_value_t {
 	unsigned int time;

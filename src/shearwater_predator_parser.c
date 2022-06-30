@@ -78,6 +78,11 @@
 #define M_OC_REC   6
 #define M_FREEDIVE 7
 
+#define GF       0
+#define VPMB     1
+#define VPMB_GFS 2
+#define DCIEM    3
+
 #define METRIC   0
 #define IMPERIAL 1
 
@@ -669,9 +674,13 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	unsigned int decomodel_idx = parser->pnf ? parser->opening[2] + 18 : 67;
+	unsigned int gf_idx        = parser->pnf ? parser->opening[0] +  4 : 4;
+
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -737,6 +746,27 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 				break;
 			case M_FREEDIVE:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+				break;
+			default:
+				return DC_STATUS_DATAFORMAT;
+			}
+			break;
+		case DC_FIELD_DECOMODEL:
+			switch (data[decomodel_idx]) {
+			case GF:
+				decomodel->type = DC_DECOMODEL_BUHLMANN;
+				decomodel->conservatism = 0;
+				decomodel->params.gf.low  = data[gf_idx + 0];
+				decomodel->params.gf.high = data[gf_idx + 1];
+				break;
+			case VPMB:
+			case VPMB_GFS:
+				decomodel->type = DC_DECOMODEL_VPM;
+				decomodel->conservatism = data[decomodel_idx + 1];
+				break;
+			case DCIEM:
+				decomodel->type = DC_DECOMODEL_DCIEM;
+				decomodel->conservatism = 0;
 				break;
 			default:
 				return DC_STATUS_DATAFORMAT;

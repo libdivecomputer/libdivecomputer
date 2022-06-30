@@ -238,6 +238,7 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 
 	dc_gasmix_t *gas = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
 
 	// Cache the data.
 	dc_status_t rc = suunto_vyper_parser_cache (parser);
@@ -296,6 +297,10 @@ suunto_vyper_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			} else {
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 			}
+			break;
+		case DC_FIELD_DECOMODEL:
+			decomodel->type = DC_DECOMODEL_RGBM;
+			decomodel->conservatism = (data[4] & 0x0F) / 3;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

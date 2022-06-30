@@ -361,6 +361,7 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 		return rc;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -407,6 +408,20 @@ suunto_d9_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigne
 			default:
 				return DC_STATUS_DATAFORMAT;
 			}
+			break;
+		case DC_FIELD_DECOMODEL:
+			decomodel->type = DC_DECOMODEL_RGBM;
+			if (parser->model == D4i ||parser->model == D6i ||
+				parser->model == D9tx || parser->model == ZOOPNOVO_A ||
+				parser->model == ZOOPNOVO_B || parser->model == VYPERNOVO ||
+				parser->model == D4F)
+				decomodel->conservatism = data[0x21] - 2;
+			else if (parser->model == HELO2)
+				decomodel->conservatism = data[0x23] - 2;
+			else if (parser->model == DX)
+				decomodel->conservatism = data[0x25] - 2;
+			else
+				decomodel->conservatism = data[0x1E];
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

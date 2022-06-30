@@ -69,6 +69,10 @@
 #define OSTC3_APNEA 3
 #define OSTC3_PSCR  4
 
+#define OSTC3_ZHL16    0
+#define OSTC3_ZHL16_GF 1
+#define OSTC4_VPM      2
+
 #define OSTC4      0x3B
 
 #define OSTC3FW(major,minor) ( \
@@ -97,6 +101,8 @@ typedef struct hw_ostc_layout_t {
 	unsigned int salinity;
 	unsigned int avgdepth;
 	unsigned int duration;
+	unsigned int gf;
+	unsigned int decomodel;
 	unsigned int divemode;
 } hw_ostc_layout_t;
 
@@ -147,6 +153,8 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc = {
 	43, /* salinity */
 	45, /* avgdepth */
 	47, /* duration */
+	49, /* gf */
+	UNDEFINED, /* decomodel */
 	51, /* divemode */
 };
 
@@ -160,6 +168,8 @@ static const hw_ostc_layout_t hw_ostc_layout_frog = {
 	43, /* salinity */
 	45, /* avgdepth */
 	47, /* duration */
+	49, /* gf */
+	UNDEFINED, /* decomodel */
 	51, /* divemode */
 };
 
@@ -173,6 +183,8 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 	70, /* salinity */
 	73, /* avgdepth */
 	75, /* duration */
+	77, /* gf */
+	79, /* decomodel */
 	82, /* divemode */
 };
 
@@ -472,6 +484,8 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
+
 	unsigned int salinity = data[layout->salinity];
 	if (version == 0x23 || version == 0x24)
 		salinity += 100;
@@ -571,6 +585,70 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			} else {
 				return DC_STATUS_UNSUPPORTED;
 			}
+			break;
+		case DC_FIELD_DECOMODEL:
+			if (version == 0x21) {
+				switch (data[layout->divemode]) {
+				case OSTC_APNEA:
+				case OSTC_GAUGE:
+					decomodel->type = DC_DECOMODEL_NONE;
+					break;
+				case OSTC_ZHL16_OC:
+				case OSTC_ZHL16_CC:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->params.gf.low  = 100;
+					decomodel->params.gf.high = 100;
+					break;
+				case OSTC_ZHL16_OC_GF:
+				case OSTC_ZHL16_CC_GF:
+				case OSTC_PSCR_GF:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->params.gf.low  = data[layout->gf + 0];
+					decomodel->params.gf.high = data[layout->gf + 1];
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else if (version == 0x22) {
+				switch (data[layout->divemode]) {
+				case FROG_ZHL16:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->params.gf.low  = 100;
+					decomodel->params.gf.high = 100;
+					break;
+				case FROG_ZHL16_GF:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->params.gf.low  = data[layout->gf + 0];
+					decomodel->params.gf.high = data[layout->gf + 1];
+					break;
+				case FROG_APNEA:
+					decomodel->type = DC_DECOMODEL_NONE;
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else if (version == 0x23 || version == 0x24) {
+				switch (data[layout->decomodel]) {
+				case OSTC3_ZHL16:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->params.gf.low  = 100;
+					decomodel->params.gf.high = 100;
+					break;
+				case OSTC3_ZHL16_GF:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->params.gf.low  = data[layout->gf + 0];
+					decomodel->params.gf.high = data[layout->gf + 1];
+					break;
+				case OSTC4_VPM:
+					decomodel->type = DC_DECOMODEL_VPM;
+					break;
+				default:
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
+			decomodel->conservatism = 0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;

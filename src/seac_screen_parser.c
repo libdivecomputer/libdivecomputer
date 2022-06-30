@@ -44,6 +44,8 @@ struct seac_screen_parser_t {
 	unsigned int cached;
 	unsigned int ngasmixes;
 	unsigned int oxygen[NGASMIXES];
+	unsigned int gf_low;
+	unsigned int gf_high;
 };
 
 static dc_status_t seac_screen_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsigned int size);
@@ -82,6 +84,8 @@ seac_screen_parser_create (dc_parser_t **out, dc_context_t *context)
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
 	}
+	parser->gf_low = 0;
+	parser->gf_high = 0;
 
 	*out = (dc_parser_t *) parser;
 
@@ -99,6 +103,8 @@ seac_screen_parser_set_data (dc_parser_t *abstract, const unsigned char *data, u
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->oxygen[i] = 0;
 	}
+	parser->gf_low = 0;
+	parser->gf_high = 0;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -207,6 +213,7 @@ seac_screen_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsig
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -249,6 +256,12 @@ seac_screen_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsig
 				return DC_STATUS_DATAFORMAT;
 			}
 			break;
+		case DC_FIELD_DECOMODEL:
+			decomodel->type = DC_DECOMODEL_BUHLMANN;
+			decomodel->conservatism = 0;
+			decomodel->params.gf.low = parser->gf_low;
+			decomodel->params.gf.high = parser->gf_high;
+			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
@@ -279,6 +292,9 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 	unsigned int oxygen[NGASMIXES] = {0};
 	unsigned int o2_previous = INVALID;
 
+	unsigned int gf_low = 0;
+	unsigned int gf_high = 0;
+
 	unsigned int time = 0;
 	unsigned int offset = SZ_HEADER;
 	while (offset + SZ_SAMPLE <= size) {
@@ -298,6 +314,8 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		unsigned int decotime    = array_uint16_le (data + offset + 0x10);
 		unsigned int ndl_tts     = array_uint16_le (data + offset + 0x12);
 		unsigned int cns         = array_uint16_le (data + offset + 0x16);
+		unsigned int gf_hi       = data[offset + 0x3B];
+		unsigned int gf_lo       = data[offset + 0x3C];
 
 		if (id != dive_id) {
 			ERROR (abstract->context, "Unexpected sample id (%u %u).", dive_id, id);
@@ -362,6 +380,12 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		sample.cns = cns / 100.0;
 		if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
 
+		// Deco model
+		if (gf_low == 0 && gf_high == 0) {
+			gf_low = gf_lo;
+			gf_high = gf_hi;
+		}
+
 		offset += SZ_SAMPLE;
 	}
 
@@ -370,6 +394,8 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		parser->oxygen[i] = oxygen[i];
 	}
 	parser->ngasmixes = ngasmixes;
+	parser->gf_low = gf_low;
+	parser->gf_high = gf_high;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;

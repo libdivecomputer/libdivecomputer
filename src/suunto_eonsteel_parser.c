@@ -90,6 +90,7 @@ typedef struct suunto_eonsteel_parser_t {
 		dc_tankvolume_t tankinfo[MAXGASES];
 		double tanksize[MAXGASES];
 		double tankworkingpressure[MAXGASES];
+		dc_decomodel_t decomodel;
 	} cache;
 } suunto_eonsteel_parser_t;
 
@@ -1095,6 +1096,9 @@ suunto_eonsteel_parser_get_field(dc_parser_t *parser, dc_field_type_t type, unsi
 				tank->type = DC_TANKVOLUME_IMPERIAL;
 		}
 		break;
+	case DC_FIELD_DECOMODEL:
+		field_value(value, eon->cache.decomodel);
+		break;
 	default:
 		return DC_STATUS_UNSUPPORTED;
 	}
@@ -1338,6 +1342,20 @@ static int traverse_diving_fields(suunto_eonsteel_parser_t *eon, const struct ty
 			eon->cache.divemode = DC_DIVEMODE_CCR;
 			eon->cache.initialized |= 1 << DC_FIELD_DIVEMODE;
 		}
+		return 0;
+	}
+
+	if (!strcmp(name, "Algorithm")) {
+		if (!strcmp((const char *)data, "Suunto Fused RGBM")) {
+			eon->cache.decomodel.type = DC_DECOMODEL_RGBM;
+			eon->cache.initialized |= 1 << DC_FIELD_DECOMODEL;
+		}
+		return 0;
+	}
+
+	if (!strcmp(name, "Conservatism")) {
+		eon->cache.decomodel.conservatism = *(const signed char *)data;
+		eon->cache.initialized |= 1 << DC_FIELD_DECOMODEL;
 		return 0;
 	}
 
