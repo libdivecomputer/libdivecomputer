@@ -676,44 +676,21 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int interval = 1;
 	unsigned int samplerate = 1;
 	if (parser->mode != FREEDIVE) {
-		unsigned int idx = 0x17;
+		unsigned int offset = 0x17;
 		if (parser->model == A300CS || parser->model == VTX ||
 			parser->model == I450T || parser->model == I750TC ||
 			parser->model == PROPLUSX || parser->model == I770R ||
 			parser->model == SAGE || parser->model == BEACON)
-			idx = 0x1f;
-		switch (data[idx] & 0x03) {
-		case 0:
-			interval = 2;
-			break;
-		case 1:
-			interval = 15;
-			break;
-		case 2:
-			interval = 30;
-			break;
-		case 3:
-			interval = 60;
-			break;
-		}
+			offset = 0x1f;
+		const unsigned int intervals[] = {2, 15, 30, 60};
+		unsigned int idx = data[offset] & 0x03;
+		interval = intervals[idx];
 	} else if (parser->model == F11A || parser->model == F11B) {
-		unsigned int idx = 0x29;
-		switch (data[idx] & 0x03) {
-		case 0:
-			interval = 1;
-			samplerate = 4;
-			break;
-		case 1:
-			interval = 1;
-			samplerate = 2;
-			break;
-		case 2:
-			interval = 1;
-			break;
-		case 3:
-			interval = 2;
-			break;
-		}
+		const unsigned int intervals[] = {1, 1, 1, 2};
+		const unsigned int samplerates[] = {4, 2, 1, 1};
+		unsigned int idx = data[0x29] & 0x03;
+		interval = intervals[idx];
+		samplerate = samplerates[idx];
 		if (samplerate > 1) {
 			// Some models supports multiple samples per second.
 			// Since our smallest unit of time is one second, we can't
