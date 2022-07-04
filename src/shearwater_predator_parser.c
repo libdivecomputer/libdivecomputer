@@ -245,8 +245,8 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	}
 	parser->divemode = M_OC_TEC;
 	parser->units = METRIC;
-	parser->density = 1025;
-	parser->atmospheric = ATM / (BAR / 1000);
+	parser->density = DEF_DENSITY_SALT;
+	parser->atmospheric = DEF_ATMOSPHERIC / (BAR / 1000);
 
 	*out = (dc_parser_t *) parser;
 
@@ -307,8 +307,8 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 	}
 	parser->divemode = M_OC_TEC;
 	parser->units = METRIC;
-	parser->density = 1025;
-	parser->atmospheric = ATM / (BAR / 1000);
+	parser->density = DEF_DENSITY_SALT;
+	parser->atmospheric = DEF_ATMOSPHERIC / (BAR / 1000);
 
 	return DC_STATUS_SUCCESS;
 }

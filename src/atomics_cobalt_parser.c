@@ -75,7 +75,7 @@ atomics_cobalt_parser_create (dc_parser_t **out, dc_context_t *context)
 	}
 
 	// Set the default values.
-	parser->hydrostatic = 1025.0 * GRAVITY;
+	parser->hydrostatic = DEF_DENSITY_SALT * GRAVITY;
 
 	*out = (dc_parser_t*) parser;
 

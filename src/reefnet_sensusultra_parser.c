@@ -79,8 +79,8 @@ reefnet_sensusultra_parser_create (dc_parser_t **out, dc_context_t *context, uns
 	}
 
 	// Set the default values.
-	parser->atmospheric = ATM;
-	parser->hydrostatic = 1025.0 * GRAVITY;
+	parser->atmospheric = DEF_ATMOSPHERIC;
+	parser->hydrostatic = DEF_DENSITY_SALT * GRAVITY;
 	parser->devtime = devtime;
 	parser->systime = systime;
 	parser->cached = 0;

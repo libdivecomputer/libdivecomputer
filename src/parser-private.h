@@ -25,6 +25,10 @@
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/parser.h>
 
+#define DEF_DENSITY_FRESH 1000.0
+#define DEF_DENSITY_SALT  1025.0
+#define DEF_ATMOSPHERIC   ATM
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
