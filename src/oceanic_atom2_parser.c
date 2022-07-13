@@ -98,6 +98,7 @@
 #define WISDOM4     0x4655
 #define PROPLUS4    0x4656
 #define AMPHOS2     0x4657
+#define AMPHOSAIR2  0x4658
 #define BEACON      0x4742
 #define I470TC      0x4743
 #define I200CV2     0x4749
@@ -317,6 +318,7 @@ oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 		case VOYAGER2G:
 		case TALIS:
 		case AMPHOS2:
+		case AMPHOSAIR2:
 			datetime->year   = (p[3] & 0x1F) + 2000;
 			datetime->month  = (p[7] & 0xF0) >> 4;
 			datetime->day    = ((p[3] & 0x80) >> 3) + ((p[5] & 0xF0) >> 4);
@@ -913,7 +915,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 						sign = (~data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == VOYAGER2G || parser->model == AMPHOS ||
 						parser->model == AMPHOSAIR || parser->model == ZENAIR ||
-						parser->model == AMPHOS2)
+						parser->model == AMPHOS2 || parser->model == AMPHOSAIR2)
 						sign = (data[offset + 5] & 0x04) >> 2;
 					else if (parser->model == ATOM2 || parser->model == PROPLUS21 ||
 						parser->model == EPICA || parser->model == EPICB ||
@@ -944,7 +946,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					parser->model == AMPHOSAIR || parser->model == I550 ||
 					parser->model == VISION || parser->model == XPAIR ||
 					parser->model == I550C || parser->model == PROPLUS4 ||
-					parser->model == WISDOM4)
+					parser->model == WISDOM4 || parser->model == AMPHOSAIR2)
 					pressure = (((data[offset + 0] & 0x03) << 8) + data[offset + 1]) * 5;
 				else if (parser->model == TX1 || parser->model == A300CS ||
 					parser->model == VTX || parser->model == I750TC ||
