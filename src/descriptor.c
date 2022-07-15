@@ -408,6 +408,11 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Ratio",      "iX3M 2021 Pro Deep",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x73, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iX3M 2021 Pro Tech+", DC_FAMILY_DIVESYSTEM_IDIVE, 0x74, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iX3M 2021 Pro Reb",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x75, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iX3M 2 Gauge",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x100, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 Easy",         DC_FAMILY_DIVESYSTEM_IDIVE, 0x101, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 Pro",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x102, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 Deep",         DC_FAMILY_DIVESYSTEM_IDIVE, 0x103, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 Tech+",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x104, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
 	{"Seac",       "Jack",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x1000, DC_TRANSPORT_SERIAL, NULL},
 	{"Seac",       "Guru",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x1002, DC_TRANSPORT_SERIAL, NULL},
 	/* Cochran Commander */
