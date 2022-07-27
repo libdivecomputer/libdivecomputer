@@ -393,17 +393,17 @@ dc_parser_destroy (dc_parser_t *parser)
 
 
 void
-sample_statistics_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
+sample_statistics_cb (dc_sample_type_t type, const dc_sample_value_t *value, void *userdata)
 {
 	sample_statistics_t *statistics  = (sample_statistics_t *) userdata;
 
 	switch (type) {
 	case DC_SAMPLE_TIME:
-		statistics->divetime = value.time / 1000;
+		statistics->divetime = value->time / 1000;
 		break;
 	case DC_SAMPLE_DEPTH:
-		if (statistics->maxdepth < value.depth)
-			statistics->maxdepth = value.depth;
+		if (statistics->maxdepth < value->depth)
+			statistics->maxdepth = value->depth;
 		break;
 	default:
 		break;

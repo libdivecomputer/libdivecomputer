@@ -275,15 +275,15 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 	// Time
 	sample.time = 0;
-	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+	if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 	// Depth (0 ft)
 	sample.depth = 0;
-	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+	if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 	// Initial gas mix.
 	sample.gasmix = 0;
-	if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+	if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 
 	unsigned int depth = 0;
 	unsigned int time = 0;
@@ -297,7 +297,7 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			// Time (seconds).
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 			complete = 0;
 		}
 
@@ -307,7 +307,7 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 			// Depth (ft).
 			sample.depth = depth * FEET;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			complete = 1;
 		} else {
@@ -335,7 +335,7 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			}
 
 			if (sample.event.type != SAMPLE_EVENT_NONE) {
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 		}
 	}
@@ -344,12 +344,12 @@ suunto_eon_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	if (complete) {
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 	}
 
 	// Depth (0 ft)
 	sample.depth = 0;
-	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+	if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 	return DC_STATUS_SUCCESS;
 }

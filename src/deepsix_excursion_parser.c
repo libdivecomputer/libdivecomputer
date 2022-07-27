@@ -425,10 +425,10 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 		if (type == TEMPERATURE) {
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback(DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback(DC_SAMPLE_TIME, &sample, userdata);
 
 			sample.depth = pressure_to_depth(depth, atmospheric, DENSITY);
-			if (callback) callback(DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback(DC_SAMPLE_DEPTH, &sample, userdata);
 		}
 
 		if (type == ALARM) {
@@ -441,11 +441,11 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 					length = 8;
 				} else if (temperature >= 10) {
 					sample.temperature = temperature / 10.0;
-					if (callback) callback(DC_SAMPLE_TEMPERATURE, sample, userdata);
+					if (callback) callback(DC_SAMPLE_TEMPERATURE, &sample, userdata);
 				}
 			} else {
 				sample.temperature = temperature / 10.0;
-				if (callback) callback(DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback(DC_SAMPLE_TEMPERATURE, &sample, userdata);
 			}
 		} else if (type == DECO) {
 			unsigned int deco = array_uint16_le(data + offset + 4);
@@ -455,7 +455,7 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 		} else if (type == CNS) {
 			unsigned int cns = array_uint16_le(data + offset + 4);
 			sample.cns = cns / 100.0;
-			if (callback) callback(DC_SAMPLE_CNS, sample, userdata);
+			if (callback) callback(DC_SAMPLE_CNS, &sample, userdata);
 		}
 
 		offset += length;
@@ -593,11 +593,11 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 		// Time (seconds).
 		time += samplerate;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		unsigned int depth = array_uint16_le (data + offset);
 		sample.depth = pressure_to_depth(depth, atmospheric, density);
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 		offset += 2;
 
 		// event info
@@ -665,7 +665,7 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 							break;
 						}
 						if (sample.event.type != SAMPLE_EVENT_NONE) {
-							if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+							if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 						}
 					}
 					break;
@@ -687,7 +687,7 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 					}
 
 					sample.gasmix = mix_idx;
-					if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+					if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 					break;
 				case EVENT_SAMPLES_MISSED:
 					count     = array_uint16_le(data + offset + event_offset);
@@ -728,12 +728,12 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 				case SAMPLE_TEMPERATURE:
 					value = array_uint16_le(data + offset);
 					sample.temperature = value / 10.0;
-					if (callback) callback(DC_SAMPLE_TEMPERATURE, sample, userdata);
+					if (callback) callback(DC_SAMPLE_TEMPERATURE, &sample, userdata);
 					break;
 				case SAMPLE_CNS:
 					value = array_uint16_le(data + offset);
 					sample.cns = value / 10000.0;
-					if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
+					if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 					break;
 				case SAMPLE_DECO_NDL:
 					deco_flags   = data[offset];
@@ -753,7 +753,7 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 						sample.deco.depth = 0;
 						sample.deco.time = deco_ndl_tts;
 					}
-					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+					if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 					break;
 				default:
 					break;

@@ -279,15 +279,15 @@ reefnet_sensuspro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 				// Time (seconds)
 				time += interval;
 				sample.time = time * 1000;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				// Temperature (°F)
 				sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 				// Depth (absolute pressure in fsw)
 				sample.depth = (depth * FSW - parser->atmospheric) / parser->hydrostatic;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 				offset += 2;
 			}

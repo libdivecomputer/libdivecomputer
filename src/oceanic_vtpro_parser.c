@@ -334,13 +334,13 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		else
 			time = timestamp * 60 + (i + 1) * 60.0 / count + 0.5;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Vendor specific data
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_VTPRO;
 		sample.vendor.size = PAGESIZE / 2;
 		sample.vendor.data = data + offset;
-		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+		if (callback) callback (DC_SAMPLE_VENDOR, &sample, userdata);
 
 		// Depth (ft)
 		unsigned int depth = 0;
@@ -350,7 +350,7 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			depth = data[offset + 3];
 		}
 		sample.depth = depth * FEET;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Temperature (°F)
 		unsigned int temperature = 0;
@@ -360,7 +360,7 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			temperature = data[offset + 6];
 		}
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		// NDL / Deco
 		if (parser->model != AERIS500AI) {
@@ -375,7 +375,7 @@ oceanic_vtpro_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			}
 			sample.deco.time = decotime * 60;
 			sample.deco.tts = 0;
-			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 		}
 
 		offset += PAGESIZE / 2;

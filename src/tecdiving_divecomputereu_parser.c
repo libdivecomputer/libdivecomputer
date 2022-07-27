@@ -160,28 +160,28 @@ tecdiving_divecomputereu_parser_samples_foreach (dc_parser_t *abstract, dc_sampl
 		// Time (seconds).
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (1/10 m).
 		unsigned int depth = array_uint16_be (data + offset + 2);
 		sample.depth = depth / 10.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Temperature (Celsius).
 		signed int temperature = (signed char) data[offset];
 		sample.temperature = temperature;
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		// ppO2
 		unsigned int ppo2 = data[offset + 1];
 		sample.ppo2.sensor = DC_SENSOR_NONE;
 		sample.ppo2.value = ppo2 / 10.0;
-		if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+		if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
 
 		// Setpoint
 		unsigned int setpoint = data[offset + 4];
 		sample.setpoint = setpoint / 10.0;
-		if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+		if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 
 		offset += 8;
 	}

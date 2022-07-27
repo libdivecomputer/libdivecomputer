@@ -477,19 +477,19 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		}
 		time = timestamp;
 		sample.time = timestamp * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (1/10 m).
 		unsigned int depth = array_uint16_le (data + offset + 6);
 		if (maxdepth < depth)
 			maxdepth = depth;
 		sample.depth = depth / 10.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Temperature (Celsius).
 		signed int temperature = (signed short) array_uint16_le (data + offset + 8);
 		sample.temperature = temperature / 10.0;
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		// Dive mode
 		unsigned int mode = data[offset + 18];
@@ -523,7 +523,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		if (mode == SCR || mode == CCR) {
 			unsigned int setpoint = array_uint16_le (data + offset + 19);
 			sample.setpoint = setpoint / 1000.0;
-			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 		}
 
 		// Gaschange.
@@ -550,7 +550,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			}
 
 			sample.gasmix = i;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 			o2_previous = o2;
 			he_previous = he;
 		}
@@ -576,12 +576,12 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			sample.deco.time = tts;
 			sample.deco.tts = 0;
 		}
-		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 		// CNS
 		unsigned int cns = array_uint16_le (data + offset + 29);
 		sample.cns = cns / 100.0;
-		if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
+		if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 
 		// Tank Pressure
 		if (samplesize == SZ_SAMPLE_IX3M_APOS4) {
@@ -602,7 +602,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			} else {
 				// Get the index of the tank.
 				if (id != tank_previous) {
@@ -632,7 +632,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				if (tank_idx < ntanks) {
 					sample.pressure.tank = tank_idx;
 					sample.pressure.value = pressure;
-					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 					tank[tank_idx].endpressure = pressure;
 				}
 			}

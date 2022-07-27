@@ -385,16 +385,16 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			// Time (seconds).
 			time += 20;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Gas change.
 			if (gasmix != gasmix_previous) {
 				sample.gasmix = gasmix;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				gasmix_previous = gasmix;
 			}
 
@@ -404,7 +404,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = ascent;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			// Deco violation
@@ -413,7 +413,7 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			// Deco stop
@@ -425,20 +425,20 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			sample.deco.time = 0;
 			sample.deco.depth = 0.0;
 			sample.deco.tts = 0;
-			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 			// Pressure (1 bar).
 			if (parser->sample_size == 3) {
 				sample.pressure.tank = 0;
 				sample.pressure.value = data[idx + 2];
-				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 			} else if (parser->sample_size == 5) {
 				unsigned int type = (time / 20) % 3;
 				if (type == 0) {
 					pressure -= data[idx + 2] * 100;
 					sample.pressure.tank = 0;
 					sample.pressure.value = pressure / 100.0;
-					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 				}
 			}
 		}
@@ -463,11 +463,11 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			// Surface Time (seconds).
 			time += surftime;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Surface Depth (0 m).
 			sample.depth = 0.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			if (profiles) {
 				// Get the freedive sample interval for this model.
@@ -504,11 +504,11 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 					if (time > maxtime)
 						time = maxtime; // Adjust the last sample.
 					sample.time = time * 1000;
-					if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 					// Depth (1/10 m).
 					sample.depth = depth / 10.0;
-					if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+					if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 				}
 
 				// Verify that the number of samples in the profile data
@@ -523,11 +523,11 @@ mares_nemo_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				// Dive Time (seconds).
 				time += divetime;
 				sample.time = time * 1000;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				// Maximum Depth (1/10 m).
 				sample.depth = maxdepth / 10.0;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 			}
 		}
 	}

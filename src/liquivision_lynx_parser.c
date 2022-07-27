@@ -548,28 +548,28 @@ liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			// Time (seconds).
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Depth (1/100 m).
 			sample.depth = value / 100.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Temperature (1/10 °C).
 			int temperature = (signed short) array_uint16_le (data + offset);
 			sample.temperature = temperature / 10.0;
-			if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 			// Gas mix
 			if (have_gasmix) {
 				sample.gasmix = gasmix_idx;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				have_gasmix = 0;
 			}
 
 			// Setpoint (1/10 bar).
 			if (have_setpoint) {
 				sample.setpoint = setpoint / 10.0;
-				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 				have_setpoint = 0;
 			}
 
@@ -579,7 +579,7 @@ liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					if (have_pressure & (1 << i)) {
 						sample.pressure.tank = i;
 						sample.pressure.value = pressure[i] / 100.0;
-						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+						if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 					}
 				}
 				have_pressure = 0;
@@ -596,7 +596,7 @@ liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				}
 				sample.deco.time = 0;
 				sample.deco.tts = 0;
-				if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 				have_deco = 0;
 			}
 

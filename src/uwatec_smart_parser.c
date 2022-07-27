@@ -1165,7 +1165,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 
 		while (complete) {
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			if (parser->ngasmixes && gasmix != gasmix_previous) {
 				idx = uwatec_smart_find_gasmix (parser, gasmix);
@@ -1174,13 +1174,13 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 					return DC_STATUS_DATAFORMAT;
 				}
 				sample.gasmix = idx;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				gasmix_previous = gasmix;
 			}
 
 			if (have_temperature) {
 				sample.temperature = temperature / 2.5;
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 			}
 
 			if (bookmark) {
@@ -1188,12 +1188,12 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			if (have_rbt || have_pressure) {
 				sample.rbt = rbt;
-				if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_RBT, &sample, userdata);
 			}
 
 			if (have_pressure) {
@@ -1201,24 +1201,24 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 				if (idx < parser->ntanks) {
 					sample.pressure.tank = idx;
 					sample.pressure.value = pressure / 4.0;
-					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 				}
 			}
 
 			if (have_heartrate) {
 				sample.heartbeat = heartrate;
-				if (callback) callback (DC_SAMPLE_HEARTBEAT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_HEARTBEAT, &sample, userdata);
 			}
 
 			if (have_bearing) {
 				sample.bearing = bearing;
-				if (callback) callback (DC_SAMPLE_BEARING, sample, userdata);
+				if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
 				have_bearing = 0;
 			}
 
 			if (have_depth) {
 				sample.depth = (signed int)(depth - depth_calibration) * (2.0 * BAR / 1000.0) / (density * 10.0);
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 			}
 
 			time += interval;

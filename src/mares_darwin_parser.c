@@ -245,16 +245,16 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Surface Time (seconds).
 			time += 20;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Gas change.
 			if (gasmix != gasmix_previous) {
 				sample.gasmix = gasmix;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				gasmix_previous = gasmix;
 			}
 
@@ -264,7 +264,7 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = ascent;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			// Deco violation
@@ -273,7 +273,7 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			// Deco stop
@@ -285,7 +285,7 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			sample.deco.time = 0;
 			sample.deco.depth = 0.0;
 			sample.deco.tts = 0;
-			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 			if (parser->samplesize == 3) {
 				unsigned int type = (time / 20 + 2) % 3;
@@ -294,7 +294,7 @@ mares_darwin_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 					pressure -= abstract->data[offset + 2];
 					sample.pressure.tank = 0;
 					sample.pressure.value = pressure;
-					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 				}
 			}
 

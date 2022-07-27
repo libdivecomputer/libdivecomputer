@@ -84,7 +84,7 @@ typedef struct sample_statistics_t {
 #define SAMPLE_STATISTICS_INITIALIZER {0, 0.0}
 
 void
-sample_statistics_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata);
+sample_statistics_cb (dc_sample_type_t type, const dc_sample_value_t *value, void *userdata);
 
 #ifdef __cplusplus
 }

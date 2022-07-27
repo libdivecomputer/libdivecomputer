@@ -587,7 +587,7 @@ oceanic_atom2_parser_vendor (oceanic_atom2_parser_t *parser, const unsigned char
 		sample.vendor.type = SAMPLE_VENDOR_OCEANIC_ATOM2;
 		sample.vendor.size = length;
 		sample.vendor.data = data + offset;
-		if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+		if (callback) callback (DC_SAMPLE_VENDOR, &sample, userdata);
 
 		offset += length;
 	}
@@ -751,7 +751,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				// Time
 				time += interval;
 				sample.time = time;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				// Vendor specific data
 				if (i == 0) {
@@ -763,7 +763,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 
 				// Depth
 				sample.depth = 0.0;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 				complete = 1;
 			}
 
@@ -788,7 +788,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				time += interval;
 			}
 			sample.time = time;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Vendor specific data
 			oceanic_atom2_parser_vendor (parser,
@@ -850,7 +850,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 						temperature += (data[offset + 7] & 0x0C) >> 2;
 				}
 				sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 			}
 
 			// Tank Pressure (psi)
@@ -878,7 +878,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					pressure -= data[offset + 1];
 				sample.pressure.tank = tank;
 				sample.pressure.value = pressure * PSI / BAR;
-				if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 			}
 
 			// Depth (1/16 ft)
@@ -901,7 +901,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			else
 				depth = (data[offset + 2] + (data[offset + 3] << 8)) & 0x0FFF;
 			sample.depth = depth / 16.0 * FEET;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Gas mix
 			unsigned int have_gasmix = 0;
@@ -916,7 +916,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					return DC_STATUS_DATAFORMAT;
 				}
 				sample.gasmix = gasmix - 1;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				gasmix_previous = gasmix;
 			}
 
@@ -966,7 +966,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				}
 				sample.deco.time = decotime * 60;
 				sample.deco.tts = 0;
-				if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 			}
 
 			unsigned int have_rbt = 0;
@@ -989,7 +989,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 			}
 			if (have_rbt) {
 				sample.rbt = rbt;
-				if (callback) callback (DC_SAMPLE_RBT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_RBT, &sample, userdata);
 			}
 
 			// Bookmarks
@@ -1004,7 +1004,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			count++;

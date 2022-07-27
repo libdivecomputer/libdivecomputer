@@ -836,30 +836,30 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		// Time (seconds).
 		time += samplerate;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Initial gas mix.
 		if (time == samplerate && parser->initial != UNDEFINED) {
 			sample.gasmix = parser->initial;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 		}
 
 		// Initial setpoint (mbar).
 		if (time == samplerate && parser->initial_setpoint != UNDEFINED) {
 			sample.setpoint = parser->initial_setpoint / 100.0;
-			if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 		}
 
 		// Initial CNS (%).
 		if (time == samplerate && parser->initial_cns != UNDEFINED) {
 			sample.cns = parser->initial_cns / 100.0;
-			if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
+			if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 		}
 
 		// Depth (1/100 m).
 		unsigned int depth = array_uint16_le (data + offset);
 		sample.depth = depth / 100.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 		offset += 2;
 
 		// Extended sample info.
@@ -918,7 +918,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			break;
 		}
 		if (sample.event.type && callback)
-			callback (DC_SAMPLE_EVENT, sample, userdata);
+			callback (DC_SAMPLE_EVENT, &sample, userdata);
 
 		// Manual Gas Set & Change
 		if (events & 0x10) {
@@ -943,7 +943,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			}
 
 			sample.gasmix = idx;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 			offset += 2;
 			length -= 2;
 		}
@@ -965,7 +965,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			}
 			idx--; /* Convert to a zero based index. */
 			sample.gasmix = idx;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 			tank = idx;
 			offset++;
 			length--;
@@ -979,7 +979,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					return DC_STATUS_DATAFORMAT;
 				}
 				sample.setpoint = data[offset] / 100.0;
-				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 				offset++;
 				length--;
 			}
@@ -1008,7 +1008,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				}
 
 				sample.gasmix = idx;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				offset += 2;
 				length -= 2;
 			}
@@ -1040,7 +1040,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				case TEMPERATURE:
 					value = array_uint16_le (data + offset);
 					sample.temperature = value / 10.0;
-					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 					break;
 				case DECO:
 					// Due to a firmware bug, the deco/ndl info is incorrect for
@@ -1056,7 +1056,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					}
 					sample.deco.time = data[offset + 1] * 60;
 					sample.deco.tts = 0;
-					if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+					if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 					break;
 				case PPO2:
 					for (unsigned int j = 0; j < 3; ++j) {
@@ -1072,7 +1072,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						for (unsigned int j = 0; j < 3; ++j) {
 							sample.ppo2.sensor = i;
 							sample.ppo2.value = ppo2[j] / 100.0;
-							if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+							if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
 						}
 					}
 					break;
@@ -1081,7 +1081,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						sample.cns = array_uint16_le (data + offset) / 100.0;
 					else
 						sample.cns = data[offset] / 100.0;
-					if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
+					if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 					break;
 				case TANK:
 					value = array_uint16_le (data + offset);
@@ -1094,7 +1094,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 							(firmware >= OSTC3FW(10,40) && firmware <= OSTC3FW(10,50))) {
 							sample.pressure.value /= 10.0;
 						}
-						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+						if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 					}
 					break;
 				default: // Not yet used.
@@ -1114,7 +1114,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					return DC_STATUS_DATAFORMAT;
 				}
 				sample.setpoint = data[offset] / 100.0;
-				if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 				offset++;
 				length--;
 			}
@@ -1143,7 +1143,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				}
 
 				sample.gasmix = idx;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				offset += 2;
 				length -= 2;
 			}

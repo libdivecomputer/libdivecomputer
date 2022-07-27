@@ -266,12 +266,12 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			// Time (seconds).
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Gas change
 			if (gasmix != gasmix_previous) {
 				sample.gasmix = gasmix;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				gasmix_previous = gasmix;
 			}
 
@@ -283,7 +283,7 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				sample.depth = depth / 10.0;
 			else
 				sample.depth = depth * FEET / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 			offset += 2;
 
 			if (type == 3) {
@@ -296,7 +296,7 @@ diverite_nitekq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				unsigned int ppo2 = data[offset];
 				sample.ppo2.sensor = DC_SENSOR_NONE;
 				sample.ppo2.value = ppo2 / 100.0;
-				if (callback) callback (DC_SAMPLE_PPO2, sample, userdata);
+				if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
 				offset++;
 			}
 		} else {

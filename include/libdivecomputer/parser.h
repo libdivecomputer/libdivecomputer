@@ -273,7 +273,7 @@ typedef union dc_sample_value_t {
 
 typedef struct dc_parser_t dc_parser_t;
 
-typedef void (*dc_sample_callback_t) (dc_sample_type_t type, dc_sample_value_t value, void *userdata);
+typedef void (*dc_sample_callback_t) (dc_sample_type_t type, const dc_sample_value_t *value, void *userdata);
 
 dc_status_t
 dc_parser_new (dc_parser_t **parser, dc_device_t *device);

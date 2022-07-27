@@ -280,12 +280,12 @@ reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 				// Time (seconds)
 				time += interval;
 				sample.time = time * 1000;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				// Depth (adjusted feet of seawater).
 				unsigned int depth = data[offset++];
 				sample.depth = ((depth + 33.0 - (double) SAMPLE_DEPTH_ADJUST) * FSW - parser->atmospheric) / parser->hydrostatic;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 				// Temperature (degrees Fahrenheit)
 				if ((nsamples % 6) == 0) {
@@ -293,7 +293,7 @@ reefnet_sensus_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 						return DC_STATUS_DATAFORMAT;
 					unsigned int temperature = data[offset++];
 					sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 				}
 
 				// Current sample is complete.

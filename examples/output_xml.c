@@ -90,7 +90,7 @@ convert_volume (double value, dctool_units_t units)
 }
 
 static void
-sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
+sample_cb (dc_sample_type_t type, const dc_sample_value_t *value, void *userdata)
 {
 	static const char *events[] = {
 		"none", "deco", "rbt", "ascent", "ceiling", "workload", "transmitter",
@@ -108,8 +108,8 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 
 	switch (type) {
 	case DC_SAMPLE_TIME:
-		seconds = value.time / 1000;
-		milliseconds = value.time % 1000;
+		seconds = value->time / 1000;
+		milliseconds = value->time % 1000;
 		if (sampledata->nsamples++)
 			fprintf (sampledata->ostream, "</sample>\n");
 		fprintf (sampledata->ostream, "<sample>\n");
@@ -121,63 +121,63 @@ sample_cb (dc_sample_type_t type, dc_sample_value_t value, void *userdata)
 		break;
 	case DC_SAMPLE_DEPTH:
 		fprintf (sampledata->ostream, "   <depth>%.2f</depth>\n",
-			convert_depth(value.depth, sampledata->units));
+			convert_depth(value->depth, sampledata->units));
 		break;
 	case DC_SAMPLE_PRESSURE:
 		fprintf (sampledata->ostream, "   <pressure tank=\"%u\">%.2f</pressure>\n",
-			value.pressure.tank,
-			convert_pressure(value.pressure.value, sampledata->units));
+			value->pressure.tank,
+			convert_pressure(value->pressure.value, sampledata->units));
 		break;
 	case DC_SAMPLE_TEMPERATURE:
 		fprintf (sampledata->ostream, "   <temperature>%.2f</temperature>\n",
-			convert_temperature(value.temperature, sampledata->units));
+			convert_temperature(value->temperature, sampledata->units));
 		break;
 	case DC_SAMPLE_EVENT:
-		if (value.event.type != SAMPLE_EVENT_GASCHANGE && value.event.type != SAMPLE_EVENT_GASCHANGE2) {
+		if (value->event.type != SAMPLE_EVENT_GASCHANGE && value->event.type != SAMPLE_EVENT_GASCHANGE2) {
 			fprintf (sampledata->ostream, "   <event type=\"%u\" time=\"%u\" flags=\"%u\" value=\"%u\">%s</event>\n",
-				value.event.type, value.event.time, value.event.flags, value.event.value, events[value.event.type]);
+				value->event.type, value->event.time, value->event.flags, value->event.value, events[value->event.type]);
 		}
 		break;
 	case DC_SAMPLE_RBT:
-		fprintf (sampledata->ostream, "   <rbt>%u</rbt>\n", value.rbt);
+		fprintf (sampledata->ostream, "   <rbt>%u</rbt>\n", value->rbt);
 		break;
 	case DC_SAMPLE_HEARTBEAT:
-		fprintf (sampledata->ostream, "   <heartbeat>%u</heartbeat>\n", value.heartbeat);
+		fprintf (sampledata->ostream, "   <heartbeat>%u</heartbeat>\n", value->heartbeat);
 		break;
 	case DC_SAMPLE_BEARING:
-		fprintf (sampledata->ostream, "   <bearing>%u</bearing>\n", value.bearing);
+		fprintf (sampledata->ostream, "   <bearing>%u</bearing>\n", value->bearing);
 		break;
 	case DC_SAMPLE_VENDOR:
-		fprintf (sampledata->ostream, "   <vendor type=\"%u\" size=\"%u\">", value.vendor.type, value.vendor.size);
-		for (unsigned int i = 0; i < value.vendor.size; ++i)
-			fprintf (sampledata->ostream, "%02X", ((const unsigned char *) value.vendor.data)[i]);
+		fprintf (sampledata->ostream, "   <vendor type=\"%u\" size=\"%u\">", value->vendor.type, value->vendor.size);
+		for (unsigned int i = 0; i < value->vendor.size; ++i)
+			fprintf (sampledata->ostream, "%02X", ((const unsigned char *) value->vendor.data)[i]);
 		fprintf (sampledata->ostream, "</vendor>\n");
 		break;
 	case DC_SAMPLE_SETPOINT:
-		fprintf (sampledata->ostream, "   <setpoint>%.2f</setpoint>\n", value.setpoint);
+		fprintf (sampledata->ostream, "   <setpoint>%.2f</setpoint>\n", value->setpoint);
 		break;
 	case DC_SAMPLE_PPO2:
-		if (value.ppo2.sensor != DC_SENSOR_NONE) {
-			fprintf (sampledata->ostream, "   <ppo2 sensor=\"%u\">%.2f</ppo2>\n", value.ppo2.sensor, value.ppo2.value);
+		if (value->ppo2.sensor != DC_SENSOR_NONE) {
+			fprintf (sampledata->ostream, "   <ppo2 sensor=\"%u\">%.2f</ppo2>\n", value->ppo2.sensor, value->ppo2.value);
 		} else {
-			fprintf (sampledata->ostream, "   <ppo2>%.2f</ppo2>\n", value.ppo2.value);
+			fprintf (sampledata->ostream, "   <ppo2>%.2f</ppo2>\n", value->ppo2.value);
 		}
 		break;
 	case DC_SAMPLE_CNS:
-		fprintf (sampledata->ostream, "   <cns>%.1f</cns>\n", value.cns * 100.0);
+		fprintf (sampledata->ostream, "   <cns>%.1f</cns>\n", value->cns * 100.0);
 		break;
 	case DC_SAMPLE_DECO:
 		fprintf (sampledata->ostream, "   <deco time=\"%u\" depth=\"%.2f\">%s</deco>\n",
-			value.deco.time,
-			convert_depth(value.deco.depth, sampledata->units),
-			decostop[value.deco.type]);
-		if (value.deco.tts) {
+			value->deco.time,
+			convert_depth(value->deco.depth, sampledata->units),
+			decostop[value->deco.type]);
+		if (value->deco.tts) {
 			fprintf (sampledata->ostream, "   <tts>%u</tts>\n",
-				value.deco.tts);
+				value->deco.tts);
 		}
 		break;
 	case DC_SAMPLE_GASMIX:
-		fprintf (sampledata->ostream, "   <gasmix>%u</gasmix>\n", value.gasmix);
+		fprintf (sampledata->ostream, "   <gasmix>%u</gasmix>\n", value->gasmix);
 		break;
 	default:
 		break;

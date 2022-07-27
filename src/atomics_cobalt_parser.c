@@ -279,18 +279,18 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		// Time (seconds).
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (1/1000 bar).
 		unsigned int depth = array_uint16_le (data + offset + 0);
 		sample.depth = (signed int)(depth - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Pressure (1 psi).
 		unsigned int pressure = array_uint16_le (data + offset + 2);
 		sample.pressure.tank = tank;
 		sample.pressure.value = pressure * PSI / BAR;
-		if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 
 		// Current gas mix
 		unsigned int gasmix = data[offset + 4];
@@ -306,14 +306,14 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 				return DC_STATUS_DATAFORMAT;
 			}
 			sample.gasmix = idx;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 			gasmix_previous = gasmix;
 		}
 
 		// Temperature (1 °F).
 		unsigned int temperature = data[offset + 8];
 		sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		// violation status
 		sample.event.type = 0;
@@ -323,15 +323,15 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		unsigned int violation = data[offset + 11];
 		if (violation & 0x01) {
 			sample.event.type = SAMPLE_EVENT_ASCENT;
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 		}
 		if (violation & 0x04) {
 			sample.event.type = SAMPLE_EVENT_CEILING;
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 		}
 		if (violation & 0x08) {
 			sample.event.type = SAMPLE_EVENT_PO2;
-			if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 		}
 
 		// NDL & deco
@@ -347,7 +347,7 @@ atomics_cobalt_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 		sample.deco.time = ndl;
 		sample.deco.depth = 0.0;
 		sample.deco.tts = 0;
-		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 		offset += SZ_SEGMENT;
 	}

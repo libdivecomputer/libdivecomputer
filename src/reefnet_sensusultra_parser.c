@@ -276,17 +276,17 @@ reefnet_sensusultra_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				// Time (seconds)
 				time += interval;
 				sample.time = time * 1000;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				// Temperature (0.01 °K)
 				unsigned int temperature = array_uint16_le (data + offset);
 				sample.temperature = temperature / 100.0 - 273.15;
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 				// Depth (absolute pressure in millibar)
 				unsigned int depth = array_uint16_le (data + offset + 2);
 				sample.depth = (depth * BAR / 1000.0 - parser->atmospheric) / parser->hydrostatic;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 				offset += 4;
 			}

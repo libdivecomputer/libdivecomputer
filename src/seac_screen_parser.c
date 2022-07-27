@@ -333,15 +333,15 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		}
 		time = timestamp;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (1/100 m).
 		sample.depth = depth / 100.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Temperature (1/100 °C).
 		sample.temperature = temperature / 100.0;
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		// Gas mix
 		if (o2 != o2_previous) {
@@ -364,7 +364,7 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 			}
 
 			sample.gasmix = idx;
-			if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 			o2_previous = o2;
 		}
 
@@ -379,11 +379,11 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 			sample.deco.depth = 0;
 		}
 		sample.deco.tts = 0;
-		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 		// CNS
 		sample.cns = cns / 100.0;
-		if (callback) callback (DC_SAMPLE_CNS, sample, userdata);
+		if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 
 		// Deco model
 		if (gf_low == 0 && gf_high == 0) {

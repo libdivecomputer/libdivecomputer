@@ -206,13 +206,13 @@ deepblu_cosmiq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		sample.depth = (signed int) (depth - atmospheric) * (BAR / 1000.0) / parser->hydrostatic;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		sample.temperature = temperature / 10.0;
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 	}
 
 	return DC_STATUS_SUCCESS;

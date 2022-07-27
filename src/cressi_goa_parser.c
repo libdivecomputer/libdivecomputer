@@ -331,24 +331,24 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		if (complete) {
 			// Time (seconds).
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Temperature (1/10 °C).
 			if (have_temperature) {
 				sample.temperature = temperature / 10.0;
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 				have_temperature = 0;
 			}
 
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Gas change
 			if (divemode == SCUBA || divemode == NITROX) {
 				if (gasmix != gasmix_previous) {
 					sample.gasmix = gasmix;
-					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+					if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 					gasmix_previous = gasmix;
 				}
 			}

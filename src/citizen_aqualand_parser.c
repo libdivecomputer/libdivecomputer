@@ -242,14 +242,14 @@ citizen_aqualand_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		// Time
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth
 		if (metric)
 			sample.depth = depth / 10.0;
 		else
 			sample.depth = depth * FEET;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Temperature
 		if (time % 300 == 0) {
@@ -260,7 +260,7 @@ citizen_aqualand_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					sample.temperature = temperature / 10.0;
 				else
 					sample.temperature = (temperature - 32.0) * (5.0 / 9.0);
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 			}
 		}
 	}

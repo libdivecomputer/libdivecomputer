@@ -1017,11 +1017,11 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Surface Time (seconds).
 			time += surftime * 1000;
 			sample.time = time;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Surface Depth (0 m).
 			sample.depth = 0.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			offset += parser->samplesize;
 			nsamples++;
@@ -1031,12 +1031,12 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				// Time (seconds).
 				time += parser->interval;
 				sample.time = time;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				// Depth (1/10 m).
 				unsigned int depth = array_uint16_le (data + offset);
 				sample.depth = depth / 10.0;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 				offset += 2;
 			}
@@ -1048,20 +1048,20 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Surface Time (seconds).
 			time += surftime * 1000;
 			sample.time = time;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Surface Depth (0 m).
 			sample.depth = 0.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Dive Time (seconds).
 			time += divetime * 1000;
 			sample.time = time;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Maximum Depth (1/10 m).
 			sample.depth = maxdepth / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			offset += parser->samplesize;
 			nsamples++;
@@ -1119,15 +1119,15 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Time (seconds).
 			time += parser->interval;
 			sample.time = time;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			// Temperature (1/10 °C).
 			sample.temperature = temperature / 10.0;
-			if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 			// Current gas mix
 			if (parser->ngasmixes > 0) {
@@ -1137,7 +1137,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				}
 				if (gasmix != gasmix_previous) {
 					sample.gasmix = gasmix;
-					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+					if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 					gasmix_previous = gasmix;
 				}
 			}
@@ -1148,7 +1148,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = bookmark;
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
 			if (parser->model == GENIUS || parser->model == HORIZON) {
@@ -1162,7 +1162,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				}
 				sample.deco.time = decotime * 60;
 				sample.deco.tts = tts;
-				if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 				// Alarms
 				for (unsigned int v = alarms, i = 0; v; v >>= 1, ++i) {
@@ -1188,7 +1188,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 						sample.event.time = 0;
 						sample.event.flags = 0;
 						sample.event.value = 0;
-						if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+						if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 					}
 				}
 			}
@@ -1209,7 +1209,7 @@ mares_iconhd_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				if (gasmix < parser->ntanks) {
 					sample.pressure.tank = gasmix;
 					sample.pressure.value = pressure / 100.0;
-					if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 				} else if (pressure != 0) {
 					WARNING (abstract->context, "Invalid tank with non-zero pressure.");
 				}

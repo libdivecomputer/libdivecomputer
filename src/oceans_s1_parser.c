@@ -251,18 +251,18 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			for (unsigned int i = 0; i < nsamples; ++i) {
 				time += interval;
 				sample.time = time * 1000;
-				if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 				sample.depth = 0;
-				if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 			}
 
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			sample.depth = depth / 100.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 		} else if (strncmp(line, "enddive", 7) == 0) {
 			if (sscanf(line, "enddive %u,%u", &maxdepth, &divetime) != 2) {
 				ERROR (parser->base.context, "Failed to parse the line '%s'.", line);
@@ -282,13 +282,13 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			sample.depth = depth / 100.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			sample.temperature = temperature;
-			if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 			if (events & EVENT_DECO_STOP) {
 				sample.deco.type = DC_DECO_DECOSTOP;
@@ -300,7 +300,7 @@ oceans_s1_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 			sample.deco.depth = 0.0;
 			sample.deco.time = 0;
 			sample.deco.tts = 0;
-			if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 		}
 	}
 

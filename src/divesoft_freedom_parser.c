@@ -933,14 +933,14 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			}
 			time = timestamp;
 			sample.time = time * 1000;
-			if (callback) callback(DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback(DC_SAMPLE_TIME, &sample, userdata);
 		}
 
 		// Initial diluent.
 		if (!initial) {
 			if (parser->diluent != UNDEFINED) {
 				sample.gasmix = parser->diluent;
-				if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 			}
 			initial = 1;
 		}
@@ -951,19 +951,19 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			unsigned int ppo2  = array_uint16_le (data + offset + 6);
 
 			sample.depth = depth / 100.0;
-			if (callback) callback(DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback(DC_SAMPLE_DEPTH, &sample, userdata);
 
 			if (ppo2) {
 				sample.ppo2.sensor = DC_SENSOR_NONE;
 				sample.ppo2.value = ppo2 * 10.0 / BAR;
-				if (callback) callback(DC_SAMPLE_PPO2, sample, userdata);
+				if (callback) callback(DC_SAMPLE_PPO2, &sample, userdata);
 			}
 
 			if (id == POINT_2) {
 				unsigned int orientation = array_uint32_le (data + offset + 8);
 				unsigned int heading = orientation & 0x1FF;
 				sample.bearing = heading;
-				if (callback) callback (DC_SAMPLE_BEARING, sample, userdata);
+				if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
 			} else if (id == POINT_1 || id == POINT_1_OLD) {
 				unsigned int misc = array_uint32_le (data + offset + 8);
 				unsigned int ceiling = array_uint16_le (data + offset + 12);
@@ -974,7 +974,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 				// Temperature
 				sample.temperature = (signed int) signextend (temp, 10) / 10.0;
-				if (callback) callback(DC_SAMPLE_TEMPERATURE, sample, userdata);
+				if (callback) callback(DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 				// Deco / NDL
 				if (ceiling) {
@@ -987,12 +987,12 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					sample.deco.depth = 0.0;
 				}
 				sample.deco.tts = tts * 60;
-				if (callback) callback(DC_SAMPLE_DECO, sample, userdata);
+				if (callback) callback(DC_SAMPLE_DECO, &sample, userdata);
 
 				// Setpoint
 				if (setpoint) {
 					sample.setpoint = setpoint / 100.0;
-					if (callback) callback(DC_SAMPLE_SETPOINT, sample, userdata);
+					if (callback) callback(DC_SAMPLE_SETPOINT, &sample, userdata);
 				}
 			}
 		} else if ((type >= LREC_MANIPULATION && type <= LREC_ACTIVITY) || type == LREC_INFO) {
@@ -1004,7 +1004,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				sample.event.time = 0;
 				sample.event.flags = 0;
 				sample.event.value = 0;
-				if (callback) callback(DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback(DC_SAMPLE_EVENT, &sample, userdata);
 			} else if (event == EVENT_MIX_CHANGED || event == EVENT_DILUENT || event == EVENT_CHANGE_MODE) {
 				unsigned int o2 = data[offset + 6];
 				unsigned int he = data[offset + 7];
@@ -1024,13 +1024,13 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					return DC_STATUS_DATAFORMAT;
 				}
 				sample.gasmix = idx;
-				if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 			} else if (event == EVENT_CNS) {
 				sample.cns = array_uint16_le (data + offset + 6) / 100.0;
-				if (callback) callback(DC_SAMPLE_CNS, sample, userdata);
+				if (callback) callback(DC_SAMPLE_CNS, &sample, userdata);
 			} else if (event == EVENT_SETPOINT_MANUAL || event == EVENT_SETPOINT_AUTO) {
 				sample.setpoint = data[6] / 100.0;
-				if (callback) callback(DC_SAMPLE_SETPOINT, sample, userdata);
+				if (callback) callback(DC_SAMPLE_SETPOINT, &sample, userdata);
 			}
 		} else if (type == LREC_MEASURE) {
 			// Measurement record.
@@ -1048,7 +1048,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 					sample.pressure.tank = idx;
 					sample.pressure.value = pressure * 2.0;
-					if (callback) callback(DC_SAMPLE_PRESSURE, sample, userdata);
+					if (callback) callback(DC_SAMPLE_PRESSURE, &sample, userdata);
 				}
 			} else if (id == MEASURE_ID_OXYGEN) {
 				for (unsigned int i = 0; i < NSENSORS; ++i) {
@@ -1057,7 +1057,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 						continue;
 					sample.ppo2.sensor = i;
 					sample.ppo2.value = ppo2 * 10.0 / BAR;
-					if (callback) callback(DC_SAMPLE_PPO2, sample, userdata);
+					if (callback) callback(DC_SAMPLE_PPO2, &sample, userdata);
 				}
 			} else if (id == MEASURE_ID_OXYGEN_MV) {
 				for (unsigned int i = 0; i < NSENSORS; ++i) {
@@ -1068,7 +1068,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 						continue;
 					sample.ppo2.sensor = i;
 					sample.ppo2.value = value / 100.0 * parser->calibration[i] / BAR;
-					if (callback) callback(DC_SAMPLE_PPO2, sample, userdata);
+					if (callback) callback(DC_SAMPLE_PPO2, &sample, userdata);
 				}
 			}
 		} else if (type == LREC_STATE) {

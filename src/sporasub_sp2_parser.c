@@ -185,20 +185,20 @@ sporasub_sp2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 		// Time (seconds)
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (1/100 m)
 		sample.depth = depth / 100.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Temperature (1/10 °C)
 		sample.temperature = temperature / 10.0 - 20.0;
-		if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		// Heartrate
 		if (heartrate) {
 			sample.heartbeat = heartrate;
-			if (callback) callback (DC_SAMPLE_HEARTBEAT, sample, userdata);
+			if (callback) callback (DC_SAMPLE_HEARTBEAT, &sample, userdata);
 		}
 
 		offset += SZ_SAMPLE;

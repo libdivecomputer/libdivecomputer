@@ -271,13 +271,13 @@ mclean_extreme_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_
 
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback(DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback(DC_SAMPLE_TIME, &sample, userdata);
 
 		sample.depth = 0.1 * depth;
-		if (callback) callback(DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback(DC_SAMPLE_DEPTH, &sample, userdata);
 
 		sample.temperature = temperature;
-		if (callback) callback(DC_SAMPLE_TEMPERATURE, sample, userdata);
+		if (callback) callback(DC_SAMPLE_TEMPERATURE, &sample, userdata);
 
 		if (gasmix_id != gasmix_previous) {
 			// Find the gasmix in the list.
@@ -299,13 +299,13 @@ mclean_extreme_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_
 			}
 
 			sample.gasmix = idx;
-			if (callback) callback(DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 			gasmix_previous = gasmix_id;
 		}
 
 		if (ccr) {
 			sample.setpoint = 0.01 * setpoint;
-			if (callback) callback(DC_SAMPLE_SETPOINT, sample, userdata);
+			if (callback) callback(DC_SAMPLE_SETPOINT, &sample, userdata);
 		}
 
 		offset += SZ_SAMPLE;

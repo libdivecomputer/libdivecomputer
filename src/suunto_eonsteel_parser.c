@@ -476,7 +476,7 @@ static void sample_time(struct sample_data *info, unsigned short time_delta)
 
 	info->time += time_delta;
 	sample.time = info->time;
-	if (info->callback) info->callback(DC_SAMPLE_TIME, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_TIME, &sample, info->userdata);
 }
 
 static void sample_depth(struct sample_data *info, unsigned short depth)
@@ -487,7 +487,7 @@ static void sample_depth(struct sample_data *info, unsigned short depth)
 		return;
 
 	sample.depth = depth / 100.0;
-	if (info->callback) info->callback(DC_SAMPLE_DEPTH, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_DEPTH, &sample, info->userdata);
 }
 
 static void sample_temp(struct sample_data *info, short temp)
@@ -498,7 +498,7 @@ static void sample_temp(struct sample_data *info, short temp)
 		return;
 
 	sample.temperature = temp / 10.0;
-	if (info->callback) info->callback(DC_SAMPLE_TEMPERATURE, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_TEMPERATURE, &sample, info->userdata);
 }
 
 static void sample_ndl(struct sample_data *info, short ndl)
@@ -512,7 +512,7 @@ static void sample_ndl(struct sample_data *info, short ndl)
 	sample.deco.type = DC_DECO_NDL;
 	sample.deco.time = ndl;
 	sample.deco.tts = 0;
-	if (info->callback) info->callback(DC_SAMPLE_DECO, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_DECO, &sample, info->userdata);
 }
 
 static void sample_tts(struct sample_data *info, unsigned short tts)
@@ -536,7 +536,7 @@ static void sample_heading(struct sample_data *info, unsigned short heading)
 
 	sample.event.type = SAMPLE_EVENT_HEADING;
 	sample.event.value = heading;
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, &sample, info->userdata);
 }
 
 static void sample_abspressure(struct sample_data *info, unsigned short pressure)
@@ -551,7 +551,7 @@ static void sample_gastime(struct sample_data *info, short gastime)
 		return;
 
 	sample.rbt = gastime / 60;
-	if (info->callback) info->callback (DC_SAMPLE_RBT, sample, info->userdata);
+	if (info->callback) info->callback (DC_SAMPLE_RBT, &sample, info->userdata);
 }
 
 /*
@@ -579,7 +579,7 @@ static void sample_pressure(struct sample_data *info, unsigned short pressure)
 
 	sample.pressure.tank = info->gasnr-1;
 	sample.pressure.value = pressure / 100.0;
-	if (info->callback) info->callback(DC_SAMPLE_PRESSURE, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_PRESSURE, &sample, info->userdata);
 }
 
 static void sample_bookmark_event(struct sample_data *info, unsigned short idx)
@@ -589,7 +589,7 @@ static void sample_bookmark_event(struct sample_data *info, unsigned short idx)
 	sample.event.type = SAMPLE_EVENT_BOOKMARK;
 	sample.event.value = idx;
 
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, &sample, info->userdata);
 }
 
 static void sample_gas_switch_event(struct sample_data *info, unsigned short idx)
@@ -601,7 +601,7 @@ static void sample_gas_switch_event(struct sample_data *info, unsigned short idx
 		return;
 
 	sample.gasmix = idx - 1;
-	if (info->callback) info->callback(DC_SAMPLE_GASMIX, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_GASMIX, &sample, info->userdata);
 }
 
 /*
@@ -701,7 +701,7 @@ static void sample_event_state_value(const struct type_desc *desc, struct sample
 		return;
 
 	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, &sample, info->userdata);
 }
 
 static void sample_event_notify_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
@@ -743,7 +743,7 @@ static void sample_event_notify_value(const struct type_desc *desc, struct sampl
 		return;
 
 	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, &sample, info->userdata);
 }
 
 
@@ -783,7 +783,7 @@ static void sample_event_warning_value(const struct type_desc *desc, struct samp
 		return;
 
 	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, &sample, info->userdata);
 }
 
 static void sample_event_alarm_type(const struct type_desc *desc, struct sample_data *info, unsigned char type)
@@ -816,7 +816,7 @@ static void sample_event_alarm_value(const struct type_desc *desc, struct sample
 		return;
 
 	sample.event.flags = value ? SAMPLE_FLAGS_BEGIN : SAMPLE_FLAGS_END;
-	if (info->callback) info->callback(DC_SAMPLE_EVENT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_EVENT, &sample, info->userdata);
 }
 
 // enum:0=Low,1=High,2=Custom
@@ -842,7 +842,7 @@ static void sample_setpoint_type(const struct type_desc *desc, struct sample_dat
 		return;
 	}
 
-	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, sample, info->userdata);
+	if (info->callback) info->callback(DC_SAMPLE_SETPOINT, &sample, info->userdata);
 	free(type);
 }
 
@@ -1001,7 +1001,7 @@ static int traverse_samples(unsigned short type, const struct type_desc *desc, c
 		sample.deco.time = 0;
 		sample.deco.depth = info->ceiling;
 		sample.deco.tts = info->tts;
-		if (info->callback) info->callback(DC_SAMPLE_DECO, sample, info->userdata);
+		if (info->callback) info->callback(DC_SAMPLE_DECO, &sample, info->userdata);
 	}
 
 	// Warn if there are left-over bytes for something we did use part of

@@ -332,16 +332,16 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 	// Time
 	sample.time = 0;
-	if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+	if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 	// Depth (0 ft)
 	sample.depth = 0;
-	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+	if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 	// Initial gas mix
 	if (!gauge) {
 		sample.gasmix = 0;
-		if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+		if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 	}
 
 	unsigned int depth = 0;
@@ -356,7 +356,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			// Time (seconds).
 			time += interval;
 			sample.time = time * 1000;
-			if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 			complete = 0;
 		}
 
@@ -366,7 +366,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 
 			// Depth (ft).
 			sample.depth = depth * FEET;
-			if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 			complete = 1;
 		} else {
@@ -410,7 +410,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 				}
 
 				sample.gasmix = idx;
-				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 				sample.event.type = SAMPLE_EVENT_NONE;
 				break;
 			default: // Unknown
@@ -419,7 +419,7 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 			}
 
 			if (sample.event.type != SAMPLE_EVENT_NONE) {
-				if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 		}
 	}
@@ -428,12 +428,12 @@ suunto_vyper_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t
 	if (complete) {
 		time += interval;
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 	}
 
 	// Depth (0 ft)
 	sample.depth = 0;
-	if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+	if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 	return DC_STATUS_SUCCESS;
 }

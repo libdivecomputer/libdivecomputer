@@ -253,16 +253,16 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 		// Time (seconds)
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (meters)
 		sample.depth = depth * 10.0 / 64.0;
-		if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
 		// Gas change.
 		if (gasmix != gasmix_previous) {
 			sample.gasmix = gasmix;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 			gasmix_previous = gasmix;
 		}
 
@@ -275,7 +275,7 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		sample.deco.time = 0;
 		sample.deco.depth = 0.0;
 		sample.deco.tts = 0;
-		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 		// Warnings
 		for (unsigned int i = 0; i < 6; ++i) {
@@ -304,7 +304,7 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					break;
 				}
 				if (sample.event.type != SAMPLE_EVENT_NONE) {
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 				}
 			}
 		}
@@ -328,7 +328,7 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				offset++;
 			}
 
-			if (callback) callback (DC_SAMPLE_VENDOR, sample, userdata);
+			if (callback) callback (DC_SAMPLE_VENDOR, &sample, userdata);
 		}
 
 		time += 20;

@@ -523,7 +523,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 
 		// Time (seconds).
 		sample.time = time * 1000;
-		if (callback) callback (DC_SAMPLE_TIME, sample, userdata);
+		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Sample data.
 		for (unsigned int i = 0; i < nparams; ++i) {
@@ -538,19 +538,19 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				case 0x64: // Depth
 					value = array_uint16_le (data + offset);
 					sample.depth = value / (double) info[i].divisor;
-					if (callback) callback (DC_SAMPLE_DEPTH, sample, userdata);
+					if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 					break;
 				case 0x68: // Pressure
 					value = array_uint16_le (data + offset);
 					if (value != 0xFFFF) {
 						sample.pressure.tank = 0;
 						sample.pressure.value = value / (double) info[i].divisor;
-						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+						if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 					}
 					break;
 				case 0x74: // Temperature
 					sample.temperature = (signed char) data[offset] / (double) info[i].divisor;
-					if (callback) callback (DC_SAMPLE_TEMPERATURE, sample, userdata);
+					if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 					break;
 				default: // Unknown sample type
 					ERROR (abstract->context, "Unknown sample type 0x%02x.", info[i].type);
@@ -568,7 +568,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 				return DC_STATUS_DATAFORMAT;
 			}
 			sample.gasmix = parser->gasmix;
-			if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 		}
 
 		// Events
@@ -608,7 +608,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					seconds = data[offset + 1];
 					sample.event.type = SAMPLE_EVENT_SURFACE;
 					sample.event.time = seconds;
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 					offset += 2;
 					break;
 				case 0x03: // Event
@@ -714,7 +714,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						sample.event.flags = SAMPLE_FLAGS_BEGIN;
 					sample.event.time = seconds;
 					if (sample.event.type != SAMPLE_EVENT_NONE) {
-						if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+						if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 					}
 					offset += 2;
 					break;
@@ -734,7 +734,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						sample.event.value = heading / 2;
 					}
 					sample.event.time = seconds;
-					if (callback) callback (DC_SAMPLE_EVENT, sample, userdata);
+					if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 					offset += 4;
 					break;
 				case 0x05: // Gas Change
@@ -750,7 +750,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						return DC_STATUS_DATAFORMAT;
 					}
 					sample.gasmix = idx;
-					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+					if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 					offset += 2;
 					break;
 				case 0x06: // Gas Change
@@ -784,10 +784,10 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 						return DC_STATUS_DATAFORMAT;
 					}
 					sample.gasmix = idx;
-					if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
+					if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 					if (type & 0x80) {
 						sample.setpoint = ppo2 / 10.0;
-						if (callback) callback (DC_SAMPLE_SETPOINT, sample, userdata);
+						if (callback) callback (DC_SAMPLE_SETPOINT, &sample, userdata);
 					}
 					offset += length;
 					break;
@@ -813,7 +813,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		sample.deco.time = 0;
 		sample.deco.depth = 0.0;
 		sample.deco.tts = 0;
-		if (callback) callback (DC_SAMPLE_DECO, sample, userdata);
+		if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 
 		time += interval_sample;
 		nsamples++;
