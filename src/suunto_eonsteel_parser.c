@@ -1338,7 +1338,10 @@ static int traverse_diving_fields(suunto_eonsteel_parser_t *eon, const struct ty
 	}
 
 	if (!strcmp(name, "DiveMode")) {
-		if (!strncmp((const char *)data, "CCR", 3)) {
+		if (!strncmp((const char *)data, "Air", 3) || !strncmp((const char *)data, "Nitrox", 6)) {
+			eon->cache.divemode = DC_DIVEMODE_OC;
+			eon->cache.initialized |= 1 << DC_FIELD_DIVEMODE;
+		} else if (!strncmp((const char *)data, "CCR", 3)) {
 			eon->cache.divemode = DC_DIVEMODE_CCR;
 			eon->cache.initialized |= 1 << DC_FIELD_DIVEMODE;
 		}
