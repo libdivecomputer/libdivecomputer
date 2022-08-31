@@ -62,6 +62,7 @@
 #include "sporasub_sp2.h"
 #include "deepsix_excursion.h"
 #include "seac_screen.h"
+#include "deepblu_cosmiq.h"
 
 #include "device-private.h"
 #include "context-private.h"
@@ -230,6 +231,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_SEAC_SCREEN:
 		rc = seac_screen_device_open (&device, context, iostream);
+		break;
+	case DC_FAMILY_DEEPBLU_COSMIQ:
+		rc = deepblu_cosmiq_device_open (&device, context, iostream);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

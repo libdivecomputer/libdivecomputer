@@ -373,3 +373,14 @@ bcd2dec (unsigned char value)
 {
 	return ((value >> 4) & 0x0f) * 10 + (value & 0x0f);
 }
+
+unsigned char
+dec2bcd (unsigned char value)
+{
+	if (value >= 100)
+		return 0;
+
+	unsigned char hi = value / 10;
+	unsigned char lo = value % 10;
+	return (hi << 4) | lo;
+}

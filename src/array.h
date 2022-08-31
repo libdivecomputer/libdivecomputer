@@ -120,6 +120,9 @@ array_uint16_le_set (unsigned char data[], const unsigned short input);
 unsigned char
 bcd2dec (unsigned char value);
 
+unsigned char
+dec2bcd (unsigned char value);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

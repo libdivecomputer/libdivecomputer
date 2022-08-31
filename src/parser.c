@@ -61,6 +61,7 @@
 #include "sporasub_sp2.h"
 #include "deepsix_excursion.h"
 #include "seac_screen.h"
+#include "deepblu_cosmiq.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -190,6 +191,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, dc_family_t fa
 		break;
 	case DC_FAMILY_SEAC_SCREEN:
 		rc = seac_screen_parser_create (&parser, context);
+		break;
+	case DC_FAMILY_DEEPBLU_COSMIQ:
+		rc = deepblu_cosmiq_parser_create (&parser, context);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
