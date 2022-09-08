@@ -32,7 +32,8 @@
 
 #define MAXPACKET 255
 
-#define HEADERSIZE 156
+#define HEADERSIZE_MIN 128
+#define HEADERSIZE_V0  156
 
 #define NSTEPS    1000
 #define STEP(i,n) (NSTEPS * (i) / (n))
@@ -55,9 +56,14 @@
 #define CMD_SETTINGS_STORE 0x27
 #define CMD_SETTINGS_LOAD  0x28
 
-#define GRP_DIVE           0xC0
-#define CMD_DIVE_HEADER    0x02
-#define CMD_DIVE_PROFILE   0x03
+#define GRP_DIVE                 0xC0
+#define CMD_DIVE_HEADER          0x02
+#define CMD_DIVE_PROFILE         0x03
+#define CMD_DIVE_COUNT           0x05
+#define CMD_DIVE_INDEX_LAST      0x06
+#define CMD_DIVE_INDEX_FIRST     0x07
+#define CMD_DIVE_INDEX_PREVIOUS  0x08
+#define CMD_DIVE_INDEX_NEXT      0x09
 
 typedef struct deepsix_excursion_device_t {
 	dc_device_t base;
@@ -216,8 +222,8 @@ deepsix_excursion_device_open (dc_device_t **out, dc_context_t *context, dc_iost
 		goto error_free;
 	}
 
-	// Set the timeout for receiving data (1000ms).
-	status = dc_iostream_set_timeout (device->iostream, 1000);
+	// Set the timeout for receiving data (3000ms).
+	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_free;
@@ -300,17 +306,41 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	devinfo.serial = array_convert_str2num (rsp_serial + 3, sizeof(rsp_serial) - 3);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	// Read the index of the last dive.
-	const unsigned char cmd_index[2] = {0};
-	unsigned char rsp_index[2] = {0};
-	status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_LASTDIVE, DIR_READ, cmd_index, sizeof(cmd_index), rsp_index, sizeof(rsp_index), NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the last dive index.");
-		return status;
-	}
+	// Firmware version 6+ uses the new commands.
+	unsigned int fw6 = memcmp(rsp_software, "D01", 3) == 0 && rsp_software[4] >= '6';
 
-	// Calculate the number of dives.
-	unsigned int ndives = array_uint16_le (rsp_index);
+	unsigned int ndives = 0, last = 0;
+	if (fw6) {
+		// Read the number of dives.
+		unsigned char rsp_ndives[2] = {0};
+		status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_COUNT, DIR_READ, NULL, 0, rsp_ndives, sizeof(rsp_ndives), NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the number of dives");
+			return status;
+		}
+
+		// Read the index of the last dive.
+		unsigned char rsp_last[4] = {0};
+		status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_INDEX_LAST, DIR_READ, NULL, 0, rsp_last, sizeof(rsp_last), NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the last dive index.");
+			return status;
+		}
+
+		ndives = array_uint16_le (rsp_ndives);
+		last = array_uint16_le (rsp_last);
+	} else {
+		// Read the index of the last dive.
+		const unsigned char cmd_last[2] = {0};
+		unsigned char rsp_last[2] = {0};
+		status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_LASTDIVE, DIR_READ, cmd_last, sizeof(cmd_last), rsp_last, sizeof(rsp_last), NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the last dive index.");
+			return status;
+		}
+
+		ndives = last = array_uint16_le (rsp_last);
+	}
 
 	// Update and emit a progress event.
 	progress.current = 1 * NSTEPS;
@@ -323,16 +353,42 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return DC_STATUS_NOMEMORY;
 	}
 
+	unsigned int number = last;
 	for (unsigned int i = 0; i < ndives; ++i) {
-		unsigned int number = ndives - i;
+		if (fw6) {
+			if (i > 0) {
+				const unsigned char cmd_previous[] = {
+					(number      ) & 0xFF,
+					(number >>  8) & 0xFF,
+					(number >> 16) & 0xFF,
+					(number >> 24) & 0xFF};
+				unsigned char rsp_previous[4] = {0};
+				status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_INDEX_PREVIOUS, DIR_READ,
+					cmd_previous, sizeof(cmd_previous), rsp_previous, sizeof(rsp_previous), NULL);
+				if (status != DC_STATUS_SUCCESS) {
+					ERROR (abstract->context, "Failed to read the previous dive index");
+					return status;
+				}
+				number = array_uint32_le (rsp_previous);
+			}
+		} else {
+			number = ndives - i;
+		}
 
+		unsigned int headersize = 0;
 		const unsigned char cmd_header[] = {
 			(number     ) & 0xFF,
 			(number >> 8) & 0xFF};
-		unsigned char rsp_header[HEADERSIZE] = {0};
-		status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_HEADER, DIR_READ, cmd_header, sizeof(cmd_header), rsp_header, sizeof(rsp_header), NULL);
+		unsigned char rsp_header[MAXPACKET] = {0};
+		status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_HEADER, DIR_READ,
+			cmd_header, sizeof(cmd_header), rsp_header, sizeof(rsp_header), &headersize);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive header.");
+			goto error_free;
+		}
+
+		if (headersize < HEADERSIZE_MIN || headersize != (fw6 ? rsp_header[2] : HEADERSIZE_V0)) {
+			ERROR (abstract->context, "Unexpected size of the dive header (%u).", headersize);
 			goto error_free;
 		}
 
@@ -342,13 +398,13 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		unsigned int length = array_uint32_le (rsp_header + 8);
 
 		// Update and emit a progress event.
-		progress.current = (i + 1) * NSTEPS + STEP(sizeof(rsp_header), sizeof(rsp_header) + length);
-		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+		progress.current = (i + 1) * NSTEPS + STEP(headersize, headersize + length);
+		device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);
 
 		dc_buffer_clear(buffer);
-		dc_buffer_reserve(buffer, sizeof(rsp_header) + length);
+		dc_buffer_reserve(buffer, headersize + length);
 
-		if (!dc_buffer_append(buffer, rsp_header, sizeof(rsp_header))) {
+		if (!dc_buffer_append(buffer, rsp_header, headersize)) {
 			ERROR (abstract->context, "Insufficient buffer space available.");
 			status = DC_STATUS_NOMEMORY;
 			goto error_free;
@@ -365,7 +421,8 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 				(offset >> 16) & 0xFF,
 				(offset >> 24) & 0xFF};
 			unsigned char rsp_profile[MAXPACKET] = {0};
-			status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_PROFILE, DIR_READ, cmd_profile, sizeof(cmd_profile), rsp_profile, sizeof(rsp_profile), &len);
+			status = deepsix_excursion_transfer (device, GRP_DIVE, CMD_DIVE_PROFILE, DIR_READ,
+				cmd_profile, sizeof(cmd_profile), rsp_profile, sizeof(rsp_profile), &len);
 			if (status != DC_STATUS_SUCCESS) {
 				ERROR (abstract->context, "Failed to read the dive profile.");
 				goto error_free;
@@ -378,8 +435,8 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			}
 
 			// Update and emit a progress event.
-			progress.current = (i + 1) * NSTEPS + STEP(sizeof(rsp_header) + offset + n, sizeof(rsp_header) + length);
-			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+			progress.current = (i + 1) * NSTEPS + STEP(headersize + offset + n, headersize + length);
+			device_event_emit(abstract, DC_EVENT_PROGRESS, &progress);
 
 			if (!dc_buffer_append(buffer, rsp_profile, n)) {
 				ERROR (abstract->context, "Insufficient buffer space available.");
