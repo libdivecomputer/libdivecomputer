@@ -439,6 +439,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Crest",    "CR-4",      DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 	{"Genesis",  "Centauri",  DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 	{"Tusa",     "TC1",       DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
+	{"Scorpena", "Alpha",     DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 	/* Seac Screen */
 	{"Seac", "Screen", DC_FAMILY_SEAC_SCREEN, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Seac", "Action", DC_FAMILY_SEAC_SCREEN, 0, DC_TRANSPORT_SERIAL, NULL},
@@ -751,6 +752,7 @@ static int dc_filter_deepsix (dc_transport_t transport, const void *userdata, vo
 		"Crest-CR4",
 		"CENTAURI",
 		"TC1",
+		"ALPHA",
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {
