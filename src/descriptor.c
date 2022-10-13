@@ -171,6 +171,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "Aladin A1",           DC_FAMILY_UWATEC_SMART, 0x25, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "Mantis 2",            DC_FAMILY_UWATEC_SMART, 0x26, DC_TRANSPORT_SERIAL, NULL},
 	{"Scubapro", "Aladin A2",           DC_FAMILY_UWATEC_SMART, 0x28, DC_TRANSPORT_BLE, dc_filter_uwatec},
+	{"Scubapro", "G2 TEK",              DC_FAMILY_UWATEC_SMART, 0x31, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_SMART, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2 Console",          DC_FAMILY_UWATEC_SMART, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2 HUD",              DC_FAMILY_UWATEC_SMART, 0x42, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
@@ -557,7 +558,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata, voi
 		"UWATEC Galileo Sol",
 	};
 	static const dc_usb_desc_t usbhid[] = {
-		{0x2e6c, 0x3201}, // G2
+		{0x2e6c, 0x3201}, // G2, G2 TEK
 		{0x2e6c, 0x3211}, // G2 Console
 		{0x2e6c, 0x4201}, // G2 HUD
 		{0xc251, 0x2006}, // Aladin Square
@@ -568,6 +569,7 @@ static int dc_filter_uwatec (dc_transport_t transport, const void *userdata, voi
 		"HUD",
 		"A1",
 		"A2",
+		"G2 TEK",
 	};
 
 	if (transport == DC_TRANSPORT_IRDA) {
