@@ -163,7 +163,9 @@ deepsix_excursion_recv (deepsix_excursion_device_t *device, unsigned char grp, u
 		return DC_STATUS_PROTOCOL;
 	}
 
-	memcpy(data, packet + 4, len);
+	if (len) {
+		memcpy(data, packet + 4, len);
+	}
 
 	if (actual)
 		*actual = len;
