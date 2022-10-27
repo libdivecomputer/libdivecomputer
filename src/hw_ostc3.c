@@ -92,10 +92,12 @@
 #define HDR_COMPACT_LENGTH   0 // 3 bytes
 #define HDR_COMPACT_SUMMARY  3 // 10 bytes
 #define HDR_COMPACT_NUMBER  13 // 2 bytes
+#define HDR_COMPACT_VERSION 15 // 1 byte
 
 #define HDR_FULL_LENGTH      9 // 3 bytes
 #define HDR_FULL_SUMMARY    12 // 10 bytes
 #define HDR_FULL_NUMBER     80 // 2 bytes
+#define HDR_FULL_VERSION     8 // 1 byte
 
 #define HDR_FULL_FIRMWARE   48 // 2 bytes
 
@@ -844,11 +846,16 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		}
 
 		// Verify the header in the logbook and profile are identical.
-		if (!compact && memcmp (profile, header + offset, logbook->size) != 0) {
+		if (compact ?
+			memcmp (profile + HDR_FULL_LENGTH,  header + offset + HDR_COMPACT_LENGTH, 3) != 0 ||
+			memcmp (profile + HDR_FULL_SUMMARY,  header + offset + HDR_COMPACT_SUMMARY, 10) != 0 ||
+			memcmp (profile + HDR_FULL_NUMBER, header + offset + HDR_COMPACT_NUMBER, 2) != 0 ||
+			memcmp (profile + HDR_FULL_VERSION,  header + offset + HDR_COMPACT_VERSION, 1) != 0 :
+			memcmp (profile, header + offset, RB_LOGBOOK_SIZE_FULL) != 0) {
 			ERROR (abstract->context, "Unexpected profile header.");
 			free (profile);
 			free (header);
-			return rc;
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		// Detect invalid profile data.
