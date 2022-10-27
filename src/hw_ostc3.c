@@ -869,7 +869,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		} else if (length == RB_LOGBOOK_SIZE_FULL + 2) {
 			// A profile containing only the 2 byte end-of-profile
 			// marker is considered a valid empty profile.
-		} else if (length < RB_LOGBOOK_SIZE_FULL + 5 + 2 ||
+		} else if (length < RB_LOGBOOK_SIZE_FULL + 5 ||
 			array_uint24_le (profile + RB_LOGBOOK_SIZE_FULL) + delta != array_uint24_le (profile + HDR_FULL_LENGTH)) {
 			// If there is more data available, then there should be a
 			// valid profile header containing a length matching the
