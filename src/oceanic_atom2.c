@@ -365,7 +365,7 @@ static const oceanic_common_layout_t oceanic_proplusx_layout = {
 };
 
 static const oceanic_common_layout_t aqualung_i770r_layout = {
-	0x440000, /* memsize */
+	0x640000, /* memsize */
 	0x40000, /* highmem */
 	0x0000, /* cf_devinfo */
 	0x0040, /* cf_pointers */
@@ -373,7 +373,7 @@ static const oceanic_common_layout_t aqualung_i770r_layout = {
 	0x10000, /* rb_logbook_end */
 	16, /* rb_logbook_entry_size */
 	0x40000, /* rb_profile_begin */
-	0x440000, /* rb_profile_end */
+	0x640000, /* rb_profile_end */
 	0, /* pt_mode_global */
 	1, /* pt_mode_logbook */
 	0, /* pt_mode_serial */

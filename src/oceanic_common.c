@@ -56,8 +56,9 @@ get_profile_first (const unsigned char data[], const oceanic_common_layout_t *la
 	}
 
 	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
-
-	if (npages > 0x2000) {
+	if (npages > 0x4000) {
+		value &= 0x7FFF;
+	} else if (npages > 0x2000) {
 		value &= 0x3FFF;
 	}  else if (npages > 0x1000) {
 		value &= 0x1FFF;
@@ -86,7 +87,9 @@ get_profile_last (const unsigned char data[], const oceanic_common_layout_t *lay
 
 	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
 
-	if (npages > 0x2000) {
+	if (npages > 0x4000) {
+		value &= 0x7FFF;
+	} else if (npages > 0x2000) {
 		value &= 0x3FFF;
 	} else if (npages > 0x1000) {
 		value &= 0x1FFF;
