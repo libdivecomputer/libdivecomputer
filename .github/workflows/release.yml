@@ -9,19 +9,13 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Version number
         id: version
         run: |
           VERSION="${GITHUB_REF/refs\/tags\/v/}"
-          if [ "${VERSION}" = "${VERSION%%-*}" ]; then
-             PRERELEASE=false
-          else
-             PRERELEASE=true
-          fi
-          echo ::set-output name=version::${VERSION}
-          echo ::set-output name=prerelease::${PRERELEASE}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build distribution tarball
         id: build
@@ -41,21 +35,13 @@ jobs:
              exit 1
           fi
 
-      - uses: actions/create-release@v1
+      - name: Create Github release
         id: release
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "${VERSION}" != "${VERSION%%-*}" ]; then
+             PRERELEASE="-p"
+          fi
+          gh release create ${PRERELEASE} "${{ github.ref }}" "libdivecomputer-${VERSION}.tar.gz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          prerelease: ${{ steps.version.outputs.prerelease }}
-
-      - uses: actions/upload-release-asset@v1
-        id: upload
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: libdivecomputer-${{ steps.version.outputs.version }}.tar.gz
-          asset_name: libdivecomputer-${{ steps.version.outputs.version }}.tar.gz
-          asset_content_type: application/gzip
