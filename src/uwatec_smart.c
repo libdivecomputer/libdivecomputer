@@ -310,6 +310,7 @@ uwatec_smart_usbhid_receive (uwatec_smart_device_t *device, dc_event_progress_t 
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
 	unsigned char buf[PACKETSIZE_USBHID_RX];
 
 	size_t nbytes = 0;
@@ -364,9 +365,11 @@ uwatec_smart_usbhid_receive (uwatec_smart_device_t *device, dc_event_progress_t 
 		 *
 		 * It may be just an oddly implemented sequence number. Whatever.
 		 */
-		unsigned int len = buf[0];
-		if (len + 1 > transferred)
-			len = transferred-1;
+		unsigned int len = transferred - 1;
+		if (transport == DC_TRANSPORT_USBHID) {
+			if (len > buf[0])
+				len = buf[0];
+		}
 
 		HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "rcv", buf + 1, len);
 
