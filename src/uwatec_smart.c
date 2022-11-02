@@ -275,9 +275,13 @@ uwatec_smart_usbhid_send (uwatec_smart_device_t *device, unsigned char cmd, cons
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
-	unsigned char buf[PACKETSIZE_USBHID_TX + 1];
+	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
+	unsigned char buf[DATASIZE + 3];
 
-	if (size + 3 > sizeof(buf)) {
+	size_t packetsize = transport == DC_TRANSPORT_USBHID ?
+		PACKETSIZE_USBHID_TX + 1 : sizeof(buf);
+
+	if (size > DATASIZE || size + 3 > packetsize) {
 		ERROR (abstract->context, "Command too large (" DC_PRINTF_SIZE ").", size);
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -295,7 +299,7 @@ uwatec_smart_usbhid_send (uwatec_smart_device_t *device, unsigned char cmd, cons
 	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
 		rc = dc_iostream_write(device->iostream, buf + 1, size + 2, NULL);
 	} else {
-		rc = dc_iostream_write(device->iostream, buf, sizeof(buf), NULL);
+		rc = dc_iostream_write(device->iostream, buf, packetsize, NULL);
 	}
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
@@ -311,12 +315,15 @@ uwatec_smart_usbhid_receive (uwatec_smart_device_t *device, dc_event_progress_t 
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
-	unsigned char buf[PACKETSIZE_USBHID_RX];
+	unsigned char buf[DATASIZE + 1];
+
+	size_t packetsize = transport == DC_TRANSPORT_USBHID ?
+		PACKETSIZE_USBHID_RX : sizeof(buf);
 
 	size_t nbytes = 0;
 	while (nbytes < size) {
 		size_t transferred = 0;
-		rc = dc_iostream_read (device->iostream, buf, sizeof(buf), &transferred);
+		rc = dc_iostream_read (device->iostream, buf, packetsize, &transferred);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the packet.");
 			return rc;
