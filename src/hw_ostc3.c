@@ -770,7 +770,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		if (!compact) {
 			// Workaround for a bug in older firmware versions.
 			unsigned int firmware = array_uint16_be (header + offset + 0x30);
-			if (firmware < 93)
+			if (firmware < OSTC3FW(0,93))
 				length -= 3;
 		}
 		if (length < RB_LOGBOOK_SIZE_FULL) {
@@ -818,7 +818,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		if (!compact) {
 			// Workaround for a bug in older firmware versions.
 			unsigned int firmware = array_uint16_be (header + offset + 0x30);
-			if (firmware < 93)
+			if (firmware < OSTC3FW(0,93))
 				length -= 3;
 		}
 
