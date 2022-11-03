@@ -89,6 +89,16 @@
 #define NODELAY 0
 #define TIMEOUT 400
 
+#define HDR_COMPACT_LENGTH   0 // 3 bytes
+#define HDR_COMPACT_SUMMARY  3 // 10 bytes
+#define HDR_COMPACT_NUMBER  13 // 2 bytes
+
+#define HDR_FULL_LENGTH      9 // 3 bytes
+#define HDR_FULL_SUMMARY    12 // 10 bytes
+#define HDR_FULL_NUMBER     80 // 2 bytes
+
+#define HDR_FULL_FIRMWARE   48 // 2 bytes
+
 typedef enum hw_ostc3_state_t {
 	OPEN,
 	DOWNLOAD,
@@ -155,16 +165,16 @@ static const dc_device_vtable_t hw_ostc3_device_vtable = {
 
 static const hw_ostc3_logbook_t hw_ostc3_logbook_compact = {
 	RB_LOGBOOK_SIZE_COMPACT, /* size */
-	0,  /* profile */
-	3,  /* fingerprint */
-	13, /* number */
+	HDR_COMPACT_LENGTH,      /* profile */
+	HDR_COMPACT_SUMMARY,     /* fingerprint */
+	HDR_COMPACT_NUMBER,      /* number */
 };
 
 static const hw_ostc3_logbook_t hw_ostc3_logbook_full = {
 	RB_LOGBOOK_SIZE_FULL, /* size */
-	9,  /* profile */
-	12, /* fingerprint */
-	80, /* number */
+	HDR_FULL_LENGTH,      /* profile */
+	HDR_FULL_SUMMARY,     /* fingerprint */
+	HDR_FULL_NUMBER,      /* number */
 };
 
 
@@ -769,7 +779,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int length = RB_LOGBOOK_SIZE_FULL + array_uint24_le (header + offset + logbook->profile) - 3;
 		if (!compact) {
 			// Workaround for a bug in older firmware versions.
-			unsigned int firmware = array_uint16_be (header + offset + 0x30);
+			unsigned int firmware = array_uint16_be (header + offset + HDR_FULL_FIRMWARE);
 			if (firmware < OSTC3FW(0,93))
 				length -= 3;
 		}
@@ -817,7 +827,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int length = RB_LOGBOOK_SIZE_FULL + array_uint24_le (header + offset + logbook->profile) - 3;
 		if (!compact) {
 			// Workaround for a bug in older firmware versions.
-			unsigned int firmware = array_uint16_be (header + offset + 0x30);
+			unsigned int firmware = array_uint16_be (header + offset + HDR_FULL_FIRMWARE);
 			if (firmware < OSTC3FW(0,93))
 				length -= 3;
 		}
@@ -853,7 +863,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 			// A profile containing only the 2 byte end-of-profile
 			// marker is considered a valid empty profile.
 		} else if (length < RB_LOGBOOK_SIZE_FULL + 5 + 2 ||
-			array_uint24_le (profile + RB_LOGBOOK_SIZE_FULL) + delta != array_uint24_le (profile + 9)) {
+			array_uint24_le (profile + RB_LOGBOOK_SIZE_FULL) + delta != array_uint24_le (profile + HDR_FULL_LENGTH)) {
 			// If there is more data available, then there should be a
 			// valid profile header containing a length matching the
 			// length in the dive header.
@@ -861,7 +871,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 			length = RB_LOGBOOK_SIZE_FULL;
 		}
 
-		if (callback && !callback (profile, length, profile + 12, sizeof (device->fingerprint), userdata))
+		if (callback && !callback (profile, length, profile + HDR_FULL_SUMMARY, sizeof (device->fingerprint), userdata))
 			break;
 	}
 
