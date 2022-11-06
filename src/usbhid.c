@@ -86,6 +86,7 @@ struct dc_usbhid_device_t {
 	int interface;
 	unsigned char endpoint_in;
 	unsigned char endpoint_out;
+	unsigned short packetsize;
 #elif defined(USE_HIDAPI)
 	char *path;
 #endif
@@ -125,6 +126,7 @@ typedef struct dc_usbhid_t {
 	int interface;
 	unsigned char endpoint_in;
 	unsigned char endpoint_out;
+	unsigned short packetsize;
 	unsigned int timeout;
 #elif defined(USE_HIDAPI)
 	hid_device *handle;
@@ -507,6 +509,7 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 		device->interface = interface->bInterfaceNumber;
 		device->endpoint_in = ep_in->bEndpointAddress;
 		device->endpoint_out = ep_out->bEndpointAddress;
+		device->packetsize = ep_in->wMaxPacketSize;
 
 		*(dc_usbhid_device_t **) out = device;
 
@@ -614,6 +617,7 @@ dc_usbhid_open (dc_iostream_t **out, dc_context_t *context, dc_usbhid_device_t *
 	usbhid->interface = device->interface;
 	usbhid->endpoint_in = device->endpoint_in;
 	usbhid->endpoint_out = device->endpoint_out;
+	usbhid->packetsize = device->packetsize;
 	usbhid->timeout = 0;
 
 #elif defined(USE_HIDAPI)
@@ -704,6 +708,10 @@ dc_usbhid_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual
 	int nbytes = 0;
 
 #if defined(USE_LIBUSB)
+	if (size > usbhid->packetsize) {
+		size = usbhid->packetsize;
+	}
+
 	int rc = libusb_interrupt_transfer (usbhid->handle, usbhid->endpoint_in, data, size, &nbytes, usbhid->timeout);
 	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb read interrupt transfer failed (%s).",
