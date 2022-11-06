@@ -1,26 +1,35 @@
 # Atomic Aquatics Cobalt
 SUBSYSTEM=="usb", ATTR{idVendor}=="0471", ATTR{idProduct}=="0888", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0471", ATTRS{idProduct}=="0888", GROUP="plugdev"
 
 # Suunto EON Steel
 SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0030", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1493", ATTRS{idProduct}=="0030", GROUP="plugdev"
 
 # Suunto EON Core
 SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0033", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1493", ATTRS{idProduct}=="0033", GROUP="plugdev"
 
 # Suunto D5
 SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0035", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1493", ATTRS{idProduct}=="0035", GROUP="plugdev"
 
 # Suunto EON Steel Black
 SUBSYSTEM=="usb", ATTR{idVendor}=="1493", ATTR{idProduct}=="0036", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1493", ATTRS{idProduct}=="0036", GROUP="plugdev"
 
 # Scubapro G2
 SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="3201", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e6c", ATTRS{idProduct}=="3201", GROUP="plugdev"
 
 # Scubapro G2 Console
 SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="3211", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e6c", ATTRS{idProduct}=="3211", GROUP="plugdev"
 
 # Scubapro G2 HUD
 SUBSYSTEM=="usb", ATTR{idVendor}=="2e6c", ATTR{idProduct}=="4201", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2e6c", ATTRS{idProduct}=="4201", GROUP="plugdev"
 
 # Scubapro Aladin Square
 SUBSYSTEM=="usb", ATTR{idVendor}=="c251", ATTR{idProduct}=="2006", GROUP="plugdev"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="c251", ATTRS{idProduct}=="2006", GROUP="plugdev"
