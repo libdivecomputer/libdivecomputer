@@ -107,12 +107,12 @@ AS_IF([test "x$with_libusb" != "xno"], [
 AC_ARG_WITH([hidapi],
 	[AS_HELP_STRING([--without-hidapi],
 		[Build without the hidapi library])],
-	[], [with_hidapi=auto])
+	[], [with_hidapi=hidapi])
 AS_IF([test "x$with_hidapi" != "xno"], [
-	PKG_CHECK_MODULES([HIDAPI], [hidapi], [have_hidapi=yes], [have_hidapi=no])
+	PKG_CHECK_MODULES([HIDAPI], [$with_hidapi], [have_hidapi=yes], [have_hidapi=no])
 	AS_IF([test "x$have_hidapi" = "xyes"], [
 		AC_DEFINE([HAVE_HIDAPI], [1], [hidapi library])
-		DEPENDENCIES="$DEPENDENCIES hidapi"
+		DEPENDENCIES="$DEPENDENCIES $with_hidapi"
 	])
 ])
 
