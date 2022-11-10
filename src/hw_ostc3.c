@@ -89,6 +89,19 @@
 #define NODELAY 0
 #define TIMEOUT 400
 
+#define HDR_COMPACT_LENGTH   0 // 3 bytes
+#define HDR_COMPACT_SUMMARY  3 // 10 bytes
+#define HDR_COMPACT_NUMBER  13 // 2 bytes
+#define HDR_COMPACT_VERSION 15 // 1 byte
+
+#define HDR_FULL_LENGTH      9 // 3 bytes
+#define HDR_FULL_SUMMARY    12 // 10 bytes
+#define HDR_FULL_NUMBER     80 // 2 bytes
+#define HDR_FULL_VERSION     8 // 1 byte
+
+#define HDR_FULL_POINTERS    2 // 6 bytes
+#define HDR_FULL_FIRMWARE   48 // 2 bytes
+
 typedef enum hw_ostc3_state_t {
 	OPEN,
 	DOWNLOAD,
@@ -116,6 +129,7 @@ typedef struct hw_ostc3_logbook_t {
 	unsigned int profile;
 	unsigned int fingerprint;
 	unsigned int number;
+	unsigned int version;
 } hw_ostc3_logbook_t;
 
 typedef struct hw_ostc3_firmware_t {
@@ -155,16 +169,18 @@ static const dc_device_vtable_t hw_ostc3_device_vtable = {
 
 static const hw_ostc3_logbook_t hw_ostc3_logbook_compact = {
 	RB_LOGBOOK_SIZE_COMPACT, /* size */
-	0,  /* profile */
-	3,  /* fingerprint */
-	13, /* number */
+	HDR_COMPACT_LENGTH,      /* profile */
+	HDR_COMPACT_SUMMARY,     /* fingerprint */
+	HDR_COMPACT_NUMBER,      /* number */
+	HDR_COMPACT_VERSION,     /* version */
 };
 
 static const hw_ostc3_logbook_t hw_ostc3_logbook_full = {
 	RB_LOGBOOK_SIZE_FULL, /* size */
-	9,  /* profile */
-	12, /* fingerprint */
-	80, /* number */
+	HDR_FULL_LENGTH,      /* profile */
+	HDR_FULL_SUMMARY,     /* fingerprint */
+	HDR_FULL_NUMBER,      /* number */
+	HDR_FULL_VERSION,     /* version */
 };
 
 
@@ -279,10 +295,15 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
                   unsigned int isize,
                   unsigned char output[],
                   unsigned int osize,
+                  unsigned int *actual,
                   unsigned int delay)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned int length = osize;
+
+	if (cmd == DIVE && length < RB_LOGBOOK_SIZE_FULL)
+		return DC_STATUS_INVALIDARGS;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
@@ -345,11 +366,44 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 	}
 
 	if (output) {
-		// Read the output data packet.
-		status = hw_ostc3_read (device, progress, output, osize);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to receive the answer.");
-			return status;
+		if (cmd == DIVE) {
+			// Read the dive header.
+			status = hw_ostc3_read (device, progress, output, RB_LOGBOOK_SIZE_FULL);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to receive the dive header.");
+				return status;
+			}
+
+			// When the hwOS firmware detects the dive profile is no longer
+			// valid, it sends a modified dive header (with the begin/end
+			// pointer fields reset to zero, and the length field reduced to 8
+			// bytes), along with an empty dive profile. Detect this condition
+			// and adjust the expected length.
+			if (array_isequal (output + HDR_FULL_POINTERS, 6, 0x00) &&
+				array_uint24_le (output + HDR_FULL_LENGTH) == 8 &&
+				length > RB_LOGBOOK_SIZE_FULL + 5) {
+				length = RB_LOGBOOK_SIZE_FULL + 5;
+			}
+
+			// Read the dive profile.
+			status = hw_ostc3_read (device, progress, output + RB_LOGBOOK_SIZE_FULL, length - RB_LOGBOOK_SIZE_FULL);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to receive the dive profile.");
+				return status;
+			}
+
+			// Update and emit a progress event.
+			if (progress && osize > length) {
+				progress->current += osize - length;
+				device_event_emit ((dc_device_t *) device, DC_EVENT_PROGRESS, progress);
+			}
+		} else {
+			// Read the output data packet.
+			status = hw_ostc3_read (device, progress, output, length);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to receive the answer.");
+				return status;
+			}
 		}
 	}
 
@@ -372,6 +426,9 @@ hw_ostc3_transfer (hw_ostc3_device_t *device,
 			return DC_STATUS_PROTOCOL;
 		}
 	}
+
+	if (actual)
+		*actual = length;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -445,9 +502,9 @@ hw_ostc3_device_id (hw_ostc3_device_t *device, unsigned char data[], unsigned in
 
 	// Send the command.
 	unsigned char hardware[SZ_HARDWARE2] = {0};
-	status = hw_ostc3_transfer (device, NULL, HARDWARE2, NULL, 0, hardware, SZ_HARDWARE2, NODELAY);
+	status = hw_ostc3_transfer (device, NULL, HARDWARE2, NULL, 0, hardware, SZ_HARDWARE2, NULL, NODELAY);
 	if (status == DC_STATUS_UNSUPPORTED) {
-		status = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware + 1, SZ_HARDWARE, NODELAY);
+		status = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware + 1, SZ_HARDWARE, NULL, NODELAY);
 	}
 	if (status != DC_STATUS_SUCCESS)
 		return status;
@@ -469,7 +526,7 @@ hw_ostc3_device_init_download (hw_ostc3_device_t *device)
 	dc_context_t *context = (abstract ? abstract->context : NULL);
 
 	// Send the init command.
-	dc_status_t status = hw_ostc3_transfer (device, NULL, INIT, NULL, 0, NULL, 0, NODELAY);
+	dc_status_t status = hw_ostc3_transfer (device, NULL, INIT, NULL, 0, NULL, 0, NULL, NODELAY);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to send the command.");
 		return status;
@@ -562,7 +619,7 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 
 	// Read the version information.
 	unsigned char version[SZ_VERSION] = {0};
-	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, version, sizeof(version), NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, version, sizeof(version), NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the version information.");
 		return rc;
@@ -592,7 +649,7 @@ hw_ostc3_device_close (dc_device_t *abstract)
 
 	// Send the exit command
 	if (device->state == DOWNLOAD || device->state == SERVICE) {
-		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0, NODELAY);
+		rc = hw_ostc3_transfer (device, NULL, EXIT, NULL, 0, NULL, 0, NULL, NODELAY);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
 			dc_status_set_error(&status, rc);
@@ -636,7 +693,7 @@ hw_ostc3_device_version (dc_device_t *abstract, unsigned char data[], unsigned i
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, data, size, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, data, size, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -709,11 +766,11 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	// This is slower, but also works for older firmware versions.
 	unsigned int compact = 1;
 	rc = hw_ostc3_transfer (device, &progress, COMPACT,
-              NULL, 0, header, RB_LOGBOOK_SIZE_COMPACT * RB_LOGBOOK_COUNT, NODELAY);
+              NULL, 0, header, RB_LOGBOOK_SIZE_COMPACT * RB_LOGBOOK_COUNT, NULL, NODELAY);
 	if (rc == DC_STATUS_UNSUPPORTED) {
 		compact = 0;
 		rc = hw_ostc3_transfer (device, &progress, HEADER,
-		          NULL, 0, header, RB_LOGBOOK_SIZE_FULL * RB_LOGBOOK_COUNT, NODELAY);
+		          NULL, 0, header, RB_LOGBOOK_SIZE_FULL * RB_LOGBOOK_COUNT, NULL, NODELAY);
 	}
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the header.");
@@ -769,8 +826,8 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int length = RB_LOGBOOK_SIZE_FULL + array_uint24_le (header + offset + logbook->profile) - 3;
 		if (!compact) {
 			// Workaround for a bug in older firmware versions.
-			unsigned int firmware = array_uint16_be (header + offset + 0x30);
-			if (firmware < 93)
+			unsigned int firmware = array_uint16_be (header + offset + HDR_FULL_FIRMWARE);
+			if (firmware < OSTC3FW(0,93))
 				length -= 3;
 		}
 		if (length < RB_LOGBOOK_SIZE_FULL) {
@@ -817,15 +874,15 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		unsigned int length = RB_LOGBOOK_SIZE_FULL + array_uint24_le (header + offset + logbook->profile) - 3;
 		if (!compact) {
 			// Workaround for a bug in older firmware versions.
-			unsigned int firmware = array_uint16_be (header + offset + 0x30);
-			if (firmware < 93)
+			unsigned int firmware = array_uint16_be (header + offset + HDR_FULL_FIRMWARE);
+			if (firmware < OSTC3FW(0,93))
 				length -= 3;
 		}
 
 		// Download the dive.
 		unsigned char number[1] = {idx};
 		rc = hw_ostc3_transfer (device, &progress, DIVE,
-			number, sizeof (number), profile, length, NODELAY);
+			number, sizeof (number), profile, length, &length, NODELAY);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive.");
 			free (profile);
@@ -834,11 +891,15 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		}
 
 		// Verify the header in the logbook and profile are identical.
-		if (!compact && memcmp (profile, header + offset, logbook->size) != 0) {
+		if (memcmp (profile + HDR_FULL_VERSION, header + offset + logbook->version, 1) != 0 ||
+			compact ?
+			memcmp (profile + HDR_FULL_SUMMARY, header + offset + HDR_COMPACT_SUMMARY, 10) != 0 ||
+			memcmp (profile + HDR_FULL_NUMBER, header + offset + HDR_COMPACT_NUMBER, 2) != 0 :
+			memcmp (profile + HDR_FULL_SUMMARY, header + offset + HDR_FULL_SUMMARY, RB_LOGBOOK_SIZE_FULL - HDR_FULL_SUMMARY) != 0) {
 			ERROR (abstract->context, "Unexpected profile header.");
 			free (profile);
 			free (header);
-			return rc;
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		// Detect invalid profile data.
@@ -852,8 +913,8 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		} else if (length == RB_LOGBOOK_SIZE_FULL + 2) {
 			// A profile containing only the 2 byte end-of-profile
 			// marker is considered a valid empty profile.
-		} else if (length < RB_LOGBOOK_SIZE_FULL + 5 + 2 ||
-			array_uint24_le (profile + RB_LOGBOOK_SIZE_FULL) + delta != array_uint24_le (profile + 9)) {
+		} else if (length < RB_LOGBOOK_SIZE_FULL + 5 ||
+			array_uint24_le (profile + RB_LOGBOOK_SIZE_FULL) + delta != array_uint24_le (profile + HDR_FULL_LENGTH)) {
 			// If there is more data available, then there should be a
 			// valid profile header containing a length matching the
 			// length in the dive header.
@@ -861,7 +922,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 			length = RB_LOGBOOK_SIZE_FULL;
 		}
 
-		if (callback && !callback (profile, length, profile + 12, sizeof (device->fingerprint), userdata))
+		if (callback && !callback (profile, length, profile + HDR_FULL_SUMMARY, sizeof (device->fingerprint), userdata))
 			break;
 	}
 
@@ -890,7 +951,7 @@ hw_ostc3_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
 	unsigned char packet[6] = {
 		datetime->hour, datetime->minute, datetime->second,
 		datetime->month, datetime->day, datetime->year - 2000};
-	rc = hw_ostc3_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, CLOCK, packet, sizeof (packet), NULL, 0, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -918,7 +979,7 @@ hw_ostc3_device_display (dc_device_t *abstract, const char *text)
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, DISPLAY, packet, sizeof (packet), NULL, 0, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -946,7 +1007,7 @@ hw_ostc3_device_customtext (dc_device_t *abstract, const char *text)
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, CUSTOMTEXT, packet, sizeof (packet), NULL, 0, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -972,7 +1033,7 @@ hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigne
 
 	// Send the command.
 	unsigned char command[1] = {config};
-	rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, READ, command, sizeof (command), data, size, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -999,7 +1060,7 @@ hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const 
 	// Send the command.
 	unsigned char command[SZ_CONFIG + 1] = {config};
 	memcpy(command + 1, data, size);
-	rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, WRITE, command, size + 1, NULL, 0, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -1019,7 +1080,7 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, RESET, NULL, 0, NULL, 0, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
@@ -1245,7 +1306,7 @@ hw_ostc3_firmware_erase (hw_ostc3_device_t *device, unsigned int addr, unsigned 
 	array_uint24_be_set (buffer, addr);
 	buffer[3] = blocks;
 
-	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, delay);
+	return hw_ostc3_transfer (device, NULL, S_ERASE, buffer, sizeof (buffer), NULL, 0, NULL, delay);
 }
 
 static dc_status_t
@@ -1255,7 +1316,7 @@ hw_ostc3_firmware_block_read (hw_ostc3_device_t *device, unsigned int addr, unsi
 	array_uint24_be_set (buffer, addr);
 	array_uint24_be_set (buffer + 3, block_size);
 
-	return hw_ostc3_transfer (device, NULL, S_BLOCK_READ, buffer, sizeof (buffer), block, block_size, NODELAY);
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_READ, buffer, sizeof (buffer), block, block_size, NULL, NODELAY);
 }
 
 static dc_status_t
@@ -1270,7 +1331,7 @@ hw_ostc3_firmware_block_write1 (hw_ostc3_device_t *device, unsigned int addr, co
 	array_uint24_be_set (buffer, addr);
 	memcpy (buffer + 3, block, block_size);
 
-	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, TIMEOUT);
+	return hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE, buffer, 3 + block_size, NULL, 0, NULL, TIMEOUT);
 }
 
 static dc_status_t
@@ -1289,7 +1350,7 @@ hw_ostc3_firmware_block_write2 (hw_ostc3_device_t *device, unsigned int address,
 		array_uint24_be_set (buffer, address);
 		memcpy (buffer + 3, data + nbytes, SZ_FIRMWARE_BLOCK2);
 
-		status = hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE2, buffer, sizeof(buffer), NULL, 0, NODELAY);
+		status = hw_ostc3_transfer (device, NULL, S_BLOCK_WRITE2, buffer, sizeof(buffer), NULL, 0, NULL, NODELAY);
 		if (status != DC_STATUS_SUCCESS) {
 			return status;
 		}
@@ -1330,7 +1391,7 @@ hw_ostc3_firmware_upgrade (dc_device_t *abstract, unsigned int checksum)
 		buffer[4]  = (buffer[4]<<1 | buffer[4]>>7);
 	}
 
-	rc = hw_ostc3_transfer (device, NULL, S_UPGRADE, buffer, sizeof (buffer), NULL, 0, NODELAY);
+	rc = hw_ostc3_transfer (device, NULL, S_UPGRADE, buffer, sizeof (buffer), NULL, 0, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to send flash firmware command");
 		return rc;
@@ -1512,7 +1573,7 @@ hw_ostc3_device_fwupdate4 (dc_device_t *abstract, const char *filename)
 		// Read the firmware version info.
 		unsigned char fwinfo[SZ_FWINFO] = {0};
 		status = hw_ostc3_transfer (device, NULL, S_FWINFO,
-			data + offset + 4, 1, fwinfo, sizeof(fwinfo), NODELAY);
+			data + offset + 4, 1, fwinfo, sizeof(fwinfo), NULL, NODELAY);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the firmware info.");
 			goto error;
@@ -1525,7 +1586,7 @@ hw_ostc3_device_fwupdate4 (dc_device_t *abstract, const char *filename)
 			!array_isequal(fwinfo, sizeof(fwinfo), 0xFF))
 		{
 			status = hw_ostc3_transfer (device, &progress, S_UPLOAD,
-				data + offset, length, NULL, 0, usecs / 1000);
+				data + offset, length, NULL, 0, NULL, usecs / 1000);
 			if (status != DC_STATUS_SUCCESS) {
 				goto error;
 			}

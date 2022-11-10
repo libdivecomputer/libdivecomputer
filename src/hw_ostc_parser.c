@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "libdivecomputer/units.h"
 
@@ -679,8 +680,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 	const hw_ostc_layout_t *layout = parser->layout;
 
 	// Exit if no profile data available.
-	if (size == header || (size == header + 2 &&
-		data[header] == 0xFD && data[header + 1] == 0xFD)) {
+	const unsigned char empty[] = {0x08, 0x00, 0x00, 0xFD, 0xFD};
+	if (size == header ||
+		(size == header + 2 && memcmp(data + header, empty + 3, 2) == 0) ||
+		(size == header + 5 && memcmp(data + header, empty, 5) == 0)) {
 		parser->cached = PROFILE;
 		return DC_STATUS_SUCCESS;
 	}
