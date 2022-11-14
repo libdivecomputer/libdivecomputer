@@ -30,6 +30,7 @@
 #include <fcntl.h>	// fcntl
 #include <termios.h>	// tcgetattr, tcsetattr, cfsetispeed, cfsetospeed, tcflush, tcsendbreak
 #include <sys/ioctl.h>	// ioctl
+#include <sys/select.h>	// select
 #ifdef HAVE_LINUX_SERIAL_H
 #include <linux/serial.h>
 #endif
