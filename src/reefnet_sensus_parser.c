@@ -141,6 +141,7 @@ reefnet_sensus_parser_set_clock (dc_parser_t *abstract, unsigned int devtime, dc
 }
 
 
+static dc_status_t
 reefnet_sensus_parser_set_atmospheric (dc_parser_t *abstract, double atmospheric)
 {
 	reefnet_sensus_parser_t *parser = (reefnet_sensus_parser_t *) abstract;
