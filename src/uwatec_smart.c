@@ -36,6 +36,8 @@
 #define PACKETSIZE_USBHID_TX 32
 
 #define CMD_MODEL      0x10
+#define CMD_HARDWARE   0x11
+#define CMD_SOFTWARE   0x13
 #define CMD_SERIAL     0x14
 #define CMD_DEVTIME    0x1A
 #define CMD_HANDSHAKE1 0x1B
@@ -557,6 +559,18 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	// Read the hardware version.
+	unsigned char hardware[1] = {0};
+	rc = uwatec_smart_transfer (device, CMD_HARDWARE, NULL, 0, hardware, sizeof (hardware));
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
+	// Read the software version.
+	unsigned char software[1] = {0};
+	rc = uwatec_smart_transfer (device, CMD_SOFTWARE, NULL, 0, software, sizeof (software));
+	if (rc != DC_STATUS_SUCCESS)
+		return rc;
+
 	// Read the serial number.
 	unsigned char serial[4] = {0};
 	rc = uwatec_smart_transfer (device, CMD_SERIAL, NULL, 0, serial, sizeof (serial));
@@ -574,7 +588,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device->devtime = array_uint32_le (devtime);
 
 	// Update and emit a progress event.
-	progress.current += 9;
+	progress.current += 11;
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a clock event.
@@ -586,7 +600,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = model[0];
-	devinfo.firmware = 0;
+	devinfo.firmware = bcd2dec (software[0]);
 	devinfo.serial = array_uint32_le (serial);
 	device_event_emit (&device->base, DC_EVENT_DEVINFO, &devinfo);
 
@@ -610,7 +624,7 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned int length = array_uint32_le (answer);
 
 	// Update and emit a progress event.
-	progress.maximum = 4 + 9 + (length ? length + 4 : 0);
+	progress.maximum = 4 + 11 + (length ? length + 4 : 0);
 	progress.current += 4;
 	device_event_emit (&device->base, DC_EVENT_PROGRESS, &progress);
 
