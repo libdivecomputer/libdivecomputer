@@ -83,7 +83,7 @@ jobs:
         run: sudo apt-get install gcc-mingw-w64 binutils-mingw-w64 mingw-w64-tools
       - name: Install libusb
         env:
-          LIBUSB_VERSION: 1.0.24
+          LIBUSB_VERSION: 1.0.26
         run: |
           wget -c https://github.com/libusb/libusb/archive/refs/tags/v${LIBUSB_VERSION}.tar.gz
           tar xzf v${LIBUSB_VERSION}.tar.gz
@@ -95,7 +95,7 @@ jobs:
           popd
       - name: Install hidapi
         env:
-          HIDAPI_VERSION: 0.10.1
+          HIDAPI_VERSION: 0.12.0
         run: |
           wget -c https://github.com/libusb/hidapi/archive/refs/tags/hidapi-${HIDAPI_VERSION}.tar.gz
           tar xzf hidapi-${HIDAPI_VERSION}.tar.gz
