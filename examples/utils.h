@@ -26,6 +26,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
 #define FUNCTION __func__
 #else
