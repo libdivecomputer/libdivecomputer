@@ -24,8 +24,10 @@
 #endif
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif

@@ -157,7 +157,7 @@ AC_CHECK_HEADERS([sys/socket.h linux/types.h linux/irda.h], , , [
 # Checks for header files.
 AC_CHECK_HEADERS([linux/serial.h])
 AC_CHECK_HEADERS([IOKit/serial/ioss.h])
-AC_CHECK_HEADERS([getopt.h])
+AC_CHECK_HEADERS([unistd.h getopt.h])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([pthread.h])
 AC_CHECK_HEADERS([mach/mach_time.h])
