@@ -313,7 +313,8 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	unsigned int ndives = array_uint16_le (rsp_index);
 
 	// Update and emit a progress event.
-	progress.maximum = ndives * NSTEPS;
+	progress.current = 1 * NSTEPS;
+	progress.maximum = (ndives + 1) * NSTEPS;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	dc_buffer_t *buffer = dc_buffer_new(0);
@@ -341,7 +342,7 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		unsigned int length = array_uint32_le (rsp_header + 8);
 
 		// Update and emit a progress event.
-		progress.current = i * NSTEPS + STEP(sizeof(rsp_header), sizeof(rsp_header) + length);
+		progress.current = (i + 1) * NSTEPS + STEP(sizeof(rsp_header), sizeof(rsp_header) + length);
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		dc_buffer_clear(buffer);
@@ -377,7 +378,7 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			}
 
 			// Update and emit a progress event.
-			progress.current = i * NSTEPS + STEP(sizeof(rsp_header) + offset + n, sizeof(rsp_header) + length);
+			progress.current = (i + 1) * NSTEPS + STEP(sizeof(rsp_header) + offset + n, sizeof(rsp_header) + length);
 			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 			if (!dc_buffer_append(buffer, rsp_profile, n)) {
