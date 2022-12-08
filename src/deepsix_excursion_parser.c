@@ -41,6 +41,10 @@
 
 #define DENSITY 1024.0
 
+#define FWVERSION(major,minor) ( \
+		((((major) + '0') & 0xFF) << 8) | \
+		((minor) & 0xFF))
+
 typedef struct deepsix_excursion_parser_t {
 	dc_parser_t base;
 } deepsix_excursion_parser_t;
@@ -98,6 +102,8 @@ deepsix_excursion_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dat
 	if (size < HEADERSIZE)
 		return DC_STATUS_DATAFORMAT;
 
+	unsigned int firmware = array_uint16_be (data + 48 + 4);
+
 	if (datetime) {
 		datetime->year = data[12] + 2000;
 		datetime->month = data[13];
@@ -105,7 +111,12 @@ deepsix_excursion_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *dat
 		datetime->hour = data[15];
 		datetime->minute = data[16];
 		datetime->second = data[17];
-		datetime->timezone = DC_TIMEZONE_NONE;
+
+		if (firmware >= FWVERSION(5, 'B')) {
+			datetime->timezone = (data[18] - 12) * 3600;
+		} else {
+			datetime->timezone = DC_TIMEZONE_NONE;
+		}
 	}
 
 	return DC_STATUS_SUCCESS;
