@@ -36,8 +36,10 @@ extern "C" {
 
 #ifdef _WIN32
 #define DC_PRINTF_SIZE "%Iu"
+#define DC_FORMAT_INT64 "%I64d"
 #else
 #define DC_PRINTF_SIZE "%zu"
+#define DC_FORMAT_INT64 "%lld"
 #endif
 
 #ifdef _MSC_VER

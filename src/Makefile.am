@@ -78,6 +78,8 @@ libdivecomputer_la_SOURCES = \
 	deepsix_excursion.h deepsix_excursion.c deepsix_excursion_parser.c \
 	seac_screen.h seac_screen.c seac_screen_parser.c \
 	deepblu_cosmiq.h deepblu_cosmiq.c deepblu_cosmiq_parser.c \
+	oceans_s1_common.h oceans_s1_common.c \
+	oceans_s1.h oceans_s1.c oceans_s1_parser.c \
 	socket.h socket.c \
 	irda.c \
 	usb.c \

@@ -97,6 +97,7 @@ static const backend_table_t g_backends[] = {
 	{"excursion",   DC_FAMILY_DEEPSIX_EXCURSION,   0},
 	{"screen",      DC_FAMILY_SEAC_SCREEN,         0},
 	{"cosmiq",      DC_FAMILY_DEEPBLU_COSMIQ,      0},
+	{"s1",          DC_FAMILY_OCEANS_S1,           0},
 };
 
 static const transport_table_t g_transports[] = {

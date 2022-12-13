@@ -116,6 +116,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_SEAC_SCREEN = (20 << 16),
 	/* Deepblu Cosmiq */
 	DC_FAMILY_DEEPBLU_COSMIQ = (21 << 16),
+	/* Oceans S1 */
+	DC_FAMILY_OCEANS_S1 = (22 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

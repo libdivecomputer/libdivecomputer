@@ -64,6 +64,7 @@ static int dc_filter_mclean (dc_transport_t transport, const void *userdata, voi
 static int dc_filter_atomic (dc_transport_t transport, const void *userdata, void *params);
 static int dc_filter_deepsix (dc_transport_t transport, const void *userdata, void *params);
 static int dc_filter_deepblu (dc_transport_t transport, const void *userdata, void *params);
+static int dc_filter_oceans (dc_transport_t transport, const void *userdata, void *params);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -448,6 +449,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Seac", "Action", DC_FAMILY_SEAC_SCREEN, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Deepblu Cosmiq */
 	{"Deepblu", "Cosmiq+", DC_FAMILY_DEEPBLU_COSMIQ, 0, DC_TRANSPORT_BLE, dc_filter_deepblu},
+	/* Oceans S1 */
+	{"Oceans", "S1", DC_FAMILY_OCEANS_S1, 0, DC_TRANSPORT_BLE, dc_filter_oceans},
 };
 
 static int
@@ -777,6 +780,19 @@ static int dc_filter_deepblu (dc_transport_t transport, const void *userdata, vo
 
 	if (transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
+	}
+
+	return 1;
+}
+
+static int dc_filter_oceans (dc_transport_t transport, const void *userdata, void *params)
+{
+	static const char * const bluetooth[] = {
+		"S1",
+	};
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
 	}
 
 	return 1;

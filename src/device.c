@@ -63,6 +63,7 @@
 #include "deepsix_excursion.h"
 #include "seac_screen.h"
 #include "deepblu_cosmiq.h"
+#include "oceans_s1.h"
 
 #include "device-private.h"
 #include "context-private.h"
@@ -234,6 +235,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_DEEPBLU_COSMIQ:
 		rc = deepblu_cosmiq_device_open (&device, context, iostream);
+		break;
+	case DC_FAMILY_OCEANS_S1:
+		rc = oceans_s1_device_open (&device, context, iostream);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;
