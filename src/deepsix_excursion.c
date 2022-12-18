@@ -408,7 +408,7 @@ deepsix_excursion_device_timesync (dc_device_t *abstract, const dc_datetime_t *d
 	dc_status_t status = DC_STATUS_SUCCESS;
 	deepsix_excursion_device_t *device = (deepsix_excursion_device_t *) abstract;
 
-	if (datetime == NULL || datetime->year < 2000) {
+	if (datetime->year < 2000) {
 		ERROR (abstract->context, "Invalid date/time value specified.");
 		return DC_STATUS_INVALIDARGS;
 	}

@@ -471,11 +471,6 @@ mclean_extreme_device_timesync(dc_device_t *abstract, const dc_datetime_t *datet
 {
 	mclean_extreme_device_t *device = (mclean_extreme_device_t *)abstract;
 
-	if (datetime == NULL) {
-		ERROR(abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	// Get the UTC timestamp.
 	dc_ticks_t ticks = dc_datetime_mktime(datetime);
 	if (ticks == -1 || ticks < EPOCH || ticks - EPOCH > 0xFFFFFFFF) {

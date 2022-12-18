@@ -461,7 +461,7 @@ sporasub_sp2_device_timesync (dc_device_t *abstract, const dc_datetime_t *dateti
 	dc_status_t status = DC_STATUS_SUCCESS;
 	sporasub_sp2_device_t *device = (sporasub_sp2_device_t *) abstract;
 
-	if (datetime == NULL || datetime->year < 2000) {
+	if (datetime->year < 2000) {
 		ERROR (abstract->context, "Invalid parameter specified.");
 		return DC_STATUS_INVALIDARGS;
 	}

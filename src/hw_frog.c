@@ -473,11 +473,6 @@ hw_frog_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_frog_device_t *device = (hw_frog_device_t *) abstract;
 
-	if (datetime == NULL) {
-		ERROR (abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	// Send the command.
 	unsigned char packet[6] = {
 		datetime->hour, datetime->minute, datetime->second,

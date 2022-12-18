@@ -608,11 +608,6 @@ divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *da
 		return DC_STATUS_UNSUPPORTED;
 	}
 
-	if (datetime == NULL) {
-		ERROR (abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	// Get the UTC timestamp.
 	dc_ticks_t timestamp = dc_datetime_mktime(datetime);
 	if (timestamp == -1) {

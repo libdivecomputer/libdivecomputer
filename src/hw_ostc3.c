@@ -938,11 +938,6 @@ hw_ostc3_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
 {
 	hw_ostc3_device_t *device = (hw_ostc3_device_t *) abstract;
 
-	if (datetime == NULL) {
-		ERROR (abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	dc_status_t rc = hw_ostc3_device_init (device, DOWNLOAD);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;

@@ -404,6 +404,9 @@ dc_device_timesync (dc_device_t *device, const dc_datetime_t *datetime)
 	if (device->vtable->timesync == NULL)
 		return DC_STATUS_UNSUPPORTED;
 
+	if (datetime == NULL)
+		return DC_STATUS_INVALIDARGS;
+
 	return device->vtable->timesync (device, datetime);
 }
 

@@ -348,11 +348,6 @@ hw_ostc_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
-	if (datetime == NULL) {
-		ERROR (abstract->context, "Invalid parameter specified.");
-		return DC_STATUS_INVALIDARGS;
-	}
-
 	// Send the command.
 	dc_status_t rc = hw_ostc_send (device, 'b', 1);
 	if (rc != DC_STATUS_SUCCESS)
