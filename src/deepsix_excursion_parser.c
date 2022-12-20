@@ -254,7 +254,7 @@ deepsix_excursion_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callb
 			unsigned int ceiling_time  = array_uint16_le(data + offset + 6);
 		} else if (type == CNS) {
 			unsigned int cns = array_uint16_le(data + offset + 4);
-			sample.cns = cns;
+			sample.cns = cns / 100.0;
 			if (callback) callback(DC_SAMPLE_CNS, sample, userdata);
 		}
 
