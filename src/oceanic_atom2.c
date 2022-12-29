@@ -948,7 +948,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	}
 
 	// Set the big page support.
-	if (device->base.layout == &aeris_f11_layout) {
+	if (device->base.layout == &aeris_f11_layout ||
+		device->base.layout == &oceanic_proplus3_layout) {
 		device->bigpage = 8;
 	} else if (device->base.layout == &oceanic_proplusx_layout ||
 		device->base.layout == &aqualung_i770r_layout ||
@@ -1042,7 +1043,7 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 		break;
 	case 8:
 		read_cmd = CMD_READ8;
-		crc_size = 1;
+		crc_size = device->base.model == PROPLUS4 ? 2 : 1;
 		break;
 	case 16:
 		read_cmd = CMD_READ16;
