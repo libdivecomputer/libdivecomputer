@@ -54,9 +54,13 @@
 #define ACK 0x5A
 #define NAK 0xA5
 
+#define REPEAT 50
+
 typedef struct oceanic_atom2_device_t {
 	oceanic_common_device_t base;
 	dc_iostream_t *iostream;
+	unsigned int handshake_repeat;
+	unsigned int handshake_counter;
 	unsigned int sequence;
 	unsigned int delay;
 	unsigned int extra;
@@ -957,6 +961,11 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		device->bigpage = 16;
 	}
 
+	// Repeat the handshaking every few packets.
+	device->handshake_repeat = dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE &&
+		device->base.model == PROPLUS4;
+	device->handshake_counter = 0;
+
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;
@@ -1074,6 +1083,12 @@ oceanic_atom2_device_read (dc_device_t *abstract, unsigned int address, unsigned
 		unsigned int page = (address - highmem) / pagesize;
 
 		if (page != device->cached_page || highmem != device->cached_highmem) {
+			if (device->handshake_repeat && ++device->handshake_counter % REPEAT == 0) {
+				unsigned char version[PAGESIZE] = {0};
+				oceanic_atom2_device_version (abstract, version, sizeof (version));
+				oceanic_atom2_ble_handshake (device);
+			}
+
 			// Read the package.
 			unsigned int number = highmem ? page : page * device->bigpage; // This is always PAGESIZE, even in big page mode.
 			unsigned char command[] = {read_cmd,
