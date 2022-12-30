@@ -161,6 +161,7 @@ typedef struct oceanic_common_device_t {
 	unsigned int firmware;
 	unsigned char version[PAGESIZE];
 	unsigned char fingerprint[FPMAXSIZE];
+	unsigned int model;
 	const oceanic_common_layout_t *layout;
 	unsigned int multipage;
 } oceanic_common_device_t;
@@ -174,10 +175,11 @@ typedef struct oceanic_common_device_vtable_t {
 typedef struct oceanic_common_version_t {
 	unsigned char pattern[PAGESIZE + 1];
 	unsigned int firmware;
+	unsigned int model;
 	const oceanic_common_layout_t *layout;
 } oceanic_common_version_t;
 
-const oceanic_common_layout_t *
+const oceanic_common_version_t *
 oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n, unsigned int *firmware);
 
 void

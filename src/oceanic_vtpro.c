@@ -118,14 +118,14 @@ static const oceanic_common_layout_t aeris_500ai_layout = {
 };
 
 static const oceanic_common_version_t versions[] = {
-	{"VERSAPRO \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"ATMOSTWO \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"PROPLUS2 \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"ATMOSAIR \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"VTPRO  r\0\0  256K", 0, &oceanic_vtpro_layout},
-	{"ELITE  r\0\0  256K", 0, &oceanic_vtpro_layout},
+	{"VERSAPRO \0\0 256K", 0, VERSAPRO,      &oceanic_vtpro_layout},
+	{"ATMOSTWO \0\0 256K", 0, ATMOS2,        &oceanic_vtpro_layout},
+	{"PROPLUS2 \0\0 256K", 0, PROPLUS2,      &oceanic_vtpro_layout},
+	{"ATMOSAIR \0\0 256K", 0, ATMOSAI,       &oceanic_vtpro_layout},
+	{"VTPRO  r\0\0  256K", 0, VTPRO,         &oceanic_vtpro_layout},
+	{"ELITE  r\0\0  256K", 0, ELITE,         &oceanic_vtpro_layout},
 
-	{"WISDOM r\0\0  256K", 0, &oceanic_wisdom_layout},
+	{"WISDOM r\0\0  256K", 0, WISDOM,        &oceanic_wisdom_layout},
 };
 
 static dc_status_t
@@ -490,11 +490,16 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	// Detect the memory layout.
 	if (model == AERIS500AI) {
 		device->base.layout = &aeris_500ai_layout;
+		device->base.model = AERIS500AI;
 	} else {
-		device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
-		if (device->base.layout == NULL) {
+		const oceanic_common_version_t * version = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
+		if (version == NULL) {
 			WARNING (context, "Unsupported device detected!");
 			device->base.layout = &oceanic_vtpro_layout;
+			device->base.model = 0;
+		} else {
+			device->base.layout = version->layout;
+			device->base.model = version->model;
 		}
 	}
 

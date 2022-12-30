@@ -78,14 +78,14 @@ static const oceanic_common_layout_t oceanic_veo250_layout = {
 };
 
 static const oceanic_common_version_t versions[] = {
-	{"GENREACT \0\0 256K", 0, &oceanic_veo250_layout},
-	{"VEO 200 R\0\0 256K", 0, &oceanic_veo250_layout},
-	{"VEO 250 R\0\0 256K", 0, &oceanic_veo250_layout},
-	{"SEEMANN R\0\0 256K", 0, &oceanic_veo250_layout},
-	{"VEO 180 R\0\0 256K", 0, &oceanic_veo250_layout},
-	{"AERISXR2 \0\0 256K", 0, &oceanic_veo250_layout},
-	{"INSIGHT R\0\0 256K", 0, &oceanic_veo250_layout},
-	{"HO DGO2 R\0\0 256K", 0, &oceanic_veo250_layout},
+	{"GENREACT \0\0 256K", 0, REACTPRO,      &oceanic_veo250_layout},
+	{"VEO 200 R\0\0 256K", 0, VEO200,        &oceanic_veo250_layout},
+	{"VEO 250 R\0\0 256K", 0, VEO250,        &oceanic_veo250_layout},
+	{"SEEMANN R\0\0 256K", 0, XP5,           &oceanic_veo250_layout},
+	{"VEO 180 R\0\0 256K", 0, VEO180,        &oceanic_veo250_layout},
+	{"AERISXR2 \0\0 256K", 0, XR2,           &oceanic_veo250_layout},
+	{"INSIGHT R\0\0 256K", 0, INSIGHT,       &oceanic_veo250_layout},
+	{"HO DGO2 R\0\0 256K", 0, DG02,          &oceanic_veo250_layout},
 };
 
 static dc_status_t
@@ -316,10 +316,14 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, dc_iostrea
 	}
 
 	// Detect the memory layout.
-	device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
-	if (device->base.layout == NULL) {
+	const oceanic_common_version_t *version = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
+	if (version == NULL) {
 		WARNING (context, "Unsupported device detected!");
 		device->base.layout = &oceanic_veo250_layout;
+		device->base.model = 0;
+	} else {
+		device->base.layout = version->layout;
+		device->base.model = version->model;
 	}
 
 	*out = (dc_device_t*) device;
