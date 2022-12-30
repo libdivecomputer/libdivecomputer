@@ -35,14 +35,6 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &oceanic_atom2_device_vtable.base)
 
-#define PROPLUSX   0x4552
-#define VTX        0x4557
-#define I750TC     0x455A
-#define SAGE       0x4647
-#define I770R      0x4651
-#define GEO40      0x4653
-#define BEACON     0x4742
-
 #define MAXPACKET  256
 #define MAXRETRIES 2
 #define MAXDELAY   16

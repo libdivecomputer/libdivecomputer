@@ -40,8 +40,6 @@
 #define NAK 0xA5
 #define END 0x51
 
-#define AERIS500AI 0x4151
-
 typedef enum oceanic_vtpro_protocol_t {
 	MOD,
 	INTR,
