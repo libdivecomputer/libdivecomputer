@@ -48,7 +48,6 @@ typedef enum oceanic_vtpro_protocol_t {
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	dc_iostream_t *iostream;
-	unsigned int model;
 	oceanic_vtpro_protocol_t protocol;
 } oceanic_vtpro_device_t;
 
@@ -379,7 +378,7 @@ oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progre
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
 
-	if (device->model == AERIS500AI) {
+	if (device->base.model == AERIS500AI) {
 		return oceanic_aeris500ai_device_logbook (abstract, progress, logbook);
 	} else {
 		return oceanic_common_device_logbook (abstract, progress, logbook);
@@ -410,7 +409,6 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 
 	// Set the default values.
 	device->iostream = iostream;
-	device->model = model;
 	if (model == AERIS500AI) {
 		device->protocol = INTR;
 	} else {
