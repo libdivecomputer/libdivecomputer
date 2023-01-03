@@ -28,6 +28,8 @@
 #include <errno.h>
 #endif
 
+#include <stdio.h>
+
 #include "platform.h"
 
 int
@@ -48,4 +50,49 @@ dc_platform_sleep (unsigned int milliseconds)
 #endif
 
 	return 0;
+}
+
+int
+dc_platform_vsnprintf (char *str, size_t size, const char *format, va_list ap)
+{
+	int n = 0;
+
+	if (size == 0)
+		return -1;
+
+#ifdef _MSC_VER
+	/*
+	 * The non-standard vsnprintf implementation provided by MSVC doesn't null
+	 * terminate the string and returns a negative value if the destination
+	 * buffer is too small.
+	 */
+	n = _vsnprintf (str, size - 1, format, ap);
+	if (n == size - 1 || n < 0)
+		str[size - 1] = 0;
+#else
+	/*
+	 * The C99 vsnprintf function will always null terminate the string. If the
+	 * destination buffer is too small, the return value is the number of
+	 * characters that would have been written if the buffer had been large
+	 * enough.
+	 */
+	n = vsnprintf (str, size, format, ap);
+	if (n >= 0 && (size_t) n >= size)
+		n = -1;
+#endif
+
+	return n;
+}
+
+int
+dc_platform_snprintf (char *str, size_t size, const char *format, ...)
+{
+	va_list ap;
+	int n = 0;
+
+	va_start (ap, format);
+	n = dc_platform_vsnprintf (str, size, format, ap);
+	va_end (ap);
+
+	return n;
 }

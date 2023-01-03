@@ -22,9 +22,17 @@
 #ifndef DC_PLATFORM_H
 #define DC_PLATFORM_H
 
+#include <stdarg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+#if defined(__GNUC__)
+#define DC_ATTR_FORMAT_PRINTF(a,b) __attribute__((format(printf, a, b)))
+#else
+#define DC_ATTR_FORMAT_PRINTF(a,b)
+#endif
 
 #ifdef _WIN32
 #define DC_PRINTF_SIZE "%Iu"
@@ -33,7 +41,6 @@ extern "C" {
 #endif
 
 #ifdef _MSC_VER
-#define snprintf _snprintf
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #if _MSC_VER < 1800
@@ -46,6 +53,13 @@ extern "C" {
 #endif
 
 int dc_platform_sleep(unsigned int milliseconds);
+
+/*
+ * A wrapper for the vsnprintf function, which will always null terminate the
+ * string and returns a negative value if the destination buffer is too small.
+ */
+int dc_platform_snprintf (char *str, size_t size, const char *format, ...) DC_ATTR_FORMAT_PRINTF(3, 4);
+int dc_platform_vsnprintf (char *str, size_t size, const char *format, va_list ap) DC_ATTR_FORMAT_PRINTF(3, 0);
 
 #ifdef __cplusplus
 }

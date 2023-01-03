@@ -28,6 +28,8 @@
 
 #include <libdivecomputer/context.h>
 
+#include "platform.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -38,12 +40,6 @@ extern "C" {
 #define FUNCTION __func__
 #else
 #define FUNCTION __FUNCTION__
-#endif
-
-#if defined(__GNUC__)
-#define ATTR_FORMAT_PRINTF(a,b) __attribute__((format(printf, a, b)))
-#else
-#define ATTR_FORMAT_PRINTF(a,b)
 #endif
 
 #ifdef ENABLE_LOGGING
@@ -63,7 +59,7 @@ extern "C" {
 #endif
 
 dc_status_t
-dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...) ATTR_FORMAT_PRINTF(6, 7);
+dc_context_log (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *format, ...) DC_ATTR_FORMAT_PRINTF(6, 7);
 
 dc_status_t
 dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, int errcode);

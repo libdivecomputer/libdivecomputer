@@ -24,7 +24,6 @@
 #endif
 
 #include <stdlib.h> // malloc, free
-#include <stdio.h>	// snprintf
 #include <string.h>
 
 #include "socket.h"
@@ -314,7 +313,7 @@ dc_irda_open (dc_iostream_t **out, dc_context_t *context, unsigned int address, 
 	peer.irdaDeviceID[1] = (address >>  8) & 0xFF;
 	peer.irdaDeviceID[2] = (address >> 16) & 0xFF;
 	peer.irdaDeviceID[3] = (address >> 24) & 0xFF;
-	snprintf (peer.irdaServiceName, sizeof(peer.irdaServiceName), "LSAP-SEL%u", lsap);
+	dc_platform_snprintf (peer.irdaServiceName, sizeof(peer.irdaServiceName), "LSAP-SEL%u", lsap);
 #else
 	struct sockaddr_irda peer;
 	peer.sir_family = AF_IRDA;

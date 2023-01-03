@@ -1447,7 +1447,7 @@ hw_ostc3_device_fwupdate3 (dc_device_t *abstract, const char *filename)
 
 	for (unsigned int len = 0; len < SZ_FIRMWARE; len += SZ_FIRMWARE_BLOCK) {
 		char status[SZ_DISPLAY + 1]; // Status message on the display
-		snprintf (status, sizeof(status), " Uploading %2d%%", (100 * len) / SZ_FIRMWARE);
+		dc_platform_snprintf (status, sizeof(status), " Uploading %2d%%", (100 * len) / SZ_FIRMWARE);
 		hw_ostc3_device_display (abstract, status);
 
 		rc = hw_ostc3_firmware_block_write (device, FIRMWARE_AREA + len, firmware->data + len, SZ_FIRMWARE_BLOCK);
@@ -1466,7 +1466,7 @@ hw_ostc3_device_fwupdate3 (dc_device_t *abstract, const char *filename)
 	for (unsigned int len = 0; len < SZ_FIRMWARE; len += SZ_FIRMWARE_BLOCK) {
 		unsigned char block[SZ_FIRMWARE_BLOCK];
 		char status[SZ_DISPLAY + 1]; // Status message on the display
-		snprintf (status, sizeof(status), " Verifying %2d%%", (100 * len) / SZ_FIRMWARE);
+		dc_platform_snprintf (status, sizeof(status), " Verifying %2d%%", (100 * len) / SZ_FIRMWARE);
 		hw_ostc3_device_display (abstract, status);
 
 		rc = hw_ostc3_firmware_block_read (device, FIRMWARE_AREA + len, block, sizeof (block));

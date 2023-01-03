@@ -24,7 +24,6 @@
 #endif
 
 #include <stdlib.h> // malloc, free
-#include <stdio.h>
 
 #include "socket.h"
 
@@ -231,7 +230,7 @@ dc_bluetooth_addr2str(dc_bluetooth_address_t address, char *str, size_t size)
 	if (str == NULL || size < DC_BLUETOOTH_SIZE)
 		return NULL;
 
-	int n = snprintf(str, size, "%02X:%02X:%02X:%02X:%02X:%02X",
+	int n = dc_platform_snprintf(str, size, "%02X:%02X:%02X:%02X:%02X:%02X",
 		(unsigned char)((address >> 40) & 0xFF),
 		(unsigned char)((address >> 32) & 0xFF),
 		(unsigned char)((address >> 24) & 0xFF),

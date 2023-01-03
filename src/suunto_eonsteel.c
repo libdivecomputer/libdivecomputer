@@ -897,7 +897,7 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 				break;
 			}
 
-			len = snprintf(pathname, sizeof(pathname), "%s/%s", dive_directory, de->name);
+			len = dc_platform_snprintf(pathname, sizeof(pathname), "%s/%s", dive_directory, de->name);
 			if (len < 0 || (unsigned int) len >= sizeof(pathname)) {
 				dc_status_set_error(&status, DC_STATUS_PROTOCOL);
 				break;
