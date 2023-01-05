@@ -66,6 +66,12 @@ array_uint_be (const unsigned char data[], unsigned int n);
 unsigned int
 array_uint_le (const unsigned char data[], unsigned int n);
 
+unsigned long long
+array_uint64_be (const unsigned char data[]);
+
+unsigned long long
+array_uint64_le (const unsigned char data[]);
+
 unsigned int
 array_uint32_be (const unsigned char data[]);
 
@@ -75,14 +81,8 @@ array_uint32_le (const unsigned char data[]);
 unsigned int
 array_uint32_word_be (const unsigned char data[]);
 
-void
-array_uint32_le_set (unsigned char data[], const unsigned int input);
-
 unsigned int
 array_uint24_be (const unsigned char data[]);
-
-void
-array_uint24_be_set (unsigned char data[], const unsigned int input);
 
 unsigned int
 array_uint24_le (const unsigned char data[]);
@@ -92,6 +92,30 @@ array_uint16_be (const unsigned char data[]);
 
 unsigned short
 array_uint16_le (const unsigned char data[]);
+
+void
+array_uint64_be_set (unsigned char data[], const unsigned long long input);
+
+void
+array_uint64_le_set (unsigned char data[], const unsigned long long input);
+
+void
+array_uint32_be_set (unsigned char data[], const unsigned int input);
+
+void
+array_uint32_le_set (unsigned char data[], const unsigned int input);
+
+void
+array_uint24_be_set (unsigned char data[], const unsigned int input);
+
+void
+array_uint24_le_set (unsigned char data[], const unsigned int input);
+
+void
+array_uint16_be_set (unsigned char data[], const unsigned short input);
+
+void
+array_uint16_le_set (unsigned char data[], const unsigned short input);
 
 unsigned char
 bcd2dec (unsigned char value);

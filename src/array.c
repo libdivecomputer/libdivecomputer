@@ -208,6 +208,32 @@ array_uint_le (const unsigned char data[], unsigned int n)
 	return value;
 }
 
+unsigned long long
+array_uint64_be (const unsigned char data[])
+{
+	return ((unsigned long long) data[0] << 56) |
+	       ((unsigned long long) data[1] << 48) |
+	       ((unsigned long long) data[2] << 40) |
+	       ((unsigned long long) data[3] << 32) |
+	       ((unsigned long long) data[4] << 24) |
+	       ((unsigned long long) data[5] << 16) |
+	       ((unsigned long long) data[6] <<  8) |
+	       ((unsigned long long) data[7] <<  0);
+}
+
+unsigned long long
+array_uint64_le (const unsigned char data[])
+{
+	return ((unsigned long long) data[0] <<  0) |
+	       ((unsigned long long) data[1] <<  8) |
+	       ((unsigned long long) data[2] << 16) |
+	       ((unsigned long long) data[3] << 24) |
+	       ((unsigned long long) data[4] << 32) |
+	       ((unsigned long long) data[5] << 40) |
+	       ((unsigned long long) data[6] << 48) |
+	       ((unsigned long long) data[7] << 56);
+}
+
 unsigned int
 array_uint32_be (const unsigned char data[])
 {
@@ -237,17 +263,6 @@ array_uint32_word_be (const unsigned char data[])
 	       ((unsigned int) data[3] << 16);
 }
 
-
-void
-array_uint32_le_set (unsigned char data[], const unsigned int input)
-{
-	data[0] = input & 0xFF;
-	data[1] = (input >>  8) & 0xFF;
-	data[2] = (input >> 16) & 0xFF;
-	data[3] = (input >> 24) & 0xFF;
-}
-
-
 unsigned int
 array_uint24_be (const unsigned char data[])
 {
@@ -255,16 +270,6 @@ array_uint24_be (const unsigned char data[])
 	       ((unsigned int) data[1] <<  8) |
 	       ((unsigned int) data[2] <<  0);
 }
-
-
-void
-array_uint24_be_set (unsigned char data[], const unsigned int input)
-{
-	data[0] = (input >> 16) & 0xFF;
-	data[1] = (input >>  8) & 0xFF;
-	data[2] = input & 0xFF;
-}
-
 
 unsigned int
 array_uint24_le (const unsigned char data[])
@@ -287,6 +292,80 @@ array_uint16_le (const unsigned char data[])
 {
 	return ((unsigned int) data[0] <<  0) |
 	       ((unsigned int) data[1] <<  8);
+}
+
+void
+array_uint64_be_set (unsigned char data[], const unsigned long long input)
+{
+	data[0] = (input >> 56) & 0xFF;
+	data[1] = (input >> 48) & 0xFF;
+	data[2] = (input >> 40) & 0xFF;
+	data[3] = (input >> 32) & 0xFF;
+	data[4] = (input >> 24) & 0xFF;
+	data[5] = (input >> 16) & 0xFF;
+	data[6] = (input >>  8) & 0xFF;
+	data[7] = (input      ) & 0xFF;
+}
+
+void
+array_uint64_le_set (unsigned char data[], const unsigned long long input)
+{
+	data[0] = (input      ) & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
+	data[2] = (input >> 16) & 0xFF;
+	data[3] = (input >> 24) & 0xFF;
+	data[4] = (input >> 32) & 0xFF;
+	data[5] = (input >> 40) & 0xFF;
+	data[6] = (input >> 48) & 0xFF;
+	data[7] = (input >> 56) & 0xFF;
+}
+
+void
+array_uint32_be_set (unsigned char data[], const unsigned int input)
+{
+	data[0] = (input >> 24) & 0xFF;
+	data[1] = (input >> 16) & 0xFF;
+	data[2] = (input >>  8) & 0xFF;
+	data[3] = (input      ) & 0xFF;
+}
+
+void
+array_uint32_le_set (unsigned char data[], const unsigned int input)
+{
+	data[0] = (input      ) & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
+	data[2] = (input >> 16) & 0xFF;
+	data[3] = (input >> 24) & 0xFF;
+}
+
+void
+array_uint24_be_set (unsigned char data[], const unsigned int input)
+{
+	data[0] = (input >> 16) & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
+	data[2] = (input      ) & 0xFF;
+}
+
+void
+array_uint24_le_set (unsigned char data[], const unsigned int input)
+{
+	data[0] = (input      ) & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
+	data[2] = (input >> 16) & 0xFF;
+}
+
+void
+array_uint16_be_set (unsigned char data[], const unsigned short input)
+{
+	data[0] = (input >>  8) & 0xFF;
+	data[1] = (input      ) & 0xFF;
+}
+
+void
+array_uint16_le_set (unsigned char data[], const unsigned short input)
+{
+	data[0] = (input      ) & 0xFF;
+	data[1] = (input >>  8) & 0xFF;
 }
 
 unsigned char
