@@ -246,6 +246,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		break;
 	case 0x0C0D:
 	case 0x7C2D:
+	case 0x8D6C:
 		model = PERDIXAI;
 		break;
 	case 0xC407:
