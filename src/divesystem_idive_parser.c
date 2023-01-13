@@ -50,6 +50,7 @@
 
 #define BUHLMANN 0
 #define VPM      1
+#define DUAL     2
 
 typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
@@ -365,6 +366,7 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 				return DC_STATUS_UNSUPPORTED;
 			switch (parser->algorithm) {
 			case BUHLMANN:
+			case DUAL:
 				decomodel->type = DC_DECOMODEL_BUHLMANN;
 				decomodel->conservatism = 0;
 				decomodel->params.gf.low = parser->gf_low;
