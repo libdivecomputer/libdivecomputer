@@ -585,6 +585,11 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			unsigned int flags = data[offset + 47] & 0xF0;
 			unsigned int pressure = data[offset + 49];
 
+			if (flags & 0x20) {
+				// 300 bar transmitter.
+				pressure *= 2;
+			}
+
 			if (flags & 0x80) {
 				// No active transmitter available
 			} else if (flags & 0x40) {
