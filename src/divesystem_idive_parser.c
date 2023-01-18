@@ -29,6 +29,7 @@
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &divesystem_idive_parser_vtable)
 
 #define ISIX3M(model) ((model) >= 0x21)
+#define ISIX3M2(model) ((model) >= 0x60 && (model) < 0x1000)
 
 #define SZ_HEADER_IDIVE 0x32
 #define SZ_SAMPLE_IDIVE 0x2A
@@ -51,6 +52,11 @@
 #define BUHLMANN 0
 #define VPM      1
 #define DUAL     2
+
+#define IX3M2_BUHLMANN 0
+#define IX3M2_ZHL16B   1
+#define IX3M2_ZHL16C   2
+#define IX3M2_VPM      3
 
 typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
@@ -364,21 +370,41 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 		case DC_FIELD_DECOMODEL:
 			if (parser->algorithm == INVALID)
 				return DC_STATUS_UNSUPPORTED;
-			switch (parser->algorithm) {
-			case BUHLMANN:
-			case DUAL:
-				decomodel->type = DC_DECOMODEL_BUHLMANN;
-				decomodel->conservatism = 0;
-				decomodel->params.gf.low = parser->gf_low;
-				decomodel->params.gf.high = parser->gf_high;
-				break;
-			case VPM:
-				decomodel->type = DC_DECOMODEL_VPM;
-				decomodel->conservatism = 0;
-				break;
-			default:
-				ERROR (abstract->context, "Unknown deco algorithm %02x.", parser->algorithm);
-				return DC_STATUS_DATAFORMAT;
+			if (ISIX3M2(parser->model)) {
+				switch (parser->algorithm) {
+				case IX3M2_BUHLMANN:
+				case IX3M2_ZHL16B:
+				case IX3M2_ZHL16C:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->conservatism = 0;
+					decomodel->params.gf.low = parser->gf_low;
+					decomodel->params.gf.high = parser->gf_high;
+					break;
+				case IX3M2_VPM:
+					decomodel->type = DC_DECOMODEL_VPM;
+					decomodel->conservatism = 0;
+					break;
+				default:
+					ERROR (abstract->context, "Unknown deco algorithm %02x.", parser->algorithm);
+					return DC_STATUS_DATAFORMAT;
+				}
+			} else {
+				switch (parser->algorithm) {
+				case BUHLMANN:
+				case DUAL:
+					decomodel->type = DC_DECOMODEL_BUHLMANN;
+					decomodel->conservatism = 0;
+					decomodel->params.gf.low = parser->gf_low;
+					decomodel->params.gf.high = parser->gf_high;
+					break;
+				case VPM:
+					decomodel->type = DC_DECOMODEL_VPM;
+					decomodel->conservatism = 0;
+					break;
+				default:
+					ERROR (abstract->context, "Unknown deco algorithm %02x.", parser->algorithm);
+					return DC_STATUS_DATAFORMAT;
+				}
 			}
 			break;
 		default:
