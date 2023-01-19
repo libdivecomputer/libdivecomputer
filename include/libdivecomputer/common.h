@@ -114,6 +114,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_DEEPSIX_EXCURSION = (19 << 16),
 	/* Seac Screen */
 	DC_FAMILY_SEAC_SCREEN = (20 << 16),
+	/* Divesoft */
+	DC_FAMILY_DIVESOFT = (21 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

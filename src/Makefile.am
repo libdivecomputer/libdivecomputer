@@ -77,6 +77,7 @@ libdivecomputer_la_SOURCES = \
 	sporasub_sp2.h sporasub_sp2.c sporasub_sp2_parser.c \
 	deepsix_excursion.h deepsix_excursion.c deepsix_excursion_parser.c \
 	seac_screen.h seac_screen.c seac_screen_parser.c \
+	divesoft.h divesoft.c divesoft_parser.c \
 	socket.h socket.c \
 	irda.c \
 	usb.c \

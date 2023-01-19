@@ -262,6 +262,8 @@
     <ClCompile Include="..\src\uwatec_smart_parser.c" />
     <ClCompile Include="..\src\version.c" />
     <ClCompile Include="..\src\zeagle_n2ition3.c" />
+    <ClCompile Include="..\src\divesoft.c" />
+    <ClCompile Include="..\src\divesoft_parser.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\libdivecomputer\atomics_cobalt.h" />
@@ -358,6 +360,7 @@
     <ClInclude Include="..\src\uwatec_memomouse.h" />
     <ClInclude Include="..\src\uwatec_smart.h" />
     <ClInclude Include="..\src\zeagle_n2ition3.h" />
+    <ClInclude Include="..\src\divesoft.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\libdivecomputer.rc" />
