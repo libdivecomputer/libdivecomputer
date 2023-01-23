@@ -424,33 +424,24 @@ divesoft_transfer(divesoft_device_t * device, divesoft_message_data_t request, d
     return status;
 }
 
-// todo: remove packed structs; code from https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
-#ifdef __GNUC__
-#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
-#endif
-
-#ifdef _MSC_VER
-#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
-#endif
-
-PACK(typedef struct divesoft_packet_connect_t {
+typedef struct divesoft_packet_connect_t {
     unsigned short compression;
     char client_name[32];
-}) divesoft_packet_connect_t;
+} divesoft_packet_connect_t;
 
-PACK(typedef struct divesoft_packet_connected_t {
+typedef struct divesoft_packet_connected_t {
     unsigned short compression;
     unsigned char protocol_major;
     unsigned char protocol_minor;
     char serial_number[16];
     unsigned char nonce[8];
-}) divesoft_packet_connected_t;
+} divesoft_packet_connected_t;
 
-PACK(typedef struct divesoft_packet_get_dive_list_t {
+typedef struct divesoft_packet_get_dive_list_t {
     unsigned int reference;
     unsigned char direction;
     unsigned char max_count;
-}) divesoft_packet_get_dive_list_t;
+} divesoft_packet_get_dive_list_t;
 
 #define HEADER_SIGNATURE_V1 0x45766944 // "DivE"
 #define HEADER_SIGNATURE_V2 0x45566944 // "DiVE"
@@ -505,25 +496,25 @@ static unsigned divesoft_read_field(const unsigned char * data, divesoft_field_o
     return (array_uint32_le(data + field.offset) >> field.shift) & mask;
 }
 
-PACK(typedef struct divesoft_packet_dive_list_v1_t {
+typedef struct divesoft_packet_dive_list_v1_t {
     unsigned int handle;
     unsigned char thumbprint[THUMBPRINT_SIZE];
     char header_v1[HEADER_V1_SIZE];
-}) divesoft_packet_dive_list_v1_t;
+} divesoft_packet_dive_list_v1_t;
 
-PACK(typedef struct divesoft_packet_dive_list_v2_t {
+typedef struct divesoft_packet_dive_list_v2_t {
     unsigned int handle;
     unsigned char thumbprint[THUMBPRINT_SIZE];
     char header_v2[HEADER_V2_SIZE];
-}) divesoft_packet_dive_list_v2_t;
+} divesoft_packet_dive_list_v2_t;
 
 static dc_status_t divesoft_device_foreach_dive (dc_device_t *abstract, unsigned int handle, unsigned records, unsigned header_size, const unsigned char * thumbprint, dc_dive_callback_t callback, void *userdata);
 
-PACK(typedef struct divesoft_packet_get_dive_data_t {
+typedef struct divesoft_packet_get_dive_data_t {
     unsigned int handle;
     unsigned int start_offset;
     unsigned int length;
-}) divesoft_packet_get_dive_data_t;
+} divesoft_packet_get_dive_data_t;
 
 dc_status_t
 divesoft_device_open(dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
@@ -640,7 +631,7 @@ divesoft_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
     // Read dive list
     for(unsigned int start_handle = INVALID_HANDLE_VALUE;;) {
         divesoft_packet_get_dive_list_t packet_get_dive_list = {start_handle, 1, DIVE_LIST_MAX};
-        divesoft_message_data_t request = {MSG_GET_DIVE_LIST, (char *) &packet_get_dive_list, sizeof(packet_get_dive_list)};
+        divesoft_message_data_t request = {MSG_GET_DIVE_LIST, (char *) &packet_get_dive_list, 6};
         divesoft_message_data_t response = {0};
         status = divesoft_transfer(device, request, &response);
         if (status != DC_STATUS_SUCCESS) {
