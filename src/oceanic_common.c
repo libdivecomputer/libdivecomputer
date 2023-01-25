@@ -132,7 +132,7 @@ oceanic_common_match_pattern (const unsigned char *string, const unsigned char *
 	return 1;
 }
 
-const oceanic_common_layout_t *
+const oceanic_common_version_t *
 oceanic_common_match (const unsigned char *version, const oceanic_common_version_t patterns[], size_t n, unsigned int *firmware)
 {
 	for (size_t i = 0; i < n; ++i) {
@@ -143,7 +143,7 @@ oceanic_common_match (const unsigned char *version, const oceanic_common_version
 			if (firmware) {
 				*firmware = fw;
 			}
-			return patterns[i].layout;
+			return patterns + i;
 		}
 	}
 
@@ -160,6 +160,7 @@ oceanic_common_device_init (oceanic_common_device_t *device)
 	device->firmware = 0;
 	memset (device->version, 0, sizeof (device->version));
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	device->model = 0;
 	device->layout = NULL;
 	device->multipage = 1;
 }

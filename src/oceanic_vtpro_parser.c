@@ -31,8 +31,6 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &oceanic_vtpro_parser_vtable)
 
-#define AERIS500AI 0x4151
-
 typedef struct oceanic_vtpro_parser_t oceanic_vtpro_parser_t;
 
 struct oceanic_vtpro_parser_t {

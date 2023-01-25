@@ -40,8 +40,6 @@
 #define NAK 0xA5
 #define END 0x51
 
-#define AERIS500AI 0x4151
-
 typedef enum oceanic_vtpro_protocol_t {
 	MOD,
 	INTR,
@@ -50,7 +48,6 @@ typedef enum oceanic_vtpro_protocol_t {
 typedef struct oceanic_vtpro_device_t {
 	oceanic_common_device_t base;
 	dc_iostream_t *iostream;
-	unsigned int model;
 	oceanic_vtpro_protocol_t protocol;
 } oceanic_vtpro_device_t;
 
@@ -120,14 +117,14 @@ static const oceanic_common_layout_t aeris_500ai_layout = {
 };
 
 static const oceanic_common_version_t versions[] = {
-	{"VERSAPRO \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"ATMOSTWO \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"PROPLUS2 \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"ATMOSAIR \0\0 256K", 0, &oceanic_vtpro_layout},
-	{"VTPRO  r\0\0  256K", 0, &oceanic_vtpro_layout},
-	{"ELITE  r\0\0  256K", 0, &oceanic_vtpro_layout},
+	{"VERSAPRO \0\0 256K", 0, VERSAPRO,      &oceanic_vtpro_layout},
+	{"ATMOSTWO \0\0 256K", 0, ATMOS2,        &oceanic_vtpro_layout},
+	{"PROPLUS2 \0\0 256K", 0, PROPLUS2,      &oceanic_vtpro_layout},
+	{"ATMOSAIR \0\0 256K", 0, ATMOSAI,       &oceanic_vtpro_layout},
+	{"VTPRO  r\0\0  256K", 0, VTPRO,         &oceanic_vtpro_layout},
+	{"ELITE  r\0\0  256K", 0, ELITE,         &oceanic_vtpro_layout},
 
-	{"WISDOM r\0\0  256K", 0, &oceanic_wisdom_layout},
+	{"WISDOM r\0\0  256K", 0, WISDOM,        &oceanic_wisdom_layout},
 };
 
 static dc_status_t
@@ -381,7 +378,7 @@ oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progre
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
 
-	if (device->model == AERIS500AI) {
+	if (device->base.model == AERIS500AI) {
 		return oceanic_aeris500ai_device_logbook (abstract, progress, logbook);
 	} else {
 		return oceanic_common_device_logbook (abstract, progress, logbook);
@@ -412,7 +409,6 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 
 	// Set the default values.
 	device->iostream = iostream;
-	device->model = model;
 	if (model == AERIS500AI) {
 		device->protocol = INTR;
 	} else {
@@ -492,11 +488,16 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	// Detect the memory layout.
 	if (model == AERIS500AI) {
 		device->base.layout = &aeris_500ai_layout;
+		device->base.model = AERIS500AI;
 	} else {
-		device->base.layout = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
-		if (device->base.layout == NULL) {
+		const oceanic_common_version_t * version = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
+		if (version == NULL) {
 			WARNING (context, "Unsupported device detected!");
 			device->base.layout = &oceanic_vtpro_layout;
+			device->base.model = 0;
+		} else {
+			device->base.layout = version->layout;
+			device->base.model = version->model;
 		}
 	}
 

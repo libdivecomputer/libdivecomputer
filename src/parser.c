@@ -35,7 +35,6 @@
 #include "uwatec_memomouse.h"
 #include "uwatec_smart.h"
 #include "oceanic_atom2.h"
-#include "oceanic_atom2.h"
 #include "oceanic_veo250.h"
 #include "oceanic_vtpro.h"
 #include "mares_darwin.h"
