@@ -829,11 +829,11 @@ static void sample_setpoint_type(const struct type_desc *desc, struct sample_dat
 	}
 
 	if (!strcasecmp(type, "Low"))
-		sample.ppo2 = info->eon->cache.lowsetpoint;
+		sample.setpoint = info->eon->cache.lowsetpoint;
 	else if (!strcasecmp(type, "High"))
-		sample.ppo2 = info->eon->cache.highsetpoint;
+		sample.setpoint = info->eon->cache.highsetpoint;
 	else if (!strcasecmp(type, "Custom"))
-		sample.ppo2 = info->eon->cache.customsetpoint;
+		sample.setpoint = info->eon->cache.customsetpoint;
 	else {
 		DEBUG(info->eon->base.context, "sample_setpoint_type(%u) unknown type '%s'", value, type);
 		free(type);
