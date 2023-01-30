@@ -78,6 +78,10 @@
 #define M_OC_REC   6
 #define M_FREEDIVE 7
 
+#define AI_OFF   0
+#define AI_HPCCR 4
+#define AI_ON    5
+
 #define GF       0
 #define VPMB     1
 #define VPMB_GFS 2
@@ -87,7 +91,7 @@
 #define IMPERIAL 1
 
 #define NGASMIXES 10
-#define NTANKS    4
+#define NTANKS    6
 #define NRECORDS  8
 
 #define PREDATOR 2
@@ -133,6 +137,7 @@ struct shearwater_predator_parser_t {
 	shearwater_predator_gasmix_t gasmix[NGASMIXES];
 	shearwater_predator_tank_t tank[NTANKS];
 	unsigned int tankidx[NTANKS];
+	unsigned int aimode;
 	unsigned int calibrated;
 	double calibration[3];
 	unsigned int divemode;
@@ -245,6 +250,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 		memset (parser->tank[i].name, 0, sizeof (parser->tank[i].name));
 		parser->tankidx[i] = i;
 	}
+	parser->aimode = AI_OFF;
 	parser->calibrated = 0;
 	for (unsigned int i = 0; i < 3; ++i) {
 		parser->calibration[i] = 0.0;
@@ -307,6 +313,7 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 		memset (parser->tank[i].name, 0, sizeof (parser->tank[i].name));
 		parser->tankidx[i] = i;
 	}
+	parser->aimode = AI_OFF;
 	parser->calibrated = 0;
 	for (unsigned int i = 0; i < 3; ++i) {
 		parser->calibration[i] = 0.0;
@@ -418,6 +425,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	shearwater_predator_gasmix_t gasmix[NGASMIXES] = {0};
 	shearwater_predator_tank_t tank[NTANKS] = {0};
 	unsigned int o2_previous = 0, he_previous = 0;
+	unsigned int aimode = AI_OFF;
 
 	unsigned int offset = headersize;
 	unsigned int length = size - footersize;
@@ -478,14 +486,15 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 					// level (0=normal, 1=critical, 2=warning), and the lower 12
 					// bits the tank pressure in units of 2 psi.
 					unsigned int pressure = array_uint16_be (data + offset + pnf + idx[i]);
+					unsigned int id = (aimode == AI_HPCCR ? 4 : 0) + i;
 					if (pressure < 0xFFF0) {
 						pressure &= 0x0FFF;
-						if (!tank[i].active) {
-							tank[i].active = 1;
-							tank[i].beginpressure = pressure;
-							tank[i].endpressure = pressure;
+						if (!tank[id].active) {
+							tank[id].active = 1;
+							tank[id].beginpressure = pressure;
+							tank[id].endpressure = pressure;
 						}
-						tank[i].endpressure = pressure;
+						tank[id].endpressure = pressure;
 					}
 				}
 			}
@@ -494,14 +503,33 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			if (logversion >= 13) {
 				for (unsigned int i = 0; i < 2; ++i) {
 					unsigned int pressure = array_uint16_be (data + offset + pnf + i * 2);
+					unsigned int id = 2 + i;
 					if (pressure < 0xFFF0) {
 						pressure &= 0x0FFF;
-						if (!tank[i + 2].active) {
-							tank[i + 2].active = 1;
-							tank[i + 2].beginpressure = pressure;
-							tank[i + 2].endpressure = pressure;
+						if (!tank[id].active) {
+							tank[id].active = 1;
+							tank[id].beginpressure = pressure;
+							tank[id].endpressure = pressure;
 						}
-						tank[i + 2].endpressure = pressure;
+						tank[id].endpressure = pressure;
+					}
+				}
+			}
+			// Tank pressure (HP CCR)
+			if (logversion >= 14) {
+				for (unsigned int i = 0; i < 2; ++i) {
+					unsigned int pressure = array_uint16_be (data + offset + pnf + 4 + i * 2);
+					unsigned int id = 4 + i;
+					if (pressure) {
+						if (!tank[id].active) {
+							tank[id].active = 1;
+							tank[id].enabled = 1;
+							tank[id].beginpressure = pressure;
+							tank[id].endpressure = pressure;
+							tank[id].name[0] = i == 0 ? 'D': 'O';
+							tank[id].name[1] = 0;
+						}
+						tank[id].endpressure = pressure;
 					}
 				}
 			}
@@ -518,18 +546,23 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 
 				// Air integration mode
 				if (logversion >= 7) {
-					unsigned int airmode = data[offset + 28];
+					aimode = data[offset + 28];
 					if (logversion < 13) {
-						if (airmode == 1 || airmode == 2) {
-							tank[airmode - 1].enabled = 1;
-						} else if (airmode == 3) {
+						if (aimode == 1 || aimode == 2) {
+							tank[aimode - 1].enabled = 1;
+						} else if (aimode == 3) {
 							tank[0].enabled = 1;
 							tank[1].enabled = 1;
 						}
 					}
-					if (airmode == 4) {
-						tank[0].enabled = 1;
-						tank[1].enabled = 1;
+					if (logversion < 14) {
+						if (aimode == AI_HPCCR) {
+							for (unsigned int i = 0; i < 2; ++i) {
+								tank[4 + i].enabled = 1;
+								tank[4 + i].name[0] = i == 0 ? 'D': 'O';
+								tank[4 + i].name[1] = 0;
+							}
+						}
 					}
 				}
 			} else if (type == LOG_RECORD_OPENING_5) {
@@ -659,6 +692,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			parser->tankidx[i] = UNDEFINED;
 		}
 	}
+	parser->aimode = aimode;
 	parser->divemode = divemode;
 	parser->units = data[parser->opening[0] + 8];
 	parser->atmospheric = array_uint16_be (data + parser->opening[1] + (parser->pnf ? 16 : 47));
@@ -946,9 +980,10 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 					// level (0=normal, 1=critical, 2=warning), and the lower 12
 					// bits the tank pressure in units of 2 psi.
 					unsigned int pressure = array_uint16_be (data + offset + pnf + idx[i]);
+					unsigned int id = (parser->aimode == AI_HPCCR ? 4 : 0) + i;
 					if (pressure < 0xFFF0) {
 						pressure &= 0x0FFF;
-						sample.pressure.tank = parser->tankidx[i];
+						sample.pressure.tank = parser->tankidx[id];
 						sample.pressure.value = pressure * 2 * PSI / BAR;
 						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 					}
@@ -971,9 +1006,22 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			if (parser->logversion >= 13) {
 				for (unsigned int i = 0; i < 2; ++i) {
 					unsigned int pressure = array_uint16_be (data + offset + pnf + i * 2);
+					unsigned int id = 2 + i;
 					if (pressure < 0xFFF0) {
 						pressure &= 0x0FFF;
-						sample.pressure.tank = parser->tankidx[i + 2];
+						sample.pressure.tank = parser->tankidx[id];
+						sample.pressure.value = pressure * 2 * PSI / BAR;
+						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
+					}
+				}
+			}
+			// Tank pressure (HP CCR)
+			if (parser->logversion >= 14) {
+				for (unsigned int i = 0; i < 2; ++i) {
+					unsigned int pressure = array_uint16_be (data + offset + pnf + 4 + i * 2);
+					unsigned int id = 4 + i;
+					if (pressure) {
+						sample.pressure.tank = parser->tankidx[id];
 						sample.pressure.value = pressure * 2 * PSI / BAR;
 						if (callback) callback (DC_SAMPLE_PRESSURE, sample, userdata);
 					}
