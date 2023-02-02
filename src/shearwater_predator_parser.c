@@ -106,6 +106,7 @@ typedef struct shearwater_predator_parser_t shearwater_predator_parser_t;
 typedef struct shearwater_predator_gasmix_t {
 	unsigned int oxygen;
 	unsigned int helium;
+	unsigned int diluent;
 } shearwater_predator_gasmix_t;
 
 typedef struct shearwater_predator_tank_t {
@@ -182,11 +183,11 @@ static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
 
 
 static unsigned int
-shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned int o2, unsigned int he)
+shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned int o2, unsigned int he, unsigned int dil)
 {
 	unsigned int i = 0;
 	while (i < parser->ngasmixes) {
-		if (o2 == parser->gasmix[i].oxygen && he == parser->gasmix[i].helium)
+		if (o2 == parser->gasmix[i].oxygen && he == parser->gasmix[i].helium && dil == parser->gasmix[i].diluent)
 			break;
 		i++;
 	}
@@ -238,6 +239,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, unsig
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
+		parser->gasmix[i].diluent = 0;
 	}
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
@@ -301,6 +303,7 @@ shearwater_predator_parser_set_data (dc_parser_t *abstract, const unsigned char 
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
+		parser->gasmix[i].diluent = 0;
 	}
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
@@ -425,12 +428,13 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	unsigned int ngasmixes = NFIXED;
 	shearwater_predator_gasmix_t gasmix[NGASMIXES] = {0};
 	shearwater_predator_tank_t tank[NTANKS] = {0};
-	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED;
+	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED, dil_previous = UNDEFINED;
 	unsigned int aimode = AI_OFF;
 	if (!pnf) {
 		for (unsigned int i = 0; i < NFIXED; ++i) {
 			gasmix[i].oxygen = data[20 + i];
 			gasmix[i].helium = data[30 + i];
+			gasmix[i].diluent = i >= 5;
 		}
 	}
 
@@ -449,19 +453,20 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		if (type == LOG_RECORD_DIVE_SAMPLE) {
 			// Status flags.
 			unsigned int status = data[offset + 11 + pnf];
-			if ((status & OC) == 0) {
+			unsigned int ccr = (status & OC) == 0;
+			if (ccr) {
 				divemode = status & SC ? M_SC : M_CC;
 			}
 
 			// Gaschange.
 			unsigned int o2 = data[offset + 7 + pnf];
 			unsigned int he = data[offset + 8 + pnf];
-			if ((o2 != o2_previous || he != he_previous) &&
+			if ((o2 != o2_previous || he != he_previous || ccr != dil_previous) &&
 				(o2 != 0 || he != 0)) {
 				// Find the gasmix in the list.
 				unsigned int idx = 0;
 				while (idx < ngasmixes) {
-					if (o2 == gasmix[idx].oxygen && he == gasmix[idx].helium)
+					if (o2 == gasmix[idx].oxygen && he == gasmix[idx].helium && ccr == gasmix[idx].diluent)
 						break;
 					idx++;
 				}
@@ -474,11 +479,13 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 					}
 					gasmix[idx].oxygen = o2;
 					gasmix[idx].helium = he;
+					gasmix[idx].diluent = ccr;
 					ngasmixes = idx + 1;
 				}
 
 				o2_previous = o2;
 				he_previous = he;
+				dil_previous = ccr;
 			}
 
 			// Tank pressure
@@ -551,6 +558,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			if (type == LOG_RECORD_OPENING_0) {
 				for (unsigned int i = 0; i < NFIXED; ++i) {
 					gasmix[i].oxygen = data[offset + 20 + i];
+					gasmix[i].diluent = i >= 5;
 				}
 				for (unsigned int i = 0; i < 2; ++i) {
 					gasmix[i].helium = data[offset + 30 + i];
@@ -859,7 +867,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		return rc;
 
 	// Previous gas mix.
-	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED;
+	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED, dil_previous = UNDEFINED;
 
 	// Sample interval.
 	unsigned int time = 0;
@@ -919,8 +927,9 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 
 			// Status flags.
 			unsigned int status = data[offset + pnf + 11];
+			unsigned int ccr = (status & OC) == 0;
 
-			if ((status & OC) == 0) {
+			if (ccr) {
 				// PPO2
 				if ((status & PPO2_EXTERNAL) == 0) {
 #ifdef SENSOR_AVERAGE
@@ -961,9 +970,9 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			// Gaschange.
 			unsigned int o2 = data[offset + pnf + 7];
 			unsigned int he = data[offset + pnf + 8];
-			if ((o2 != o2_previous || he != he_previous) &&
+			if ((o2 != o2_previous || he != he_previous || ccr != dil_previous) &&
 				(o2 != 0 || he != 0)) {
-				unsigned int idx = shearwater_predator_find_gasmix (parser, o2, he);
+				unsigned int idx = shearwater_predator_find_gasmix (parser, o2, he, ccr);
 				if (idx >= parser->ngasmixes) {
 					ERROR (abstract->context, "Invalid gas mix.");
 					return DC_STATUS_DATAFORMAT;
@@ -973,6 +982,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 				if (callback) callback (DC_SAMPLE_GASMIX, sample, userdata);
 				o2_previous = o2;
 				he_previous = he;
+				dil_previous = ccr;
 			}
 
 			// Deco stop / NDL.

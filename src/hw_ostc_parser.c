@@ -112,6 +112,7 @@ typedef struct hw_ostc_gasmix_t {
 	unsigned int helium;
 	unsigned int type;
 	unsigned int enabled;
+	unsigned int diluent;
 } hw_ostc_gasmix_t;
 
 typedef struct hw_ostc_parser_t {
@@ -195,7 +196,7 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 };
 
 static unsigned int
-hw_ostc_find_gasmix (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he, unsigned int type)
+hw_ostc_find_gasmix (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he, unsigned int dil, unsigned int type)
 {
 	unsigned int offset = 0;
 	unsigned int count = parser->ngasmixes;
@@ -207,12 +208,24 @@ hw_ostc_find_gasmix (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he,
 
 	unsigned int i = offset;
 	while (i < count) {
-		if (o2 == parser->gasmix[i].oxygen && he == parser->gasmix[i].helium)
+		if (o2 == parser->gasmix[i].oxygen && he == parser->gasmix[i].helium && dil == parser->gasmix[i].diluent)
 			break;
 		i++;
 	}
 
 	return i;
+}
+
+static unsigned int
+hw_ostc_is_ccr (unsigned int divemode, unsigned int version)
+{
+	if (version == 0x21) {
+		return divemode == OSTC_ZHL16_CC || divemode == OSTC_ZHL16_CC_GF || divemode == OSTC_PSCR_GF;
+	} else if (version == 0x23 || version == 0x24) {
+		return divemode == OSTC3_CC || divemode == OSTC3_PSCR;
+	} else {
+		return 0;
+	}
 }
 
 static dc_status_t
@@ -263,6 +276,13 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		return DC_STATUS_DATAFORMAT;
 	}
 
+	// Get the dive mode.
+	unsigned int divemode = layout->divemode < header ?
+		data[layout->divemode] : UNDEFINED;
+
+	// Get the CCR mode.
+	unsigned int ccr = hw_ostc_is_ccr (divemode, version);
+
 	// Get all the gas mixes, the index of the inital mix,
 	// the initial setpoint (used in the fixed setpoint CCR mode),
 	// and the initial CNS from the header
@@ -281,6 +301,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].helium = 0;
 			gasmix[i].type = 0;
 			gasmix[i].enabled = 1;
+			gasmix[i].diluent = 0;
 		}
 	} else if (version == 0x23 || version == 0x24) {
 		ngasmixes = 5;
@@ -289,13 +310,14 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].helium = data[28 + 4 * i + 1];
 			gasmix[i].type   = data[28 + 4 * i + 3];
 			gasmix[i].enabled = gasmix[i].type != 0;
+			gasmix[i].diluent = ccr;
 			// Find the first gas marked as the initial gas.
 			if (initial == UNDEFINED && data[28 + 4 * i + 3] == 1) {
 				initial = i + 1; /* One based index! */
 			}
 		}
 		// The first fixed setpoint is the initial setpoint in CCR mode.
-		if (data[layout->divemode] == OSTC3_CC || data[layout->divemode] == OSTC3_PSCR) {
+		if (ccr) {
 			initial_setpoint = data[60];
 		}
 		// Initial CNS
@@ -314,6 +336,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			} else {
 				gasmix[i].enabled = 1;
 			}
+			gasmix[i].diluent = ccr;
 		}
 	}
 	if (initial != UNDEFINED) {
@@ -375,6 +398,7 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsign
 		parser->gasmix[i].helium = 0;
 		parser->gasmix[i].type = 0;
 		parser->gasmix[i].enabled = 0;
+		parser->gasmix[i].diluent = 0;
 	}
 
 	*out = (dc_parser_t *) parser;
@@ -415,6 +439,7 @@ hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsig
 		parser->gasmix[i].helium = 0;
 		parser->gasmix[i].type = 0;
 		parser->gasmix[i].enabled = 0;
+		parser->gasmix[i].diluent = 0;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -787,6 +812,13 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 		firmware = array_uint16_be (data + layout->firmware);
 	}
 
+	// Get the dive mode.
+	unsigned int divemode = layout->divemode < header ?
+		data[layout->divemode] : UNDEFINED;
+
+	// Get the CCR mode.
+	unsigned int ccr = hw_ostc_is_ccr (divemode, version);
+
 	unsigned int time = 0;
 	unsigned int nsamples = 0;
 	unsigned int tank = parser->initial != UNDEFINED ? parser->initial : 0;
@@ -894,7 +926,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			}
 			unsigned int o2 = data[offset];
 			unsigned int he = data[offset + 1];
-			unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+			unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, ccr, MANUAL);
 			if (idx >= parser->ngasmixes) {
 				if (idx >= NGASMIXES) {
 					ERROR (abstract->context, "Maximum number of gas mixes reached.");
@@ -904,6 +936,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				parser->gasmix[idx].helium = he;
 				parser->gasmix[idx].type = 0;
 				parser->gasmix[idx].enabled = 1;
+				parser->gasmix[idx].diluent = ccr;
 				parser->ngasmixes = idx + 1;
 			}
 
@@ -954,7 +987,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 				unsigned int o2 = data[offset];
 				unsigned int he = data[offset + 1];
-				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, 0, MANUAL);
 				if (idx >= parser->ngasmixes) {
 					if (idx >= NGASMIXES) {
 						ERROR (abstract->context, "Maximum number of gas mixes reached.");
@@ -964,6 +997,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					parser->gasmix[idx].helium = he;
 					parser->gasmix[idx].type = 0;
 					parser->gasmix[idx].enabled = 1;
+					parser->gasmix[idx].diluent = 0;
 					parser->ngasmixes = idx + 1;
 				}
 
@@ -1086,7 +1120,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 				unsigned int o2 = data[offset];
 				unsigned int he = data[offset + 1];
-				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, MANUAL);
+				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, 0, MANUAL);
 				if (idx >= parser->ngasmixes) {
 					if (idx >= NGASMIXES) {
 						ERROR (abstract->context, "Maximum number of gas mixes reached.");
@@ -1096,6 +1130,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					parser->gasmix[idx].helium = he;
 					parser->gasmix[idx].type = 0;
 					parser->gasmix[idx].enabled = 1;
+					parser->gasmix[idx].diluent = 0;
 					parser->ngasmixes = idx + 1;
 				}
 
