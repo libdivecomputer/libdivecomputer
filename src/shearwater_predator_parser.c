@@ -90,7 +90,8 @@
 #define METRIC   0
 #define IMPERIAL 1
 
-#define NGASMIXES 10
+#define NGASMIXES 20
+#define NFIXED    10
 #define NTANKS    6
 #define NRECORDS  8
 
@@ -421,11 +422,17 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	unsigned int divemode = M_OC_TEC;
 
 	// Get the gas mixes.
-	unsigned int ngasmixes = 0;
+	unsigned int ngasmixes = NFIXED;
 	shearwater_predator_gasmix_t gasmix[NGASMIXES] = {0};
 	shearwater_predator_tank_t tank[NTANKS] = {0};
 	unsigned int o2_previous = 0, he_previous = 0;
 	unsigned int aimode = AI_OFF;
+	if (!pnf) {
+		for (unsigned int i = 0; i < NFIXED; ++i) {
+			gasmix[i].oxygen = data[20 + i];
+			gasmix[i].helium = data[30 + i];
+		}
+	}
 
 	unsigned int offset = headersize;
 	unsigned int length = size - footersize;
@@ -540,7 +547,18 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			// Opening record
 			parser->opening[type - LOG_RECORD_OPENING_0] = offset;
 
-			if (type == LOG_RECORD_OPENING_4) {
+			if (type == LOG_RECORD_OPENING_0) {
+				for (unsigned int i = 0; i < NFIXED; ++i) {
+					gasmix[i].oxygen = data[offset + 20 + i];
+				}
+				for (unsigned int i = 0; i < 2; ++i) {
+					gasmix[i].helium = data[offset + 30 + i];
+				}
+			} else if (type == LOG_RECORD_OPENING_1) {
+				for (unsigned int i = 2; i < NFIXED; ++i) {
+					gasmix[i].helium = data[offset + 1 + i - 2];
+				}
+			} else if (type == LOG_RECORD_OPENING_4) {
 				// Log version
 				logversion = data[offset + 16];
 
@@ -678,9 +696,12 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	parser->logversion = logversion;
 	parser->headersize = headersize;
 	parser->footersize = footersize;
-	parser->ngasmixes = ngasmixes;
+	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
-		parser->gasmix[i] = gasmix[i];
+		if (gasmix[i].oxygen == 0 && gasmix[i].helium == 0)
+			continue;
+		parser->gasmix[parser->ngasmixes] = gasmix[i];
+		parser->ngasmixes++;
 	}
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
