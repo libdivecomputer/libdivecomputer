@@ -916,7 +916,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				have_deco = 1;
 			} else if (parser->model == ATOM31 || parser->model == VISION ||
 				parser->model == XPAIR || parser->model == I550 ||
-				parser->model == I550C || parser->model == WISDOM4) {
+				parser->model == I550C || parser->model == WISDOM4 ||
+				parser->model == PROPLUS4 || parser->model == ATMOSAI2) {
 				decostop = (data[offset + 5] & 0xF0) >> 4;
 				decotime = array_uint16_le(data + offset + 4) & 0x03FF;
 				have_deco = 1;
@@ -959,7 +960,8 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				have_rbt = 1;
 			} else if (parser->model == VISION || parser->model == XPAIR ||
 				parser->model == I550 || parser->model == I550C ||
-				parser->model == WISDOM4) {
+				parser->model == WISDOM4 || parser->model == PROPLUS4 ||
+				parser->model == ATMOSAI2) {
 				rbt = array_uint16_le(data + offset + 6) & 0x03FF;
 				have_rbt = 1;
 			}
