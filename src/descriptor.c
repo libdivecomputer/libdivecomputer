@@ -272,6 +272,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Aqualung", "i470TC",              DC_FAMILY_OCEANIC_ATOM2, 0x4743, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Aqualung", "i200C",               DC_FAMILY_OCEANIC_ATOM2, 0x4749, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Oceanic",  "Geo Air",             DC_FAMILY_OCEANIC_ATOM2, 0x474B, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	/* Pelagic I330R */
+	{"Apeks",    "DSX",                 DC_FAMILY_PELAGIC_I330R, 0x4741, DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Aqualung", "i330R",               DC_FAMILY_PELAGIC_I330R, 0x4744, DC_TRANSPORT_BLE, dc_filter_oceanic},
 	/* Mares Nemo */
 	{"Mares", "Nemo",         DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Nemo Steel",   DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
@@ -743,8 +746,10 @@ dc_filter_oceanic (dc_descriptor_t *descriptor, dc_transport_t transport, const 
 		0x4654, // Oceanic Veo 4.0
 		0x4655, // Sherwood Wisdom 4
 		0x4656, // Oceanic Pro Plus 4
+		0x4741, // Apeks DSX
 		0x4742, // Sherwood Beacon
 		0x4743, // Aqualung i470TC
+		0x4744, // Aqualung i330R
 		0x4749, // Aqualung i200C
 		0x474B, // Oceanic Geo Air
 	};

@@ -72,6 +72,7 @@ static const backend_table_t g_backends[] = {
 	{"vtpro",       DC_FAMILY_OCEANIC_VTPRO,       0x4245},
 	{"veo250",      DC_FAMILY_OCEANIC_VEO250,      0x424C},
 	{"atom2",       DC_FAMILY_OCEANIC_ATOM2,       0x4342},
+	{"i330r",       DC_FAMILY_PELAGIC_I330R,       0x4744},
 	{"nemo",        DC_FAMILY_MARES_NEMO,          0},
 	{"puck",        DC_FAMILY_MARES_PUCK,          7},
 	{"darwin",      DC_FAMILY_MARES_DARWIN,        0},

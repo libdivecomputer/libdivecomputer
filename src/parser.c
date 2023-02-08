@@ -124,6 +124,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, const unsigned
 		rc = oceanic_veo250_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
+	case DC_FAMILY_PELAGIC_I330R:
 		if (model == REACTPROWHITE)
 			rc = oceanic_veo250_parser_create (&parser, context, data, size, model);
 		else

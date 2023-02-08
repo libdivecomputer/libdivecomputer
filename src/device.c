@@ -38,6 +38,7 @@
 #include "oceanic_atom2.h"
 #include "oceanic_veo250.h"
 #include "oceanic_vtpro.h"
+#include "pelagic_i330r.h"
 #include "mares_darwin.h"
 #include "mares_iconhd.h"
 #include "mares_nemo.h"
@@ -161,6 +162,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_OCEANIC_ATOM2:
 		rc = oceanic_atom2_device_open (&device, context, iostream, dc_descriptor_get_model (descriptor));
+		break;
+	case DC_FAMILY_PELAGIC_I330R:
+		rc = pelagic_i330r_device_open (&device, context, iostream, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_MARES_NEMO:
 		rc = mares_nemo_device_open (&device, context, iostream);

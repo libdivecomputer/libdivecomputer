@@ -125,8 +125,12 @@ extern "C" {
 #define I200CV2       0x4749
 #define GEOAIR        0x474B
 
+// i330r
+#define DSX           0x4741
+#define I330R         0x4744
+
 #define PAGESIZE 0x10
-#define FPMAXSIZE 0x20
+#define FPMAXSIZE 0x200
 
 #define OCEANIC_COMMON_MATCH(version,patterns,firmware) \
 	oceanic_common_match ((version), (patterns), \

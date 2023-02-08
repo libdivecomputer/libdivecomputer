@@ -58,6 +58,9 @@ oceanic_common_device_get_profile (const unsigned char data[], const oceanic_com
 	} else if (layout->pt_mode_logbook == 2 || layout->pt_mode_logbook == 3) {
 		first = array_uint16_le (data + 16);
 		last  = array_uint16_le (data + 18);
+	} else if (layout->pt_mode_logbook == 4) {
+		first = array_uint32_le (data + 8);
+		last  = array_uint32_le (data + 12);
 	}
 
 	// Convert pages to bytes.
@@ -82,7 +85,7 @@ oceanic_common_device_get_profile (const unsigned char data[], const oceanic_com
 	}
 
 	*begin = layout->highmem + first;
-	*end   = layout->highmem + last + pagesize;
+	*end   = layout->highmem + last + (layout->pt_mode_logbook < 4 ? pagesize : 0);
 
 	return DC_STATUS_SUCCESS;
 }

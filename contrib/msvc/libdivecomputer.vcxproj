@@ -239,6 +239,7 @@
     <ClCompile Include="..\..\src\oceans_s1_parser.c" />
     <ClCompile Include="..\..\src\packet.c" />
     <ClCompile Include="..\..\src\parser.c" />
+    <ClCompile Include="..\..\src\pelagic_i330r.c" />
     <ClCompile Include="..\..\src\platform.c" />
     <ClCompile Include="..\..\src\rbstream.c" />
     <ClCompile Include="..\..\src\reefnet_sensus.c" />
@@ -357,6 +358,7 @@
     <ClInclude Include="..\..\src\oceans_s1_common.h" />
     <ClInclude Include="..\..\src\packet.h" />
     <ClInclude Include="..\..\src\parser-private.h" />
+    <ClInclude Include="..\..\src\pelagic_i330r.h" />
     <ClInclude Include="..\..\src\platform.h" />
     <ClInclude Include="..\..\src\rbstream.h" />
     <ClInclude Include="..\..\src\reefnet_sensus.h" />

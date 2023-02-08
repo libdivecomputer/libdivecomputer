@@ -71,6 +71,7 @@ LOCAL_SRC_FILES := \
 	src/oceans_s1_parser.c \
 	src/packet.c \
 	src/parser.c \
+	src/pelagic_i330r.c \
 	src/platform.c \
 	src/rbstream.c \
 	src/reefnet_sensus.c \
