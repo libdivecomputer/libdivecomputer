@@ -45,10 +45,10 @@ unsigned short
 checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
 
 unsigned int
-checksum_crc32 (const unsigned char data[], unsigned int size);
+checksum_crc32r (const unsigned char data[], unsigned int size);
 
 unsigned int
-checksum_crc32b (const unsigned char data[], unsigned int size);
+checksum_crc32 (const unsigned char data[], unsigned int size);
 
 #ifdef __cplusplus
 }

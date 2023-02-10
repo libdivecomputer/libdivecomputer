@@ -161,7 +161,7 @@ checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned s
 
 
 unsigned int
-checksum_crc32 (const unsigned char data[], unsigned int size)
+checksum_crc32r (const unsigned char data[], unsigned int size)
 {
 	static const unsigned int crc_table[] = {
 		0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
@@ -206,7 +206,7 @@ checksum_crc32 (const unsigned char data[], unsigned int size)
 }
 
 unsigned int
-checksum_crc32b (const unsigned char data[], unsigned int size)
+checksum_crc32 (const unsigned char data[], unsigned int size)
 {
 	static const unsigned int crc_table[] = {
 		0x00000000, 0x04C11DB7, 0x09823B6E, 0x0D4326D9, 0x130476DC, 0x17C56B6B, 0x1A864DB2, 0x1E475005,

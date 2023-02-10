@@ -528,7 +528,7 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		memcpy (header + 0, device->info + 2, 4);
 		memcpy (header + 4, logbook + offset + 4, headersize - 4);
 		unsigned int crc  = array_uint32_le (logbook + offset + 0);
-		unsigned int ccrc = checksum_crc32b (header, headersize - unused);
+		unsigned int ccrc = checksum_crc32 (header, headersize - unused);
 		if (crc != ccrc) {
 			WARNING (abstract->context, "Invalid dive checksum (%08x %08x)", crc, ccrc);
 			status = DC_STATUS_DATAFORMAT;

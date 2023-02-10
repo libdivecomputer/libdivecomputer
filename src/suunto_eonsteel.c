@@ -352,7 +352,7 @@ suunto_eonsteel_receive_ble(suunto_eonsteel_device_t *device, unsigned char data
 	unsigned int nbytes = transferred - CRC_SIZE;
 
 	unsigned int crc = array_uint32_le(buffer + nbytes);
-	unsigned int ccrc = checksum_crc32(buffer, nbytes);
+	unsigned int ccrc = checksum_crc32r(buffer, nbytes);
 	if (crc != ccrc) {
 		ERROR(device->base.context, "Invalid checksum (expected %08x, received %08x).", ccrc, crc);
 		return DC_STATUS_PROTOCOL;
@@ -411,7 +411,7 @@ suunto_eonsteel_send(suunto_eonsteel_device_t *device,
 	}
 
 	// 4 byte LE checksum
-	unsigned int crc = checksum_crc32(buf + 2, size + HEADER_SIZE);
+	unsigned int crc = checksum_crc32r(buf + 2, size + HEADER_SIZE);
 	put_le32(crc, buf + 14 + size);
 
 	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
