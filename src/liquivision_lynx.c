@@ -158,7 +158,7 @@ liquivision_lynx_recv (liquivision_lynx_device_t *device, unsigned char data[], 
 
 	// Verify the checksum.
 	unsigned short crc = array_uint16_be (packet + 1 + size);
-	unsigned short ccrc = checksum_crc16_ccitt (packet + 1, size, 0xffff);
+	unsigned short ccrc = checksum_crc16_ccitt (packet + 1, size, 0xffff, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum (%04x %04x).", crc, ccrc);
 		return DC_STATUS_PROTOCOL;

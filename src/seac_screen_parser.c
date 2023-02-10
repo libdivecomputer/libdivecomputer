@@ -283,8 +283,8 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
-	if (checksum_crc16_ccitt (data, SZ_HEADER / 2, 0xFFFF) != 0 ||
-		checksum_crc16_ccitt (data + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF) != 0) {
+	if (checksum_crc16_ccitt (data, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0 ||
+		checksum_crc16_ccitt (data + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0) {
 		ERROR (abstract->context, "Unexpected header checksum.");
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -303,7 +303,7 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 	while (offset + SZ_SAMPLE <= size) {
 		dc_sample_value_t sample = {0};
 
-		if (checksum_crc16_ccitt (data + offset, SZ_SAMPLE, 0xFFFF) != 0) {
+		if (checksum_crc16_ccitt (data + offset, SZ_SAMPLE, 0xFFFF, 0x0000) != 0) {
 			ERROR (abstract->context, "Unexpected sample checksum.");
 			return DC_STATUS_DATAFORMAT;
 		}

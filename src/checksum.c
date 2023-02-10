@@ -69,7 +69,7 @@ checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char
 
 
 unsigned short
-checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init)
+checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
 {
 	static const unsigned short crc_ccitt_table[] = {
 		0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
@@ -110,7 +110,7 @@ checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned sh
 	for (unsigned int i = 0; i < size; ++i)
 		crc = (crc << 8) ^ crc_ccitt_table[(crc >> 8) ^ data[i]];
 
-	return crc;
+	return crc ^ xorout;
 }
 
 unsigned int

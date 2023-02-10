@@ -177,7 +177,7 @@ reefnet_sensuspro_handshake (reefnet_sensuspro_device_t *device)
 
 	// Verify the checksum of the handshake packet.
 	unsigned short crc = array_uint16_le (handshake + SZ_HANDSHAKE);
-	unsigned short ccrc = checksum_crc16_ccitt (handshake, SZ_HANDSHAKE, 0xffff);
+	unsigned short ccrc = checksum_crc16_ccitt (handshake, SZ_HANDSHAKE, 0xffff, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
@@ -280,7 +280,7 @@ reefnet_sensuspro_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	unsigned short crc = array_uint16_le (answer + SZ_MEMORY);
-	unsigned short ccrc = checksum_crc16_ccitt (answer, SZ_MEMORY, 0xffff);
+	unsigned short ccrc = checksum_crc16_ccitt (answer, SZ_MEMORY, 0xffff, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;

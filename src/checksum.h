@@ -39,7 +39,7 @@ unsigned char
 checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
 
 unsigned short
-checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init);
+checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
 
 unsigned int
 checksum_crc32 (const unsigned char data[], unsigned int size);
