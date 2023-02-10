@@ -68,6 +68,11 @@ checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char
 }
 
 
+/*
+ * Polynomial: 0x1021
+ * RefIn: False
+ * RefOut: False
+ */
 unsigned short
 checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
 {
@@ -114,6 +119,11 @@ checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned sh
 }
 
 
+/*
+ * Polynomial: 0x1021
+ * RefIn: True
+ * RefOut: True
+ */
 unsigned short
 checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
 {
@@ -160,6 +170,13 @@ checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned s
 }
 
 
+/*
+ * Polynomial: 0x04C11DB7
+ * Init: 0xffffffff
+ * XorOut: 0xffffffff
+ * RefIn: True
+ * RefOut: True
+ */
 unsigned int
 checksum_crc32r (const unsigned char data[], unsigned int size)
 {
@@ -205,6 +222,14 @@ checksum_crc32r (const unsigned char data[], unsigned int size)
 	return crc ^ 0xffffffff;
 }
 
+
+/*
+ * Polynomial: 0x04C11DB7
+ * Init: 0xffffffff
+ * XorOut: 0xffffffff
+ * RefIn: False
+ * RefOut: False
+ */
 unsigned int
 checksum_crc32 (const unsigned char data[], unsigned int size)
 {
