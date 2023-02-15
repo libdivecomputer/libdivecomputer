@@ -902,8 +902,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				return DC_STATUS_DATAFORMAT;
 			}
 			unsigned int idx = data[offset];
-			if (idx < 1 || idx > parser->ngasmixes) {
-				ERROR(abstract->context, "Invalid gas mix.");
+			if (idx < 1 || idx > parser->nfixed) {
+				ERROR(abstract->context, "Invalid gas mix (%u).", idx);
 				return DC_STATUS_DATAFORMAT;
 			}
 			idx--; /* Convert to a zero based index. */
