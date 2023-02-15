@@ -110,6 +110,8 @@ typedef struct hw_ostc_layout_t {
 typedef struct hw_ostc_gasmix_t {
 	unsigned int oxygen;
 	unsigned int helium;
+	unsigned int type;
+	unsigned int enabled;
 } hw_ostc_gasmix_t;
 
 typedef struct hw_ostc_parser_t {
@@ -277,12 +279,16 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[25 + 2 * i];
 			gasmix[i].helium = 0;
+			gasmix[i].type = 0;
+			gasmix[i].enabled = 1;
 		}
 	} else if (version == 0x23 || version == 0x24) {
 		ngasmixes = 5;
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[28 + 4 * i + 0];
 			gasmix[i].helium = data[28 + 4 * i + 1];
+			gasmix[i].type   = data[28 + 4 * i + 3];
+			gasmix[i].enabled = gasmix[i].type != 0;
 			// Find the first gas marked as the initial gas.
 			if (initial == UNDEFINED && data[28 + 4 * i + 3] == 1) {
 				initial = i + 1; /* One based index! */
@@ -302,6 +308,12 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			gasmix[i].oxygen = data[19 + 2 * i + 0];
 			gasmix[i].helium = data[19 + 2 * i + 1];
+			gasmix[i].type = 0;
+			if (version == 0x21) {
+				gasmix[i].enabled = data[53] & (1 << i);
+			} else {
+				gasmix[i].enabled = 1;
+			}
 		}
 	}
 	if (initial != UNDEFINED) {
@@ -361,6 +373,8 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, unsign
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
+		parser->gasmix[i].type = 0;
+		parser->gasmix[i].enabled = 0;
 	}
 
 	*out = (dc_parser_t *) parser;
@@ -399,6 +413,8 @@ hw_ostc_parser_set_data (dc_parser_t *abstract, const unsigned char *data, unsig
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
+		parser->gasmix[i].type = 0;
+		parser->gasmix[i].enabled = 0;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -886,6 +902,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				}
 				parser->gasmix[idx].oxygen = o2;
 				parser->gasmix[idx].helium = he;
+				parser->gasmix[idx].type = 0;
+				parser->gasmix[idx].enabled = 1;
 				parser->ngasmixes = idx + 1;
 			}
 
@@ -944,6 +962,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					}
 					parser->gasmix[idx].oxygen = o2;
 					parser->gasmix[idx].helium = he;
+					parser->gasmix[idx].type = 0;
+					parser->gasmix[idx].enabled = 1;
 					parser->ngasmixes = idx + 1;
 				}
 
@@ -1074,6 +1094,8 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					}
 					parser->gasmix[idx].oxygen = o2;
 					parser->gasmix[idx].helium = he;
+					parser->gasmix[idx].type = 0;
+					parser->gasmix[idx].enabled = 1;
 					parser->ngasmixes = idx + 1;
 				}
 
