@@ -697,11 +697,13 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	parser->headersize = headersize;
 	parser->footersize = footersize;
 	parser->ngasmixes = 0;
-	for (unsigned int i = 0; i < ngasmixes; ++i) {
-		if (gasmix[i].oxygen == 0 && gasmix[i].helium == 0)
-			continue;
-		parser->gasmix[parser->ngasmixes] = gasmix[i];
-		parser->ngasmixes++;
+	if (divemode != M_FREEDIVE) {
+		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			if (gasmix[i].oxygen == 0 && gasmix[i].helium == 0)
+				continue;
+			parser->gasmix[parser->ngasmixes] = gasmix[i];
+			parser->ngasmixes++;
+		}
 	}
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
