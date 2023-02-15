@@ -953,6 +953,10 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				return DC_STATUS_DATAFORMAT;
 			}
 			unsigned int idx = data[offset];
+			if (parser->model == OSTC4 && ccr && idx > parser->nfixed) {
+				// Fix the OSTC4 diluent index.
+				idx -= parser->nfixed;
+			}
 			if (idx < 1 || idx > parser->nfixed) {
 				ERROR(abstract->context, "Invalid gas mix (%u).", idx);
 				return DC_STATUS_DATAFORMAT;
