@@ -425,7 +425,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	unsigned int ngasmixes = NFIXED;
 	shearwater_predator_gasmix_t gasmix[NGASMIXES] = {0};
 	shearwater_predator_tank_t tank[NTANKS] = {0};
-	unsigned int o2_previous = 0, he_previous = 0;
+	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED;
 	unsigned int aimode = AI_OFF;
 	if (!pnf) {
 		for (unsigned int i = 0; i < NFIXED; ++i) {
@@ -456,7 +456,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			// Gaschange.
 			unsigned int o2 = data[offset + 7 + pnf];
 			unsigned int he = data[offset + 8 + pnf];
-			if (o2 != o2_previous || he != he_previous) {
+			if ((o2 != o2_previous || he != he_previous) &&
+				(o2 != 0 || he != 0)) {
 				// Find the gasmix in the list.
 				unsigned int idx = 0;
 				while (idx < ngasmixes) {
@@ -858,7 +859,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 		return rc;
 
 	// Previous gas mix.
-	unsigned int o2_previous = 0, he_previous = 0;
+	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED;
 
 	// Sample interval.
 	unsigned int time = 0;
@@ -960,7 +961,8 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			// Gaschange.
 			unsigned int o2 = data[offset + pnf + 7];
 			unsigned int he = data[offset + pnf + 8];
-			if (o2 != o2_previous || he != he_previous) {
+			if ((o2 != o2_previous || he != he_previous) &&
+				(o2 != 0 || he != 0)) {
 				unsigned int idx = shearwater_predator_find_gasmix (parser, o2, he);
 				if (idx >= parser->ngasmixes) {
 					ERROR (abstract->context, "Invalid gas mix.");
