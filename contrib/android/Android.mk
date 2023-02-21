@@ -34,6 +34,8 @@ LOCAL_SRC_FILES := \
 	src/device.c \
 	src/diverite_nitekq.c \
 	src/diverite_nitekq_parser.c \
+	src/divesoft_freedom.c \
+	src/divesoft_freedom_parser.c \
 	src/divesystem_idive.c \
 	src/divesystem_idive_parser.c \
 	src/hdlc.c \
