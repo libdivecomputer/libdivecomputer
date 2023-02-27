@@ -893,25 +893,6 @@ uwatec_galileo_identify (unsigned char value)
 }
 
 
-static unsigned int
-uwatec_smart_fixsignbit (unsigned int x, unsigned int n)
-{
-	if (n <= 0 || n > 32)
-		return 0;
-
-	unsigned int signbit = (1 << (n - 1));
-	unsigned int mask = (signbit - 1);
-
-	// When turning a two's-complement number with a certain number
-	// of bits into one with more bits, the sign bit must be repeated
-	// in all the extra bits.
-	if ((x & signbit) == signbit)
-		return x | ~mask;
-	else
-		return x & mask;
-}
-
-
 static dc_status_t
 uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback, void *userdata)
 {
@@ -1018,7 +999,7 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 		}
 
 		// Fix the sign bit.
-		signed int svalue = uwatec_smart_fixsignbit (value, nbits);
+		signed int svalue = signextend (value, nbits);
 
 		// Parse the value.
 		unsigned int idx = 0;

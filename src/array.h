@@ -123,6 +123,9 @@ bcd2dec (unsigned char value);
 unsigned char
 dec2bcd (unsigned char value);
 
+unsigned int
+signextend (unsigned int value, unsigned int nbits);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

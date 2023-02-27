@@ -384,3 +384,23 @@ dec2bcd (unsigned char value)
 	unsigned char lo = value % 10;
 	return (hi << 4) | lo;
 }
+
+/*
+ * When turning a two's-complement number with a certain number
+ * of bits into one with more bits, the sign bit must be repeated
+ * in all the extra bits.
+ */
+unsigned int
+signextend (unsigned int value, unsigned int nbits)
+{
+	if (nbits <= 0 || nbits > 32)
+		return 0;
+
+	unsigned int signbit = 1U << (nbits - 1);
+	unsigned int mask = signbit - 1;
+
+	if ((value & signbit) == signbit)
+		return value | ~mask;
+	else
+		return value & mask;
+}
