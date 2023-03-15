@@ -69,6 +69,7 @@ LOCAL_SRC_FILES := \
 	src/oceans_s1.c \
 	src/oceans_s1_common.c \
 	src/oceans_s1_parser.c \
+	src/packet.c \
 	src/parser.c \
 	src/platform.c \
 	src/rbstream.c \

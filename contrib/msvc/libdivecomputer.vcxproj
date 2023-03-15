@@ -237,6 +237,7 @@
     <ClCompile Include="..\..\src\oceans_s1.c" />
     <ClCompile Include="..\..\src\oceans_s1_common.c" />
     <ClCompile Include="..\..\src\oceans_s1_parser.c" />
+    <ClCompile Include="..\..\src\packet.c" />
     <ClCompile Include="..\..\src\parser.c" />
     <ClCompile Include="..\..\src\platform.c" />
     <ClCompile Include="..\..\src\rbstream.c" />
@@ -355,6 +356,7 @@
     <ClInclude Include="..\..\src\oceanic_vtpro.h" />
     <ClInclude Include="..\..\src\oceans_s1.h" />
     <ClInclude Include="..\..\src\oceans_s1_common.h" />
+    <ClInclude Include="..\..\src\packet.h" />
     <ClInclude Include="..\..\src\parser-private.h" />
     <ClInclude Include="..\..\src\platform.h" />
     <ClInclude Include="..\..\src\rbstream.h" />
