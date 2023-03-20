@@ -204,6 +204,7 @@
     <ClCompile Include="..\..\src\diverite_nitekq_parser.c" />
     <ClCompile Include="..\..\src\divesystem_idive.c" />
     <ClCompile Include="..\..\src\divesystem_idive_parser.c" />
+    <ClCompile Include="..\..\src\hdlc.c" />
     <ClCompile Include="..\..\src\hw_frog.c" />
     <ClCompile Include="..\..\src\hw_ostc.c" />
     <ClCompile Include="..\..\src\hw_ostc3.c" />
@@ -331,6 +332,7 @@
     <ClInclude Include="..\..\src\device-private.h" />
     <ClInclude Include="..\..\src\diverite_nitekq.h" />
     <ClInclude Include="..\..\src\divesystem_idive.h" />
+    <ClInclude Include="..\..\src\hdlc.h" />
     <ClInclude Include="..\..\src\hw_frog.h" />
     <ClInclude Include="..\..\src\hw_ostc.h" />
     <ClInclude Include="..\..\src\hw_ostc3.h" />
