@@ -296,7 +296,7 @@ mares_genius_isvalid (const unsigned char data[], size_t size, unsigned int type
 	}
 
 	unsigned short crc = array_uint16_le(data + size - 6);
-	unsigned short ccrc = checksum_crc16_ccitt(data + 4, size - 10, 0x0000);
+	unsigned short ccrc = checksum_crc16_ccitt(data + 4, size - 10, 0x0000, 0x0000);
 	if (crc != ccrc) {
 		return 0;
 	}

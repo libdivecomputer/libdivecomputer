@@ -93,7 +93,7 @@ cressi_goa_device_send (cressi_goa_device_t *device, unsigned char cmd, const un
 	if (size) {
 		memcpy (packet + 5, data, size);
 	}
-	crc = checksum_crc16_ccitt (packet + 3, size + 2, 0x000);
+	crc = checksum_crc16_ccitt (packet + 3, size + 2, 0x000, 0x0000);
 	packet[5 + size + 0] = (crc     ) & 0xFF; // Low
 	packet[5 + size + 1] = (crc >> 8) & 0xFF; // High
 	packet[5 + size + 2] = TRAILER;
@@ -155,7 +155,7 @@ cressi_goa_device_receive (cressi_goa_device_t *device, unsigned char data[], un
 
 	// Verify the checksum of the packet.
 	unsigned short crc = array_uint16_le (packet + length + 5);
-	unsigned short ccrc = checksum_crc16_ccitt (packet + 3, length + 2, 0x0000);
+	unsigned short ccrc = checksum_crc16_ccitt (packet + 3, length + 2, 0x0000, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum.");
 		return DC_STATUS_PROTOCOL;
@@ -203,7 +203,7 @@ cressi_goa_device_download (cressi_goa_device_t *device, dc_buffer_t *buffer, dc
 
 		// Verify the checksum of the packet.
 		unsigned short crc = array_uint16_le (packet + sizeof(packet) - 2);
-		unsigned short ccrc = checksum_crc16_ccitt (packet + 3, sizeof(packet) - 5, 0x0000);
+		unsigned short ccrc = checksum_crc16_ccitt (packet + 3, sizeof(packet) - 5, 0x0000, 0x0000);
 		if (crc != ccrc) {
 			ERROR (abstract->context, "Unexpected answer checksum.");
 			return DC_STATUS_PROTOCOL;

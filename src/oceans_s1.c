@@ -302,7 +302,7 @@ oceans_s1_xmodem_packet (oceans_s1_device_t *device, unsigned char seq, unsigned
 	}
 
 	unsigned short crc = array_uint16_be (packet + nbytes - 2);
-	unsigned short ccrc = checksum_crc16_ccitt (packet + 3, nbytes - 5, 0x0000);
+	unsigned short ccrc = checksum_crc16_ccitt (packet + 3, nbytes - 5, 0x0000, 0x0000);
 	if (crc != ccrc) {
 		ERROR (device->base.context, "Unexpected answer checksum (%04x %04x).", crc, ccrc);
 		return DC_STATUS_PROTOCOL;

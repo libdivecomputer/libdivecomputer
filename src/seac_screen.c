@@ -115,7 +115,7 @@ seac_screen_send (seac_screen_device_t *device, unsigned short cmd, const unsign
 	if (size) {
 		memcpy (packet + 5, data, size);
 	}
-	crc = checksum_crc16_ccitt (packet, size + 5, 0xFFFF);
+	crc = checksum_crc16_ccitt (packet, size + 5, 0xFFFF, 0x0000);
 	packet[size +  5] = (crc >> 8) & 0xFF;
 	packet[size +  6] = (crc     ) & 0xFF;
 
@@ -165,7 +165,7 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 
 	// Verify the checksum.
 	unsigned short crc = array_uint16_be (packet + 1 + length - 2);
-	unsigned short ccrc = checksum_crc16_ccitt (packet, 1 + length - 2, 0xFFFF);
+	unsigned short ccrc = checksum_crc16_ccitt (packet, 1 + length - 2, 0xFFFF, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected packet checksum (%04x %04x).", crc, ccrc);
 		return DC_STATUS_PROTOCOL;
@@ -486,8 +486,8 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		// Check the header checksums.
-		if (checksum_crc16_ccitt (logbook[i].header, SZ_HEADER / 2, 0xFFFF) != 0 ||
-			checksum_crc16_ccitt (logbook[i].header + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF) != 0) {
+		if (checksum_crc16_ccitt (logbook[i].header, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0 ||
+			checksum_crc16_ccitt (logbook[i].header + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0) {
 			ERROR (abstract->context, "Unexpected header checksum.");
 			status = DC_STATUS_DATAFORMAT;
 			goto error_free_logbook;

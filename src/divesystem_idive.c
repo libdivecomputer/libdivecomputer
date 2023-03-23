@@ -231,7 +231,7 @@ divesystem_idive_send (divesystem_idive_device_t *device, const unsigned char co
 	packet[0] = START;
 	packet[1] = csize;
 	memcpy(packet + 2, command, csize);
-	crc = checksum_crc16_ccitt (packet, csize + 2, 0xffff);
+	crc = checksum_crc16_ccitt (packet, csize + 2, 0xffff, 0x0000);
 	packet[csize + 2] = (crc >> 8) & 0xFF;
 	packet[csize + 3] = (crc     ) & 0xFF;
 
@@ -292,7 +292,7 @@ divesystem_idive_receive (divesystem_idive_device_t *device, unsigned char answe
 
 	// Verify the checksum.
 	unsigned short crc = array_uint16_be (packet + len + 2);
-	unsigned short ccrc = checksum_crc16_ccitt (packet, len + 2, 0xffff);
+	unsigned short ccrc = checksum_crc16_ccitt (packet, len + 2, 0xffff, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected packet checksum.");
 		return DC_STATUS_PROTOCOL;

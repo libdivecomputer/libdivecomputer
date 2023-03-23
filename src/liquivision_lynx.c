@@ -158,7 +158,7 @@ liquivision_lynx_recv (liquivision_lynx_device_t *device, unsigned char data[], 
 
 	// Verify the checksum.
 	unsigned short crc = array_uint16_be (packet + 1 + size);
-	unsigned short ccrc = checksum_crc16_ccitt (packet + 1, size, 0xffff);
+	unsigned short ccrc = checksum_crc16_ccitt (packet + 1, size, 0xffff, 0x0000);
 	if (crc != ccrc) {
 		ERROR (abstract->context, "Unexpected answer checksum (%04x %04x).", crc, ccrc);
 		return DC_STATUS_PROTOCOL;
@@ -528,7 +528,7 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		memcpy (header + 0, device->info + 2, 4);
 		memcpy (header + 4, logbook + offset + 4, headersize - 4);
 		unsigned int crc  = array_uint32_le (logbook + offset + 0);
-		unsigned int ccrc = checksum_crc32b (header, headersize - unused);
+		unsigned int ccrc = checksum_crc32 (header, headersize - unused);
 		if (crc != ccrc) {
 			WARNING (abstract->context, "Invalid dive checksum (%08x %08x)", crc, ccrc);
 			status = DC_STATUS_DATAFORMAT;
