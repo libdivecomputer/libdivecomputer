@@ -806,7 +806,7 @@ suunto_eonsteel_device_open(dc_device_t **out, dc_context_t *context, dc_iostrea
 	return DC_STATUS_SUCCESS;
 
 error_free:
-	free(eon);
+	dc_device_deallocate ((dc_device_t *) eon);
 	return status;
 }
 
