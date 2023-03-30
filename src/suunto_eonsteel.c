@@ -127,20 +127,6 @@ static struct directory_entry *alloc_dirent(int type, int len, const char *name)
 	return res;
 }
 
-static void put_le16(unsigned short val, unsigned char *p)
-{
-	p[0] = val;
-	p[1] = val >> 8;
-}
-
-static void put_le32(unsigned int val, unsigned char *p)
-{
-	p[0] = val;
-	p[1] = val >> 8;
-	p[2] = val >> 16;
-	p[3] = val >> 24;
-}
-
 static dc_status_t
 suunto_eonsteel_hdlc_write (suunto_eonsteel_device_t *device, const unsigned char data[], size_t size, size_t *actual)
 {
@@ -394,16 +380,16 @@ suunto_eonsteel_send(suunto_eonsteel_device_t *device,
 	buf[1] = size + HEADER_SIZE;
 
 	// 2-byte LE command word
-	put_le16(cmd, buf + 2);
+	array_uint16_le_set(buf + 2, cmd);
 
 	// 4-byte LE magic value (starts at 1)
-	put_le32(device->magic, buf + 4);
+	array_uint32_le_set(buf + 4, device->magic);
 
 	// 2-byte LE sequence number;
-	put_le16(device->seq, buf + 8);
+	array_uint16_le_set(buf + 8, device->seq);
 
 	// 4-byte LE length
-	put_le32(size, buf + 10);
+	array_uint32_le_set(buf + 10, size);
 
 	// .. followed by actual data
 	if (size) {
@@ -412,7 +398,7 @@ suunto_eonsteel_send(suunto_eonsteel_device_t *device,
 
 	// 4 byte LE checksum
 	unsigned int crc = checksum_crc32r(buf + 2, size + HEADER_SIZE);
-	put_le32(crc, buf + 14 + size);
+	array_uint32_le_set(buf + 14 + size, crc);
 
 	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
 		rc = suunto_eonsteel_hdlc_write(device, buf + 2, size + HEADER_SIZE + CRC_SIZE, NULL);
@@ -591,8 +577,8 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 		ask = size;
 		if (ask > 1024)
 			ask = 1024;
-		put_le32(1234, cmdbuf+0);	// Not file offset, after all
-		put_le32(ask, cmdbuf+4);	// Size of read
+		array_uint32_le_set(cmdbuf + 0, 1234);	// Not file offset, after all
+		array_uint32_le_set(cmdbuf + 4, ask);	// Size of read
 		rc = suunto_eonsteel_transfer(eon, CMD_FILE_READ,
 			cmdbuf, 8, result, sizeof(result), &n);
 		if (rc != DC_STATUS_SUCCESS) {
@@ -705,7 +691,7 @@ get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 	unsigned int n = 0;
 	unsigned int cmdlen;
 
-	put_le32(0, cmd);
+	array_uint32_le_set(cmd, 0);
 	memcpy(cmd + 4, dive_directory, sizeof(dive_directory));
 	cmdlen = 4 + sizeof(dive_directory);
 	rc = suunto_eonsteel_transfer(eon, CMD_DIR_OPEN,
@@ -890,7 +876,7 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 				break;
 			}
 
-			put_le32(time, buf);
+			array_uint32_le_set(buf, time);
 
 			if (memcmp (buf, eon->fingerprint, sizeof (eon->fingerprint)) == 0) {
 				skip = 1;
