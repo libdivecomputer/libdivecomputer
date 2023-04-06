@@ -19,4 +19,5 @@ EXTRA_DIST = \
 	contrib/README \
 	contrib/android/Android.mk \
 	contrib/msvc/libdivecomputer.vcxproj \
-	contrib/msvc/libdivecomputer.vcxproj.filters
+	contrib/msvc/libdivecomputer.vcxproj.filters \
+	contrib/udev/libdivecomputer.rules
