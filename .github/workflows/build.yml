@@ -152,3 +152,20 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.platform }}
           path: msvc/${{ matrix.platform }}/${{ env.CONFIGURATION }}/bin
+
+  android:
+
+    name: Android
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          autoreconf --install --force
+          ./configure --prefix=/usr
+      - run: $ANDROID_NDK/ndk-build -C contrib/android NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ github.job }}
+          path: contrib/android/libs
