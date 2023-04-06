@@ -50,7 +50,7 @@
 #define RESET 1
 #endif
 
-#if defined(__GLIBC__) || defined(__MINGW32__) || defined(BSD)
+#if defined(__GLIBC__) || defined(__MINGW32__) || defined(BSD) || defined(__ANDROID__)
 #define NOPERMUTATION "+"
 #else
 #define NOPERMUTATION ""
