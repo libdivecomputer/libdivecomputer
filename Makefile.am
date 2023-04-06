@@ -17,5 +17,5 @@ pkgconfig_DATA = libdivecomputer.pc
 EXTRA_DIST = \
 	libdivecomputer.pc.in \
 	contrib/android/Android.mk \
-	msvc/libdivecomputer.vcxproj \
-	msvc/libdivecomputer.vcxproj.filters
+	contrib/msvc/libdivecomputer.vcxproj \
+	contrib/msvc/libdivecomputer.vcxproj.filters

@@ -147,11 +147,11 @@ jobs:
           ./configure --prefix=/usr
         shell: msys2 {0}
       - uses: microsoft/setup-msbuild@v1
-      - run: msbuild -m -p:Platform=${{ matrix.platform }} -p:Configuration=${{ env.CONFIGURATION }} msvc/libdivecomputer.vcxproj
+      - run: msbuild -m -p:Platform=${{ matrix.platform }} -p:Configuration=${{ env.CONFIGURATION }} contrib/msvc/libdivecomputer.vcxproj
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ github.job }}-${{ matrix.platform }}
-          path: msvc/${{ matrix.platform }}/${{ env.CONFIGURATION }}/bin
+          path: contrib/msvc/${{ matrix.platform }}/${{ env.CONFIGURATION }}/bin
 
   android:
 
