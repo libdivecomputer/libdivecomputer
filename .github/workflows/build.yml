@@ -145,6 +145,7 @@ jobs:
       - run: |
           autoreconf --install --force
           ./configure --prefix=/usr
+          make -C src revision.h
         shell: msys2 {0}
       - uses: microsoft/setup-msbuild@v1
       - run: msbuild -m -p:Platform=${{ matrix.platform }} -p:Configuration=${{ env.CONFIGURATION }} contrib/msvc/libdivecomputer.vcxproj
@@ -164,6 +165,7 @@ jobs:
       - run: |
           autoreconf --install --force
           ./configure --prefix=/usr
+          make -C src revision.h
       - run: $ANDROID_NDK/ndk-build -C contrib/android NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk
       - uses: actions/upload-artifact@v3
         with:
