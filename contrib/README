@@ -1,0 +1,56 @@
+Alternative build systems
+=========================
+
+The autotools based build system is the official build system for the
+libdivecomputer project. But for convenience, a few alternative build systems
+are available as well. Unfortunately, these builds systems require a few extra
+steps to generate some header files.
+
+If you have access to a UNIX build system (for example a Linux virtual machine,
+MinGW, Cygwin or the Windows Subsystem for Linux), you can use the autotools
+build system to generate those files:
+
+  $ autoreconf --install --force
+  $ ./configure
+  $ make -C src revision.h
+
+Alternative, you can generate those files manually. First, create the version.h
+file from the version.h.in template:
+
+  $ cp include/libdivecomputer/version.h.in include/libdivecomputer/version.h
+
+and replace all the @DC_VERSION@ placeholders with the values defined in the
+configure.ac file.
+
+Next, generate the revision.h file:
+
+  $ echo "#define DC_VERSION_REVISION \"$(git rev-parse --verify HEAD)\"" > src/revision.h
+
+The alternative build systems are ready to use now.
+
+Visual Studio
+-------------
+
+The Visual Studio project file can be opened in the IDE, or build directly from
+the command-line:
+
+  msbuild -m -p:Platform=x86|x64 -p:Configuration=Debug|Release contrib/msvc/libdivecomputer.vcxproj
+
+Android NDK
+-----------
+
+  $ANDROID_NDK/ndk-build -C contrib/android NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk
+
+Linux udev rules
+================
+
+For dive computers using USB or USB HID communication, regular users typically
+don't have the necessary permissions to access the device nodes. This can be
+fixed with some udev rules.
+
+Install the udev rules, and reload them:
+
+  $ sudo cp contrib/udev/libdivecomputer.rules /etc/udev/rules.d/
+  $ sudo udevadm control --reload
+
+Note: the provided udev rules assume the user is in the plugdev group.
