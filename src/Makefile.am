@@ -103,7 +103,7 @@ libdivecomputer.exp: libdivecomputer.symbols
 	$(AM_V_GEN) sed -e '/^$$/d' $< > $@
 
 .rc.lo:
-	$(AM_V_GEN) $(LIBTOOL) --silent --tag=CC --mode=compile $(RC) $(DEFS) $(DEFAULT_INCLUDES) $< -o $@
+	$(AM_V_GEN) $(LIBTOOL) --silent --tag=CC --mode=compile $(RC) $(DEFS) $(DEFAULT_INCLUDES) $(AM_CPPFLAGS) $< -o $@
 
 libdivecomputer.lo: revision.h
 
