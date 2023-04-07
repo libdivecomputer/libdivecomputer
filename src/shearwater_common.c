@@ -93,7 +93,7 @@ shearwater_common_decompress_lre (unsigned char *data, unsigned int size, dc_buf
 
 		// The 9th bit indicates whether the remaining 8 bits represent
 		// a run of zero bytes or not. If the bit is set, the value is
-		// not a run and doesn’t need expansion. If the bit is not set,
+		// not a run and doesn't need expansion. If the bit is not set,
 		// the value contains the number of zero bytes in the run. A
 		// zero-length run indicates the end of the compressed stream.
 		if (value & 0x100) {
