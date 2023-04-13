@@ -29,6 +29,7 @@
 #include "array.h"
 #include "rbstream.h"
 #include "platform.h"
+#include "packet.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &mares_iconhd_device_vtable)
 
@@ -93,15 +94,13 @@ typedef struct mares_iconhd_device_t {
 	unsigned char version[140];
 	unsigned int model;
 	unsigned int packetsize;
-	unsigned char cache[20];
-	unsigned int available;
-	unsigned int offset;
 } mares_iconhd_device_t;
 
 static dc_status_t mares_iconhd_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t mares_iconhd_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t mares_iconhd_device_vtable = {
 	sizeof(mares_iconhd_device_t),
@@ -112,7 +111,7 @@ static const dc_device_vtable_t mares_iconhd_device_vtable = {
 	mares_iconhd_device_dump, /* dump */
 	mares_iconhd_device_foreach, /* foreach */
 	NULL, /* timesync */
-	NULL /* close */
+	mares_iconhd_device_close /* close */
 };
 
 static const mares_iconhd_layout_t mares_iconhd_layout = {
@@ -178,78 +177,6 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 }
 
 static dc_status_t
-mares_iconhd_read (mares_iconhd_device_t *device, unsigned char data[], size_t size)
-{
-	dc_status_t rc = DC_STATUS_SUCCESS;
-	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
-
-	size_t nbytes = 0;
-	while (nbytes < size) {
-		if (transport == DC_TRANSPORT_BLE) {
-			if (device->available == 0) {
-				// Read a packet into the cache.
-				size_t len = 0;
-				rc = dc_iostream_read (device->iostream, device->cache, sizeof(device->cache), &len);
-				if (rc != DC_STATUS_SUCCESS)
-					return rc;
-
-				device->available = len;
-				device->offset = 0;
-			}
-		}
-
-		// Set the minimum packet size.
-		size_t length = (transport == DC_TRANSPORT_BLE) ? device->available : size - nbytes;
-
-		// Limit the packet size to the total size.
-		if (nbytes + length > size)
-			length = size - nbytes;
-
-		if (transport == DC_TRANSPORT_BLE) {
-			// Copy the data from the cached packet.
-			memcpy (data + nbytes, device->cache + device->offset, length);
-			device->available -= length;
-			device->offset += length;
-		} else {
-			// Read the packet.
-			rc = dc_iostream_read (device->iostream, data + nbytes, length, &length);
-			if (rc != DC_STATUS_SUCCESS)
-				return rc;
-		}
-
-		nbytes += length;
-	}
-
-	return rc;
-}
-
-static dc_status_t
-mares_iconhd_write (mares_iconhd_device_t *device, const unsigned char data[], size_t size)
-{
-	dc_status_t rc = DC_STATUS_SUCCESS;
-	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
-
-	size_t nbytes = 0;
-	while (nbytes < size) {
-		// Set the maximum packet size.
-		size_t length = (transport == DC_TRANSPORT_BLE) ? sizeof(device->cache) : size - nbytes;
-
-		// Limit the packet size to the total size.
-		if (nbytes + length > size)
-			length = size - nbytes;
-
-		// Write the packet.
-		rc = dc_iostream_write (device->iostream, data + nbytes, length, &length);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
-
-		nbytes += length;
-	}
-
-	return rc;
-}
-
-static dc_status_t
 mares_iconhd_packet (mares_iconhd_device_t *device,
 	const unsigned char command[], unsigned int csize,
 	unsigned char answer[], unsigned int asize)
@@ -263,7 +190,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 		return DC_STATUS_CANCELLED;
 
 	// Send the command header to the dive computer.
-	status = mares_iconhd_write (device, command, 2);
+	status = dc_iostream_write (device->iostream, command, 2, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -271,7 +198,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 
 	// Receive the header byte.
 	unsigned char header[1] = {0};
-	status = mares_iconhd_read (device, header, sizeof (header));
+	status = dc_iostream_read (device->iostream, header, sizeof (header), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -285,7 +212,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 
 	// Send the command payload to the dive computer.
 	if (csize > 2) {
-		status = mares_iconhd_write (device, command + 2, csize - 2);
+		status = dc_iostream_write (device->iostream, command + 2, csize - 2, NULL);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the command.");
 			return status;
@@ -293,7 +220,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 	}
 
 	// Read the packet.
-	status = mares_iconhd_read (device, answer, asize);
+	status = dc_iostream_read (device->iostream, answer, asize, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -301,7 +228,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 
 	// Receive the trailer byte.
 	unsigned char trailer[1] = {0};
-	status = mares_iconhd_read (device, trailer, sizeof (trailer));
+	status = dc_iostream_read (device->iostream, trailer, sizeof (trailer), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
 		return status;
@@ -334,8 +261,6 @@ mares_iconhd_transfer (mares_iconhd_device_t *device, const unsigned char comman
 		// Discard any garbage bytes.
 		dc_iostream_sleep (device->iostream, 100);
 		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
-		device->available = 0;
-		device->offset = 0;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -459,6 +384,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = NULL;
+	dc_transport_t transport = dc_iostream_get_transport (iostream);
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -471,43 +397,50 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	}
 
 	// Set the default values.
-	device->iostream = iostream;
 	device->layout = NULL;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->fingerprint_size = sizeof (device->fingerprint);
 	memset (device->version, 0, sizeof (device->version));
 	device->model = 0;
 	device->packetsize = 0;
-	memset (device->cache, 0, sizeof (device->cache));
-	device->available = 0;
-	device->offset = 0;
+
+	// Create the packet stream.
+	if (transport == DC_TRANSPORT_BLE) {
+		status = dc_packet_open (&device->iostream, context, iostream, 20, 20);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to create the packet stream.");
+			goto error_free;
+		}
+	} else {
+		device->iostream = iostream;
+	}
 
 	// Set the serial communication protocol (115200 8E1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_EVEN, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Set the timeout for receiving data (3000 ms).
 	status = dc_iostream_set_timeout (device->iostream, 3000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Clear the DTR line.
 	status = dc_iostream_set_dtr (device->iostream, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to clear the DTR line.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Clear the RTS line.
 	status = dc_iostream_set_rts (device->iostream, 0);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to clear the RTS line.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Make sure everything is in a sane state.
@@ -518,7 +451,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	status = mares_iconhd_transfer (device, command, sizeof (command),
 		device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Autodetect the model using the version packet.
@@ -586,9 +519,28 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 
 	return DC_STATUS_SUCCESS;
 
+
+error_free_iostream:
+	if (transport == DC_TRANSPORT_BLE) {
+		dc_iostream_close (device->iostream);
+	}
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
+}
+
+
+static dc_status_t
+mares_iconhd_device_close (dc_device_t *abstract)
+{
+	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
+
+	// Close the packet stream.
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
+		return dc_iostream_close (device->iostream);
+	}
+
+	return DC_STATUS_SUCCESS;
 }
 
 

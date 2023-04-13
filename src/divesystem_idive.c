@@ -29,6 +29,7 @@
 #include "platform.h"
 #include "checksum.h"
 #include "array.h"
+#include "packet.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &divesystem_idive_device_vtable)
 
@@ -102,6 +103,7 @@ typedef struct divesystem_idive_device_t {
 static dc_status_t divesystem_idive_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
+static dc_status_t divesystem_idive_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	sizeof(divesystem_idive_device_t),
@@ -112,7 +114,7 @@ static const dc_device_vtable_t divesystem_idive_device_vtable = {
 	NULL, /* dump */
 	divesystem_idive_device_foreach, /* foreach */
 	divesystem_idive_device_timesync, /* timesync */
-	NULL /* close */
+	divesystem_idive_device_close /* close */
 };
 
 static const divesystem_idive_commands_t idive = {
@@ -152,6 +154,7 @@ divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, dc_iostr
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	divesystem_idive_device_t *device = NULL;
+	dc_transport_t transport = dc_iostream_get_transport (iostream);
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -164,22 +167,32 @@ divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, dc_iostr
 	}
 
 	// Set the default values.
-	device->iostream = iostream;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 	device->model = model;
+
+	// Create the packet stream.
+	if (transport == DC_TRANSPORT_BLE) {
+		status = dc_packet_open (&device->iostream, context, iostream, 244, 244);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to create the packet stream.");
+			goto error_free;
+		}
+	} else {
+		device->iostream = iostream;
+	}
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Set the timeout for receiving data (1000ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Make sure everything is in a sane state.
@@ -190,11 +203,27 @@ divesystem_idive_device_open (dc_device_t **out, dc_context_t *context, dc_iostr
 
 	return DC_STATUS_SUCCESS;
 
+error_free_iostream:
+	if (transport == DC_TRANSPORT_BLE) {
+		dc_iostream_close (device->iostream);
+	}
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
 }
 
+static dc_status_t
+divesystem_idive_device_close (dc_device_t *abstract)
+{
+	divesystem_idive_device_t *device = (divesystem_idive_device_t *) abstract;
+
+	// Close the packet stream.
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
+		return dc_iostream_close (device->iostream);
+	}
+
+	return DC_STATUS_SUCCESS;
+}
 
 static dc_status_t
 divesystem_idive_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)

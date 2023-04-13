@@ -26,6 +26,7 @@
 #include "context-private.h"
 #include "device-private.h"
 #include "array.h"
+#include "packet.h"
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &mclean_extreme_device_vtable)
 
@@ -391,6 +392,7 @@ mclean_extreme_device_open(dc_device_t **out, dc_context_t *context, dc_iostream
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mclean_extreme_device_t *device = NULL;
+	dc_transport_t transport = dc_iostream_get_transport (iostream);
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -403,21 +405,31 @@ mclean_extreme_device_open(dc_device_t **out, dc_context_t *context, dc_iostream
 	}
 
 	// Set the default values.
-	device->iostream = iostream;
 	memset(device->fingerprint, 0, sizeof(device->fingerprint));
+
+	// Create the packet stream.
+	if (transport == DC_TRANSPORT_BLE) {
+		status = dc_packet_open (&device->iostream, context, iostream, 244, 244);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to create the packet stream.");
+			goto error_free;
+		}
+	} else {
+		device->iostream = iostream;
+	}
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure(device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "Failed to set the terminal attributes.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Set the timeout for receiving data (1000ms).
 	status = dc_iostream_set_timeout(device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR(context, "Failed to set the timeout.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Make sure everything is in a sane state.
@@ -428,6 +440,10 @@ mclean_extreme_device_open(dc_device_t **out, dc_context_t *context, dc_iostream
 
 	return DC_STATUS_SUCCESS;
 
+error_free_iostream:
+	if (transport == DC_TRANSPORT_BLE) {
+		dc_iostream_close (device->iostream);
+	}
 error_free:
 	dc_device_deallocate((dc_device_t *)device);
 	return status;
@@ -438,14 +454,24 @@ mclean_extreme_device_close(dc_device_t *abstract)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	mclean_extreme_device_t *device = (mclean_extreme_device_t *)abstract;
+	dc_status_t rc = DC_STATUS_SUCCESS;
 
-	status = mclean_extreme_send(device, CMD_CLOSE, NULL, 0);
-	if (status != DC_STATUS_SUCCESS) {
+	rc = mclean_extreme_send(device, CMD_CLOSE, NULL, 0);
+	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(abstract->context, "Failed to send the exit command.");
-		return status;
+		dc_status_set_error(&status, rc);
 	}
 
-	return DC_STATUS_SUCCESS;
+	// Close the packet stream.
+	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
+		rc = dc_iostream_close (device->iostream);
+		if (rc != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to close the packet stream.");
+			dc_status_set_error(&status, rc);
+		}
+	}
+
+	return status;
 }
 
 static dc_status_t
