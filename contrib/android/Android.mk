@@ -39,6 +39,8 @@ LOCAL_SRC_FILES := \
 	src/divesoft_freedom_parser.c \
 	src/divesystem_idive.c \
 	src/divesystem_idive_parser.c \
+	src/halcyon_symbios.c \
+	src/halcyon_symbios_parser.c \
 	src/hdlc.c \
 	src/hw_frog.c \
 	src/hw_ostc3.c \

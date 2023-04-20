@@ -121,6 +121,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_OCEANS_S1 = (22 << 16),
 	/* Divesoft Freedom */
 	DC_FAMILY_DIVESOFT_FREEDOM = (23 << 16),
+	/* Halcyon Symbios */
+	DC_FAMILY_HALCYON_SYMBIOS = (24 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

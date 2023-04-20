@@ -65,6 +65,7 @@
 #include "deepblu_cosmiq.h"
 #include "oceans_s1.h"
 #include "divesoft_freedom.h"
+#include "halcyon_symbios.h"
 
 #include "context-private.h"
 #include "parser-private.h"
@@ -204,6 +205,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, const unsigned
 		break;
 	case DC_FAMILY_DIVESOFT_FREEDOM:
 		rc = divesoft_freedom_parser_create (&parser, context, data, size);
+		break;
+	case DC_FAMILY_HALCYON_SYMBIOS:
+		rc = halcyon_symbios_parser_create (&parser, context, data, size);
 		break;
 	default:
 		return DC_STATUS_INVALIDARGS;

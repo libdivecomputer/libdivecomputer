@@ -82,6 +82,7 @@ libdivecomputer_la_SOURCES = \
 	oceans_s1_common.h oceans_s1_common.c \
 	oceans_s1.h oceans_s1.c oceans_s1_parser.c \
 	divesoft_freedom.h divesoft_freedom.c divesoft_freedom_parser.c \
+	halcyon_symbios.h halcyon_symbios.c halcyon_symbios_parser.c \
 	hdlc.h hdlc.c \
 	packet.h packet.c \
 	socket.h socket.c \

@@ -38,6 +38,9 @@ checksum_add_uint16 (const unsigned char data[], unsigned int size, unsigned sho
 unsigned char
 checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
 
+unsigned char
+checksum_crc8 (const unsigned char data[], unsigned int size, unsigned char init, unsigned char xorout);
+
 unsigned short
 checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
 

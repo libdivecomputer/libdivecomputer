@@ -207,6 +207,8 @@
     <ClCompile Include="..\..\src\divesoft_freedom_parser.c" />
     <ClCompile Include="..\..\src\divesystem_idive.c" />
     <ClCompile Include="..\..\src\divesystem_idive_parser.c" />
+    <ClCompile Include="..\..\src\halcyon_symbios.c" />
+    <ClCompile Include="..\..\src\halcyon_symbios_parser.c" />
     <ClCompile Include="..\..\src\hdlc.c" />
     <ClCompile Include="..\..\src\hw_frog.c" />
     <ClCompile Include="..\..\src\hw_ostc.c" />
@@ -337,6 +339,7 @@
     <ClInclude Include="..\..\src\diverite_nitekq.h" />
     <ClInclude Include="..\..\src\divesoft_freedom.h" />
     <ClInclude Include="..\..\src\divesystem_idive.h" />
+    <ClInclude Include="..\..\src\halcyon_symbios.h" />
     <ClInclude Include="..\..\src\hdlc.h" />
     <ClInclude Include="..\..\src\hw_frog.h" />
     <ClInclude Include="..\..\src\hw_ostc.h" />
