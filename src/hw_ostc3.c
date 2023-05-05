@@ -437,7 +437,7 @@ hw_ostc3_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *i
 
 	// Create the packet stream.
 	if (transport == DC_TRANSPORT_BLE) {
-		status = dc_packet_open (&device->iostream, context, iostream, 244, 244);
+		status = dc_packet_open (&device->iostream, context, iostream, 244, 20);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (context, "Failed to create the packet stream.");
 			goto error_free;
