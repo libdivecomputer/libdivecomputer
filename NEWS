@@ -1,3 +1,37 @@
+Version 0.8.0 (2023-05-11)
+==========================
+
+The v0.8.0 release is mainly a bugfix release, and brings in support for a
+number of new devices. This release is fully backwards compatible with the
+previous one.
+
+New features:
+
+ * Add support for new backends:
+    - excursion: Deep Six Excursion, Crest CR-4, Genesis Centauri, Tusa TC1, Scorpena Alpha
+    - screen: Seac Screen and Action
+    - cosmiq: Deepblu Cosmiq+
+    - s1: Oceans S1
+    - freedom: Divesoft Freedom and Liberty
+ * Add support for some new devices:
+    - Aqualung: i200C
+    - Cressi: Donatello, Michelangelo, Neon
+    - Mares: Puck Pro +
+    - Oceanic: Geo Air
+    - Ratio: iX3M 2
+    - Scubapro: G2 TEK
+    - Shearwater: Petrel 3, Perdix 2
+    - Sherwood: Amphos Air 2.0
+ * Add support for parsing the decompression model
+ * Add a public api to configure the depth calibration
+ * Add a public api to configure the clock synchronization
+ * Add a basic Android build system
+
+Removed/changed features:
+
+ * Migrate to Visual Studio 2013 (or newer)
+ * Move the Visual Studio project to the contrib directory
+
 Version 0.7.0 (2021-05-07)
 ==========================
 
