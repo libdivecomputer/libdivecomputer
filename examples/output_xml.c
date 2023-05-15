@@ -450,8 +450,14 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 	}
 
 	if (status != DC_STATUS_UNSUPPORTED) {
-		fprintf (output->ostream, "<salinity type=\"%u\">%.1f</salinity>\n",
-			salinity.type, salinity.density);
+		const char *names[] = {"fresh", "salt"};
+		if (salinity.density) {
+			fprintf (output->ostream, "<salinity density=\"%.1f\">%s</salinity>\n",
+				salinity.density, names[salinity.type]);
+		} else {
+			fprintf (output->ostream, "<salinity>%s</salinity>\n",
+				names[salinity.type]);
+		}
 	}
 
 	// Parse the atmospheric pressure.
