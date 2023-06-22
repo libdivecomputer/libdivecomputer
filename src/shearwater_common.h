@@ -67,6 +67,9 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 dc_status_t
 shearwater_common_identifier (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int id);
 
+unsigned int
+shearwater_common_get_model (shearwater_common_device_t *device, unsigned int hardware);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

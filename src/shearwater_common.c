@@ -548,3 +548,64 @@ shearwater_common_identifier (shearwater_common_device_t *device, dc_buffer_t *b
 
 	return rc;
 }
+
+unsigned int
+shearwater_common_get_model (shearwater_common_device_t *device, unsigned int hardware)
+{
+	unsigned int model = 0;
+
+	switch (hardware) {
+	case 0x0101:
+	case 0x0202:
+		model = PREDATOR;
+		break;
+	case 0x0404:
+	case 0x0909:
+		model = PETREL;
+		break;
+	case 0x0505:
+	case 0x0808:
+	case 0x0838:
+	case 0x08A5:
+	case 0x0B0B:
+	case 0x7828:
+	case 0x7B2C:
+	case 0x8838:
+		model = PETREL2;
+		break;
+	case 0xB407:
+		model = PETREL3;
+		break;
+	case 0x0606:
+	case 0x0A0A:
+		model = NERD;
+		break;
+	case 0x0E0D:
+	case 0x7E2D:
+		model = NERD2;
+		break;
+	case 0x0707:
+		model = PERDIX;
+		break;
+	case 0x0C0D:
+	case 0x7C2D:
+	case 0x8D6C:
+		model = PERDIXAI;
+		break;
+	case 0xC407:
+		model = PERDIX2;
+		break;
+	case 0x0F0F:
+	case 0x1F0A:
+	case 0x1F0F:
+		model = TERIC;
+		break;
+	case 0x1512:
+		model = PEREGRINE;
+		break;
+	default:
+		WARNING (device->base.context, "Unknown hardware type 0x%04x.", hardware);
+	}
+
+	return model;
+}
