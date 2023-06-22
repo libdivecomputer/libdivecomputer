@@ -599,6 +599,91 @@ shearwater_common_wdbi (shearwater_common_device_t *device, unsigned int id, con
 	return status;
 }
 
+dc_status_t
+shearwater_common_timesync_local (shearwater_common_device_t *device, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	// Convert to local time.
+	dc_datetime_t local = *datetime;
+	local.timezone = DC_TIMEZONE_NONE;
+
+	dc_ticks_t ticks = dc_datetime_mktime (&local);
+	if (ticks == -1) {
+		ERROR (abstract->context, "Invalid date/time value specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	const unsigned char timestamp[] = {
+		(ticks >> 24) & 0xFF,
+		(ticks >> 16) & 0xFF,
+		(ticks >>  8) & 0xFF,
+		(ticks      ) & 0xFF,
+	};
+
+	status = shearwater_common_wdbi (device, ID_TIME_LOCAL, timestamp, sizeof(timestamp));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to write the dive computer local time.");
+		return status;
+	}
+
+	return status;
+}
+
+dc_status_t
+shearwater_common_timesync_utc (shearwater_common_device_t *device, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	// Convert to UTC time.
+	dc_ticks_t ticks = dc_datetime_mktime (datetime);
+	if (ticks == -1) {
+		ERROR (abstract->context, "Invalid date/time value specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	const unsigned char timestamp[] = {
+		(ticks >> 24) & 0xFF,
+		(ticks >> 16) & 0xFF,
+		(ticks >>  8) & 0xFF,
+		(ticks      ) & 0xFF,
+	};
+
+	status = shearwater_common_wdbi (device, ID_TIME_UTC, timestamp, sizeof(timestamp));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to write the dive computer UTC time.");
+		return status;
+	}
+
+	int timezone = datetime->timezone / 60;
+	const unsigned char offset[] = {
+		(timezone >> 24) & 0xFF,
+		(timezone >> 16) & 0xFF,
+		(timezone >>  8) & 0xFF,
+		(timezone      ) & 0xFF,
+	};
+
+	status = shearwater_common_wdbi (device, ID_TIME_OFFSET, offset, sizeof (offset));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to write the dive computer timezone offset.");
+		return status;
+	}
+
+	// We don't have a way to determine the daylight savings time setting,
+	// but the required offset is already factored into the timezone offset.
+	const unsigned char dst[] = {0, 0, 0, 0};
+
+	status = shearwater_common_wdbi (device, ID_TIME_DST, dst, sizeof (dst));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to write the dive computer DST setting.");
+		return status;
+	}
+
+	return status;
+}
+
 unsigned int
 shearwater_common_get_model (shearwater_common_device_t *device, unsigned int hardware)
 {

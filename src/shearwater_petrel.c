@@ -46,6 +46,7 @@ typedef struct shearwater_petrel_device_t {
 
 static dc_status_t shearwater_petrel_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t shearwater_petrel_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 static dc_status_t shearwater_petrel_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t shearwater_petrel_device_vtable = {
@@ -56,7 +57,7 @@ static const dc_device_vtable_t shearwater_petrel_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	shearwater_petrel_device_foreach, /* foreach */
-	NULL, /* timesync */
+	shearwater_petrel_device_timesync,
 	shearwater_petrel_device_close /* close */
 };
 
@@ -349,4 +350,29 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	dc_buffer_free (buffer);
 
 	return rc;
+}
+
+static dc_status_t
+shearwater_petrel_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
+
+	// Read the hardware type.
+	unsigned char rsp_hardware[2] = {0};
+	status = shearwater_common_rdbi (device, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the hardware type.");
+		return status;
+	}
+
+	// Convert and map to the model number.
+	unsigned int hardware = array_uint16_be (rsp_hardware);
+	unsigned int model = shearwater_common_get_model (device, hardware);
+
+	if (model == TERIC) {
+		return shearwater_common_timesync_utc (device, datetime);
+	} else {
+		return shearwater_common_timesync_local (device, datetime);
+	}
 }
