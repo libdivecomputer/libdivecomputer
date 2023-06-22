@@ -152,64 +152,47 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	shearwater_petrel_device_t *device = (shearwater_petrel_device_t *) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
-	// Allocate memory buffers for the manifests.
-	dc_buffer_t *buffer = dc_buffer_new (MANIFEST_SIZE);
-	dc_buffer_t *manifests = dc_buffer_new (MANIFEST_SIZE);
-	if (buffer == NULL || manifests == NULL) {
-		ERROR (abstract->context, "Insufficient buffer space available.");
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
-		return DC_STATUS_NOMEMORY;
-	}
-
 	// Enable progress notifications.
 	unsigned int current = 0, maximum = 0;
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the serial number.
-	rc = shearwater_common_identifier (&device->base, buffer, ID_SERIAL);
+	unsigned char rsp_serial[8] = {0};
+	rc = shearwater_common_rdbi (&device->base, ID_SERIAL, rsp_serial, sizeof(rsp_serial));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the serial number.");
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
 		return rc;
 	}
 
 	// Convert to a number.
 	unsigned char serial[4] = {0};
-	if (array_convert_hex2bin (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer),
-		serial, sizeof (serial)) != 0 ) {
+	if (array_convert_hex2bin (rsp_serial, sizeof(rsp_serial), serial, sizeof (serial)) != 0 ) {
 		ERROR (abstract->context, "Failed to convert the serial number.");
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
 		return DC_STATUS_DATAFORMAT;
-
 	}
 
 	// Read the firmware version.
-	rc = shearwater_common_identifier (&device->base, buffer, ID_FIRMWARE);
+	unsigned char rsp_firmware[11] = {0};
+	rc = shearwater_common_rdbi (&device->base, ID_FIRMWARE, rsp_firmware, sizeof(rsp_firmware));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the firmware version.");
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
 		return rc;
 	}
 
 	// Convert to a number.
-	unsigned int firmware = str2num (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), 1);
+	unsigned int firmware = str2num (rsp_firmware, sizeof(rsp_firmware), 1);
 
 	// Read the hardware type.
-	rc = shearwater_common_identifier (&device->base, buffer, ID_HARDWARE);
+	unsigned char rsp_hardware[2] = {0};
+	rc = shearwater_common_rdbi (&device->base, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the hardware type.");
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
 		return rc;
 	}
 
 	// Convert and map to the model number.
-	unsigned int hardware = array_uint_be (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
+	unsigned int hardware = array_uint16_be (rsp_hardware);
 	unsigned int model = shearwater_common_get_model (&device->base, hardware);
 
 	// Emit a device info event.
@@ -220,22 +203,14 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the logbook type
-	rc = shearwater_common_identifier (&device->base, buffer, ID_LOGUPLOAD);
+	unsigned char rsp_logupload[9] = {0};
+	rc = shearwater_common_rdbi (&device->base, ID_LOGUPLOAD, rsp_logupload, sizeof(rsp_logupload));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the logbook type.");
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
 		return rc;
 	}
 
-	if (dc_buffer_get_size (buffer) != 9) {
-		ERROR (abstract->context, "Unexpected packet size (" DC_PRINTF_SIZE " bytes).", dc_buffer_get_size(buffer));
-		dc_buffer_free (buffer);
-		dc_buffer_free (manifests);
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	unsigned int base_addr = array_uint32_be (dc_buffer_get_data (buffer) + 1);
+	unsigned int base_addr = array_uint32_be (rsp_logupload + 1);
 	switch (base_addr) {
 	case 0xDD000000: // Predator - we shouldn't get here, we could give up or we can try 0xC0000000
 	case 0xC0000000: // Predator-Like Format (what we used to call the Petrel format)
@@ -248,9 +223,17 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		break;
 	default: // unknown format
 		ERROR (abstract->context, "Unknown logbook format %08x", base_addr);
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	// Allocate memory buffers for the manifests.
+	dc_buffer_t *buffer = dc_buffer_new (MANIFEST_SIZE);
+	dc_buffer_t *manifests = dc_buffer_new (MANIFEST_SIZE);
+	if (buffer == NULL || manifests == NULL) {
+		ERROR (abstract->context, "Insufficient buffer space available.");
 		dc_buffer_free (buffer);
 		dc_buffer_free (manifests);
-		return DC_STATUS_DATAFORMAT;
+		return DC_STATUS_NOMEMORY;
 	}
 
 	// Read the manifest pages
