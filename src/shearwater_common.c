@@ -42,6 +42,8 @@
 #define WDBI_REQUEST  0x2E
 #define WDBI_RESPONSE 0x6E
 
+#define NAK 0x7F
+
 dc_status_t
 shearwater_common_setup (shearwater_common_device_t *device, dc_context_t *context, dc_iostream_t *iostream)
 {
@@ -537,6 +539,10 @@ shearwater_common_rdbi (shearwater_common_device_t *device, unsigned int id, uns
 
 	// Verify the response.
 	if (n < 3 || response[0] != RDBI_RESPONSE || response[1] != request[1] || response[2] != request[2]) {
+		if (n == 3 && response[0] == NAK && response[1] == RDBI_REQUEST) {
+			ERROR (abstract->context, "Received NAK packet with error code 0x%02x.", response[2]);
+			return DC_STATUS_UNSUPPORTED;
+		}
 		ERROR (abstract->context, "Unexpected response packet.");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -582,6 +588,10 @@ shearwater_common_wdbi (shearwater_common_device_t *device, unsigned int id, con
 
 	// Verify the response.
 	if (n < 3 || response[0] != WDBI_RESPONSE || response[1] != request[1] || response[2] != request[2]) {
+		if (n == 3 && response[0] == NAK && response[1] == WDBI_REQUEST) {
+			ERROR (abstract->context, "Received NAK packet with error code 0x%02x.", response[2]);
+			return DC_STATUS_UNSUPPORTED;
+		}
 		ERROR (abstract->context, "Unexpected response packet.");
 		return DC_STATUS_PROTOCOL;
 	}
