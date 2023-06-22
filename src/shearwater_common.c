@@ -39,6 +39,9 @@
 #define RDBI_REQUEST  0x22
 #define RDBI_RESPONSE 0x62
 
+#define WDBI_REQUEST  0x2E
+#define WDBI_RESPONSE 0x6E
+
 dc_status_t
 shearwater_common_setup (shearwater_common_device_t *device, dc_context_t *context, dc_iostream_t *iostream)
 {
@@ -547,6 +550,40 @@ shearwater_common_rdbi (shearwater_common_device_t *device, unsigned int id, uns
 
 	if (length) {
 		memcpy (data, response + 3, length);
+	}
+
+	return status;
+}
+
+dc_status_t
+shearwater_common_wdbi (shearwater_common_device_t *device, unsigned int id, const unsigned char data[], unsigned int size)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	if (size + 3 > SZ_PACKET) {
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Transfer the request.
+	unsigned int n = 0;
+	unsigned char request[SZ_PACKET] = {
+		WDBI_REQUEST,
+		(id >> 8) & 0xFF,
+		(id     ) & 0xFF};
+	if (size) {
+		memcpy (request + 3, data, size);
+	}
+	unsigned char response[SZ_PACKET];
+	status = shearwater_common_transfer (device, request, size + 3, response, sizeof (response), &n);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
+
+	// Verify the response.
+	if (n < 3 || response[0] != WDBI_RESPONSE || response[1] != request[1] || response[2] != request[2]) {
+		ERROR (abstract->context, "Unexpected response packet.");
+		return DC_STATUS_PROTOCOL;
 	}
 
 	return status;
