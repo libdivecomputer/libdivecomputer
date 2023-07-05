@@ -35,6 +35,11 @@ extern "C" {
 #define ID_LOGUPLOAD 0x8021
 #define ID_HARDWARE  0x8050
 
+#define ID_TIME_LOCAL  0x9030
+#define ID_TIME_UTC    0x9031
+#define ID_TIME_OFFSET 0x9032
+#define ID_TIME_DST    0x9033
+
 #define PREDATOR 2
 #define PETREL   3
 #define PETREL2  PETREL
@@ -65,7 +70,19 @@ dc_status_t
 shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression, dc_event_progress_t *progress);
 
 dc_status_t
-shearwater_common_identifier (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int id);
+shearwater_common_rdbi (shearwater_common_device_t *device, unsigned int id, unsigned char data[], unsigned int size);
+
+dc_status_t
+shearwater_common_wdbi (shearwater_common_device_t *device, unsigned int id, const unsigned char data[], unsigned int size);
+
+dc_status_t
+shearwater_common_timesync_local (shearwater_common_device_t *device, const dc_datetime_t *datetime);
+
+dc_status_t
+shearwater_common_timesync_utc (shearwater_common_device_t *device, const dc_datetime_t *datetime);
+
+unsigned int
+shearwater_common_get_model (shearwater_common_device_t *device, unsigned int hardware);
 
 #ifdef __cplusplus
 }

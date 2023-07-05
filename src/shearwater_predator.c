@@ -44,6 +44,7 @@ typedef struct shearwater_predator_device_t {
 static dc_status_t shearwater_predator_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t shearwater_predator_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t shearwater_predator_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 
 static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	sizeof(shearwater_predator_device_t),
@@ -53,7 +54,7 @@ static const dc_device_vtable_t shearwater_predator_device_vtable = {
 	NULL, /* write */
 	shearwater_predator_device_dump, /* dump */
 	shearwater_predator_device_foreach, /* foreach */
-	NULL, /* timesync */
+	shearwater_predator_device_timesync,
 	NULL /* close */
 };
 
@@ -356,4 +357,10 @@ shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char da
 	} else {
 		return shearwater_predator_extract_predator (abstract, data, size, callback, userdata);
 	}
+}
+
+static dc_status_t
+shearwater_predator_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	return shearwater_common_timesync_local ((shearwater_common_device_t *) abstract, datetime);
 }
