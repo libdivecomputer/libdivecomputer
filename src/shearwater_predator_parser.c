@@ -659,6 +659,9 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			if (gasmix[i].oxygen == 0 && gasmix[i].helium == 0)
 				continue;
+			if (gasmix[i].diluent &&
+				(divemode != M_CC && divemode != M_CC2 && divemode != M_SC))
+				continue;
 			parser->gasmix[parser->ngasmixes] = gasmix[i];
 			parser->ngasmixes++;
 		}
