@@ -455,7 +455,7 @@ dc_bluetooth_iterator_next (dc_iterator_t *abstract, void *out)
 		INFO (abstract->context, "Discover: address=" DC_ADDRESS_FORMAT ", name=%s",
 			address, name ? name : "");
 
-		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_BLUETOOTH, name, NULL)) {
+		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_BLUETOOTH, name)) {
 			continue;
 		}
 

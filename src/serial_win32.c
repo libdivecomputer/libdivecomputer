@@ -228,7 +228,7 @@ dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
 		// Null terminate the string.
 		data[data_len] = 0;
 
-		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, data, NULL)) {
+		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, data)) {
 			continue;
 		}
 
