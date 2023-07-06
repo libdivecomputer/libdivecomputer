@@ -404,3 +404,14 @@ signextend (unsigned int value, unsigned int nbits)
 	else
 		return value & mask;
 }
+
+unsigned int
+popcount (unsigned int value)
+{
+	unsigned int count = 0;
+	while (value) {
+		value &= value - 1;
+		count++;
+	}
+	return count;
+}

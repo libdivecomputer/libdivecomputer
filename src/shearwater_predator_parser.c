@@ -118,6 +118,7 @@ typedef struct shearwater_predator_tank_t {
 	unsigned int pressure_reserve;
 	unsigned int serial;
 	char name[2];
+	dc_usage_t usage;
 } shearwater_predator_tank_t;
 
 struct shearwater_predator_parser_t {
@@ -254,6 +255,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, const
 		parser->tank[i].pressure_reserve = 0;
 		parser->tank[i].serial = 0;
 		memset (parser->tank[i].name, 0, sizeof (parser->tank[i].name));
+		parser->tank[i].usage = DC_USAGE_NONE;
 		parser->tankidx[i] = i;
 	}
 	parser->aimode = AI_OFF;
@@ -547,6 +549,14 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 						}
 					}
 				}
+				unsigned int gtrmode = data[offset + 29];
+				if (popcount(gtrmode) >= 2) {
+					for (unsigned int i = 0; i < 4; ++i) {
+						if (gtrmode & (1 << i)) {
+							tank[i].usage = DC_USAGE_SIDEMOUNT;
+						}
+					}
+				}
 			} else if (type == LOG_RECORD_OPENING_5) {
 				if (logversion >= 9) {
 					tank[0].serial = array_convert_bcd2dec (data + offset + 1, 3);
@@ -759,11 +769,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 					break;
 				}
 			} else {
-				if (parser->tank[flags].name[0] == 'S') {
-					tank->usage = DC_USAGE_SIDEMOUNT;
-				} else {
-					tank->usage = DC_USAGE_NONE;
-				}
+				tank->usage = parser->tank[flags].usage;
 			}
 			break;
 		case DC_FIELD_SALINITY:
