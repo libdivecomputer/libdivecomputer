@@ -1715,6 +1715,10 @@ hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 	}
 
+	if (device->hardware == OSTC4) {
+		return DC_STATUS_UNSUPPORTED;
+	}
+
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.firmware = device->firmware;
