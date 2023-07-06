@@ -240,7 +240,7 @@ hw_ostc3_write (hw_ostc3_device_t *device, dc_event_progress_t *progress, const 
 	size_t nbytes = 0;
 	while (nbytes < size) {
 		// Set the maximum packet size.
-		size_t length = 1024;
+		size_t length = (device->hardware == OSTC4) ? 64 : 1024;
 
 		// Limit the packet size to the total size.
 		if (nbytes + length > size)
