@@ -180,6 +180,12 @@ static const dc_parser_vtable_t shearwater_petrel_parser_vtable = {
 
 
 static unsigned int
+shearwater_predator_is_ccr (unsigned int divemode)
+{
+	return divemode == M_CC || divemode == M_CC2 || divemode == M_SC;
+}
+
+static unsigned int
 shearwater_predator_find_gasmix (shearwater_predator_parser_t *parser, unsigned int o2, unsigned int he, unsigned int dil)
 {
 	unsigned int i = 0;
@@ -659,8 +665,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			if (gasmix[i].oxygen == 0 && gasmix[i].helium == 0)
 				continue;
-			if (gasmix[i].diluent &&
-				(divemode != M_CC && divemode != M_CC2 && divemode != M_SC))
+			if (gasmix[i].diluent && !shearwater_predator_is_ccr (divemode))
 				continue;
 			parser->gasmix[parser->ngasmixes] = gasmix[i];
 			parser->ngasmixes++;
