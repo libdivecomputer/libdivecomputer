@@ -746,21 +746,24 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			tank->beginpressure = parser->tank[flags].beginpressure * 2 * PSI / BAR;
 			tank->endpressure   = parser->tank[flags].endpressure   * 2 * PSI / BAR;
 			tank->gasmix = DC_GASMIX_UNKNOWN;
-			switch (parser->tank[flags].name[0]) {
-			case 'S':
-				tank->usage = DC_USAGE_SIDEMOUNT;
-				break;
-			case 'O':
-				tank->usage = DC_USAGE_OXYGEN;
-				break;
-			case 'D':
-				tank->usage = DC_USAGE_DILUENT;
-				break;
-			case 'T':
-			case 'B':
-			default:
-				tank->usage = DC_USAGE_NONE;
-				break;
+			if (shearwater_predator_is_ccr (parser->divemode)) {
+				switch (parser->tank[flags].name[0]) {
+				case 'O':
+					tank->usage = DC_USAGE_OXYGEN;
+					break;
+				case 'D':
+					tank->usage = DC_USAGE_DILUENT;
+					break;
+				default:
+					tank->usage = DC_USAGE_NONE;
+					break;
+				}
+			} else {
+				if (parser->tank[flags].name[0] == 'S') {
+					tank->usage = DC_USAGE_SIDEMOUNT;
+				} else {
+					tank->usage = DC_USAGE_NONE;
+				}
 			}
 			break;
 		case DC_FIELD_SALINITY:
