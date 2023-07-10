@@ -414,6 +414,20 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Ratio",      "iX3M 2021 Pro Deep",  DC_FAMILY_DIVESYSTEM_IDIVE, 0x73, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iX3M 2021 Pro Tech+", DC_FAMILY_DIVESYSTEM_IDIVE, 0x74, DC_TRANSPORT_SERIAL, NULL},
 	{"Ratio",      "iX3M 2021 Pro Reb",   DC_FAMILY_DIVESYSTEM_IDIVE, 0x75, DC_TRANSPORT_SERIAL, NULL},
+	{"Ratio",      "iDive 2 Free",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x80, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iDive 2 Fancy",       DC_FAMILY_DIVESYSTEM_IDIVE, 0x81, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iDive 2 Easy",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x82, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iDive 2 Pro",         DC_FAMILY_DIVESYSTEM_IDIVE, 0x83, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iDive 2 Deep",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x84, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iDive 2 Tech",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x85, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iDive 2 Reb",         DC_FAMILY_DIVESYSTEM_IDIVE, 0x86, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 GPS Gauge",    DC_FAMILY_DIVESYSTEM_IDIVE, 0x90, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 GPS Easy",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x91, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 GPS Pro",      DC_FAMILY_DIVESYSTEM_IDIVE, 0x92, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 GPS Deep",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x93, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 GPS Tech",     DC_FAMILY_DIVESYSTEM_IDIVE, 0x94, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "iX3M 2 GPS Reb",      DC_FAMILY_DIVESYSTEM_IDIVE, 0x95, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
+	{"Ratio",      "ATOM",                DC_FAMILY_DIVESYSTEM_IDIVE, 0x96, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
 	{"Ratio",      "iX3M 2 Gauge",        DC_FAMILY_DIVESYSTEM_IDIVE, 0x100, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
 	{"Ratio",      "iX3M 2 Easy",         DC_FAMILY_DIVESYSTEM_IDIVE, 0x101, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
 	{"Ratio",      "iX3M 2 Pro",          DC_FAMILY_DIVESYSTEM_IDIVE, 0x102, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_divesystem},
@@ -691,6 +705,7 @@ static int dc_filter_divesystem (dc_transport_t transport, const void *userdata,
 	static const char * const bluetooth[] = {
 		"DS",
 		"IX5M",
+		"RATIO-",
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
