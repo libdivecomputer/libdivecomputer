@@ -141,6 +141,7 @@ struct shearwater_predator_parser_t {
 	shearwater_predator_tank_t tank[NTANKS];
 	unsigned int tankidx[NTANKS];
 	unsigned int aimode;
+	unsigned int hpccr;
 	unsigned int calibrated;
 	double calibration[3];
 	unsigned int divemode;
@@ -259,6 +260,7 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, const
 		parser->tankidx[i] = i;
 	}
 	parser->aimode = AI_OFF;
+	parser->hpccr = 0;
 	parser->calibrated = 0;
 	for (unsigned int i = 0; i < 3; ++i) {
 		parser->calibration[i] = 0.0;
@@ -387,6 +389,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	shearwater_predator_tank_t tank[NTANKS] = {0};
 	unsigned int o2_previous = UNDEFINED, he_previous = UNDEFINED, dil_previous = UNDEFINED;
 	unsigned int aimode = AI_OFF;
+	unsigned int hpccr = 0;
 	if (!pnf) {
 		for (unsigned int i = 0; i < NFIXED; ++i) {
 			gasmix[i].oxygen = data[20 + i];
@@ -498,8 +501,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 							tank[id].enabled = 1;
 							tank[id].beginpressure = pressure;
 							tank[id].endpressure = pressure;
-							tank[id].name[0] = i == 0 ? 'D': 'O';
-							tank[id].name[1] = 0;
+							tank[id].usage = i == 0 ? DC_USAGE_DILUENT : DC_USAGE_OXYGEN;
+							hpccr = 1;
 						}
 						tank[id].endpressure = pressure;
 					}
@@ -543,9 +546,9 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 						if (aimode == AI_HPCCR) {
 							for (unsigned int i = 0; i < 2; ++i) {
 								tank[4 + i].enabled = 1;
-								tank[4 + i].name[0] = i == 0 ? 'D': 'O';
-								tank[4 + i].name[1] = 0;
+								tank[4 + i].usage = i == 0 ? DC_USAGE_DILUENT : DC_USAGE_OXYGEN;
 							}
+							hpccr = 1;
 						}
 					}
 				}
@@ -692,6 +695,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 		}
 	}
 	parser->aimode = aimode;
+	parser->hpccr = hpccr;
 	parser->divemode = divemode;
 	parser->units = data[parser->opening[0] + 8];
 	parser->atmospheric = array_uint16_be (data + parser->opening[1] + (parser->pnf ? 16 : 47));
@@ -756,7 +760,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			tank->beginpressure = parser->tank[flags].beginpressure * 2 * PSI / BAR;
 			tank->endpressure   = parser->tank[flags].endpressure   * 2 * PSI / BAR;
 			tank->gasmix = DC_GASMIX_UNKNOWN;
-			if (shearwater_predator_is_ccr (parser->divemode)) {
+			if (shearwater_predator_is_ccr (parser->divemode) && !parser->hpccr) {
 				switch (parser->tank[flags].name[0]) {
 				case 'O':
 					tank->usage = DC_USAGE_OXYGEN;
