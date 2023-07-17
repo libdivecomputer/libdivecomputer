@@ -126,6 +126,9 @@ dec2bcd (unsigned char value);
 unsigned int
 signextend (unsigned int value, unsigned int nbits);
 
+unsigned int
+popcount (unsigned int value);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
