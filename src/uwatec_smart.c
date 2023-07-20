@@ -286,8 +286,6 @@ uwatec_smart_usbhid_send (uwatec_smart_device_t *device, unsigned char cmd, cons
 		return DC_STATUS_INVALIDARGS;
 	}
 
-	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "cmd", data, size);
-
 	buf[0] = 0;
 	buf[1] = size + 1;
 	buf[2] = cmd;
@@ -295,6 +293,8 @@ uwatec_smart_usbhid_send (uwatec_smart_device_t *device, unsigned char cmd, cons
 		memcpy(buf + 3, data, size);
 	}
 	memset(buf + 3 + size, 0, sizeof(buf) - (size + 3));
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "cmd", buf + 2, size + 1);
 
 	if (dc_iostream_get_transport(device->iostream) == DC_TRANSPORT_BLE) {
 		rc = dc_iostream_write(device->iostream, buf + 1, size + 2, NULL);
