@@ -104,6 +104,7 @@ typedef struct hw_ostc_layout_t {
 } hw_ostc_layout_t;
 
 typedef struct hw_ostc_gasmix_t {
+	unsigned int id;
 	unsigned int oxygen;
 	unsigned int helium;
 	unsigned int type;
@@ -287,6 +288,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			initial = data[31];
 		}
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].id = i + 1;
 			gasmix[i].oxygen = data[25 + 2 * i];
 			gasmix[i].helium = 0;
 			gasmix[i].type = 0;
@@ -297,6 +299,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 	} else if (version == 0x23 || version == 0x24) {
 		ngasmixes = 5;
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].id = i + 1;
 			gasmix[i].oxygen = data[28 + 4 * i + 0];
 			gasmix[i].helium = data[28 + 4 * i + 1];
 			gasmix[i].type   = data[28 + 4 * i + 3];
@@ -320,6 +323,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			initial = data[31];
 		}
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
+			gasmix[i].id = i + 1;
 			gasmix[i].oxygen = data[19 + 2 * i + 0];
 			gasmix[i].helium = data[19 + 2 * i + 1];
 			gasmix[i].type = 0;
@@ -387,6 +391,7 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, const 
 	parser->initial_setpoint = 0;
 	parser->initial_cns = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		parser->gasmix[i].id = 0;
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
 		parser->gasmix[i].type = 0;
@@ -902,6 +907,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					ERROR (abstract->context, "Maximum number of gas mixes reached.");
 					return DC_STATUS_NOMEMORY;
 				}
+				parser->gasmix[idx].id = 0;
 				parser->gasmix[idx].oxygen = o2;
 				parser->gasmix[idx].helium = he;
 				parser->gasmix[idx].type = 0;
@@ -969,6 +975,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						ERROR (abstract->context, "Maximum number of gas mixes reached.");
 						return DC_STATUS_NOMEMORY;
 					}
+					parser->gasmix[idx].id = 0;
 					parser->gasmix[idx].oxygen = o2;
 					parser->gasmix[idx].helium = he;
 					parser->gasmix[idx].type = 0;
@@ -1105,6 +1112,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 						ERROR (abstract->context, "Maximum number of gas mixes reached.");
 						return DC_STATUS_NOMEMORY;
 					}
+					parser->gasmix[idx].id = 0;
 					parser->gasmix[idx].oxygen = o2;
 					parser->gasmix[idx].helium = he;
 					parser->gasmix[idx].type = 0;
