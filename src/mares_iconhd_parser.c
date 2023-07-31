@@ -45,6 +45,10 @@
 #define QUADAIR   0x23
 #define SMARTAIR  0x24
 #define HORIZON   0x2C
+#define PUCKAIR2  0x2D
+#define SIRIUS    0x2F
+#define QUADCI    0x31
+#define PUCK4     0x35
 
 #define ISSMART(model) ( \
 	(model) == SMART || \
@@ -53,7 +57,11 @@
 
 #define ISGENIUS(model) ( \
 	(model) == GENIUS || \
-	(model) == HORIZON)
+	(model) == HORIZON || \
+	(model) == PUCKAIR2 || \
+	(model) == SIRIUS || \
+	(model) == QUADCI || \
+	(model) == PUCK4)
 
 #define NGASMIXES_ICONHD 3
 #define NGASMIXES_GENIUS 5
