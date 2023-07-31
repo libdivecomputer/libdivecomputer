@@ -108,6 +108,7 @@ typedef struct hw_ostc_gasmix_t {
 	unsigned int helium;
 	unsigned int type;
 	unsigned int enabled;
+	unsigned int active;
 	unsigned int diluent;
 } hw_ostc_gasmix_t;
 
@@ -290,6 +291,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].helium = 0;
 			gasmix[i].type = 0;
 			gasmix[i].enabled = 1;
+			gasmix[i].active = 0;
 			gasmix[i].diluent = 0;
 		}
 	} else if (version == 0x23 || version == 0x24) {
@@ -299,6 +301,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			gasmix[i].helium = data[28 + 4 * i + 1];
 			gasmix[i].type   = data[28 + 4 * i + 3];
 			gasmix[i].enabled = gasmix[i].type != 0;
+			gasmix[i].active = 0;
 			gasmix[i].diluent = ccr;
 			// Find the first gas marked as the initial gas.
 			if (initial == UNDEFINED && data[28 + 4 * i + 3] == 1) {
@@ -325,6 +328,7 @@ hw_ostc_parser_cache (hw_ostc_parser_t *parser)
 			} else {
 				gasmix[i].enabled = 1;
 			}
+			gasmix[i].active = 0;
 			gasmix[i].diluent = ccr;
 		}
 	}
@@ -387,6 +391,7 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, const 
 		parser->gasmix[i].helium = 0;
 		parser->gasmix[i].type = 0;
 		parser->gasmix[i].enabled = 0;
+		parser->gasmix[i].active = 0;
 		parser->gasmix[i].diluent = 0;
 	}
 
@@ -802,6 +807,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 		// Initial gas mix.
 		if (time == samplerate && parser->initial != UNDEFINED) {
+			parser->gasmix[parser->initial].active = 1;
 			sample.gasmix = parser->initial;
 			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 		}
@@ -900,6 +906,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				parser->gasmix[idx].helium = he;
 				parser->gasmix[idx].type = 0;
 				parser->gasmix[idx].enabled = 1;
+				parser->gasmix[idx].active = 1;
 				parser->gasmix[idx].diluent = ccr;
 				parser->ngasmixes = idx + 1;
 			}
@@ -926,6 +933,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 				return DC_STATUS_DATAFORMAT;
 			}
 			idx--; /* Convert to a zero based index. */
+			parser->gasmix[idx].active = 1;
 			sample.gasmix = idx;
 			if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
 			tank = idx;
@@ -965,6 +973,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					parser->gasmix[idx].helium = he;
 					parser->gasmix[idx].type = 0;
 					parser->gasmix[idx].enabled = 1;
+					parser->gasmix[idx].active = 1;
 					parser->gasmix[idx].diluent = 0;
 					parser->ngasmixes = idx + 1;
 				}
@@ -1100,6 +1109,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 					parser->gasmix[idx].helium = he;
 					parser->gasmix[idx].type = 0;
 					parser->gasmix[idx].enabled = 1;
+					parser->gasmix[idx].active = 1;
 					parser->gasmix[idx].diluent = 0;
 					parser->ngasmixes = idx + 1;
 				}
