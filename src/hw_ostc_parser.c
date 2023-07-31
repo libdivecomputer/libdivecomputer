@@ -37,10 +37,6 @@
 
 #define UNDEFINED 0xFFFFFFFF
 
-#define ALL    0
-#define FIXED  1
-#define MANUAL 2
-
 #define HEADER  1
 #define PROFILE 2
 
@@ -194,15 +190,10 @@ static const hw_ostc_layout_t hw_ostc_layout_ostc3 = {
 };
 
 static unsigned int
-hw_ostc_find_gasmix (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he, unsigned int dil, unsigned int type)
+hw_ostc_find_gasmix_manual (hw_ostc_parser_t *parser, unsigned int o2, unsigned int he, unsigned int dil)
 {
-	unsigned int offset = 0;
+	unsigned int offset = parser->nfixed;
 	unsigned int count = parser->ngasmixes;
-	if (type == FIXED) {
-		count = parser->nfixed;
-	} else if (type == MANUAL) {
-		offset = parser->nfixed;
-	}
 
 	unsigned int i = offset;
 	while (i < count) {
@@ -899,7 +890,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 			}
 			unsigned int o2 = data[offset];
 			unsigned int he = data[offset + 1];
-			unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, ccr, MANUAL);
+			unsigned int idx = hw_ostc_find_gasmix_manual (parser, o2, he, ccr);
 			if (idx >= parser->ngasmixes) {
 				if (idx >= NGASMIXES) {
 					ERROR (abstract->context, "Maximum number of gas mixes reached.");
@@ -964,7 +955,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 				unsigned int o2 = data[offset];
 				unsigned int he = data[offset + 1];
-				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, 0, MANUAL);
+				unsigned int idx = hw_ostc_find_gasmix_manual (parser, o2, he, 0);
 				if (idx >= parser->ngasmixes) {
 					if (idx >= NGASMIXES) {
 						ERROR (abstract->context, "Maximum number of gas mixes reached.");
@@ -1099,7 +1090,7 @@ hw_ostc_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t call
 
 				unsigned int o2 = data[offset];
 				unsigned int he = data[offset + 1];
-				unsigned int idx = hw_ostc_find_gasmix (parser, o2, he, 0, MANUAL);
+				unsigned int idx = hw_ostc_find_gasmix_manual (parser, o2, he, 0);
 				if (idx >= parser->ngasmixes) {
 					if (idx >= NGASMIXES) {
 						ERROR (abstract->context, "Maximum number of gas mixes reached.");
