@@ -87,6 +87,14 @@ typedef enum dc_usb_recipient_t {
 } dc_usb_recipient_t;
 
 /**
+ * USB device descriptor.
+ */
+typedef struct dc_usb_desc_t {
+	unsigned short vid;
+	unsigned short pid;
+} dc_usb_desc_t;
+
+/**
  * Opaque object representing a USB device.
  */
 typedef struct dc_usb_device_t dc_usb_device_t;

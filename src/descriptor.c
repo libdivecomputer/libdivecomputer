@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <libdivecomputer/usbhid.h>
+#include <libdivecomputer/usb.h>
+
 #include "descriptor-private.h"
 #include "iterator-private.h"
 #include "platform.h"
@@ -497,6 +500,15 @@ dc_match_usb (const void *key, const void *value)
 }
 
 static int
+dc_match_usbhid (const void *key, const void *value)
+{
+	const dc_usbhid_desc_t *k = (const dc_usbhid_desc_t *) key;
+	const dc_usbhid_desc_t *v = (const dc_usbhid_desc_t *) value;
+
+	return k->vid == v->vid && k->pid == v->pid;
+}
+
+static int
 dc_match_number_with_prefix (const void *key, const void *value)
 {
 	const char *str = (const char *) key;
@@ -569,7 +581,7 @@ dc_filter_uwatec (dc_descriptor_t *descriptor, dc_transport_t transport, const v
 		"UWATEC Galileo",
 		"UWATEC Galileo Sol",
 	};
-	static const dc_usb_desc_t usbhid[] = {
+	static const dc_usbhid_desc_t usbhid[] = {
 		{0x2e6c, 0x3201}, // G2, G2 TEK
 		{0x2e6c, 0x3211}, // G2 Console
 		{0x2e6c, 0x4201}, // G2 HUD
@@ -587,7 +599,7 @@ dc_filter_uwatec (dc_descriptor_t *descriptor, dc_transport_t transport, const v
 	if (transport == DC_TRANSPORT_IRDA) {
 		return DC_FILTER_INTERNAL (userdata, irda, 0, dc_match_name);
 	} else if (transport == DC_TRANSPORT_USBHID) {
-		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usb);
+		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usbhid);
 	} else if (transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
 	}
@@ -598,7 +610,7 @@ dc_filter_uwatec (dc_descriptor_t *descriptor, dc_transport_t transport, const v
 static int
 dc_filter_suunto (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata)
 {
-	static const dc_usb_desc_t usbhid[] = {
+	static const dc_usbhid_desc_t usbhid[] = {
 		{0x1493, 0x0030}, // Eon Steel
 		{0x1493, 0x0033}, // Eon Core
 		{0x1493, 0x0035}, // D5
@@ -612,7 +624,7 @@ dc_filter_suunto (dc_descriptor_t *descriptor, dc_transport_t transport, const v
 	};
 
 	if (transport == DC_TRANSPORT_USBHID) {
-		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usb);
+		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usbhid);
 	} else if (transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
 	}

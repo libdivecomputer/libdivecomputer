@@ -438,7 +438,7 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 			return syserror (rc);
 		}
 
-		dc_usb_desc_t usb = {dev.idVendor, dev.idProduct};
+		dc_usbhid_desc_t usb = {dev.idVendor, dev.idProduct};
 		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_USBHID, &usb)) {
 			continue;
 		}
@@ -522,7 +522,7 @@ dc_usbhid_iterator_next (dc_iterator_t *abstract, void *out)
 		struct hid_device_info *current = iterator->current;
 		iterator->current = current->next;
 
-		dc_usb_desc_t usb = {current->vendor_id, current->product_id};
+		dc_usbhid_desc_t usb = {current->vendor_id, current->product_id};
 		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_USBHID, &usb)) {
 			continue;
 		}
