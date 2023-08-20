@@ -52,6 +52,9 @@ dc_descriptor_get_model (dc_descriptor_t *descriptor);
 unsigned int
 dc_descriptor_get_transports (dc_descriptor_t *descriptor);
 
+int
+dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

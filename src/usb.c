@@ -39,7 +39,6 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "iostream-private.h"
-#include "descriptor-private.h"
 #include "iterator-private.h"
 #include "platform.h"
 #include "array.h"

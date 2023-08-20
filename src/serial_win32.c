@@ -31,7 +31,6 @@
 #include "context-private.h"
 #include "iostream-private.h"
 #include "iterator-private.h"
-#include "descriptor-private.h"
 #include "platform.h"
 
 static dc_status_t dc_serial_iterator_next (dc_iterator_t *iterator, void *item);

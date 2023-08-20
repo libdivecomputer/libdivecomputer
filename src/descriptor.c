@@ -23,10 +23,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <libdivecomputer/descriptor.h>
 #include <libdivecomputer/usbhid.h>
 #include <libdivecomputer/usb.h>
 
-#include "descriptor-private.h"
 #include "iterator-private.h"
 #include "platform.h"
 
