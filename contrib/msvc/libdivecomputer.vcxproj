@@ -331,7 +331,6 @@
     <ClInclude Include="..\..\src\cressi_leonardo.h" />
     <ClInclude Include="..\..\src\deepblu_cosmiq.h" />
     <ClInclude Include="..\..\src\deepsix_excursion.h" />
-    <ClInclude Include="..\..\src\descriptor-private.h" />
     <ClInclude Include="..\..\src\device-private.h" />
     <ClInclude Include="..\..\src\diverite_nitekq.h" />
     <ClInclude Include="..\..\src\divesoft_freedom.h" />

@@ -33,6 +33,14 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
+ * USB HID device descriptor.
+ */
+typedef struct dc_usbhid_desc_t {
+	unsigned short vid;
+	unsigned short pid;
+} dc_usbhid_desc_t;
+
+/**
  * Opaque object representing a USB HID device.
  */
 typedef struct dc_usbhid_device_t dc_usbhid_device_t;

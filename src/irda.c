@@ -47,7 +47,6 @@
 #include "context-private.h"
 #include "iostream-private.h"
 #include "iterator-private.h"
-#include "descriptor-private.h"
 #include "array.h"
 #include "platform.h"
 
@@ -226,7 +225,7 @@ dc_irda_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_
 		INFO (context, "Discover: address=%08x, name=%s, charset=%02x, hints=%04x",
 			address, name, charset, hints);
 
-		if (!dc_descriptor_filter (descriptor, DC_TRANSPORT_IRDA, name, NULL)) {
+		if (!dc_descriptor_filter (descriptor, DC_TRANSPORT_IRDA, name)) {
 			continue;
 		}
 

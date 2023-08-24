@@ -57,7 +57,6 @@
 #include "context-private.h"
 #include "iostream-private.h"
 #include "iterator-private.h"
-#include "descriptor-private.h"
 #include "platform.h"
 #include "timer.h"
 
@@ -230,7 +229,7 @@ dc_serial_iterator_next (dc_iterator_t *abstract, void *out)
 				return DC_STATUS_NOMEMORY;
 			}
 
-			if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, filename, NULL)) {
+			if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_SERIAL, filename)) {
 				continue;
 			}
 

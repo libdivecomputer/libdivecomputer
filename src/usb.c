@@ -39,11 +39,22 @@
 #include "common-private.h"
 #include "context-private.h"
 #include "iostream-private.h"
-#include "descriptor-private.h"
 #include "iterator-private.h"
 #include "platform.h"
+#include "array.h"
 
 #define ISINSTANCE(device) dc_iostream_isinstance((device), &dc_usb_vtable)
+
+typedef struct dc_usb_params_t {
+	unsigned int interface;
+	unsigned char endpoint_in;
+	unsigned char endpoint_out;
+} dc_usb_params_t;
+
+typedef struct dc_usb_config_t {
+	dc_usb_desc_t desc;
+	dc_usb_params_t params;
+} dc_usb_config_t;
 
 typedef struct dc_usb_session_t {
 	size_t refcount;
@@ -119,6 +130,26 @@ static const dc_iostream_vtable_t dc_usb_vtable = {
 	NULL, /* sleep */
 	dc_usb_close, /* close */
 };
+
+static const dc_usb_config_t g_usb_config[] = {
+	// Atomic Aquatics Cobalt
+	{{0x0471, 0x0888}, {0, 0x82, 0x02}},
+};
+
+static const dc_usb_params_t *
+dc_usb_params_find (const dc_usb_desc_t *desc)
+{
+	if (desc == NULL)
+		return NULL;
+
+	for (size_t i = 0; i < C_ARRAY_SIZE(g_usb_config); ++i) {
+		if (g_usb_config[i].desc.vid == desc->vid &&
+			g_usb_config[i].desc.pid == desc->pid)
+			return &g_usb_config[i].params;
+	}
+
+	return NULL;
+}
 
 static dc_status_t
 syserror(int errcode)
@@ -305,10 +336,12 @@ dc_usb_iterator_next (dc_iterator_t *abstract, void *out)
 		}
 
 		dc_usb_desc_t usb = {dev.idVendor, dev.idProduct};
-		dc_usb_params_t params = {0, 0, 0};
-		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_USB, &usb, &params)) {
+		if (!dc_descriptor_filter (iterator->descriptor, DC_TRANSPORT_USB, &usb)) {
 			continue;
 		}
+
+		// Check for known USB parameters.
+		const dc_usb_params_t *params = dc_usb_params_find (&usb);
 
 		// Get the active configuration descriptor.
 		struct libusb_config_descriptor *config = NULL;
@@ -325,7 +358,8 @@ dc_usb_iterator_next (dc_iterator_t *abstract, void *out)
 			const struct libusb_interface *iface = &config->interface[i];
 			for (int j = 0; j < iface->num_altsetting; j++) {
 				const struct libusb_interface_descriptor *desc = &iface->altsetting[j];
-				if (interface == NULL && desc->bInterfaceNumber == params.interface) {
+				if (interface == NULL &&
+					(params == NULL || params->interface == desc->bInterfaceNumber)) {
 					interface = desc;
 				}
 			}
@@ -349,12 +383,12 @@ dc_usb_iterator_next (dc_iterator_t *abstract, void *out)
 			}
 
 			if (ep_in == NULL && direction == LIBUSB_ENDPOINT_IN &&
-				(params.endpoint_in == 0 || params.endpoint_in == desc->bEndpointAddress)) {
+				(params == NULL || params->endpoint_in == desc->bEndpointAddress)) {
 				ep_in = desc;
 			}
 
 			if (ep_out == NULL && direction == LIBUSB_ENDPOINT_OUT &&
-				(params.endpoint_out == 0 || params.endpoint_out == desc->bEndpointAddress)) {
+				(params == NULL || params->endpoint_out == desc->bEndpointAddress)) {
 				ep_out = desc;
 			}
 		}

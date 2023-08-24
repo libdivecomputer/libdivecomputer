@@ -16,7 +16,7 @@ endif
 
 libdivecomputer_la_SOURCES = \
 	version.c \
-	descriptor-private.h descriptor.c \
+	descriptor.c \
 	iostream-private.h iostream.c \
 	iterator-private.h iterator.c \
 	common-private.h common.c \

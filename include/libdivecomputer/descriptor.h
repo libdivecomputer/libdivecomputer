@@ -29,28 +29,95 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/**
+ * Opaque object representing a supported dive computer.
+ */
 typedef struct dc_descriptor_t dc_descriptor_t;
 
+/**
+ * Create an iterator to enumerate the supported dive computers.
+ *
+ * @param[out] iterator  A location to store the iterator.
+ * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
+ * on failure.
+ */
 dc_status_t
 dc_descriptor_iterator (dc_iterator_t **iterator);
 
+/**
+ * Free the device descriptor.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ */
 void
 dc_descriptor_free (dc_descriptor_t *descriptor);
 
+/**
+ * Get the vendor name of the dive computer.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ * @returns The vendor name of the dive computer on success, or NULL on failure.
+ */
 const char *
 dc_descriptor_get_vendor (dc_descriptor_t *descriptor);
 
+/**
+ * Get the product name of the dive computer.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ * @returns The product name of the dive computer on success, or NULL on
+ * failure.
+ */
 const char *
 dc_descriptor_get_product (dc_descriptor_t *descriptor);
 
+/**
+ * Get the family type of the dive computer.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ * @returns The family type of the dive computer on success, or DC_FAMILY_NULL
+ * on failure.
+ */
 dc_family_t
 dc_descriptor_get_type (dc_descriptor_t *descriptor);
 
+/**
+ * Get the model number of the dive computer.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ * @returns The model number of the dive computer on success, or zero on
+ * failure.
+ */
 unsigned int
 dc_descriptor_get_model (dc_descriptor_t *descriptor);
 
+/**
+ * Get all transports supported by the dive computer.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ * @returns A bitmask with all the transports supported by the dive computer on
+ * success, or DC_TRANSPORT_NONE on failure.
+ */
 unsigned int
 dc_descriptor_get_transports (dc_descriptor_t *descriptor);
+
+/**
+ * Check if a low-level I/O device matches a supported dive computer.
+ *
+ * @param[in]  descriptor  A valid device descriptor.
+ * @param[in]  transport   The transport type of the I/O device.
+ * @param[in]  userdata    A pointer to a transport specific data structure:
+ *  - DC_TRANSPORT_SERIAL:    Name of the device node (string)
+ *  - DC_TRANSPORT_USB:       USB VID/PID (#dc_usb_desc_t)
+ *  - DC_TRANSPORT_USBHID:    USB VID/PID (#dc_usbhid_desc_t)
+ *  - DC_TRANSPORT_IRDA:      IrDA device name (string)
+ *  - DC_TRANSPORT_BLUETOOTH: Bluetooth device name (string)
+ *  - DC_TRANSPORT_BLE:       Bluetooth device name (string)
+ * @returns Non-zero if the device matches a supported dive computer, or zero if
+ * there is no match.
+ */
+int
+dc_descriptor_filter (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 
 #ifdef __cplusplus
 }
