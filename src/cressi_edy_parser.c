@@ -31,6 +31,8 @@
 #define IQ700 0x05
 #define EDY   0x08
 
+#define SZ_HEADER 32
+
 typedef struct cressi_edy_parser_t cressi_edy_parser_t;
 
 struct cressi_edy_parser_t {
@@ -97,7 +99,7 @@ cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 static dc_status_t
 cressi_edy_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
-	if (abstract->size < 32)
+	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data;
@@ -121,7 +123,7 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 {
 	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) abstract;
 
-	if (abstract->size < 32)
+	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
 	const unsigned char *p = abstract->data;
@@ -180,7 +182,7 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	unsigned int ngasmixes = cressi_edy_parser_count_gasmixes(data);
 	unsigned int gasmix = 0xFFFFFFFF;
 
-	unsigned int offset = 32;
+	unsigned int offset = SZ_HEADER;
 	while (offset + 2 <= size) {
 		dc_sample_value_t sample = {0};
 
