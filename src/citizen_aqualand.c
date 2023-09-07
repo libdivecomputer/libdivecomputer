@@ -31,6 +31,8 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &citizen_aqualand_device_vtable)
 
+#define SZ_HEADER 32
+
 typedef struct citizen_aqualand_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
@@ -199,6 +201,12 @@ citizen_aqualand_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 
 	unsigned char *data = dc_buffer_get_data (buffer);
 	unsigned int   size = dc_buffer_get_size (buffer);
+
+	if (size < SZ_HEADER) {
+		ERROR (abstract->context, "Dive header is too small (%u).", size);
+		dc_buffer_free (buffer);
+		return DC_STATUS_DATAFORMAT;
+	}
 
 	if (callback && memcmp (data + 0x05, device->fingerprint, sizeof (device->fingerprint)) != 0) {
 		callback (data, size, data + 0x05, sizeof (device->fingerprint), userdata);

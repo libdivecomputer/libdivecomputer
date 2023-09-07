@@ -41,6 +41,8 @@
 
 #define FP_OFFSET 20
 
+#define SZ_HEADER 228
+
 #define SZ_MEMORY1 (29 * 64 * 1024) // Cobalt 1
 #define SZ_MEMORY2 (41 * 64 * 1024) // Cobalt 2
 #define SZ_VERSION 14
@@ -345,6 +347,12 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		if (size == 0) {
 			dc_buffer_free (buffer);
 			return DC_STATUS_SUCCESS;
+		}
+
+		if (size < SZ_HEADER) {
+			ERROR (abstract->context, "Dive header is too small (%u).", size);
+			dc_buffer_free (buffer);
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		if (memcmp (data + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0) {

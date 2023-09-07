@@ -38,6 +38,8 @@
 #define SZ_PACKET         0x80
 #define SZ_PAGE           (SZ_PACKET / 4)
 
+#define SZ_HEADER 32
+
 #define IQ700 0x05
 #define EDY   0x08
 
@@ -520,6 +522,13 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			dc_rbstream_free (rbstream);
 			free (buffer);
 			return rc;
+		}
+
+		if (length < SZ_HEADER) {
+			ERROR (abstract->context, "Dive header is too small (%u).", length);
+			dc_rbstream_free (rbstream);
+			free (buffer);
+			return DC_STATUS_DATAFORMAT;
 		}
 
 		unsigned char *p = buffer + offset;
