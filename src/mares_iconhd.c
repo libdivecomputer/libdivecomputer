@@ -21,7 +21,6 @@
 
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
-#include <assert.h> // assert
 
 #include "mares_iconhd.h"
 #include "context-private.h"
@@ -178,22 +177,33 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 
 static dc_status_t
 mares_iconhd_packet (mares_iconhd_device_t *device,
-	const unsigned char command[], unsigned int csize,
+	unsigned char cmd,
+	const unsigned char data[], unsigned int size,
 	unsigned char answer[], unsigned int asize)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	assert (csize >= 2);
-
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
 	// Send the command header to the dive computer.
-	status = dc_iostream_write (device->iostream, command, 2, NULL);
+	const unsigned char command[2] = {
+		cmd, cmd ^ XOR,
+	};
+	status = dc_iostream_write (device->iostream, command, sizeof(command), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
+	}
+
+	// Send the command payload to the dive computer.
+	if (size) {
+		status = dc_iostream_write (device->iostream, data, size, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the command.");
+			return status;
+		}
 	}
 
 	// Receive the header byte.
@@ -208,15 +218,6 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 	if (header[0] != ACK) {
 		ERROR (abstract->context, "Unexpected answer byte.");
 		return DC_STATUS_PROTOCOL;
-	}
-
-	// Send the command payload to the dive computer.
-	if (csize > 2) {
-		status = dc_iostream_write (device->iostream, command + 2, csize - 2, NULL);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to send the command.");
-			return status;
-		}
 	}
 
 	// Read the packet.
@@ -244,11 +245,11 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 }
 
 static dc_status_t
-mares_iconhd_transfer (mares_iconhd_device_t *device, const unsigned char command[], unsigned int csize, unsigned char answer[], unsigned int asize)
+mares_iconhd_transfer (mares_iconhd_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize)
 {
 	unsigned int nretries = 0;
 	dc_status_t rc = DC_STATUS_SUCCESS;
-	while ((rc = mares_iconhd_packet (device, command, csize, answer, asize)) != DC_STATUS_SUCCESS) {
+	while ((rc = mares_iconhd_packet (device, cmd, data, size, answer, asize)) != DC_STATUS_SUCCESS) {
 		// Automatically discard a corrupted packet,
 		// and request a new one.
 		if (rc != DC_STATUS_PROTOCOL && rc != DC_STATUS_TIMEOUT)
@@ -283,23 +284,21 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 
 	// Transfer the init packet.
 	unsigned char rsp_init[16];
-	unsigned char cmd_init[18] = {
-		CMD_OBJ_INIT,
-		CMD_OBJ_INIT ^ XOR,
+	unsigned char cmd_init[16] = {
 		0x40,
 		(index >> 0) & 0xFF,
 		(index >> 8) & 0xFF,
 		subindex & 0xFF
 	};
 	memset (cmd_init + 6, 0x00, sizeof(cmd_init) - 6);
-	status = mares_iconhd_transfer (device, cmd_init, sizeof (cmd_init), rsp_init, sizeof (rsp_init));
+	status = mares_iconhd_transfer (device, CMD_OBJ_INIT, cmd_init, sizeof (cmd_init), rsp_init, sizeof (rsp_init));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to transfer the init packet.");
 		return status;
 	}
 
 	// Verify the packet header.
-	if (memcmp (cmd_init + 3, rsp_init + 1, 3) != 0) {
+	if (memcmp (cmd_init + 1, rsp_init + 1, 3) != 0) {
 		ERROR (abstract->context, "Unexpected packet header.");
 		return DC_STATUS_PROTOCOL;
 	}
@@ -347,8 +346,7 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 
 		// Transfer the segment packet.
 		unsigned char rsp_segment[1 + 504];
-		unsigned char cmd_segment[] = {cmd, cmd ^ XOR};
-		status = mares_iconhd_transfer (device, cmd_segment, sizeof (cmd_segment), rsp_segment, len + 1);
+		status = mares_iconhd_transfer (device, cmd, NULL, 0, rsp_segment, len + 1);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to transfer the segment packet.");
 			return status;
@@ -447,8 +445,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
 
 	// Send the version command.
-	unsigned char command[] = {CMD_VERSION, CMD_VERSION ^ XOR};
-	status = mares_iconhd_transfer (device, command, sizeof (command),
+	status = mares_iconhd_transfer (device, CMD_VERSION, NULL, 0,
 		device->version, sizeof (device->version));
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free_iostream;
@@ -460,9 +457,8 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	// Read the size of the flash memory.
 	unsigned int memsize = 0;
 	if (device->model == QUAD) {
-		unsigned char cmd_flash[] = {CMD_FLASHSIZE, CMD_FLASHSIZE ^ XOR};
 		unsigned char rsp_flash[4] = {0};
-		status = mares_iconhd_transfer (device, cmd_flash, sizeof (cmd_flash), rsp_flash, sizeof (rsp_flash));
+		status = mares_iconhd_transfer (device, CMD_FLASHSIZE, NULL, 0, rsp_flash, sizeof (rsp_flash));
 		if (status != DC_STATUS_SUCCESS) {
 			WARNING (context, "Failed to read the flash memory size.");
 		} else {
@@ -575,7 +571,7 @@ mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 			len = device->packetsize;
 
 		// Read the packet.
-		unsigned char command[] = {CMD_READ, CMD_READ ^ XOR,
+		unsigned char command[] = {
 			(address      ) & 0xFF,
 			(address >>  8) & 0xFF,
 			(address >> 16) & 0xFF,
@@ -584,7 +580,7 @@ mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned 
 			(len >>  8) & 0xFF,
 			(len >> 16) & 0xFF,
 			(len >> 24) & 0xFF};
-		rc = mares_iconhd_transfer (device, command, sizeof (command), data, len);
+		rc = mares_iconhd_transfer (device, CMD_READ, command, sizeof (command), data, len);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
