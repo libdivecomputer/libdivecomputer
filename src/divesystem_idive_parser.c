@@ -440,8 +440,8 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 		// Time (seconds).
 		unsigned int timestamp = array_uint32_le (data + offset + 2);
-		if (timestamp <= time) {
-			ERROR (abstract->context, "Timestamp moved backwards.");
+		if (timestamp <= time && time != 0) {
+			ERROR (abstract->context, "Timestamp moved backwards (%u %u).", timestamp, time);
 			return DC_STATUS_DATAFORMAT;
 		}
 		time = timestamp;
