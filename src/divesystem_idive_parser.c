@@ -58,6 +58,9 @@
 #define IX3M2_ZHL16C   2
 #define IX3M2_VPM      3
 
+#define REC_SAMPLE 0
+#define REC_INFO   1
+
 typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
 typedef struct divesystem_idive_gasmix_t {
@@ -437,6 +440,16 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int offset = parser->headersize;
 	while (offset + samplesize <= size) {
 		dc_sample_value_t sample = {0};
+
+		// Get the record type.
+		unsigned int type = ISIX3M(parser->model) ?
+			array_uint16_le (data + offset + 52) :
+			REC_SAMPLE;
+		if (type != REC_SAMPLE) {
+			// Skip non-sample records.
+			offset += samplesize;
+			continue;
+		}
 
 		// Time (seconds).
 		unsigned int timestamp = array_uint32_le (data + offset + 2);
