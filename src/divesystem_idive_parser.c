@@ -413,6 +413,7 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int algorithm_previous = INVALID;
 	unsigned int gf_low = INVALID;
 	unsigned int gf_high = INVALID;
+	unsigned int have_bearing = 0;
 
 	unsigned int firmware = 0;
 	unsigned int apos4 = 0;
@@ -617,6 +618,16 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
 					tank[tank_idx].endpressure = pressure;
 				}
+			}
+
+			// Compass bearing
+			unsigned int bearing = array_uint16_le (data + offset + 50);
+			if (bearing != 0) {
+				have_bearing = 1; // Stop ignoring zero values.
+			}
+			if (have_bearing && bearing != 0xFFFF) {
+				sample.bearing = bearing;
+				if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
 			}
 		}
 
