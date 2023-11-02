@@ -64,6 +64,7 @@ typedef enum dc_field_type_t {
 	DC_FIELD_TANK,
 	DC_FIELD_DIVEMODE,
 	DC_FIELD_DECOMODEL,
+	DC_FIELD_LOCATION,
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
@@ -233,6 +234,18 @@ typedef struct dc_decomodel_t {
 		} gf;
 	} params;
 } dc_decomodel_t;
+
+/*
+ * GPS Location
+ *
+ * The latitude and longitude are in decimal degrees, and the (optional)
+ * altitude in meters.
+ */
+typedef struct dc_location_t {
+	double latitude;
+	double longitude;
+	double altitude;
+} dc_location_t;
 
 typedef union dc_sample_value_t {
 	unsigned int time; /* Milliseconds */
