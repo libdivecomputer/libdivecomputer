@@ -107,6 +107,8 @@ typedef struct shearwater_predator_gasmix_t {
 	unsigned int oxygen;
 	unsigned int helium;
 	unsigned int diluent;
+	unsigned int enabled;
+	unsigned int active;
 } shearwater_predator_gasmix_t;
 
 typedef struct shearwater_predator_tank_t {
@@ -245,6 +247,8 @@ shearwater_common_parser_create (dc_parser_t **out, dc_context_t *context, const
 		parser->gasmix[i].oxygen = 0;
 		parser->gasmix[i].helium = 0;
 		parser->gasmix[i].diluent = 0;
+		parser->gasmix[i].enabled = 0;
+		parser->gasmix[i].active = 0;
 	}
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NTANKS; ++i) {
@@ -395,6 +399,7 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 			gasmix[i].oxygen = data[20 + i];
 			gasmix[i].helium = data[30 + i];
 			gasmix[i].diluent = i >= 5;
+			gasmix[i].enabled = 1;
 		}
 	}
 
@@ -442,6 +447,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 					gasmix[idx].diluent = ccr;
 					ngasmixes = idx + 1;
 				}
+
+				gasmix[idx].active = 1;
 
 				o2_previous = o2;
 				he_previous = he;
@@ -552,6 +559,13 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 						}
 					}
 				}
+
+				// Gas mix on/off state.
+				unsigned int state = array_uint16_be (data + offset + 17);
+				for (unsigned int i = 0; i < NFIXED; ++i) {
+					gasmix[i].enabled = (state & (1 << i)) != 0;
+				}
+
 				unsigned int gtrmode = data[offset + 29];
 				if (popcount(gtrmode) >= 2) {
 					for (unsigned int i = 0; i < 4; ++i) {
@@ -677,6 +691,8 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	if (divemode != M_FREEDIVE) {
 		for (unsigned int i = 0; i < ngasmixes; ++i) {
 			if (gasmix[i].oxygen == 0 && gasmix[i].helium == 0)
+				continue;
+			if (!gasmix[i].enabled && !gasmix[i].active)
 				continue;
 			if (gasmix[i].diluent && !shearwater_predator_is_ccr (divemode))
 				continue;
