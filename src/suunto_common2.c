@@ -307,7 +307,7 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	rc = dc_rbstream_new (&rbstream, abstract, 1, SZ_PACKET, layout->rb_profile_begin, layout->rb_profile_end, end);
+	rc = dc_rbstream_new (&rbstream, abstract, 1, SZ_PACKET, layout->rb_profile_begin, layout->rb_profile_end, end, DC_RBSTREAM_BACKWARD);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		return rc;
