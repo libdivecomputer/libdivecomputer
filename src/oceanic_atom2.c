@@ -86,6 +86,7 @@ static const oceanic_common_device_vtable_t oceanic_atom2_device_vtable = {
 		NULL, /* timesync */
 		oceanic_atom2_device_close /* close */
 	},
+	oceanic_common_device_devinfo,
 	oceanic_common_device_logbook,
 	oceanic_common_device_profile,
 };

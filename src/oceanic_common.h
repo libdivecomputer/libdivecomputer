@@ -168,6 +168,7 @@ typedef struct oceanic_common_device_t {
 
 typedef struct oceanic_common_device_vtable_t {
 	dc_device_vtable_t base;
+	dc_status_t (*devinfo) (dc_device_t *device, dc_event_progress_t *progress);
 	dc_status_t (*logbook) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook);
 	dc_status_t (*profile) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata);
 } oceanic_common_device_vtable_t;
@@ -184,6 +185,9 @@ oceanic_common_match (const unsigned char *version, const oceanic_common_version
 
 void
 oceanic_common_device_init (oceanic_common_device_t *device);
+
+dc_status_t
+oceanic_common_device_devinfo (dc_device_t *device, dc_event_progress_t *progress);
 
 dc_status_t
 oceanic_common_device_logbook (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook);

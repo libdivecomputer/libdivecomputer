@@ -194,11 +194,11 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// Emit a vendor event.
-	dc_event_vendor_t vendor;
-	vendor.data = device->version;
-	vendor.size = sizeof (device->version);
-	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+	// Read the device info.
+	status = VTABLE(abstract)->devinfo (abstract, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
 
 	// Download the memory dump.
 	status = device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
@@ -207,8 +207,43 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return status;
 	}
 
+	return status;
+}
+
+
+dc_status_t
+oceanic_common_device_devinfo (dc_device_t *abstract, dc_event_progress_t *progress)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	const oceanic_common_layout_t *layout = device->layout;
+
+	// Read the device id.
+	unsigned char id[PAGESIZE] = {0};
+	status = dc_device_read (abstract, layout->cf_devinfo, id, sizeof (id));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return status;
+	}
+
+	// Update and emit a progress event.
+	if (progress) {
+		progress->current += PAGESIZE;
+		progress->maximum += PAGESIZE;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
+
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	// Emit a device info event.
-	unsigned char *id = dc_buffer_get_data (buffer) + layout->cf_devinfo;
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = device->firmware;
@@ -243,13 +278,6 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// Erase the buffer.
 	if (!dc_buffer_clear (logbook))
 		return DC_STATUS_NOMEMORY;
-
-	// For devices without a logbook ringbuffer, downloading dives isn't
-	// possible. This is not considered a fatal error, but handled as if there
-	// are no dives present.
-	if (layout->rb_logbook_begin == layout->rb_logbook_end) {
-		return DC_STATUS_SUCCESS;
-	}
 
 	// Read the pointer data.
 	unsigned char pointers[PAGESIZE] = {0};
@@ -585,6 +613,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 dc_status_t
 oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
 	assert (device != NULL);
@@ -592,45 +621,26 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 
 	const oceanic_common_layout_t *layout = device->layout;
 
+	// For devices without a logbook and profile ringbuffer, downloading dives
+	// isn't possible. This is not considered a fatal error, but handled as if
+	// there are no dives present.
+	if (layout->rb_logbook_begin == layout->rb_logbook_end &&
+		layout->rb_profile_begin == layout->rb_profile_end) {
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = PAGESIZE +
+	progress.maximum =
 		(layout->rb_logbook_end - layout->rb_logbook_begin) +
 		(layout->rb_profile_end - layout->rb_profile_begin);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	// Emit a vendor event.
-	dc_event_vendor_t vendor;
-	vendor.data = device->version;
-	vendor.size = sizeof (device->version);
-	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
-
-	// Read the device id.
-	unsigned char id[PAGESIZE] = {0};
-	dc_status_t rc = dc_device_read (abstract, layout->cf_devinfo, id, sizeof (id));
+	// Read the device info.
+	rc = VTABLE(abstract)->devinfo (abstract, &progress);
 	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the memory page.");
 		return rc;
 	}
-
-	// Update and emit a progress event.
-	progress.current += PAGESIZE;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-	// Emit a device info event.
-	dc_event_devinfo_t devinfo;
-	devinfo.model = array_uint16_be (id + 8);
-	devinfo.firmware = device->firmware;
-	if (layout->pt_mode_serial == 0)
-		devinfo.serial = array_convert_bcd2dec (id + 10, 3);
-	else if (layout->pt_mode_serial == 1)
-		devinfo.serial = array_convert_bin2dec (id + 11, 3);
-	else
-		devinfo.serial =
-			(id[11] & 0x0F) * 100000 + ((id[11] & 0xF0) >> 4) * 10000 +
-			(id[12] & 0x0F) * 1000   + ((id[12] & 0xF0) >> 4) * 100 +
-			(id[13] & 0x0F) * 10     + ((id[13] & 0xF0) >> 4) * 1;
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Memory buffer for the logbook data.
 	dc_buffer_t *logbook = dc_buffer_new (0);
