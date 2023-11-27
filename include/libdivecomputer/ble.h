@@ -33,6 +33,21 @@ extern "C" {
  */
 #define DC_IOCTL_BLE_GET_NAME   DC_IOCTL_IOR('b', 0, DC_IOCTL_SIZE_VARIABLE)
 
+/**
+ * Get the bluetooth authentication PIN code.
+ *
+ * The data format is a NULL terminated string.
+ */
+#define DC_IOCTL_BLE_GET_PINCODE   DC_IOCTL_IOR('b', 1, DC_IOCTL_SIZE_VARIABLE)
+
+/**
+ * Get/set the bluetooth authentication access code.
+ *
+ * The data format is a variable sized byte array.
+ */
+#define DC_IOCTL_BLE_GET_ACCESSCODE   DC_IOCTL_IOR('b', 2, DC_IOCTL_SIZE_VARIABLE)
+#define DC_IOCTL_BLE_SET_ACCESSCODE   DC_IOCTL_IOW('b', 2, DC_IOCTL_SIZE_VARIABLE)
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
