@@ -59,6 +59,7 @@ static const oceanic_common_device_vtable_t oceanic_veo250_device_vtable = {
 		oceanic_veo250_device_close /* close */
 	},
 	oceanic_common_device_devinfo,
+	oceanic_common_device_pointers,
 	oceanic_common_device_logbook,
 	oceanic_common_device_profile,
 };

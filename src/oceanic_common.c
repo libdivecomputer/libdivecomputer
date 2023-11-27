@@ -32,8 +32,7 @@
 
 #define VTABLE(abstract)	((const oceanic_common_device_vtable_t *) abstract->vtable)
 
-#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, l->rb_logbook_begin, l->rb_logbook_end)
-#define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
+#define RB_LOGBOOK_DISTANCE(a,b,l,m) ringbuffer_distance (a, b, m, l->rb_logbook_begin, l->rb_logbook_end)
 
 #define RB_PROFILE_DISTANCE(a,b,l,m) ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
@@ -263,7 +262,51 @@ oceanic_common_device_devinfo (dc_device_t *abstract, dc_event_progress_t *progr
 
 
 dc_status_t
-oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+oceanic_common_device_pointers (dc_device_t *abstract, dc_event_progress_t *progress,
+	unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end,
+	unsigned int *rb_profile_begin, unsigned int *rb_profile_end)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
+	assert (rb_logbook_begin != NULL && rb_logbook_end != NULL);
+	assert (rb_profile_begin != NULL && rb_profile_end != NULL);
+
+	const oceanic_common_layout_t *layout = device->layout;
+
+	// Read the pointer data.
+	unsigned char pointers[PAGESIZE] = {0};
+	status = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return status;
+	}
+
+	// Update and emit a progress event.
+	if (progress) {
+		progress->current += PAGESIZE;
+		progress->maximum += PAGESIZE;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
+
+	// Get the pointers.
+	unsigned int rb_logbook_first = array_uint16_le (pointers + 4);
+	unsigned int rb_logbook_last  = array_uint16_le (pointers + 6);
+	unsigned int rb_profile_first = array_uint16_le (pointers + 8);
+	unsigned int rb_profile_last  = array_uint16_le (pointers + 10);
+
+	*rb_logbook_begin = rb_logbook_first;
+	*rb_logbook_end   = rb_logbook_last + (layout->pt_mode_global == 0 ? layout->rb_logbook_entry_size : 0);
+	*rb_profile_begin = rb_profile_first;
+	*rb_profile_end   = rb_profile_last;
+
+	return status;
+}
+
+dc_status_t
+oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -279,30 +322,14 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	if (!dc_buffer_clear (logbook))
 		return DC_STATUS_NOMEMORY;
 
-	// Read the pointer data.
-	unsigned char pointers[PAGESIZE] = {0};
-	rc = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the memory page.");
-		return rc;
-	}
-
-	// Get the logbook pointers.
-	unsigned int rb_logbook_first = array_uint16_le (pointers + 4);
-	unsigned int rb_logbook_last  = array_uint16_le (pointers + 6);
-	if (rb_logbook_last < layout->rb_logbook_begin ||
-		rb_logbook_last >= layout->rb_logbook_end)
+	// Validate the logbook pointers.
+	unsigned int rb_logbook_begin = begin;
+	unsigned int rb_logbook_end   = end;
+	if (rb_logbook_end < layout->rb_logbook_begin ||
+		rb_logbook_end > layout->rb_logbook_end)
 	{
-		ERROR (abstract->context, "Invalid logbook end pointer detected (0x%04x).", rb_logbook_last);
+		ERROR (abstract->context, "Invalid logbook end pointer detected (0x%04x).", rb_logbook_end);
 		return DC_STATUS_DATAFORMAT;
-	}
-
-	// Calculate the end pointer.
-	unsigned int rb_logbook_end = 0;
-	if (layout->pt_mode_global == 0) {
-		rb_logbook_end  = RB_LOGBOOK_INCR (rb_logbook_last, layout->rb_logbook_entry_size, layout);
-	} else {
-		rb_logbook_end  = rb_logbook_last;
 	}
 
 	// Calculate the number of bytes.
@@ -312,20 +339,18 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// case, because an empty ringbuffer can be detected by inspecting
 	// the logbook entries once they are downloaded.
 	unsigned int rb_logbook_size = 0;
-	if (rb_logbook_first < layout->rb_logbook_begin ||
-		rb_logbook_first >= layout->rb_logbook_end)
+	if (rb_logbook_begin < layout->rb_logbook_begin ||
+		rb_logbook_begin > layout->rb_logbook_end)
 	{
 		// Fall back to downloading the entire logbook ringbuffer as
 		// workaround for an invalid logbook begin pointer!
-		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_first);
+		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_begin);
 		rb_logbook_size = layout->rb_logbook_end - layout->rb_logbook_begin;
 	} else {
-		rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_end, layout);
+		rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_begin, rb_logbook_end, layout, DC_RINGBUFFER_FULL);
 	}
 
 	// Update and emit a progress event.
-	progress->current += PAGESIZE;
-	progress->maximum += PAGESIZE;
 	progress->maximum -= (layout->rb_logbook_end - layout->rb_logbook_begin) - rb_logbook_size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
@@ -642,6 +667,14 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		return rc;
 	}
 
+	// Read the ringbuffer pointers.
+	unsigned int rb_logbook_begin = 0, rb_logbook_end = 0;
+	unsigned int rb_profile_begin = 0, rb_profile_end = 0;
+	rc = VTABLE(abstract)->pointers (abstract, &progress, &rb_logbook_begin, &rb_logbook_end, &rb_profile_begin, &rb_profile_end);
+	if (rc != DC_STATUS_SUCCESS) {
+		return rc;
+	}
+
 	// Memory buffer for the logbook data.
 	dc_buffer_t *logbook = dc_buffer_new (0);
 	if (logbook == NULL) {
@@ -649,7 +682,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	}
 
 	// Download the logbook ringbuffer.
-	rc = VTABLE(abstract)->logbook (abstract, &progress, logbook);
+	rc = VTABLE(abstract)->logbook (abstract, &progress, logbook, rb_logbook_begin, rb_logbook_end);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (logbook);
 		return rc;

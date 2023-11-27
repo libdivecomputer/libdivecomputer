@@ -169,7 +169,8 @@ typedef struct oceanic_common_device_t {
 typedef struct oceanic_common_device_vtable_t {
 	dc_device_vtable_t base;
 	dc_status_t (*devinfo) (dc_device_t *device, dc_event_progress_t *progress);
-	dc_status_t (*logbook) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook);
+	dc_status_t (*pointers) (dc_device_t *device, dc_event_progress_t *progress, unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end, unsigned int *rb_profile_begin, unsigned int *rb_profile_end);
+	dc_status_t (*logbook) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end);
 	dc_status_t (*profile) (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata);
 } oceanic_common_device_vtable_t;
 
@@ -190,7 +191,12 @@ dc_status_t
 oceanic_common_device_devinfo (dc_device_t *device, dc_event_progress_t *progress);
 
 dc_status_t
-oceanic_common_device_logbook (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook);
+oceanic_common_device_pointers (dc_device_t *device, dc_event_progress_t *progress,
+	unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end,
+	unsigned int *rb_profile_begin, unsigned int *rb_profile_end);
+
+dc_status_t
+oceanic_common_device_logbook (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end);
 
 dc_status_t
 oceanic_common_device_profile (dc_device_t *device, dc_event_progress_t *progress, dc_buffer_t *logbook, dc_dive_callback_t callback, void *userdata);

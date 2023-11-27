@@ -51,7 +51,8 @@ typedef struct oceanic_vtpro_device_t {
 	oceanic_vtpro_protocol_t protocol;
 } oceanic_vtpro_device_t;
 
-static dc_status_t oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook);
+static dc_status_t oceanic_vtpro_device_pointers (dc_device_t *abstract, dc_event_progress_t *progress, unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end, unsigned int *rb_profile_begin, unsigned int *rb_profile_end);
+static dc_status_t oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end);
 static dc_status_t oceanic_vtpro_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t oceanic_vtpro_device_close (dc_device_t *abstract);
 
@@ -68,6 +69,7 @@ static const oceanic_common_device_vtable_t oceanic_vtpro_device_vtable = {
 		oceanic_vtpro_device_close /* close */
 	},
 	oceanic_common_device_devinfo,
+	oceanic_vtpro_device_pointers,
 	oceanic_vtpro_device_logbook,
 	oceanic_common_device_profile,
 };
@@ -287,7 +289,49 @@ oceanic_vtpro_calibrate (oceanic_vtpro_device_t *device)
 }
 
 static dc_status_t
-oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+oceanic_aeris500ai_device_pointers (dc_device_t *abstract, dc_event_progress_t *progress, unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end, unsigned int *rb_profile_begin, unsigned int *rb_profile_end)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->base.layout != NULL);
+	assert (rb_logbook_begin != NULL && rb_logbook_end != NULL);
+	assert (rb_profile_begin != NULL && rb_profile_end != NULL);
+
+	const oceanic_common_layout_t *layout = device->base.layout;
+
+	// Read the pointer data.
+	unsigned char pointers[PAGESIZE] = {0};
+	status = oceanic_vtpro_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return status;
+	}
+
+	// Update and emit a progress event.
+	if (progress) {
+		progress->current += PAGESIZE;
+		progress->maximum += PAGESIZE;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
+
+	// Get the pointers.
+	unsigned int rb_logbook_first = pointers[0x02];
+	unsigned int rb_logbook_last  = pointers[0x03];
+	unsigned int rb_profile_first = array_uint16_le (pointers + 4) * PAGESIZE;
+	unsigned int rb_profile_last  = array_uint16_le (pointers + 6) * PAGESIZE;
+
+	*rb_logbook_begin = rb_logbook_first;
+	*rb_logbook_end   = rb_logbook_last;
+	*rb_profile_begin = rb_profile_first;
+	*rb_profile_end   = rb_profile_last;
+
+	return status;
+}
+
+static dc_status_t
+oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
@@ -298,30 +342,15 @@ oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *p
 	assert (device->base.layout->rb_logbook_begin == device->base.layout->rb_logbook_end);
 	assert (progress != NULL);
 
-	const oceanic_common_layout_t *layout = device->base.layout;
-
 	// Erase the buffer.
 	if (!dc_buffer_clear (logbook))
 		return DC_STATUS_NOMEMORY;
 
-	// Read the pointer data.
-	unsigned char pointers[PAGESIZE] = {0};
-	rc = oceanic_vtpro_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the memory page.");
-		return rc;
-	}
-
-	// Get the logbook pointers.
-	unsigned int first = pointers[0x02];
-	unsigned int last  = pointers[0x03];
-
 	// Get the number of dives.
-	unsigned int ndives = last - first + 1;
+	unsigned int ndives = end - begin + 1;
 
 	// Update and emit a progress event.
-	progress->current += PAGESIZE;
-	progress->maximum += PAGESIZE + ndives * PAGESIZE / 2;
+	progress->maximum += ndives * PAGESIZE / 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
 	// Allocate memory for the logbook entries.
@@ -330,8 +359,8 @@ oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *p
 
 	// Send the logbook index command.
 	unsigned char command[] = {0x52,
-			first & 0xFF,
-			last  & 0xFF,
+			begin & 0xFF,
+			end   & 0xFF,
 			0x00};
 	rc = oceanic_vtpro_transfer (device, command, sizeof (command), NULL, 0);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -379,14 +408,26 @@ oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *p
 }
 
 static dc_status_t
-oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+oceanic_vtpro_device_pointers (dc_device_t *abstract, dc_event_progress_t *progress, unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end, unsigned int *rb_profile_begin, unsigned int *rb_profile_end)
 {
 	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
 
 	if (device->base.model == AERIS500AI) {
-		return oceanic_aeris500ai_device_logbook (abstract, progress, logbook);
+		return oceanic_aeris500ai_device_pointers (abstract, progress, rb_logbook_begin, rb_logbook_end, rb_profile_begin, rb_profile_end);
 	} else {
-		return oceanic_common_device_logbook (abstract, progress, logbook);
+		return oceanic_common_device_pointers (abstract, progress, rb_logbook_begin, rb_logbook_end, rb_profile_begin, rb_profile_end);
+	}
+}
+
+static dc_status_t
+oceanic_vtpro_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end)
+{
+	oceanic_vtpro_device_t *device = (oceanic_vtpro_device_t *) abstract;
+
+	if (device->base.model == AERIS500AI) {
+		return oceanic_aeris500ai_device_logbook (abstract, progress, logbook, begin, end);
+	} else {
+		return oceanic_common_device_logbook (abstract, progress, logbook, begin, end);
 	}
 }
 
