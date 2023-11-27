@@ -460,8 +460,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		// Skip gaps between the profiles.
 		unsigned int gap = 0;
 		if (rb_entry_end != previous) {
-			WARNING (abstract->context, "Profiles are not continuous.");
 			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+			WARNING (abstract->context, "Profiles are not continuous (%u bytes).", gap);
 		}
 
 		// Make sure the profile size is valid.
@@ -544,8 +544,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		// Skip gaps between the profiles.
 		unsigned int gap = 0;
 		if (rb_entry_end != previous) {
-			WARNING (abstract->context, "Profiles are not continuous.");
 			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+			WARNING (abstract->context, "Profiles are not continuous (%u bytes).", gap);
 		}
 
 		// Make sure the profile size is valid.
