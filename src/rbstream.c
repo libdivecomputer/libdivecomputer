@@ -78,6 +78,18 @@ dc_rbstream_new (dc_rbstream_t **out, dc_device_t *device, unsigned int pagesize
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	// Ringbuffer boundaries should not be reversed.
+	if (begin > end) {
+		ERROR (device->context, "Ringbuffer boundaries reversed!");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Packet size should be smaller than the ringbuffer size.
+	if (packetsize > (end - begin)) {
+		ERROR (device->context, "Packet size larger than the ringbuffer size!");
+		return DC_STATUS_INVALIDARGS;
+	}
+
 	// Address should be inside the ringbuffer.
 	if (address < begin || address > end) {
 		ERROR (device->context, "Address outside the ringbuffer!");
