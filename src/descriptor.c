@@ -170,7 +170,10 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Scubapro", "G2 TEK",              DC_FAMILY_UWATEC_SMART, 0x31, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2",                  DC_FAMILY_UWATEC_SMART, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2 Console",          DC_FAMILY_UWATEC_SMART, 0x32, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
+	{"Scubapro", "G3",                  DC_FAMILY_UWATEC_SMART, 0x34, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
 	{"Scubapro", "G2 HUD",              DC_FAMILY_UWATEC_SMART, 0x42, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_uwatec},
+	{"Scubapro", "Luna 2.0 AI",         DC_FAMILY_UWATEC_SMART, 0x50, DC_TRANSPORT_BLE, dc_filter_uwatec},
+	{"Scubapro", "Luna 2.0",            DC_FAMILY_UWATEC_SMART, 0x51, DC_TRANSPORT_BLE, dc_filter_uwatec},
 	/* Reefnet */
 	{"Reefnet", "Sensus",       DC_FAMILY_REEFNET_SENSUS, 1, DC_TRANSPORT_SERIAL, NULL},
 	{"Reefnet", "Sensus Pro",   DC_FAMILY_REEFNET_SENSUSPRO, 2, DC_TRANSPORT_SERIAL, NULL},
@@ -594,6 +597,9 @@ dc_filter_uwatec (dc_descriptor_t *descriptor, dc_transport_t transport, const v
 		"A1",
 		"A2",
 		"G2 TEK",
+		"Galileo 3",
+		"Luna 2.0 AI",
+		"Luna 2.0",
 	};
 
 	if (transport == DC_TRANSPORT_IRDA) {
