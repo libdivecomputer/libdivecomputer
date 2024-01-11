@@ -1017,8 +1017,8 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				for (unsigned int i = 0; i < NSENSORS; ++i) {
 					unsigned int value = array_uint16_le (data + offset + 4 + i * 2);
 					unsigned int state = data[offset + 12 + i];
-					if (!parser->calibrated || state == SENSTAT_UNCALIBRATED ||
-						state == SENSTAT_NOT_EXIST)
+					if (!parser->calibrated || parser->calibration[i] == 0 ||
+						state == SENSTAT_UNCALIBRATED || state == SENSTAT_NOT_EXIST)
 						continue;
 					sample.ppo2.sensor = i;
 					sample.ppo2.value = value / 100.0 * parser->calibration[i] / BAR;
