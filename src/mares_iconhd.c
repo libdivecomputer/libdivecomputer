@@ -49,6 +49,15 @@
 #define QUAD      0x29
 #define HORIZON   0x2C
 
+#define ISSMART(model) ( \
+	(model) == SMART || \
+	(model) == SMARTAPNEA || \
+	(model) == SMARTAIR)
+
+#define ISGENIUS(model) ( \
+	(model) == GENIUS || \
+	(model) == HORIZON)
+
 #define MAXRETRIES 4
 
 #define ACK 0xAA
@@ -723,7 +732,7 @@ mares_iconhd_device_foreach_raw (dc_device_t *abstract, dc_dive_callback_t callb
 
 		// Get the number of samples in the profile data.
 		unsigned int type = 0, nsamples = 0;
-		if (model == SMART || model == SMARTAPNEA || model == SMARTAIR) {
+		if (ISSMART(model)) {
 			type     = array_uint16_le (buffer + offset - header + 2);
 			nsamples = array_uint16_le (buffer + offset - header + 0);
 		} else {
@@ -938,7 +947,7 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	devinfo.serial = array_uint32_le (serial);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	if (device->model == GENIUS || device->model == HORIZON) {
+	if (ISGENIUS(device->model)) {
 		return mares_iconhd_device_foreach_object (abstract, callback, userdata);
 	} else {
 		return mares_iconhd_device_foreach_raw (abstract, callback, userdata);
