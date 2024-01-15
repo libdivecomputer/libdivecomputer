@@ -51,6 +51,7 @@ extern "C" {
 #define PEREGRINE 9
 #define PETREL3  10
 #define PERDIX2  11
+#define TERN     12
 
 #define NSTEPS    10000
 #define STEP(i,n) ((NSTEPS * (i) + (n) / 2) / (n))

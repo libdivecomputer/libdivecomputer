@@ -738,6 +738,9 @@ shearwater_common_get_model (shearwater_common_device_t *device, unsigned int ha
 	case 0x1512:
 		model = PEREGRINE;
 		break;
+	case 0xC0E0:
+		model = TERN;
+		break;
 	default:
 		WARNING (device->base.context, "Unknown hardware type 0x%04x.", hardware);
 	}
