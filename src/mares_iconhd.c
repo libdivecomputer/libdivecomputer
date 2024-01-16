@@ -71,6 +71,8 @@
 #define CMD_OBJ_EVEN  0xAC
 #define CMD_OBJ_ODD   0xFE
 
+#define OBJ_DEVICE        0x2000
+#define OBJ_DEVICE_SERIAL 0x04
 #define OBJ_LOGBOOK       0x2008
 #define OBJ_LOGBOOK_COUNT 0x01
 #define OBJ_DIVE          0x3000
@@ -656,6 +658,21 @@ mares_iconhd_device_foreach_raw (dc_device_t *abstract, dc_dive_callback_t callb
 
 	const mares_iconhd_layout_t *layout = device->layout;
 
+	// Read the serial number.
+	unsigned char serial[4] = {0};
+	rc = mares_iconhd_device_read (abstract, 0x0C, serial, sizeof (serial));
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory.");
+		return rc;
+	}
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = device->model;
+	devinfo.firmware = 0;
+	devinfo.serial = array_uint32_le (serial);
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin;
@@ -861,6 +878,33 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		return DC_STATUS_NOMEMORY;
 	}
 
+	// Read the serial number.
+	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_SERIAL);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the serial number.");
+		dc_buffer_free (buffer);
+		return rc;
+	}
+
+	if (dc_buffer_get_size (buffer) < 16) {
+		ERROR (abstract->context, "Unexpected number of bytes received (" DC_PRINTF_SIZE ").",
+			dc_buffer_get_size (buffer));
+		dc_buffer_free (buffer);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	unsigned int serial = array_convert_str2num (dc_buffer_get_data (buffer) + 10, 6);
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = device->model;
+	devinfo.firmware = 0;
+	devinfo.serial = serial;
+	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+
+	// Erase the buffer.
+	dc_buffer_clear (buffer);
+
 	// Read the number of dives.
 	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_LOGBOOK, OBJ_LOGBOOK_COUNT);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -923,7 +967,6 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 static dc_status_t
 mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
-	dc_status_t rc = DC_STATUS_SUCCESS;
 	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
 
 	// Emit a vendor event.
@@ -931,21 +974,6 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	vendor.data = device->version;
 	vendor.size = sizeof (device->version);
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
-
-	// Read the serial number.
-	unsigned char serial[4] = {0};
-	rc = mares_iconhd_device_read (abstract, 0x0C, serial, sizeof (serial));
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the memory.");
-		return rc;
-	}
-
-	// Emit a device info event.
-	dc_event_devinfo_t devinfo;
-	devinfo.model = device->model;
-	devinfo.firmware = 0;
-	devinfo.serial = array_uint32_le (serial);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	if (ISGENIUS(device->model)) {
 		return mares_iconhd_device_foreach_object (abstract, callback, userdata);
