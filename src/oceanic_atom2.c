@@ -339,7 +339,7 @@ static const oceanic_common_layout_t oceanic_reactpro_layout = {
 	0x0600, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
 	0x0600, /* rb_profile_begin */
-	0xFFF0, /* rb_profile_end */
+	0xFE00, /* rb_profile_end */
 	1, /* pt_mode_global */
 	1, /* pt_mode_logbook */
 	0, /* pt_mode_serial */
