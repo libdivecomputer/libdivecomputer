@@ -35,69 +35,57 @@
 #define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
 
-#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_EMPTY, l->rb_profile_begin, l->rb_profile_end)
-#define RB_PROFILE_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_DISTANCE(a,b,l,m) ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
 #define INVALID 0
 
-static unsigned int
-get_profile_first (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int pagesize)
+static dc_status_t
+oceanic_common_device_get_profile (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int *begin, unsigned int *end)
 {
-	unsigned int value;
+	assert (layout != NULL);
+	assert (begin != NULL && end != NULL);
 
+	// Get the pagesize
+	unsigned int pagesize = layout->highmem ? 16 * PAGESIZE : PAGESIZE;
+
+	// Get the profile pointers.
+	unsigned int first = 0, last = 0;
 	if (layout->pt_mode_logbook == 0) {
-		value = array_uint16_le (data + 5);
+		first = array_uint16_le (data + 5);
+		last  = array_uint16_le (data + 6) >> 4;
 	} else if (layout->pt_mode_logbook == 1) {
-		value = array_uint16_le (data + 4);
-	} else if (layout->pt_mode_logbook == 2) {
-		value = array_uint16_le (data + 16);
-	} else {
-		return array_uint16_le (data + 16);
+		first = array_uint16_le (data + 4);
+		last  = array_uint16_le (data + 6);
+	} else if (layout->pt_mode_logbook == 2 || layout->pt_mode_logbook == 3) {
+		first = array_uint16_le (data + 16);
+		last  = array_uint16_le (data + 18);
 	}
 
-	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
-	if (npages > 0x4000) {
-		value &= 0x7FFF;
-	} else if (npages > 0x2000) {
-		value &= 0x3FFF;
-	}  else if (npages > 0x1000) {
-		value &= 0x1FFF;
-	} else {
-		value &= 0x0FFF;
+	// Convert pages to bytes.
+	if (layout->pt_mode_logbook < 3) {
+		unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
+		if (npages > 0x4000) {
+			first &= 0x7FFF;
+			last  &= 0x7FFF;
+		} else if (npages > 0x2000) {
+			first &= 0x3FFF;
+			last  &= 0x3FFF;
+		} else if (npages > 0x1000) {
+			first &= 0x1FFF;
+			last  &= 0x1FFF;
+		} else {
+			first &= 0x0FFF;
+			last  &= 0x0FFF;
+		}
+
+		first *= pagesize;
+		last  *= pagesize;
 	}
 
-	return layout->highmem + value * pagesize;
-}
+	*begin = layout->highmem + first;
+	*end   = layout->highmem + last + pagesize;
 
-
-static unsigned int
-get_profile_last (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int pagesize)
-{
-	unsigned int value;
-
-	if (layout->pt_mode_logbook == 0) {
-		value = array_uint16_le (data + 6) >> 4;
-	} else if (layout->pt_mode_logbook == 1) {
-		value = array_uint16_le (data + 6);
-	} else if (layout->pt_mode_logbook == 2) {
-		value = array_uint16_le (data + 18);
-	} else {
-		return array_uint16_le(data + 18);
-	}
-
-	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
-
-	if (npages > 0x4000) {
-		value &= 0x7FFF;
-	} else if (npages > 0x2000) {
-		value &= 0x3FFF;
-	} else if (npages > 0x1000) {
-		value &= 0x1FFF;
-	} else {
-		value &= 0x0FFF;
-	}
-
-	return layout->highmem + value * pagesize;
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -403,9 +391,6 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 	const oceanic_common_layout_t *layout = device->layout;
 
-	// Get the pagesize
-	unsigned int pagesize = layout->highmem ? 16 * PAGESIZE : PAGESIZE;
-
 	// Cache the logbook pointer and size.
 	const unsigned char *logbooks = dc_buffer_get_data (logbook);
 	unsigned int rb_logbook_size = dc_buffer_get_size (logbook);
@@ -434,22 +419,18 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		// Get the profile pointers.
-		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
-		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout, pagesize);
-		if (rb_entry_first < layout->rb_profile_begin ||
-			rb_entry_first >= layout->rb_profile_end ||
-			rb_entry_last < layout->rb_profile_begin ||
-			rb_entry_last >= layout->rb_profile_end)
+		unsigned int rb_entry_begin = 0, rb_entry_end = 0;
+		oceanic_common_device_get_profile (logbooks + entry, layout, &rb_entry_begin, &rb_entry_end);
+		if (rb_entry_begin < layout->rb_profile_begin ||
+			rb_entry_begin > layout->rb_profile_end ||
+			rb_entry_end < layout->rb_profile_begin ||
+			rb_entry_end > layout->rb_profile_end)
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
-				rb_entry_first, rb_entry_last);
+				rb_entry_begin, rb_entry_end);
 			status = DC_STATUS_DATAFORMAT;
 			continue;
 		}
-
-		// Calculate the end pointer and the number of bytes.
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, pagesize, layout);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + pagesize;
 
 		// Take the end pointer of the most recent logbook entry as the
 		// end of profile pointer.
@@ -457,10 +438,12 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			rb_profile_end = previous = rb_entry_end;
 		}
 
+		// Calculate the number of bytes.
+		unsigned int rb_entry_size = RB_PROFILE_DISTANCE (rb_entry_begin, rb_entry_end, layout, DC_RINGBUFFER_FULL);
+
 		// Skip gaps between the profiles.
-		unsigned int gap = 0;
-		if (rb_entry_end != previous) {
-			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+		unsigned int gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout, DC_RINGBUFFER_EMPTY);
+		if (gap) {
 			WARNING (abstract->context, "Profiles are not continuous (%u bytes).", gap);
 		}
 
@@ -474,7 +457,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		rb_profile_size += rb_entry_size + gap;
 
 		remaining -= rb_entry_size + gap;
-		previous = rb_entry_first;
+		previous = rb_entry_begin;
 	}
 
 	// At this point, we know the exact amount of data
@@ -524,27 +507,25 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		// Get the profile pointers.
-		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
-		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout, pagesize);
-		if (rb_entry_first < layout->rb_profile_begin ||
-			rb_entry_first >= layout->rb_profile_end ||
-			rb_entry_last < layout->rb_profile_begin ||
-			rb_entry_last >= layout->rb_profile_end)
+		unsigned int rb_entry_begin = 0, rb_entry_end = 0;
+		oceanic_common_device_get_profile (logbooks + entry, layout, &rb_entry_begin, &rb_entry_end);
+		if (rb_entry_begin < layout->rb_profile_begin ||
+			rb_entry_begin > layout->rb_profile_end ||
+			rb_entry_end < layout->rb_profile_begin ||
+			rb_entry_end > layout->rb_profile_end)
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
-				rb_entry_first, rb_entry_last);
+				rb_entry_begin, rb_entry_end);
 			status = DC_STATUS_DATAFORMAT;
 			continue;
 		}
 
-		// Calculate the end pointer and the number of bytes.
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, pagesize, layout);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + pagesize;
+		// Calculate the number of bytes.
+		unsigned int rb_entry_size = RB_PROFILE_DISTANCE (rb_entry_begin, rb_entry_end, layout, DC_RINGBUFFER_FULL);
 
 		// Skip gaps between the profiles.
-		unsigned int gap = 0;
-		if (rb_entry_end != previous) {
-			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+		unsigned int gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout, DC_RINGBUFFER_EMPTY);
+		if (gap) {
 			WARNING (abstract->context, "Profiles are not continuous (%u bytes).", gap);
 		}
 
@@ -566,7 +547,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		remaining -= rb_entry_size + gap;
-		previous = rb_entry_first;
+		previous = rb_entry_begin;
 
 		// Prepend the logbook entry to the profile data. The memory buffer is
 		// large enough to store this entry.
