@@ -25,39 +25,43 @@
 
 
 static unsigned int
-normalize (unsigned int a, unsigned int size)
+modulo (unsigned int x, unsigned int n, unsigned int d)
 {
-	return a % size;
-}
-
-
-static unsigned int
-distance (unsigned int a, unsigned int b, int mode, unsigned int size)
-{
-	if (a < b) {
-		return (b - a) % size;
-	} else if (a > b) {
-		return size - (a - b) % size;
+	unsigned int result = 0;
+	if (d > x) {
+#if 0
+		result = (n - (d - x) % n) % n;
+#else
+		unsigned int m = (d - x) % n;
+		result = m ? n - m : m;
+#endif
 	} else {
-		return (mode == 0 ? 0 : size);
+		result = (x - d) % n;
 	}
+
+	return result + d;
 }
 
 
 static unsigned int
-increment (unsigned int a, unsigned int delta, unsigned int size)
+distance (unsigned int a, unsigned int b, unsigned int n, unsigned int mode)
 {
-	return (a + delta) % size;
-}
-
-
-static unsigned int
-decrement (unsigned int a, unsigned int delta, unsigned int size)
-{
-	if (delta <= a) {
-		return (a - delta) % size;
+	unsigned int result = 0;
+	if (a > b) {
+#if 0
+		result = (n - (a - b) % n) % n;
+#else
+		unsigned int m = (a - b) % n;
+		result = m ? n - m : m;
+#endif
 	} else {
-		return size - (delta - a) % size;
+		result = (b - a) % n;
+	}
+
+	if (result == 0) {
+		return (mode == 0 ? 0 : n);
+	} else {
+		return result;
 	}
 }
 
@@ -65,38 +69,38 @@ decrement (unsigned int a, unsigned int delta, unsigned int size)
 unsigned int
 ringbuffer_normalize (unsigned int a, unsigned int begin, unsigned int end)
 {
-	assert (end >= begin);
-	assert (a >= begin);
+	assert (end > begin);
 
-	return normalize (a, end - begin);
+	unsigned int n = end - begin;
+	return modulo (a, n, begin);
 }
 
 
 unsigned int
 ringbuffer_distance (unsigned int a, unsigned int b, int mode, unsigned int begin, unsigned int end)
 {
-	assert (end >= begin);
-	assert (a >= begin);
+	assert (end > begin);
 
-	return distance (a, b, mode, end - begin);
+	unsigned int n = end - begin;
+	return distance (a, b, n, mode);
 }
 
 
 unsigned int
 ringbuffer_increment (unsigned int a, unsigned int delta, unsigned int begin, unsigned int end)
 {
-	assert (end >= begin);
-	assert (a >= begin);
+	assert (end > begin);
 
-	return increment (a - begin, delta, end - begin) + begin;
+	unsigned int n = end - begin;
+	return modulo (a + delta % n, n, begin);
 }
 
 
 unsigned int
 ringbuffer_decrement (unsigned int a, unsigned int delta, unsigned int begin, unsigned int end)
 {
-	assert (end >= begin);
-	assert (a >= begin);
+	assert (end > begin);
 
-	return decrement (a - begin, delta, end - begin) + begin;
+	unsigned int n = end - begin;
+	return modulo (a + n - delta % n, n, begin);
 }
