@@ -300,7 +300,7 @@ suunto_solution_extract_dives (dc_device_t *abstract, const unsigned char data[]
 		// to find the start of the current dive.
 		unsigned int peek = ringbuffer_increment (current, 2, RB_PROFILE_BEGIN, RB_PROFILE_END);
 		if (data[peek] == 0x80) {
-			unsigned int len = ringbuffer_distance (previous, current, 0, RB_PROFILE_BEGIN, RB_PROFILE_END);
+			unsigned int len = ringbuffer_distance (previous, current, DC_RINGBUFFER_EMPTY, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
 			if (callback && !callback (buffer + idx, len, NULL, 0, userdata))
 				return DC_STATUS_SUCCESS;

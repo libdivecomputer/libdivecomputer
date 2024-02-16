@@ -41,7 +41,7 @@
 
 #define RB_PROFILE_BEGIN 0x1438
 #define RB_PROFILE_END   SZ_MEMORY
-#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, 0, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, DC_RINGBUFFER_EMPTY, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define MAXRETRIES 4
 #define PACKETSIZE 32

@@ -277,7 +277,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	}
 
 	// Get the number of logbook items.
-	unsigned int count = ringbuffer_distance (first, last, 0, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END) + 1;
+	unsigned int count = ringbuffer_distance (first, last, DC_RINGBUFFER_EMPTY, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END) + 1;
 
 	// Get the profile pointer.
 	unsigned int eop = array_uint16_le (config + 0x7E);
@@ -302,7 +302,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		}
 
 		// Get the profile length.
-		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
+		unsigned int length = ringbuffer_distance (current, previous, DC_RINGBUFFER_FULL, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
 		// Check for a ringbuffer overflow.
 		if (total + length > RB_PROFILE_END - RB_PROFILE_BEGIN) {
@@ -344,7 +344,7 @@ zeagle_n2ition3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		unsigned int current = array_uint16_le (config + 2 * idx);
 
 		// Get the profile length.
-		unsigned int length = ringbuffer_distance (current, previous, 1, RB_PROFILE_BEGIN, RB_PROFILE_END);
+		unsigned int length = ringbuffer_distance (current, previous, DC_RINGBUFFER_FULL, RB_PROFILE_BEGIN, RB_PROFILE_END);
 
 		// Move to the begin of the current dive.
 		offset -= length;

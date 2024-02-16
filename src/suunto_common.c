@@ -27,7 +27,7 @@
 #include "ringbuffer.h"
 #include "array.h"
 
-#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_EMPTY, l->rb_profile_begin, l->rb_profile_end)
 #define RB_PROFILE_PEEK(a,l)		ringbuffer_decrement (a, l->peek, l->rb_profile_begin, l->rb_profile_end)
 
 void

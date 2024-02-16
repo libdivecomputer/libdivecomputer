@@ -603,7 +603,7 @@ cochran_commander_profile_size(cochran_commander_device_t *device, cochran_data_
 		// Corrupt dive, guess the end address
 		sample_end_address = cochran_commander_guess_sample_end_address(device, data, dive_num);
 
-	return ringbuffer_distance(sample_start_address, sample_end_address, 0, device->layout->rb_profile_begin, device->layout->rb_profile_end);
+	return ringbuffer_distance(sample_start_address, sample_end_address, DC_RINGBUFFER_EMPTY, device->layout->rb_profile_begin, device->layout->rb_profile_end);
 }
 
 
