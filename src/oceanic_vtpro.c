@@ -82,6 +82,7 @@ static const oceanic_common_layout_t oceanic_vtpro_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0440, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0440, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -97,6 +98,7 @@ static const oceanic_common_layout_t oceanic_wisdom_layout = {
 	0x03D0, /* rb_logbook_begin */
 	0x05D0, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x05D0, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -112,6 +114,7 @@ static const oceanic_common_layout_t aeris_500ai_layout = {
 	0x0200, /* rb_logbook_begin */
 	0x0200, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x00200, /* rb_profile_begin */
 	0x20000, /* rb_profile_end */
 	0, /* pt_mode_global */

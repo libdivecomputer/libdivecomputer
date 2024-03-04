@@ -329,6 +329,9 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 		rb_logbook_begin > layout->rb_logbook_end)
 	{
 		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_begin);
+		if (layout->rb_logbook_direction == 0) {
+			return DC_STATUS_DATAFORMAT;
+		}
 		// Fall back to downloading the entire logbook ringbuffer as
 		// workaround for an invalid logbook begin pointer!
 		rb_logbook_begin = rb_logbook_end;
@@ -337,7 +340,12 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 		rb_logbook_end > layout->rb_logbook_end)
 	{
 		ERROR (abstract->context, "Invalid logbook end pointer detected (0x%04x).", rb_logbook_end);
-		return DC_STATUS_DATAFORMAT;
+		if (layout->rb_logbook_direction != 0) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		// Fall back to downloading the entire logbook ringbuffer as
+		// workaround for an invalid logbook end pointer!
+		rb_logbook_end = rb_logbook_begin;
 	}
 
 	// Calculate the number of bytes.
@@ -366,7 +374,11 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_logbook_begin, layout->rb_logbook_end, rb_logbook_end, DC_RBSTREAM_BACKWARD);
+	rc = dc_rbstream_new (&rbstream, abstract,
+		PAGESIZE, PAGESIZE * device->multipage,
+		layout->rb_logbook_begin, layout->rb_logbook_end,
+		layout->rb_logbook_direction ? rb_logbook_end : rb_logbook_begin,
+		layout->rb_logbook_direction ? DC_RBSTREAM_BACKWARD : DC_RBSTREAM_FORWARD);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		return rc;

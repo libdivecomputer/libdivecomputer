@@ -144,6 +144,7 @@ typedef struct oceanic_common_layout_t {
 	unsigned int rb_logbook_begin;
 	unsigned int rb_logbook_end;
 	unsigned int rb_logbook_entry_size;
+	unsigned int rb_logbook_direction;
 	// Profile ringbuffer
 	unsigned int rb_profile_begin;
 	unsigned int rb_profile_end;

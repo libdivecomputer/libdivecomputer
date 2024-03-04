@@ -72,6 +72,7 @@ static const oceanic_common_layout_t oceanic_veo250_layout = {
 	0x0400, /* rb_logbook_begin */
 	0x0600, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0600, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
 	1, /* pt_mode_global */
