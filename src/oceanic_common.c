@@ -325,6 +325,14 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// Validate the logbook pointers.
 	unsigned int rb_logbook_begin = begin;
 	unsigned int rb_logbook_end   = end;
+	if (rb_logbook_begin < layout->rb_logbook_begin ||
+		rb_logbook_begin > layout->rb_logbook_end)
+	{
+		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_begin);
+		// Fall back to downloading the entire logbook ringbuffer as
+		// workaround for an invalid logbook begin pointer!
+		rb_logbook_begin = rb_logbook_end;
+	}
 	if (rb_logbook_end < layout->rb_logbook_begin ||
 		rb_logbook_end > layout->rb_logbook_end)
 	{
@@ -338,17 +346,7 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// full ringbuffer. We always consider the ringbuffer full in that
 	// case, because an empty ringbuffer can be detected by inspecting
 	// the logbook entries once they are downloaded.
-	unsigned int rb_logbook_size = 0;
-	if (rb_logbook_begin < layout->rb_logbook_begin ||
-		rb_logbook_begin > layout->rb_logbook_end)
-	{
-		// Fall back to downloading the entire logbook ringbuffer as
-		// workaround for an invalid logbook begin pointer!
-		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_begin);
-		rb_logbook_size = layout->rb_logbook_end - layout->rb_logbook_begin;
-	} else {
-		rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_begin, rb_logbook_end, layout, DC_RINGBUFFER_FULL);
-	}
+	unsigned int rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_begin, rb_logbook_end, layout, DC_RINGBUFFER_FULL);
 
 	// Update and emit a progress event.
 	progress->maximum -= (layout->rb_logbook_end - layout->rb_logbook_begin) - rb_logbook_size;
