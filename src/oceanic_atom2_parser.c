@@ -645,7 +645,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	}
 
 	// Initial tank pressure.
-	unsigned int tank = 0;
+	unsigned int tank = 1;
 	unsigned int pressure = 0;
 	if (have_pressure) {
 		unsigned int idx = 2;
@@ -700,17 +700,17 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		if (sampletype == 0xAA) {
 			if (parser->model == DATAMASK || parser->model == COMPUMASK) {
 				// Tank pressure (1 psi) and number
-				tank = 0;
+				tank = 1;
 				pressure = (((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF);
 			} else if (parser->model == A300CS || parser->model == VTX ||
 				parser->model == I750TC || parser->model == SAGE ||
 				parser->model == BEACON) {
 				// Tank pressure (1 psi) and number (one based index)
-				tank = (data[offset + 1] & 0x03) - 1;
+				tank = data[offset + 1] & 0x03;
 				pressure = ((data[offset + 7] << 8) + data[offset + 6]) & 0x0FFF;
 			} else {
 				// Tank pressure (2 psi) and number (one based index)
-				tank = (data[offset + 1] & 0x03) - 1;
+				tank = data[offset + 1] & 0x03;
 				if (parser->model == ATOM2 || parser->model == EPICA || parser->model == EPICB)
 					pressure = (((data[offset + 3] << 8) + data[offset + 4]) & 0x0FFF) * 2;
 				else
@@ -852,9 +852,11 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					pressure = array_uint16_le (data + offset + 4);
 				else
 					pressure -= data[offset + 1];
-				sample.pressure.tank = tank;
-				sample.pressure.value = pressure * PSI / BAR;
-				if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
+				if (tank) {
+					sample.pressure.tank = tank - 1;
+					sample.pressure.value = pressure * PSI / BAR;
+					if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
+				}
 			}
 
 			// Depth (1/16 ft)
