@@ -312,21 +312,25 @@ oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *p
 	}
 
 	// Get the logbook pointers.
-	unsigned int last = pointers[0x03];
+	unsigned int first = pointers[0x02];
+	unsigned int last  = pointers[0x03];
+
+	// Get the number of dives.
+	unsigned int ndives = last - first + 1;
 
 	// Update and emit a progress event.
 	progress->current += PAGESIZE;
-	progress->maximum += PAGESIZE + (last + 1) * PAGESIZE / 2;
+	progress->maximum += PAGESIZE + ndives * PAGESIZE / 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
 	// Allocate memory for the logbook entries.
-	if (!dc_buffer_reserve (logbook, (last + 1) * PAGESIZE / 2))
+	if (!dc_buffer_reserve (logbook, ndives * PAGESIZE / 2))
 		return DC_STATUS_NOMEMORY;
 
 	// Send the logbook index command.
 	unsigned char command[] = {0x52,
-			(last >> 8) & 0xFF, // high
-			(last     ) & 0xFF, // low
+			first & 0xFF,
+			last  & 0xFF,
 			0x00};
 	rc = oceanic_vtpro_transfer (device, command, sizeof (command), NULL, 0);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -335,7 +339,7 @@ oceanic_aeris500ai_device_logbook (dc_device_t *abstract, dc_event_progress_t *p
 	}
 
 	// Read the logbook index.
-	for (unsigned int i = 0; i < last + 1; ++i) {
+	for (unsigned int i = 0; i < ndives; ++i) {
 		// Receive the answer of the dive computer.
 		unsigned char answer[PAGESIZE / 2 + 1] = {0};
 		rc = dc_iostream_read (device->iostream, answer, sizeof(answer), NULL);
