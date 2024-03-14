@@ -34,6 +34,14 @@ extern "C" {
 typedef struct dc_rbstream_t dc_rbstream_t;
 
 /**
+ * The ringbuffer read direction.
+ */
+typedef enum dc_rbstream_direction_t {
+	DC_RBSTREAM_FORWARD,
+	DC_RBSTREAM_BACKWARD
+} dc_rbstream_direction_t;
+
+/**
  * Create a new ringbuffer stream.
  *
  * @param[out]  rbstream    A location to store the ringbuffer stream.
@@ -43,11 +51,12 @@ typedef struct dc_rbstream_t dc_rbstream_t;
  * @param[in]   begin       The ringbuffer begin address.
  * @param[in]   end         The ringbuffer end address.
  * @param[in]   address     The stream start address.
+ * @param[in]   direction   The ringbuffer read direction.
  * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
  * on failure.
  */
 dc_status_t
-dc_rbstream_new (dc_rbstream_t **rbstream, dc_device_t *device, unsigned int pagesize, unsigned int packetsize, unsigned int begin, unsigned int end, unsigned int address);
+dc_rbstream_new (dc_rbstream_t **rbstream, dc_device_t *device, unsigned int pagesize, unsigned int packetsize, unsigned int begin, unsigned int end, unsigned int address, dc_rbstream_direction_t direction);
 
 /**
  * Read data from the ringbuffer stream.

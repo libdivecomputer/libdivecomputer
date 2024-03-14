@@ -546,7 +546,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	status = dc_rbstream_new (&rbstream, abstract, SZ_READ, SZ_READ, RB_PROFILE_BEGIN, RB_PROFILE_END, eop);
+	status = dc_rbstream_new (&rbstream, abstract, SZ_READ, SZ_READ, RB_PROFILE_BEGIN, RB_PROFILE_END, eop, DC_RBSTREAM_BACKWARD);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		goto error_free_profile;

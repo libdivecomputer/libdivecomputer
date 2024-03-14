@@ -327,7 +327,7 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_logbook_begin, layout->rb_logbook_end, rb_logbook_end);
+	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_logbook_begin, layout->rb_logbook_end, rb_logbook_end, DC_RBSTREAM_BACKWARD);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		return rc;
@@ -489,7 +489,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_profile_begin, layout->rb_profile_end, rb_profile_end);
+	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_profile_begin, layout->rb_profile_end, rb_profile_end, DC_RBSTREAM_BACKWARD);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		return rc;

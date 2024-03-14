@@ -469,7 +469,7 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rblogbook = NULL;
-	status = dc_rbstream_new (&rblogbook, abstract, SEGMENTSIZE, SEGMENTSIZE, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END, rb_logbook_end);
+	status = dc_rbstream_new (&rblogbook, abstract, SEGMENTSIZE, SEGMENTSIZE, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END, rb_logbook_end, DC_RBSTREAM_BACKWARD);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		goto error_free_logbook;
@@ -600,7 +600,7 @@ liquivision_lynx_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbprofile = NULL;
-	status = dc_rbstream_new (&rbprofile, abstract, SEGMENTSIZE, SEGMENTSIZE, RB_PROFILE_BEGIN, RB_PROFILE_END, rb_profile_end);
+	status = dc_rbstream_new (&rbprofile, abstract, SEGMENTSIZE, SEGMENTSIZE, RB_PROFILE_BEGIN, RB_PROFILE_END, rb_profile_end, DC_RBSTREAM_BACKWARD);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		goto error_free_profile;

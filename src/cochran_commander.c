@@ -965,7 +965,7 @@ cochran_commander_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		last_start_address = base + array_uint32_le(data.config + layout->cf_last_log );
 
 	// Create the ringbuffer stream.
-	status = dc_rbstream_new (&rbstream, abstract, 1, layout->rbstream_size, layout->rb_profile_begin, layout->rb_profile_end, last_start_address);
+	status = dc_rbstream_new (&rbstream, abstract, 1, layout->rbstream_size, layout->rb_profile_begin, layout->rb_profile_end, last_start_address, DC_RBSTREAM_BACKWARD);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		goto error;

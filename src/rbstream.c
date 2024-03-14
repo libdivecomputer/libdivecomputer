@@ -28,11 +28,13 @@
 
 struct dc_rbstream_t {
 	dc_device_t *device;
+	dc_rbstream_direction_t direction;
 	unsigned int pagesize;
 	unsigned int packetsize;
 	unsigned int begin;
 	unsigned int end;
 	unsigned int address;
+	unsigned int offset;
 	unsigned int available;
 	unsigned int skip;
 	unsigned char cache[];
@@ -53,7 +55,7 @@ iceil (unsigned int x, unsigned int n)
 }
 
 dc_status_t
-dc_rbstream_new (dc_rbstream_t **out, dc_device_t *device, unsigned int pagesize, unsigned int packetsize, unsigned int begin, unsigned int end, unsigned int address)
+dc_rbstream_new (dc_rbstream_t **out, dc_device_t *device, unsigned int pagesize, unsigned int packetsize, unsigned int begin, unsigned int end, unsigned int address, dc_rbstream_direction_t direction)
 {
 	dc_rbstream_t *rbstream = NULL;
 
@@ -78,6 +80,18 @@ dc_rbstream_new (dc_rbstream_t **out, dc_device_t *device, unsigned int pagesize
 		return DC_STATUS_INVALIDARGS;
 	}
 
+	// Ringbuffer boundaries should not be reversed.
+	if (begin > end) {
+		ERROR (device->context, "Ringbuffer boundaries reversed!");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	// Packet size should be smaller than the ringbuffer size.
+	if (packetsize > (end - begin)) {
+		ERROR (device->context, "Packet size larger than the ringbuffer size!");
+		return DC_STATUS_INVALIDARGS;
+	}
+
 	// Address should be inside the ringbuffer.
 	if (address < begin || address > end) {
 		ERROR (device->context, "Address outside the ringbuffer!");
@@ -92,64 +106,64 @@ dc_rbstream_new (dc_rbstream_t **out, dc_device_t *device, unsigned int pagesize
 	}
 
 	rbstream->device = device;
+	rbstream->direction = direction;
 	rbstream->pagesize = pagesize;
 	rbstream->packetsize = packetsize;
 	rbstream->begin = begin;
 	rbstream->end = end;
-	rbstream->address = iceil(address, pagesize);
+	if (direction == DC_RBSTREAM_FORWARD) {
+		rbstream->address = ifloor(address, pagesize);
+		rbstream->skip = address - rbstream->address;
+	} else {
+		rbstream->address = iceil(address, pagesize);
+		rbstream->skip = rbstream->address - address;
+	}
+	rbstream->offset = 0;
 	rbstream->available = 0;
-	rbstream->skip = rbstream->address - address;
 
 	*out = rbstream;
 
 	return DC_STATUS_SUCCESS;
 }
 
-dc_status_t
-dc_rbstream_read (dc_rbstream_t *rbstream, dc_event_progress_t *progress, unsigned char data[], unsigned int size)
+static dc_status_t
+dc_rbstream_read_backward (dc_rbstream_t *rbstream, dc_event_progress_t *progress, unsigned char data[], unsigned int size)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
-
-	if (rbstream == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	unsigned int address = rbstream->address;
-	unsigned int available = rbstream->available;
-	unsigned int skip = rbstream->skip;
 
 	unsigned int nbytes = 0;
 	unsigned int offset = size;
 	while (nbytes < size) {
-		if (available == 0) {
+		if (rbstream->available == 0) {
 			// Handle the ringbuffer wrap point.
-			if (address == rbstream->begin)
-				address = rbstream->end;
+			if (rbstream->address == rbstream->begin)
+				rbstream->address = rbstream->end;
 
 			// Calculate the packet size.
 			unsigned int len = rbstream->packetsize;
-			if (rbstream->begin + len > address)
-				len = address - rbstream->begin;
-
-			// Move to the begin of the current packet.
-			address -= len;
+			if (rbstream->begin + len > rbstream->address)
+				len = rbstream->address - rbstream->begin;
 
 			// Read the packet into the cache.
-			rc = dc_device_read (rbstream->device, address, rbstream->cache, rbstream->packetsize);
+			rc = dc_device_read (rbstream->device, rbstream->address - len, rbstream->cache, rbstream->packetsize);
 			if (rc != DC_STATUS_SUCCESS)
 				return rc;
 
-			available = len - skip;
-			skip = 0;
+			// Move to the end of the next packet.
+			rbstream->address -= len;
+
+			rbstream->available = len - rbstream->skip;
+			rbstream->skip = 0;
 		}
 
-		unsigned int length = available;
+		unsigned int length = rbstream->available;
 		if (nbytes + length > size)
 			length = size - nbytes;
 
 		offset -= length;
-		available -= length;
+		rbstream->available -= length;
 
-		memcpy (data + offset, rbstream->cache + available, length);
+		memcpy (data + offset, rbstream->cache + rbstream->available, length);
 
 		// Update and emit a progress event.
 		if (progress) {
@@ -160,11 +174,74 @@ dc_rbstream_read (dc_rbstream_t *rbstream, dc_event_progress_t *progress, unsign
 		nbytes += length;
 	}
 
-	rbstream->address = address;
-	rbstream->available = available;
-	rbstream->skip = skip;
+	return rc;
+}
+
+static dc_status_t
+dc_rbstream_read_forward (dc_rbstream_t *rbstream, dc_event_progress_t *progress, unsigned char data[], unsigned int size)
+{
+	dc_status_t rc = DC_STATUS_SUCCESS;
+
+	unsigned int nbytes = 0;
+	while (nbytes < size) {
+		if (rbstream->available == 0) {
+			// Handle the ringbuffer wrap point.
+			if (rbstream->address == rbstream->end)
+				rbstream->address = rbstream->begin;
+
+			// Calculate the packet size.
+			unsigned int len = rbstream->packetsize;
+			if (rbstream->address + len > rbstream->end)
+				len = rbstream->end - rbstream->address;
+
+			// Calculate the excess number of bytes.
+			unsigned int extra = rbstream->packetsize - len;
+
+			// Read the packet into the cache.
+			rc = dc_device_read (rbstream->device, rbstream->address - extra, rbstream->cache, rbstream->packetsize);
+			if (rc != DC_STATUS_SUCCESS)
+				return rc;
+
+			// Move to the begin of the next packet.
+			rbstream->address += len;
+
+			rbstream->offset = extra + rbstream->skip;
+			rbstream->available = len - rbstream->skip;
+			rbstream->skip = 0;
+		}
+
+		unsigned int length = rbstream->available;
+		if (nbytes + length > size)
+			length = size - nbytes;
+
+		memcpy (data + nbytes, rbstream->cache + rbstream->offset, length);
+
+		rbstream->offset += length;
+		rbstream->available -= length;
+
+		// Update and emit a progress event.
+		if (progress) {
+			progress->current += length;
+			device_event_emit (rbstream->device, DC_EVENT_PROGRESS, progress);
+		}
+
+		nbytes += length;
+	}
 
 	return rc;
+}
+
+dc_status_t
+dc_rbstream_read (dc_rbstream_t *rbstream, dc_event_progress_t *progress, unsigned char data[], unsigned int size)
+{
+	if (rbstream == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	if (rbstream->direction == DC_RBSTREAM_FORWARD) {
+		return dc_rbstream_read_forward (rbstream, progress, data, size);
+	} else {
+		return dc_rbstream_read_backward (rbstream, progress, data, size);
+	}
 }
 
 dc_status_t
