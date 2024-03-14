@@ -40,7 +40,7 @@
 
 #define RB_PROFILE_BEGIN 0x000000
 #define RB_PROFILE_END   0x200000
-#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, 0, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, DC_RINGBUFFER_EMPTY, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define READY      0x4D
 #define HEADER     0x61

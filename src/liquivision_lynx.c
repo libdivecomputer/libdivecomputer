@@ -67,12 +67,12 @@
 #define RB_LOGBOOK_BEGIN         (1 * PAGESIZE)
 #define RB_LOGBOOK_END           (25 * PAGESIZE)
 #define RB_LOGBOOK_SIZE          (RB_LOGBOOK_END - RB_LOGBOOK_BEGIN)
-#define RB_LOGBOOK_DISTANCE(a,b) ringbuffer_distance (a, b, 1, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END)
+#define RB_LOGBOOK_DISTANCE(a,b) ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, RB_LOGBOOK_BEGIN, RB_LOGBOOK_END)
 
 #define RB_PROFILE_BEGIN         (25 * PAGESIZE)
 #define RB_PROFILE_END           (500 * PAGESIZE)
 #define RB_PROFILE_SIZE          (RB_PROFILE_END - RB_PROFILE_BEGIN)
-#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, 1, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 #define SZ_HEADER_XEN   80
 #define SZ_HEADER_OTHER 96

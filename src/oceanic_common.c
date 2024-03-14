@@ -32,10 +32,10 @@
 
 #define VTABLE(abstract)	((const oceanic_common_device_vtable_t *) abstract->vtable)
 
-#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 1, l->rb_logbook_begin, l->rb_logbook_end)
+#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, l->rb_logbook_begin, l->rb_logbook_end)
 #define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
 
-#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, 0, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_EMPTY, l->rb_profile_begin, l->rb_profile_end)
 #define RB_PROFILE_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_profile_begin, l->rb_profile_end)
 
 #define INVALID 0

@@ -432,7 +432,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 
 	// Get the number of logbook items.
-	unsigned int count = ringbuffer_distance (first, last, 0, layout->rb_logbook_begin, layout->rb_logbook_end) + 1;
+	unsigned int count = ringbuffer_distance (first, last, DC_RINGBUFFER_EMPTY, layout->rb_logbook_begin, layout->rb_logbook_end) + 1;
 
 	// Get the profile pointer.
 	unsigned int eop = array_uint_le (logbook + layout->config + 2, layout->rb_logbook_size) * SZ_PAGE + layout->rb_profile_begin;
@@ -457,7 +457,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		}
 
 		// Get the profile length.
-		unsigned int length = ringbuffer_distance (current, previous, 1, layout->rb_profile_begin, layout->rb_profile_end);
+		unsigned int length = ringbuffer_distance (current, previous, DC_RINGBUFFER_FULL, layout->rb_profile_begin, layout->rb_profile_end);
 
 		// Check for a ringbuffer overflow.
 		if (total + length > layout->rb_profile_end - layout->rb_profile_begin) {
@@ -510,7 +510,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		}
 
 		// Get the profile length.
-		unsigned int length = ringbuffer_distance (current, previous, 1, layout->rb_profile_begin, layout->rb_profile_end);
+		unsigned int length = ringbuffer_distance (current, previous, DC_RINGBUFFER_FULL, layout->rb_profile_begin, layout->rb_profile_end);
 
 		// Move to the begin of the current dive.
 		offset -= length;

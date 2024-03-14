@@ -26,6 +26,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define DC_RINGBUFFER_EMPTY 0
+#define DC_RINGBUFFER_FULL  1
+
 unsigned int
 ringbuffer_normalize (unsigned int a, unsigned int begin, unsigned int end);
 

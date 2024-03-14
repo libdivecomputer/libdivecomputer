@@ -58,7 +58,7 @@
 #define RB_PROFILE_BEGIN         0x010000
 #define RB_PROFILE_END           0x200000
 #define RB_PROFILE_SIZE          (RB_PROFILE_END - RB_PROFILE_BEGIN)
-#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, 1, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, RB_PROFILE_BEGIN, RB_PROFILE_END)
 #define RB_PROFILE_INCR(a,d)     ringbuffer_increment (a, d, RB_PROFILE_BEGIN, RB_PROFILE_END)
 
 typedef struct seac_screen_device_t {
