@@ -244,17 +244,18 @@ mares_iconhd_packet_fixed (mares_iconhd_device_t *device,
 	}
 
 	// Receive the header byte.
-	unsigned char header[1] = {0};
-	status = dc_iostream_read (device->iostream, header, sizeof (header), NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the packet header.");
-		return status;
-	}
+	while (1) {
+		unsigned char header[1] = {0};
+		status = dc_iostream_read (device->iostream, header, sizeof (header), NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the packet header.");
+			return status;
+		}
 
-	// Verify the header byte.
-	if (header[0] != ACK) {
-		ERROR (abstract->context, "Unexpected packet header byte (%02x).", header[0]);
-		return DC_STATUS_PROTOCOL;
+		if (header[0] == ACK)
+			break;
+
+		WARNING (abstract->context, "Unexpected packet header byte (%02x).", header[0]);
 	}
 
 	// Send the command payload to the dive computer.
@@ -411,7 +412,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device, unsigned char cmd, const u
 			return rc;
 
 		// Discard any garbage bytes.
-		dc_iostream_sleep (device->iostream, 100);
+		dc_iostream_sleep (device->iostream, 1000);
 		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
 	}
 
