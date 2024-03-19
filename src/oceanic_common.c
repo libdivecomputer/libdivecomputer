@@ -461,6 +461,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	// Go through the logbook entries a first time, to get the end of
 	// profile pointer and calculate the total amount of bytes in the
 	// profile ringbuffer.
+	unsigned int rb_profile_begin = INVALID;
 	unsigned int rb_profile_end  = INVALID;
 	unsigned int rb_profile_size = 0;
 
@@ -495,6 +496,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			continue;
 		}
 
+		DEBUG (abstract->context, "Entry: %08x %08x", rb_entry_begin, rb_entry_end);
+
 		// Take the end pointer of the most recent logbook entry as the
 		// end of profile pointer.
 		if (rb_profile_end == INVALID) {
@@ -516,12 +519,17 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			break;
 		}
 
+		// Update the profile begin pointer.
+		rb_profile_begin = rb_entry_begin;
+
 		// Update the total profile size.
 		rb_profile_size += rb_entry_size + gap;
 
 		remaining -= rb_entry_size + gap;
 		previous = rb_entry_begin;
 	}
+
+	DEBUG (abstract->context, "Profile: %08x %08x", rb_profile_begin, rb_profile_end);
 
 	// At this point, we know the exact amount of data
 	// that needs to be transfered for the profiles.
@@ -582,6 +590,8 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			status = DC_STATUS_DATAFORMAT;
 			continue;
 		}
+
+		DEBUG (abstract->context, "Entry: %08x %08x", rb_entry_begin, rb_entry_end);
 
 		// Calculate the number of bytes.
 		unsigned int rb_entry_size = RB_PROFILE_DISTANCE (rb_entry_begin, rb_entry_end, layout, DC_RINGBUFFER_FULL);
@@ -684,6 +694,9 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	if (rc != DC_STATUS_SUCCESS) {
 		return rc;
 	}
+
+	DEBUG (abstract->context, "Logbook: %08x %08x", rb_logbook_begin, rb_logbook_end);
+	DEBUG (abstract->context, "Profile: %08x %08x", rb_profile_begin, rb_profile_end);
 
 	// Memory buffer for the logbook data.
 	dc_buffer_t *logbook = dc_buffer_new (0);
