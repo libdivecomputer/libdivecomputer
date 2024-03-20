@@ -52,7 +52,7 @@
 #define MAXRETRIES 4
 
 #define ACK 0xAA
-#define EOF 0xEA
+#define END 0xEA
 #define XOR 0xA5
 
 #define CMD_VERSION   0xC2
@@ -236,7 +236,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 	}
 
 	// Verify the trailer byte.
-	if (trailer[0] != EOF) {
+	if (trailer[0] != END) {
 		ERROR (abstract->context, "Unexpected answer byte.");
 		return DC_STATUS_PROTOCOL;
 	}
