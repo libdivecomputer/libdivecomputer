@@ -32,72 +32,59 @@
 
 #define VTABLE(abstract)	((const oceanic_common_device_vtable_t *) abstract->vtable)
 
-#define RB_LOGBOOK_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, l->rb_logbook_begin, l->rb_logbook_end)
-#define RB_LOGBOOK_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_logbook_begin, l->rb_logbook_end)
+#define RB_LOGBOOK_DISTANCE(a,b,l,m) ringbuffer_distance (a, b, m, l->rb_logbook_begin, l->rb_logbook_end)
 
-#define RB_PROFILE_DISTANCE(a,b,l)	ringbuffer_distance (a, b, DC_RINGBUFFER_EMPTY, l->rb_profile_begin, l->rb_profile_end)
-#define RB_PROFILE_INCR(a,b,l)		ringbuffer_increment (a, b, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_DISTANCE(a,b,l,m) ringbuffer_distance (a, b, m, l->rb_profile_begin, l->rb_profile_end)
 
 #define INVALID 0
 
-static unsigned int
-get_profile_first (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int pagesize)
+static dc_status_t
+oceanic_common_device_get_profile (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int *begin, unsigned int *end)
 {
-	unsigned int value;
+	assert (layout != NULL);
+	assert (begin != NULL && end != NULL);
 
+	// Get the pagesize
+	unsigned int pagesize = layout->highmem ? 16 * PAGESIZE : PAGESIZE;
+
+	// Get the profile pointers.
+	unsigned int first = 0, last = 0;
 	if (layout->pt_mode_logbook == 0) {
-		value = array_uint16_le (data + 5);
+		first = array_uint16_le (data + 5);
+		last  = array_uint16_le (data + 6) >> 4;
 	} else if (layout->pt_mode_logbook == 1) {
-		value = array_uint16_le (data + 4);
-	} else if (layout->pt_mode_logbook == 3) {
-		value = array_uint16_le (data + 16);
-	} else {
-		return array_uint16_le (data + 16);
+		first = array_uint16_le (data + 4);
+		last  = array_uint16_le (data + 6);
+	} else if (layout->pt_mode_logbook == 2 || layout->pt_mode_logbook == 3) {
+		first = array_uint16_le (data + 16);
+		last  = array_uint16_le (data + 18);
 	}
 
-	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
-	if (npages > 0x4000) {
-		value &= 0x7FFF;
-	} else if (npages > 0x2000) {
-		value &= 0x3FFF;
-	}  else if (npages > 0x1000) {
-		value &= 0x1FFF;
-	} else {
-		value &= 0x0FFF;
+	// Convert pages to bytes.
+	if (layout->pt_mode_logbook < 3) {
+		unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
+		if (npages > 0x4000) {
+			first &= 0x7FFF;
+			last  &= 0x7FFF;
+		} else if (npages > 0x2000) {
+			first &= 0x3FFF;
+			last  &= 0x3FFF;
+		} else if (npages > 0x1000) {
+			first &= 0x1FFF;
+			last  &= 0x1FFF;
+		} else {
+			first &= 0x0FFF;
+			last  &= 0x0FFF;
+		}
+
+		first *= pagesize;
+		last  *= pagesize;
 	}
 
-	return layout->highmem + value * pagesize;
-}
+	*begin = layout->highmem + first;
+	*end   = layout->highmem + last + pagesize;
 
-
-static unsigned int
-get_profile_last (const unsigned char data[], const oceanic_common_layout_t *layout, unsigned int pagesize)
-{
-	unsigned int value;
-
-	if (layout->pt_mode_logbook == 0) {
-		value = array_uint16_le (data + 6) >> 4;
-	} else if (layout->pt_mode_logbook == 1) {
-		value = array_uint16_le (data + 6);
-	} else if (layout->pt_mode_logbook == 3) {
-		value = array_uint16_le (data + 18);
-	} else {
-		return array_uint16_le(data + 18);
-	}
-
-	unsigned int npages = (layout->memsize - layout->highmem) / pagesize;
-
-	if (npages > 0x4000) {
-		value &= 0x7FFF;
-	} else if (npages > 0x2000) {
-		value &= 0x3FFF;
-	} else if (npages > 0x1000) {
-		value &= 0x1FFF;
-	} else {
-		value &= 0x0FFF;
-	}
-
-	return layout->highmem + value * pagesize;
+	return DC_STATUS_SUCCESS;
 }
 
 
@@ -206,11 +193,11 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return DC_STATUS_NOMEMORY;
 	}
 
-	// Emit a vendor event.
-	dc_event_vendor_t vendor;
-	vendor.data = device->version;
-	vendor.size = sizeof (device->version);
-	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+	// Read the device info.
+	status = VTABLE(abstract)->devinfo (abstract, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		return status;
+	}
 
 	// Download the memory dump.
 	status = device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
@@ -219,8 +206,43 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return status;
 	}
 
+	return status;
+}
+
+
+dc_status_t
+oceanic_common_device_devinfo (dc_device_t *abstract, dc_event_progress_t *progress)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
+
+	const oceanic_common_layout_t *layout = device->layout;
+
+	// Read the device id.
+	unsigned char id[PAGESIZE] = {0};
+	status = dc_device_read (abstract, layout->cf_devinfo, id, sizeof (id));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return status;
+	}
+
+	// Update and emit a progress event.
+	if (progress) {
+		progress->current += PAGESIZE;
+		progress->maximum += PAGESIZE;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
+
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = device->version;
+	vendor.size = sizeof (device->version);
+	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+
 	// Emit a device info event.
-	unsigned char *id = dc_buffer_get_data (buffer) + layout->cf_devinfo;
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_be (id + 8);
 	devinfo.firmware = device->firmware;
@@ -240,7 +262,51 @@ oceanic_common_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 
 dc_status_t
-oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook)
+oceanic_common_device_pointers (dc_device_t *abstract, dc_event_progress_t *progress,
+	unsigned int *rb_logbook_begin, unsigned int *rb_logbook_end,
+	unsigned int *rb_profile_begin, unsigned int *rb_profile_end)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
+
+	assert (device != NULL);
+	assert (device->layout != NULL);
+	assert (rb_logbook_begin != NULL && rb_logbook_end != NULL);
+	assert (rb_profile_begin != NULL && rb_profile_end != NULL);
+
+	const oceanic_common_layout_t *layout = device->layout;
+
+	// Read the pointer data.
+	unsigned char pointers[PAGESIZE] = {0};
+	status = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the memory page.");
+		return status;
+	}
+
+	// Update and emit a progress event.
+	if (progress) {
+		progress->current += PAGESIZE;
+		progress->maximum += PAGESIZE;
+		device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
+	}
+
+	// Get the pointers.
+	unsigned int rb_logbook_first = array_uint16_le (pointers + 4);
+	unsigned int rb_logbook_last  = array_uint16_le (pointers + 6);
+	unsigned int rb_profile_first = array_uint16_le (pointers + 8);
+	unsigned int rb_profile_last  = array_uint16_le (pointers + 10);
+
+	*rb_logbook_begin = rb_logbook_first;
+	*rb_logbook_end   = rb_logbook_last + (layout->pt_mode_global == 0 ? layout->rb_logbook_entry_size : 0);
+	*rb_profile_begin = rb_profile_first;
+	*rb_profile_end   = rb_profile_last;
+
+	return status;
+}
+
+dc_status_t
+oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progress, dc_buffer_t *logbook, unsigned int begin, unsigned int end)
 {
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -256,37 +322,30 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	if (!dc_buffer_clear (logbook))
 		return DC_STATUS_NOMEMORY;
 
-	// For devices without a logbook ringbuffer, downloading dives isn't
-	// possible. This is not considered a fatal error, but handled as if there
-	// are no dives present.
-	if (layout->rb_logbook_begin == layout->rb_logbook_end) {
-		return DC_STATUS_SUCCESS;
-	}
-
-	// Read the pointer data.
-	unsigned char pointers[PAGESIZE] = {0};
-	rc = dc_device_read (abstract, layout->cf_pointers, pointers, sizeof (pointers));
-	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the memory page.");
-		return rc;
-	}
-
-	// Get the logbook pointers.
-	unsigned int rb_logbook_first = array_uint16_le (pointers + 4);
-	unsigned int rb_logbook_last  = array_uint16_le (pointers + 6);
-	if (rb_logbook_last < layout->rb_logbook_begin ||
-		rb_logbook_last >= layout->rb_logbook_end)
+	// Validate the logbook pointers.
+	unsigned int rb_logbook_begin = begin;
+	unsigned int rb_logbook_end   = end;
+	if (rb_logbook_begin < layout->rb_logbook_begin ||
+		rb_logbook_begin > layout->rb_logbook_end)
 	{
-		ERROR (abstract->context, "Invalid logbook end pointer detected (0x%04x).", rb_logbook_last);
-		return DC_STATUS_DATAFORMAT;
+		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_begin);
+		if (layout->rb_logbook_direction == 0) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		// Fall back to downloading the entire logbook ringbuffer as
+		// workaround for an invalid logbook begin pointer!
+		rb_logbook_begin = rb_logbook_end;
 	}
-
-	// Calculate the end pointer.
-	unsigned int rb_logbook_end = 0;
-	if (layout->pt_mode_global == 0) {
-		rb_logbook_end  = RB_LOGBOOK_INCR (rb_logbook_last, layout->rb_logbook_entry_size, layout);
-	} else {
-		rb_logbook_end  = rb_logbook_last;
+	if (rb_logbook_end < layout->rb_logbook_begin ||
+		rb_logbook_end > layout->rb_logbook_end)
+	{
+		ERROR (abstract->context, "Invalid logbook end pointer detected (0x%04x).", rb_logbook_end);
+		if (layout->rb_logbook_direction != 0) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		// Fall back to downloading the entire logbook ringbuffer as
+		// workaround for an invalid logbook end pointer!
+		rb_logbook_end = rb_logbook_begin;
 	}
 
 	// Calculate the number of bytes.
@@ -295,21 +354,9 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 	// full ringbuffer. We always consider the ringbuffer full in that
 	// case, because an empty ringbuffer can be detected by inspecting
 	// the logbook entries once they are downloaded.
-	unsigned int rb_logbook_size = 0;
-	if (rb_logbook_first < layout->rb_logbook_begin ||
-		rb_logbook_first >= layout->rb_logbook_end)
-	{
-		// Fall back to downloading the entire logbook ringbuffer as
-		// workaround for an invalid logbook begin pointer!
-		ERROR (abstract->context, "Invalid logbook begin pointer detected (0x%04x).", rb_logbook_first);
-		rb_logbook_size = layout->rb_logbook_end - layout->rb_logbook_begin;
-	} else {
-		rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_first, rb_logbook_end, layout);
-	}
+	unsigned int rb_logbook_size = RB_LOGBOOK_DISTANCE (rb_logbook_begin, rb_logbook_end, layout, DC_RINGBUFFER_FULL);
 
 	// Update and emit a progress event.
-	progress->current += PAGESIZE;
-	progress->maximum += PAGESIZE;
 	progress->maximum -= (layout->rb_logbook_end - layout->rb_logbook_begin) - rb_logbook_size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 
@@ -327,7 +374,11 @@ oceanic_common_device_logbook (dc_device_t *abstract, dc_event_progress_t *progr
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	rc = dc_rbstream_new (&rbstream, abstract, PAGESIZE, PAGESIZE * device->multipage, layout->rb_logbook_begin, layout->rb_logbook_end, rb_logbook_end, DC_RBSTREAM_BACKWARD);
+	rc = dc_rbstream_new (&rbstream, abstract,
+		PAGESIZE, PAGESIZE * device->multipage,
+		layout->rb_logbook_begin, layout->rb_logbook_end,
+		layout->rb_logbook_direction ? rb_logbook_end : rb_logbook_begin,
+		layout->rb_logbook_direction ? DC_RBSTREAM_BACKWARD : DC_RBSTREAM_FORWARD);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		return rc;
@@ -403,9 +454,6 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 	const oceanic_common_layout_t *layout = device->layout;
 
-	// Get the pagesize
-	unsigned int pagesize = layout->highmem ? 16 * PAGESIZE : PAGESIZE;
-
 	// Cache the logbook pointer and size.
 	const unsigned char *logbooks = dc_buffer_get_data (logbook);
 	unsigned int rb_logbook_size = dc_buffer_get_size (logbook);
@@ -413,6 +461,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	// Go through the logbook entries a first time, to get the end of
 	// profile pointer and calculate the total amount of bytes in the
 	// profile ringbuffer.
+	unsigned int rb_profile_begin = INVALID;
 	unsigned int rb_profile_end  = INVALID;
 	unsigned int rb_profile_size = 0;
 
@@ -434,22 +483,20 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		// Get the profile pointers.
-		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
-		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout, pagesize);
-		if (rb_entry_first < layout->rb_profile_begin ||
-			rb_entry_first >= layout->rb_profile_end ||
-			rb_entry_last < layout->rb_profile_begin ||
-			rb_entry_last >= layout->rb_profile_end)
+		unsigned int rb_entry_begin = 0, rb_entry_end = 0;
+		oceanic_common_device_get_profile (logbooks + entry, layout, &rb_entry_begin, &rb_entry_end);
+		if (rb_entry_begin < layout->rb_profile_begin ||
+			rb_entry_begin > layout->rb_profile_end ||
+			rb_entry_end < layout->rb_profile_begin ||
+			rb_entry_end > layout->rb_profile_end)
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
-				rb_entry_first, rb_entry_last);
+				rb_entry_begin, rb_entry_end);
 			status = DC_STATUS_DATAFORMAT;
 			continue;
 		}
 
-		// Calculate the end pointer and the number of bytes.
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, pagesize, layout);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + pagesize;
+		DEBUG (abstract->context, "Entry: %08x %08x", rb_entry_begin, rb_entry_end);
 
 		// Take the end pointer of the most recent logbook entry as the
 		// end of profile pointer.
@@ -457,10 +504,12 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			rb_profile_end = previous = rb_entry_end;
 		}
 
+		// Calculate the number of bytes.
+		unsigned int rb_entry_size = RB_PROFILE_DISTANCE (rb_entry_begin, rb_entry_end, layout, DC_RINGBUFFER_FULL);
+
 		// Skip gaps between the profiles.
-		unsigned int gap = 0;
-		if (rb_entry_end != previous) {
-			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+		unsigned int gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout, DC_RINGBUFFER_EMPTY);
+		if (gap) {
 			WARNING (abstract->context, "Profiles are not continuous (%u bytes).", gap);
 		}
 
@@ -470,12 +519,17 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 			break;
 		}
 
+		// Update the profile begin pointer.
+		rb_profile_begin = rb_entry_begin;
+
 		// Update the total profile size.
 		rb_profile_size += rb_entry_size + gap;
 
 		remaining -= rb_entry_size + gap;
-		previous = rb_entry_first;
+		previous = rb_entry_begin;
 	}
+
+	DEBUG (abstract->context, "Profile: %08x %08x", rb_profile_begin, rb_profile_end);
 
 	// At this point, we know the exact amount of data
 	// that needs to be transfered for the profiles.
@@ -524,27 +578,27 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		// Get the profile pointers.
-		unsigned int rb_entry_first = get_profile_first (logbooks + entry, layout, pagesize);
-		unsigned int rb_entry_last  = get_profile_last (logbooks + entry, layout, pagesize);
-		if (rb_entry_first < layout->rb_profile_begin ||
-			rb_entry_first >= layout->rb_profile_end ||
-			rb_entry_last < layout->rb_profile_begin ||
-			rb_entry_last >= layout->rb_profile_end)
+		unsigned int rb_entry_begin = 0, rb_entry_end = 0;
+		oceanic_common_device_get_profile (logbooks + entry, layout, &rb_entry_begin, &rb_entry_end);
+		if (rb_entry_begin < layout->rb_profile_begin ||
+			rb_entry_begin > layout->rb_profile_end ||
+			rb_entry_end < layout->rb_profile_begin ||
+			rb_entry_end > layout->rb_profile_end)
 		{
 			ERROR (abstract->context, "Invalid ringbuffer pointer detected (0x%06x 0x%06x).",
-				rb_entry_first, rb_entry_last);
+				rb_entry_begin, rb_entry_end);
 			status = DC_STATUS_DATAFORMAT;
 			continue;
 		}
 
-		// Calculate the end pointer and the number of bytes.
-		unsigned int rb_entry_end   = RB_PROFILE_INCR (rb_entry_last, pagesize, layout);
-		unsigned int rb_entry_size  = RB_PROFILE_DISTANCE (rb_entry_first, rb_entry_last, layout) + pagesize;
+		DEBUG (abstract->context, "Entry: %08x %08x", rb_entry_begin, rb_entry_end);
+
+		// Calculate the number of bytes.
+		unsigned int rb_entry_size = RB_PROFILE_DISTANCE (rb_entry_begin, rb_entry_end, layout, DC_RINGBUFFER_FULL);
 
 		// Skip gaps between the profiles.
-		unsigned int gap = 0;
-		if (rb_entry_end != previous) {
-			gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout);
+		unsigned int gap = RB_PROFILE_DISTANCE (rb_entry_end, previous, layout, DC_RINGBUFFER_EMPTY);
+		if (gap) {
 			WARNING (abstract->context, "Profiles are not continuous (%u bytes).", gap);
 		}
 
@@ -566,7 +620,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 		}
 
 		remaining -= rb_entry_size + gap;
-		previous = rb_entry_first;
+		previous = rb_entry_begin;
 
 		// Prepend the logbook entry to the profile data. The memory buffer is
 		// large enough to store this entry.
@@ -604,6 +658,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 dc_status_t
 oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
+	dc_status_t rc = DC_STATUS_SUCCESS;
 	oceanic_common_device_t *device = (oceanic_common_device_t *) abstract;
 
 	assert (device != NULL);
@@ -611,45 +666,37 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 
 	const oceanic_common_layout_t *layout = device->layout;
 
+	// For devices without a logbook and profile ringbuffer, downloading dives
+	// isn't possible. This is not considered a fatal error, but handled as if
+	// there are no dives present.
+	if (layout->rb_logbook_begin == layout->rb_logbook_end &&
+		layout->rb_profile_begin == layout->rb_profile_end) {
+		return DC_STATUS_SUCCESS;
+	}
+
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = PAGESIZE +
+	progress.maximum =
 		(layout->rb_logbook_end - layout->rb_logbook_begin) +
 		(layout->rb_profile_end - layout->rb_profile_begin);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	// Emit a vendor event.
-	dc_event_vendor_t vendor;
-	vendor.data = device->version;
-	vendor.size = sizeof (device->version);
-	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
-
-	// Read the device id.
-	unsigned char id[PAGESIZE] = {0};
-	dc_status_t rc = dc_device_read (abstract, layout->cf_devinfo, id, sizeof (id));
+	// Read the device info.
+	rc = VTABLE(abstract)->devinfo (abstract, &progress);
 	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the memory page.");
 		return rc;
 	}
 
-	// Update and emit a progress event.
-	progress.current += PAGESIZE;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+	// Read the ringbuffer pointers.
+	unsigned int rb_logbook_begin = 0, rb_logbook_end = 0;
+	unsigned int rb_profile_begin = 0, rb_profile_end = 0;
+	rc = VTABLE(abstract)->pointers (abstract, &progress, &rb_logbook_begin, &rb_logbook_end, &rb_profile_begin, &rb_profile_end);
+	if (rc != DC_STATUS_SUCCESS) {
+		return rc;
+	}
 
-	// Emit a device info event.
-	dc_event_devinfo_t devinfo;
-	devinfo.model = array_uint16_be (id + 8);
-	devinfo.firmware = device->firmware;
-	if (layout->pt_mode_serial == 0)
-		devinfo.serial = array_convert_bcd2dec (id + 10, 3);
-	else if (layout->pt_mode_serial == 1)
-		devinfo.serial = array_convert_bin2dec (id + 11, 3);
-	else
-		devinfo.serial =
-			(id[11] & 0x0F) * 100000 + ((id[11] & 0xF0) >> 4) * 10000 +
-			(id[12] & 0x0F) * 1000   + ((id[12] & 0xF0) >> 4) * 100 +
-			(id[13] & 0x0F) * 10     + ((id[13] & 0xF0) >> 4) * 1;
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
+	DEBUG (abstract->context, "Logbook: %08x %08x", rb_logbook_begin, rb_logbook_end);
+	DEBUG (abstract->context, "Profile: %08x %08x", rb_profile_begin, rb_profile_end);
 
 	// Memory buffer for the logbook data.
 	dc_buffer_t *logbook = dc_buffer_new (0);
@@ -658,7 +705,7 @@ oceanic_common_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	}
 
 	// Download the logbook ringbuffer.
-	rc = VTABLE(abstract)->logbook (abstract, &progress, logbook);
+	rc = VTABLE(abstract)->logbook (abstract, &progress, logbook, rb_logbook_begin, rb_logbook_end);
 	if (rc != DC_STATUS_SUCCESS) {
 		dc_buffer_free (logbook);
 		return rc;

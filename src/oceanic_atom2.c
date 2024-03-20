@@ -86,6 +86,8 @@ static const oceanic_common_device_vtable_t oceanic_atom2_device_vtable = {
 		NULL, /* timesync */
 		oceanic_atom2_device_close /* close */
 	},
+	oceanic_common_device_devinfo,
+	oceanic_common_device_pointers,
 	oceanic_common_device_logbook,
 	oceanic_common_device_profile,
 };
@@ -98,10 +100,11 @@ static const oceanic_common_layout_t aeris_f10_layout = {
 	0x0100, /* rb_logbook_begin */
 	0x0D80, /* rb_logbook_end */
 	32, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0D80, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
 	0, /* pt_mode_global */
-	2, /* pt_mode_logbook */
+	3, /* pt_mode_logbook */
 	0, /* pt_mode_serial */
 };
 
@@ -113,10 +116,11 @@ static const oceanic_common_layout_t aeris_f11_layout = {
 	0x0100, /* rb_logbook_begin */
 	0x0D80, /* rb_logbook_end */
 	32, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0D80, /* rb_profile_begin */
 	0x20000, /* rb_profile_end */
 	0, /* pt_mode_global */
-	3, /* pt_mode_logbook */
+	2, /* pt_mode_logbook */
 	0, /* pt_mode_serial */
 };
 
@@ -128,6 +132,7 @@ static const oceanic_common_layout_t oceanic_default_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0x10000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -143,6 +148,7 @@ static const oceanic_common_layout_t oceanic_atom1_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0440, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0440, /* rb_profile_begin */
 	0x8000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -158,6 +164,7 @@ static const oceanic_common_layout_t oceanic_atom2a_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -173,6 +180,7 @@ static const oceanic_common_layout_t oceanic_atom2b_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -188,6 +196,7 @@ static const oceanic_common_layout_t oceanic_atom2c_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0xFFF0, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -203,6 +212,7 @@ static const oceanic_common_layout_t sherwood_wisdom_layout = {
 	0x03D0, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -218,6 +228,7 @@ static const oceanic_common_layout_t oceanic_proplus3_layout = {
 	0x03E0, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -233,6 +244,7 @@ static const oceanic_common_layout_t tusa_zenair_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -248,6 +260,7 @@ static const oceanic_common_layout_t oceanic_oc1_layout = {
 	0x0240, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0x1FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -263,6 +276,7 @@ static const oceanic_common_layout_t oceanic_oci_layout = {
 	0x10C0, /* rb_logbook_begin */
 	0x1400, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x1400, /* rb_profile_begin */
 	0x1FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -278,6 +292,7 @@ static const oceanic_common_layout_t oceanic_atom3_layout = {
 	0x0400, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0x1FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -293,6 +308,7 @@ static const oceanic_common_layout_t oceanic_vt4_layout = {
 	0x0420, /* rb_logbook_begin */
 	0x0A40, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0A40, /* rb_profile_begin */
 	0x1FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -308,6 +324,7 @@ static const oceanic_common_layout_t hollis_tx1_layout = {
 	0x0780, /* rb_logbook_begin */
 	0x1000, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x1000, /* rb_profile_begin */
 	0x40000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -323,6 +340,7 @@ static const oceanic_common_layout_t oceanic_veo1_layout = {
 	0x0400, /* rb_logbook_begin */
 	0x0400, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0400, /* rb_profile_begin */
 	0x0400, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -338,6 +356,7 @@ static const oceanic_common_layout_t oceanic_reactpro_layout = {
 	0x0400, /* rb_logbook_begin */
 	0x0600, /* rb_logbook_end */
 	8, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x0600, /* rb_profile_begin */
 	0xFE00, /* rb_profile_end */
 	1, /* pt_mode_global */
@@ -353,6 +372,7 @@ static const oceanic_common_layout_t oceanic_proplusx_layout = {
 	0x1000, /* rb_logbook_begin */
 	0x10000, /* rb_logbook_end */
 	16, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x40000, /* rb_profile_begin */
 	0x440000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -368,6 +388,7 @@ static const oceanic_common_layout_t aqualung_i770r_layout = {
 	0x2000, /* rb_logbook_begin */
 	0x10000, /* rb_logbook_end */
 	16, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x40000, /* rb_profile_begin */
 	0x640000, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -383,6 +404,7 @@ static const oceanic_common_layout_t aeris_a300cs_layout = {
 	0x0900, /* rb_logbook_begin */
 	0x1000, /* rb_logbook_end */
 	16, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x1000, /* rb_profile_begin */
 	0x3FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
@@ -398,6 +420,7 @@ static const oceanic_common_layout_t aqualung_i450t_layout = {
 	0x10C0, /* rb_logbook_begin */
 	0x1400, /* rb_logbook_end */
 	16, /* rb_logbook_entry_size */
+	1, /* rb_logbook_direction */
 	0x1400, /* rb_profile_begin */
 	0x3FE00, /* rb_profile_end */
 	0, /* pt_mode_global */
