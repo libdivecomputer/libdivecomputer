@@ -947,7 +947,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					pressure = array_uint16_le (data + offset + 4);
 				else if (parser->model == DSX) {
 					pressure = array_uint16_le (data + offset + 14);
-					tank = ((data[offset] & 0xF0) >> 4) - 1;
+					tank = (data[offset] & 0xF0) >> 4;
 				} else {
 					pressure -= data[offset + 1];
 				}
