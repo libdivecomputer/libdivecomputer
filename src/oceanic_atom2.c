@@ -438,13 +438,14 @@ static const oceanic_common_version_t versions[] = {
 	{"MANTA  R\0\0  512K", 0,      MANTA,         &oceanic_atom2c_layout},
 	{"2M ATOM r\0\0 512K", 0x3349, ATOM2,         &oceanic_atom2a_layout},
 	{"2M ATOM r\0\0 512K", 0,      ATOM2,         &oceanic_atom2c_layout},
+	{"OCE GEO R\0\0 512K", 0x3242, GEO,           &oceanic_atom2a_layout},
+	{"OCE GEO R\0\0 512K", 0,      GEO,           &oceanic_atom2c_layout},
 
 	{"INSIGHT2 \0\0 512K", 0,      INSIGHT2,      &oceanic_atom2a_layout},
 	{"OCEVEO30 \0\0 512K", 0,      VEO30,         &oceanic_atom2a_layout},
 	{"ATMOSAI R\0\0 512K", 0,      ATMOSAI2,      &oceanic_atom2a_layout},
 	{"PROPLUS2 \0\0 512K", 0,      PROPLUS21,     &oceanic_atom2a_layout},
 	{"OCEGEO20 \0\0 512K", 0,      GEO20,         &oceanic_atom2a_layout},
-	{"OCE GEO R\0\0 512K", 0,      GEO,           &oceanic_atom2a_layout},
 	{"AQUAI200 \0\0 512K", 0,      I200,          &oceanic_atom2a_layout},
 	{"AQUA200C \0\0 512K", 0,      I200C,         &oceanic_atom2a_layout},
 
