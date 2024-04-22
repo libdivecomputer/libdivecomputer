@@ -32,9 +32,11 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &cressi_goa_device_vtable)
 
-#define CMD_VERSION 0x00
-#define CMD_LOGBOOK 0x21
-#define CMD_DIVE    0x22
+#define CMD_VERSION        0x00
+#define CMD_SET_TIME       0x13
+#define CMD_LOGBOOK        0x21
+#define CMD_DIVE           0x22
+#define CMD_LOGBOOK_V4     0x23
 
 #define HEADER  0xAA
 #define TRAILER 0x55
@@ -59,7 +61,7 @@ typedef struct cressi_goa_device_t {
 
 static dc_status_t cressi_goa_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
-
+static dc_status_t cressi_goa_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 static const dc_device_vtable_t cressi_goa_device_vtable = {
 	sizeof(cressi_goa_device_t),
 	DC_FAMILY_CRESSI_GOA,
@@ -68,7 +70,7 @@ static const dc_device_vtable_t cressi_goa_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	cressi_goa_device_foreach, /* foreach */
-	NULL, /* timesync */
+	cressi_goa_device_timesync, /* timesync */
 	NULL /* close */
 };
 
@@ -377,6 +379,47 @@ cressi_goa_device_set_fingerprint (dc_device_t *abstract, const unsigned char da
 	return DC_STATUS_SUCCESS;
 }
 
+struct cressi_goa_version_differences {
+	unsigned int version;
+	unsigned int idlen;
+	unsigned int logbook_entry_len;
+	unsigned int logbook_fp_offset;
+	unsigned int dive_fp_offset;
+	unsigned char cmd_logbook;
+};
+
+static dc_status_t
+cressi_goa_determine_version(dc_device_t *abstract, unsigned char *id, const struct cressi_goa_version_differences **conf)
+{
+	static const struct cressi_goa_version_differences version_differences[] = {
+		{ 0,  9, SZ_HEADER, FP_OFFSET, FP_OFFSET, CMD_LOGBOOK },
+		/*    4 is the new version
+		 *   11 is the new response length to the `CMD_VERSION` command
+		 *   15 is the length of an entry in the Logbook
+		 *    3 is the offset to the START date in the Logbook header
+		 *    9 is the offset to the START date in the Dive header
+		 * 0x23 is the new command to request the Logbook
+		 */
+		{ 4, 11,        15,         3,         9, CMD_LOGBOOK_V4 },
+	};
+	cressi_goa_device_t *device = (cressi_goa_device_t *) abstract;
+	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned char id_[11] = {0};
+	if (id == NULL)
+		id = id_;
+	for (size_t version = 0; version < C_ARRAY_SIZE(version_differences); version++) {
+		status = cressi_goa_device_transfer (device, CMD_VERSION, NULL, 0, id, version_differences[version].idlen, NULL, NULL);
+		if (status == DC_STATUS_SUCCESS) {
+			*conf = &version_differences[version];
+			return status;
+		}
+	}
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the version information.");
+	}
+	return status;
+}
+
 static dc_status_t
 cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata)
 {
@@ -389,37 +432,13 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	static const struct {
-		unsigned int idlen;
-		unsigned int logbook_entry_len;
-		unsigned int logbook_fp_offset;
-		unsigned int dive_fp_offset;
-		unsigned char cmd_logbook;
-	} *conf, version_differences[] = {
-		{  9, SZ_HEADER, FP_OFFSET, FP_OFFSET, CMD_LOGBOOK },
-		/*   11 is the new response length to the `CMD_VERSION` command
-		 *   15 is the length of an entry in the Logbook
-		 *    3 is the offset to the START date in the Logbook header
-		 *    9 is the offset to the START date in the Dive header
-		 * 0x23 is the new command to request the Logbook
-		 */
-		{ 11,        15,         3,         9,        0x23 },
-	};
-
-	size_t version = 0;
 	// Read the version information.
+	const struct cressi_goa_version_differences *conf;
 	unsigned char id[11] = {0};
-	for (; version < C_ARRAY_SIZE(version_differences); version++) {
-		status = cressi_goa_device_transfer (device, CMD_VERSION, NULL, 0, id, version_differences[version].idlen, NULL, NULL);
-		if (status == DC_STATUS_SUCCESS) {
-			break;
-		}
-	}
+	status = cressi_goa_determine_version(abstract, id, &conf);
 	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the version information.");
-		goto error_exit;
+		return status;
 	}
-	conf = &version_differences[version];
 
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
@@ -444,7 +463,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	// Read the logbook data.
 	unsigned char *entries = NULL, entries_[2] = {0};
 	unsigned int esize = 0;
-	if (version == 1) {
+	if (conf->version == 4) {
 		entries = entries_;
 		esize = sizeof(entries_);
 	}
@@ -505,7 +524,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		const unsigned char *dive_data = dc_buffer_get_data (dive);
 		size_t dive_size = dc_buffer_get_size (dive);
 
-		if (version == 0) {
+		if (conf->version == 0) {
 			// Verify the header in the logbook and dive data are identical.
 			// After the 2 byte dive number, the logbook header has 5 bytes
 			// extra, which are not present in the dive header.
@@ -585,5 +604,24 @@ error_free_dive:
 error_free_logbook:
 	dc_buffer_free(logbook);
 error_exit:
+	return status;
+}
+
+static dc_status_t cressi_goa_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	cressi_goa_device_t *device = (cressi_goa_device_t *) abstract;
+
+	unsigned char new_time[7];
+	array_uint16_le_set(new_time, datetime->year);
+	new_time[2] = datetime->month;
+	new_time[3] = datetime->day;
+	new_time[4] = datetime->hour;
+	new_time[5] = datetime->minute;
+	new_time[6] = datetime->second;
+	status = cressi_goa_device_transfer (device, CMD_SET_TIME, new_time, 7, NULL, 0, NULL, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the new time.");
+	}
 	return status;
 }
