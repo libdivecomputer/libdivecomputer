@@ -36,6 +36,7 @@
 
 #define CMD_VERSION 0x00
 #define CMD_SET_TIME 0x13
+#define CMD_EXIT_PCLINK 0x1D
 #define CMD_LOGBOOK 0x21
 #define CMD_DIVE    0x22
 
@@ -66,6 +67,7 @@ typedef struct cressi_goa_device_t {
 static dc_status_t cressi_goa_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
 static dc_status_t cressi_goa_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
+static dc_status_t cressi_goa_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t cressi_goa_device_vtable = {
 	sizeof(cressi_goa_device_t),
@@ -76,7 +78,7 @@ static const dc_device_vtable_t cressi_goa_device_vtable = {
 	NULL, /* dump */
 	cressi_goa_device_foreach, /* foreach */
 	cressi_goa_device_timesync, /* timesync */
-	NULL /* close */
+	cressi_goa_device_close /* close */
 };
 
 static dc_status_t
@@ -654,6 +656,26 @@ cressi_goa_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime
 	status = cressi_goa_device_transfer (device, CMD_SET_TIME, new_time, sizeof(new_time), NULL, 0, NULL, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to set the new time.");
+		return status;
+	}
+
+	return status;
+}
+
+static dc_status_t
+cressi_goa_device_close (dc_device_t *abstract)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	cressi_goa_device_t *device = (cressi_goa_device_t *) abstract;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return DC_STATUS_SUCCESS;
+	}
+
+	status = cressi_goa_device_transfer (device, CMD_EXIT_PCLINK, NULL, 0, NULL, 0, NULL, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to exit PC Link.");
 		return status;
 	}
 
