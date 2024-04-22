@@ -35,6 +35,7 @@
 #define ISINSTANCE(device) dc_device_isinstance((device), &cressi_goa_device_vtable)
 
 #define CMD_VERSION 0x00
+#define CMD_SET_TIME 0x13
 #define CMD_LOGBOOK 0x21
 #define CMD_DIVE    0x22
 
@@ -64,6 +65,7 @@ typedef struct cressi_goa_device_t {
 
 static dc_status_t cressi_goa_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t cressi_goa_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 
 static const dc_device_vtable_t cressi_goa_device_vtable = {
 	sizeof(cressi_goa_device_t),
@@ -73,7 +75,7 @@ static const dc_device_vtable_t cressi_goa_device_vtable = {
 	NULL, /* write */
 	NULL, /* dump */
 	cressi_goa_device_foreach, /* foreach */
-	NULL, /* timesync */
+	cressi_goa_device_timesync, /* timesync */
 	NULL /* close */
 };
 
@@ -628,5 +630,32 @@ error_free_dive:
 error_free_logbook:
 	dc_buffer_free(logbook);
 error_exit:
+	return status;
+}
+
+static dc_status_t
+cressi_goa_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	cressi_goa_device_t *device = (cressi_goa_device_t *) abstract;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return DC_STATUS_UNSUPPORTED;
+	}
+
+	unsigned char new_time[7];
+	array_uint16_le_set(new_time, datetime->year);
+	new_time[2] = datetime->month;
+	new_time[3] = datetime->day;
+	new_time[4] = datetime->hour;
+	new_time[5] = datetime->minute;
+	new_time[6] = datetime->second;
+	status = cressi_goa_device_transfer (device, CMD_SET_TIME, new_time, sizeof(new_time), NULL, 0, NULL, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the new time.");
+		return status;
+	}
+
 	return status;
 }
