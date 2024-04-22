@@ -354,6 +354,14 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 			}
 			time += value - t;
+			if (divemode == FREEDIVE_ADV && t) {
+				// Time (seconds).
+				sample.time = time * 1000;
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
+				// Depth (1/10 m).
+				sample.depth = depth / 10.0;
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
+			}
 		}
 
 		if (complete) {
