@@ -339,7 +339,21 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			temperature = value;
 			have_temperature = 1;
 		} else if (type == TIME) {
-			time += value;
+			unsigned int surftime = value;
+			if (surftime > interval) {
+				surftime -= interval;
+				time += interval;
+
+				// Time (seconds).
+				sample.time = time * 1000;
+				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
+				// Depth (1/10 m).
+				sample.depth = 0.0;
+				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
+			}
+			time += surftime;
+			depth = 0;
+			complete = 1;
 		}
 
 		if (complete) {
