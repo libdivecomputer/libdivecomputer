@@ -41,7 +41,7 @@
 #define GAUGE        3
 #define FREEDIVE_ADV 5
 
-#define NGASMIXES 2
+#define NGASMIXES 3
 
 #define UNDEFINED 0xFFFFFFFF
 
@@ -56,11 +56,12 @@ typedef struct cressi_goa_layout_t {
 	unsigned int headersize;
 	unsigned int datetime;
 	unsigned int divetime;
-	unsigned int gasmix;
+	unsigned int gasmix[NGASMIXES];
 	unsigned int atmospheric;
 	unsigned int maxdepth;
 	unsigned int avgdepth;
 	unsigned int temperature;
+	unsigned int data_start;
 } cressi_goa_layout_t;
 
 static dc_status_t cressi_goa_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -79,64 +80,131 @@ static const dc_parser_vtable_t cressi_goa_parser_vtable = {
 	NULL /* destroy */
 };
 
-static const cressi_goa_layout_t layouts[] = {
+static const cressi_goa_layout_t layouts_v0[] = {
 	/* SCUBA */
 	{
 		0x61, /* headersize */
 		0x11, /* datetime */
 		0x19, /* divetime */
-		0x1F, /* gasmix */
+		{ 0x1F, 0x21, UNDEFINED }, /* gasmix */
 		0x23, /* atmospheric */
 		0x4E, /* maxdepth */
 		0x50, /* avgdepth */
 		0x52, /* temperature */
+		UNDEFINED, /* data_start */
 	},
 	/* NITROX */
 	{
 		0x61, /* headersize */
 		0x11, /* datetime */
 		0x19, /* divetime */
-		0x1F, /* gasmix */
+		{ 0x1F, 0x21, UNDEFINED }, /* gasmix */
 		0x23, /* atmospheric */
 		0x4E, /* maxdepth */
 		0x50, /* avgdepth */
 		0x52, /* temperature */
+		UNDEFINED, /* data_start */
 	},
 	/* FREEDIVE */
 	{
 		0x2B, /* headersize */
 		0x11, /* datetime */
 		0x19, /* divetime */
-		UNDEFINED, /* gasmix */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
 		UNDEFINED, /* atmospheric */
 		0x1C, /* maxdepth */
 		UNDEFINED, /* avgdepth */
 		0x1E, /* temperature */
+		UNDEFINED, /* data_start */
 	},
 	/* GAUGE */
 	{
 		0x2D, /* headersize */
 		0x11, /* datetime */
 		0x19, /* divetime */
-		UNDEFINED, /* gasmix */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
 		0x1B, /* atmospheric */
 		0x1D, /* maxdepth */
 		0x1F, /* avgdepth */
 		0x21, /* temperature */
+		UNDEFINED, /* data_start */
+	},
+};
+
+static const cressi_goa_layout_t layouts_v4[] = {
+	/* SCUBA */
+	{
+		82, /* headersize */
+		4, /* datetime */
+		11, /* divetime */
+		{ 17, 19, 21 }, /* gasmix[0..2] */
+		23, /* atmospheric */
+		66, /* maxdepth */
+		68, /* avgdepth */
+		70, /* temperature */
+		UNDEFINED, /* data_start */
+	},
+	/* NITROX */
+	{
+		82, /* headersize */
+		4, /* datetime */
+		11, /* divetime */
+		{ 17, 19, 21 }, /* gasmix[0..2] */
+		23, /* atmospheric */
+		66, /* maxdepth */
+		68, /* avgdepth */
+		70, /* temperature */
+		UNDEFINED, /* data_start */
+	},
+	/* FREEDIVE */
+	{
+		27, /* headersize */
+		4, /* datetime */
+		21, /* divetime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
+		UNDEFINED, /* atmospheric */
+		15, /* maxdepth */
+		UNDEFINED, /* avgdepth */
+		17, /* temperature */
+		UNDEFINED, /* data_start */
+	},
+	/* GAUGE */
+	{
+		28, /* headersize */
+		4, /* datetime */
+		11, /* divetime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
+		13, /* atmospheric */
+		15, /* maxdepth */
+		17, /* avgdepth */
+		19, /* temperature */
+		UNDEFINED, /* data_start */
 	},
 	/* Undefined */
 	{ },
 	/* Advanced FREEDIVE */
 	{
-		0x21, /* headersize */
-		0x09, /* datetime */
-		0x1B, /* divetime */
-		UNDEFINED, /* gasmix */
+		28, /* headersize */
+		4, /* datetime */
+		22, /* divetime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
 		UNDEFINED, /* atmospheric */
-		0x15, /* maxdepth */
+		16, /* maxdepth */
 		UNDEFINED, /* avgdepth */
-		0x17, /* temperature */
+		18, /* temperature */
+		UNDEFINED, /* data_start */
 	},
+};
+
+const struct {
+	const cressi_goa_layout_t *layout;
+	size_t size;
+} layouts[] = {
+	{ layouts_v0, C_ARRAY_SIZE(layouts_v0) },
+	{ NULL, 0 },
+	{ NULL, 0 },
+	{ NULL, 0 },
+	{ layouts_v4, C_ARRAY_SIZE(layouts_v4) },
 };
 
 dc_status_t
@@ -161,28 +229,58 @@ cressi_goa_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 	return DC_STATUS_SUCCESS;
 }
 
-static dc_status_t
-cressi_goa_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
+static dc_status_t cressi_goa_get_layout(dc_parser_t *abstract, unsigned int *divemode, cressi_goa_layout_t *layout)
 {
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < 3) {
+	if (size < 4)
 		return DC_STATUS_DATAFORMAT;
+
+	cressi_goa_layout_t dynamic_layout;
+	unsigned int divemode_;
+
+	unsigned char version = data[2];
+	if (data[0] == 0xdc && data[1] == 0xdc && (version == 0x00 || version == 0x04)) {
+		if (version >= C_ARRAY_SIZE(layouts)) {
+			return DC_STATUS_DATAFORMAT;
+		}
+
+		divemode_ = data[6];
+		if (divemode_ >= layouts[version].size) {
+			return DC_STATUS_DATAFORMAT;
+		}
+
+		*layout = layouts[version].layout[divemode_];
+		layout->data_start = 4 + data[3];
+	} else {
+		divemode_ = data[2];
+		if (divemode_ >= C_ARRAY_SIZE(layouts_v0)) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		*layout = layouts_v0[divemode_];
+		layout->data_start = 0;
 	}
 
-	unsigned int divemode = data[2];
-	if (divemode >= C_ARRAY_SIZE(layouts)) {
+	if (size < layout->headersize + layout->data_start)
 		return DC_STATUS_DATAFORMAT;
-	}
 
-	const cressi_goa_layout_t *layout = &layouts[divemode];
+	if (divemode)
+		*divemode = divemode_;
 
-	if (size < layout->headersize) {
-		return DC_STATUS_DATAFORMAT;
-	}
+	return DC_STATUS_SUCCESS;
+}
 
-	const unsigned char *p = abstract->data + layout->datetime;
+static dc_status_t
+cressi_goa_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
+{
+	cressi_goa_layout_t dynamic_layout;
+	dc_status_t status = cressi_goa_get_layout(abstract, NULL, &dynamic_layout);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+	const cressi_goa_layout_t *layout = &dynamic_layout;
+
+	const unsigned char *p = abstract->data + layout->data_start + layout->datetime;
 
 	if (datetime) {
 		datetime->year = array_uint16_le(p);
@@ -200,29 +298,21 @@ cressi_goa_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 static dc_status_t
 cressi_goa_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
-	const unsigned char *data = abstract->data;
-	unsigned int size = abstract->size;
-
-	if (size < SZ_HEADER)
-		return DC_STATUS_DATAFORMAT;
-
-	unsigned int divemode = data[2];
-	if (divemode >= C_ARRAY_SIZE(layouts)) {
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	const cressi_goa_layout_t *layout = &layouts[divemode];
-
-	if (size < layout->headersize)
-		return DC_STATUS_DATAFORMAT;
+	unsigned int divemode;
+	cressi_goa_layout_t dynamic_layout;
+	dc_status_t status = cressi_goa_get_layout(abstract, &divemode, &dynamic_layout);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+	const cressi_goa_layout_t *layout = &dynamic_layout;
+	const unsigned char *data = abstract->data + layout->data_start;
 
 	unsigned int ngasmixes = 0;
-	if (layout->gasmix != UNDEFINED) {
-		for (unsigned int i = 0; i < NGASMIXES; ++i) {
-			if (data[layout->gasmix + 2 * i + 1] == 0)
-				break;
-			ngasmixes++;
-		}
+	for (unsigned int i = 0; i < NGASMIXES; ++i) {
+		if (layout->gasmix[i] == UNDEFINED)
+			break;
+		if (data[layout->gasmix[i] + 1] == 0)
+			break;
+		ngasmixes++;
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
@@ -258,9 +348,11 @@ cressi_goa_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 			*((unsigned int *) value) = ngasmixes;
 			break;
 		case DC_FIELD_GASMIX:
+			if (ngasmixes <= flags)
+				return DC_STATUS_INVALIDARGS;
 			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
-			gasmix->oxygen = data[layout->gasmix + 2 * flags + 1] / 100.0;
+			gasmix->oxygen = data[layout->gasmix[flags] + 1] / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_DIVEMODE:
@@ -294,20 +386,15 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
 
-	if (size < SZ_HEADER)
-		return DC_STATUS_DATAFORMAT;
+	unsigned int divemode;
+	cressi_goa_layout_t dynamic_layout;
+	dc_status_t status = cressi_goa_get_layout(abstract, &divemode, &dynamic_layout);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+	const cressi_goa_layout_t *layout = &dynamic_layout;
 
-	unsigned int divemode = data[2];
-	if (divemode >= C_ARRAY_SIZE(layouts)) {
-		return DC_STATUS_DATAFORMAT;
-	}
-
-	const cressi_goa_layout_t *layout = &layouts[divemode];
-
-	if (size < layout->headersize)
-		return DC_STATUS_DATAFORMAT;
-
-	unsigned int interval = divemode == FREEDIVE ? 2 : divemode == FREEDIVE_ADV ? 1 : 5;
+	const unsigned int time_multiplier = 500;
+	unsigned int interval = divemode == FREEDIVE ? 4 : 10;
 
 	unsigned int time = 0;
 	unsigned int depth = 0;
@@ -316,7 +403,36 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	unsigned int have_temperature = 0;
 	unsigned int complete = 0;
 
-	unsigned int offset = layout->headersize;
+	unsigned int offset = layout->data_start + layout->headersize;
+
+	if (divemode == FREEDIVE_ADV) {
+		const unsigned char *header = data + layout->data_start;
+		unsigned int sample_rate = header[10];
+		switch (sample_rate) {
+			case 1:
+				interval = 1;
+				break;
+			case 2:
+				interval = 2;
+				break;
+			case 3:
+				interval = 4;
+				break;
+			default:
+				ERROR (abstract->context, "Unknown sample rate: 0x%02x.", sample_rate);
+				return DC_STATUS_DATAFORMAT;
+		}
+
+		/* Adjust the size in order to skip the Advanced Freedive Dip Stats that come at the end.
+		 * If we'd ever want to use those, the structure is:
+		 *
+		 * SURFTIME | MAXDEPTH | DIPTIME | MINTEMP | SPEED_DESC | SPEED_ASC | TARAVANA_VIOLATION
+		 *   u16    |   u16    |   u16   |   u16   |    u16     |    u16    |       bool
+		 */
+		unsigned int num_samples = array_uint16_le (header + 2);
+		size = layout->data_start + layout->headersize + num_samples * 2;
+	}
+
 	while (offset + 2 <= size) {
 		dc_sample_value_t sample = {0};
 
@@ -342,21 +458,21 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		} else if (type == TIME) {
 			if (divemode == FREEDIVE_ADV) {
 				if (time)
-					t = interval;
-				time += t;
+					t = 1;
+				time += (t * interval);
 				depth = 0;
 
 				// Time (seconds).
-				sample.time = time * 1000;
+				sample.time = time * time_multiplier;
 				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 				// Depth (1/10 m).
 				sample.depth = depth / 10.0;
 				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 			}
-			time += value - t;
+			time += (value - t) * interval;
 			if (divemode == FREEDIVE_ADV && t) {
 				// Time (seconds).
-				sample.time = time * 1000;
+				sample.time = time * time_multiplier;
 				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 				// Depth (1/10 m).
 				sample.depth = depth / 10.0;
@@ -366,7 +482,7 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 
 		if (complete) {
 			// Time (seconds).
-			sample.time = time * 1000;
+			sample.time = time * time_multiplier;
 			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 			// Temperature (1/10 °C).

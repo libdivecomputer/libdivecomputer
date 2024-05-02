@@ -21,6 +21,7 @@
 
 #include <string.h> // memcpy, memcmp
 #include <stdlib.h> // malloc, free
+#include <stdbool.h> // bool
 #include <assert.h> // assert
 
 #include "cressi_goa.h"
@@ -381,43 +382,104 @@ cressi_goa_device_set_fingerprint (dc_device_t *abstract, const unsigned char da
 	return DC_STATUS_SUCCESS;
 }
 
-struct cressi_goa_version_differences {
-	unsigned int version;
+struct cressi_goa_irda_api_conf {
+	unsigned char version;
 	unsigned int idlen;
-	unsigned int logbook_entry_len;
+	unsigned char logbook_entry_len;
 	unsigned int logbook_fp_offset;
-	unsigned int dive_fp_offset;
 	unsigned char cmd_logbook;
 };
 
-static dc_status_t
-cressi_goa_determine_version(dc_device_t *abstract, unsigned char *id, const struct cressi_goa_version_differences **conf)
+static int
+cressi_goa_irda_api_version(dc_device_t *abstract, dc_event_devinfo_t *devinfo)
 {
-	static const struct cressi_goa_version_differences version_differences[] = {
-		{ 0,  9, SZ_HEADER, FP_OFFSET, FP_OFFSET, CMD_LOGBOOK },
+	if (devinfo->model > 11) {
+		ERROR (abstract->context, "Unknown model %d.", devinfo->model);
+		return -1;
+	}
+	int version;
+	if (devinfo->firmware >= 161 && devinfo->firmware <= 165) {
+		version = 0;
+	} else if (devinfo->firmware >= 166 && devinfo->firmware <= 169) {
+		version = 1;
+	} else if (devinfo->firmware >= 170 && devinfo->firmware <= 179) {
+		version = 2;
+	} else if ((devinfo->firmware >= 100 && devinfo->firmware <= 110)
+			|| devinfo->firmware == 900) {
+		version = 3;
+	} else if (devinfo->firmware >= 200 && devinfo->firmware <= 205) {
+		version = 4;
+	} else {
+		ERROR (abstract->context, "Unknown firmware version %d.", devinfo->firmware);
+		return -1;
+	}
+	const bool version_support_on_model[5][11] = {
+		/*  1      2      3      4      5      6      7      8      9      10     11  */
+		{  true,  true, false, false, false, false, false, false, false, false, false }, /* API v0 */
+		{  true,  true, false, false, false, false, false, false, false, false, false }, /* API v1 */
+		{  true,  true, false, false, false, false, false, false,  true, false, false }, /* API v2 */
+		{  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true }, /* API v3 */
+		{  true,  true, false,  true,  true, false, false, false,  true,  true, false }, /* API v4 */
+	};
+	if (!version_support_on_model[version][devinfo->model - 1]) {
+		ERROR (abstract->context, "Firmware version %d of Model %d not known to have support for API v%d.",
+				devinfo->firmware, devinfo->model, version);
+		return -1;
+	}
+	return version;
+}
+
+static dc_status_t
+cressi_goa_read_id(dc_device_t *abstract, bool emit_events, const struct cressi_goa_irda_api_conf **conf)
+{
+	static const struct cressi_goa_irda_api_conf version_differences[] = {
+		{ 0,  9, SZ_HEADER, FP_OFFSET, CMD_LOGBOOK },
 		/*    4 is the new version
 		 *   11 is the new response length to the `CMD_VERSION` command
 		 *   15 is the length of an entry in the Logbook
 		 *    3 is the offset to the START date in the Logbook header
-		 *    9 is the offset to the START date in the Dive header
 		 * 0x23 is the new command to request the Logbook
 		 */
-		{ 4, 11,        15,         3,         9, CMD_LOGBOOK_V4 },
+		{ 4, 11,        15,         3, CMD_LOGBOOK_V4 },
 	};
+	const struct cressi_goa_irda_api_conf *conf_;
 	cressi_goa_device_t *device = (cressi_goa_device_t *) abstract;
 	dc_status_t status = DC_STATUS_SUCCESS;
-	unsigned char id_[11] = {0};
-	if (id == NULL)
-		id = id_;
+	unsigned char id[11] = {0};
+	INFO (abstract->context, "--------------------");
+	INFO (abstract->context, "Starting probing now, \'Unexpected payload size\' errors can be ignored.");
 	for (size_t version = 0; version < C_ARRAY_SIZE(version_differences); version++) {
 		status = cressi_goa_device_transfer (device, CMD_VERSION, NULL, 0, id, version_differences[version].idlen, NULL, NULL);
 		if (status == DC_STATUS_SUCCESS) {
-			*conf = &version_differences[version];
-			return status;
+			conf_ = &version_differences[version];
+			break;
 		}
 	}
+	INFO (abstract->context, "Finished probing.");
+	INFO (abstract->context, "--------------------");
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the version information.");
+		return status;
+	}
+	// Emit a vendor event.
+	dc_event_vendor_t vendor;
+	vendor.data = id;
+	vendor.size = sizeof (id);
+
+	// Emit a device info event.
+	dc_event_devinfo_t devinfo;
+	devinfo.model = id[4];
+	devinfo.firmware = array_uint16_le (id + 5);
+	devinfo.serial = array_uint32_le (id + 0);
+
+	int version = cressi_goa_irda_api_version(abstract, &devinfo);
+	if (version != conf_->version) {
+		return DC_STATUS_UNSUPPORTED;
+	}
+	*conf = conf_;
+	if (emit_events) {
+		device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
+		device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 	}
 	return status;
 }
@@ -435,25 +497,11 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the version information.
-	const struct cressi_goa_version_differences *conf;
-	unsigned char id[11] = {0};
-	status = cressi_goa_determine_version(abstract, id, &conf);
+	const struct cressi_goa_irda_api_conf *conf;
+	status = cressi_goa_read_id(abstract, false, &conf);
 	if (status != DC_STATUS_SUCCESS) {
 		return status;
 	}
-
-	// Emit a vendor event.
-	dc_event_vendor_t vendor;
-	vendor.data = id;
-	vendor.size = sizeof (id);
-	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
-
-	// Emit a device info event.
-	dc_event_devinfo_t devinfo;
-	devinfo.model = id[4];
-	devinfo.firmware = array_uint16_le (id + 5);
-	devinfo.serial = array_uint32_le (id + 0);
-	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate memory for the logbook data.
 	logbook = dc_buffer_new(4096);
@@ -474,7 +522,6 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		ERROR (abstract->context, "Failed to read the logbook data.");
 		goto error_free_logbook;
 	}
-	unsigned int logbook_entries = array_uint16_le(entries);
 
 	const unsigned char *logbook_data = dc_buffer_get_data(logbook);
 	size_t logbook_size = dc_buffer_get_size(logbook);
@@ -547,7 +594,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			 *  ...    u16   |   u16   |    u16   |    u16   |   u16   | u16
 			 *
 			 *  START = A Date in the "default" byte-wise form u16u8u8u8u8 for YMDhm
-			 *  RATE = SampleRate - 02 means seconds AFAICT
+			 *  RATE = SampleRate - 1=0.5sec 2=1sec 3=2sec
 			 *  TARA = Taravana Factor
 			 *  SESSION = Session Time
 			 *  DIPS = Number of Dips/Dives in this session
@@ -574,21 +621,22 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 					dc_buffer_get_size (dive),
 					array_uint16_le(dc_buffer_get_data (dive)),
 					num_dips);
-			/* Cut off the dip details that come at the end
-			 * If we'd ever want to use that, the structure is:
-			 *
-			 * SURFTIME | MAXDEPTH | DIPTIME | MINTEMP | SPEED_DESC | SPEED_ASC | TARAVANA_VIOLATION
-			 *   u16    |   u16    |   u16   |   u16   |    u16     |    u16    |       bool
-			 */
-			dc_buffer_slice(dive, 0, dive_size - (num_dips * 13));
 		}
 
-		// Those 5 extra bytes contain the dive mode, which is required for
-		// parsing the dive data. Therefore, insert 5 bytes again. The
-		// trailing 4 bytes are currently not used but preserved.
-		// In the old version those 4 bytes contain "some 32bit address",
-		// in the new version they contain the upper 4 bytes of the START date.
-		if (!dc_buffer_insert (dive, 2, logbook_data + offset + 2, 5)) {
+		/* Inject a header
+		 * [0] = divecomputer  -  0xdc
+		 * [1] = divecomputer  -  0xdc
+		 * [2] = version       -  0x**
+		 * [3] = length        -  0x**
+		 */
+		unsigned char header[4] = {0xdc, 0xdc, conf->version, conf->logbook_entry_len};
+		if (!dc_buffer_insert (dive, 0, header, 4)) {
+			ERROR (abstract->context, "Out of memory.");
+			status = DC_STATUS_NOMEMORY;
+			goto error_free_dive;
+		}
+		/* Inject the logbook entry, which contains the dive mode */
+		if (!dc_buffer_insert (dive, 4, logbook_data + offset, conf->logbook_entry_len)) {
 			ERROR (abstract->context, "Out of memory.");
 			status = DC_STATUS_NOMEMORY;
 			goto error_free_dive;
@@ -597,7 +645,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		dive_data = dc_buffer_get_data (dive);
 		dive_size = dc_buffer_get_size (dive);
 
-		if (callback && !callback(dive_data, dive_size, dive_data + conf->dive_fp_offset, sizeof(device->fingerprint), userdata))
+		if (callback && !callback(dive_data, dive_size, dive_data + 4 + conf->logbook_fp_offset, sizeof(device->fingerprint), userdata))
 			break;
 	}
 
