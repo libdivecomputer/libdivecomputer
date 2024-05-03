@@ -32,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 dc_status_t
-mares_iconhd_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
+mares_iconhd_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream, unsigned int model);
 
 dc_status_t
 mares_iconhd_parser_create (dc_parser_t **parser, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model);
