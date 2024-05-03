@@ -91,6 +91,7 @@
 #define CMD_OBJ_ODD   0xFE
 
 #define OBJ_DEVICE        0x2000
+#define OBJ_DEVICE_MODEL  0x02
 #define OBJ_DEVICE_SERIAL 0x04
 #define OBJ_LOGBOOK       0x2008
 #define OBJ_LOGBOOK_COUNT 0x01
@@ -1020,6 +1021,26 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		ERROR (abstract->context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
+
+	// Read the model number.
+	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_MODEL);
+	if (rc != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to read the model number.");
+		dc_buffer_free (buffer);
+		return rc;
+	}
+
+	if (dc_buffer_get_size (buffer) < 4) {
+		ERROR (abstract->context, "Unexpected number of bytes received (" DC_PRINTF_SIZE ").",
+			dc_buffer_get_size (buffer));
+		dc_buffer_free (buffer);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	unsigned int DC_ATTR_UNUSED model = array_uint32_le (dc_buffer_get_data (buffer));
+
+	// Erase the buffer.
+	dc_buffer_clear (buffer);
 
 	// Read the serial number.
 	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_SERIAL);
