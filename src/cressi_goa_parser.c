@@ -20,19 +20,36 @@
  */
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "cressi_goa.h"
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
 
+/* One major difference between 'libdc' of Subsurface and upstream
+ * 'libdivecomputer' is the open discussion on String-based interfaces.
+ * Let's (ab)use this to determine whether we're building for Subsurface.
+ */
+#ifdef SAMPLE_EVENT_STRING
+/* Subsurface currently only handles sample rates of equal seconds.
+ * We need to make sure that we only report events on equal seconds.
+ */
+#define SUBSURFACE_ACCEPTABLE(interval, time) (((interval) != 1) || (((time) % 2) == 0))
+#define SUBSURFACE_CORRECTION(interval, time) (((interval) == 1) && (((time) % 2) == 1))
+#else
+/* libdivecomputer can deal with sub-second sample rates. */
+#define SUBSURFACE_ACCEPTABLE(interval, time) (true)
+#define SUBSURFACE_CORRECTION(interval, time) (false)
+#endif
+
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &cressi_goa_parser_vtable)
 
 #define SZ_HEADER          23
 
-#define DEPTH       0
-#define DEPTH2      1
-#define TIME        2
+#define DEPTH_SCUBA 0
+#define DEPTH_FREE  1
+#define SURFACE     2
 #define TEMPERATURE 3
 
 #define SCUBA        0
@@ -61,6 +78,7 @@ typedef struct cressi_goa_layout_t {
 	unsigned int maxdepth;
 	unsigned int avgdepth;
 	unsigned int temperature;
+	unsigned int version;
 	unsigned int data_start;
 } cressi_goa_layout_t;
 
@@ -91,6 +109,7 @@ static const cressi_goa_layout_t layouts_v0[] = {
 		0x4E, /* maxdepth */
 		0x50, /* avgdepth */
 		0x52, /* temperature */
+		0, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* NITROX */
@@ -103,6 +122,7 @@ static const cressi_goa_layout_t layouts_v0[] = {
 		0x4E, /* maxdepth */
 		0x50, /* avgdepth */
 		0x52, /* temperature */
+		0, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* FREEDIVE */
@@ -115,6 +135,7 @@ static const cressi_goa_layout_t layouts_v0[] = {
 		0x1C, /* maxdepth */
 		UNDEFINED, /* avgdepth */
 		0x1E, /* temperature */
+		0, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* GAUGE */
@@ -127,6 +148,7 @@ static const cressi_goa_layout_t layouts_v0[] = {
 		0x1D, /* maxdepth */
 		0x1F, /* avgdepth */
 		0x21, /* temperature */
+		0, /* version */
 		UNDEFINED, /* data_start */
 	},
 };
@@ -142,6 +164,7 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		66, /* maxdepth */
 		68, /* avgdepth */
 		70, /* temperature */
+		4, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* NITROX */
@@ -154,6 +177,7 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		66, /* maxdepth */
 		68, /* avgdepth */
 		70, /* temperature */
+		4, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* FREEDIVE */
@@ -166,6 +190,7 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		15, /* maxdepth */
 		UNDEFINED, /* avgdepth */
 		17, /* temperature */
+		4, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* GAUGE */
@@ -178,10 +203,11 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		15, /* maxdepth */
 		17, /* avgdepth */
 		19, /* temperature */
+		4, /* version */
 		UNDEFINED, /* data_start */
 	},
 	/* Undefined */
-	{ },
+	{ 0 },
 	/* Advanced FREEDIVE */
 	{
 		28, /* headersize */
@@ -192,6 +218,7 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		16, /* maxdepth */
 		UNDEFINED, /* avgdepth */
 		18, /* temperature */
+		4, /* version */
 		UNDEFINED, /* data_start */
 	},
 };
@@ -237,7 +264,6 @@ static dc_status_t cressi_goa_get_layout(dc_parser_t *abstract, unsigned int *di
 	if (size < 4)
 		return DC_STATUS_DATAFORMAT;
 
-	cressi_goa_layout_t dynamic_layout;
 	unsigned int divemode_;
 
 	unsigned char version = data[2];
@@ -252,6 +278,7 @@ static dc_status_t cressi_goa_get_layout(dc_parser_t *abstract, unsigned int *di
 		}
 
 		*layout = layouts[version].layout[divemode_];
+		layout->version = version;
 		layout->data_start = 4 + data[3];
 	} else {
 		divemode_ = data[2];
@@ -380,6 +407,26 @@ cressi_goa_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 	return DC_STATUS_SUCCESS;
 }
 
+static const unsigned int cressi_goa_time_multiplier = 500;
+
+struct cressi_goa_parser_ctx {
+	dc_parser_t *abstract;
+
+	dc_sample_callback_t callback;
+	void *userdata;
+
+	bool last_depth_is_zero;
+};
+
+static void cressi_goa_parser_callback(dc_sample_type_t type, const dc_sample_value_t *value, struct cressi_goa_parser_ctx *ctx)
+{
+	if (!ctx->callback)
+		return;
+	if (type == DC_SAMPLE_DEPTH)
+		ctx->last_depth_is_zero = value->depth == 0.0;
+	ctx->callback(type, value, ctx->userdata);
+}
+
 static dc_status_t
 cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
@@ -393,21 +440,19 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		return status;
 	const cressi_goa_layout_t *layout = &dynamic_layout;
 
-	const unsigned int time_multiplier = 500;
-	unsigned int interval = divemode == FREEDIVE ? 4 : 10;
+	struct cressi_goa_parser_ctx ctx = {0};
+	ctx.abstract = abstract;
+	ctx.callback = callback;
+	ctx.userdata = userdata;
 
-	unsigned int time = 0;
-	unsigned int depth = 0;
-	unsigned int gasmix = 0, gasmix_previous = 0xFFFFFFFF;
-	unsigned int temperature = 0;
-	unsigned int have_temperature = 0;
-	unsigned int complete = 0;
+	unsigned int interval = divemode == FREEDIVE ? 4 : 10;
 
 	unsigned int offset = layout->data_start + layout->headersize;
 
 	if (divemode == FREEDIVE_ADV) {
 		const unsigned char *header = data + layout->data_start;
 		unsigned int sample_rate = header[10];
+		/* Valid sample rates are: 0.5s, 1s, 2s, 5s */
 		switch (sample_rate) {
 			case 1:
 				interval = 1;
@@ -417,6 +462,9 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 				break;
 			case 3:
 				interval = 4;
+				break;
+			case 4:
+				interval = 10;
 				break;
 			default:
 				ERROR (abstract->context, "Unknown sample rate: 0x%02x.", sample_rate);
@@ -430,8 +478,15 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		 *   u16    |   u16    |   u16   |   u16   |    u16     |    u16    |       bool
 		 */
 		unsigned int num_samples = array_uint16_le (header + 2);
-		size = layout->data_start + layout->headersize + num_samples * 2;
+		size = offset + num_samples * 2;
 	}
+
+	unsigned int time = 0;
+	unsigned int depth = 0;
+	unsigned int gasmix = 0, gasmix_previous = 0xFFFFFFFF;
+	unsigned int temperature = 0;
+	bool have_temperature = false;
+	bool complete = false;
 
 	while (offset + 2 <= size) {
 		dc_sample_value_t sample = {0};
@@ -442,73 +497,86 @@ cressi_goa_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		unsigned int value = (raw & 0xFFFC) >> 2;
 		unsigned int t = 0;
 
-		if (type == DEPTH) {
-			depth =  (value & 0x07FF);
-			gasmix = (value & 0x0800) >> 11;
+		if (type == DEPTH_SCUBA) {
+			depth = value & 0x7ffu;
+			gasmix = (value >> 11) & ((layout->version < 3) ? 0x1u : 0x3u);
+			/* speed_level = (layout->version < 3) ? (raw >> 14) & 0x3u : 0; */
 			time += interval;
-			complete = 1;
-		} else if (type == DEPTH2) {
-			depth =  (value & 0x0FFF);
-			gasmix = 0;
+			complete = true;
+		} else if (type == DEPTH_FREE) {
+			depth = value & ((layout->version < 4) ? 0x7ffu : 0xfffu);
 			time += interval;
-			complete = 1;
+			complete = true;
 		} else if (type == TEMPERATURE) {
 			temperature = value;
-			have_temperature = 1;
-		} else if (type == TIME) {
-			if (divemode == FREEDIVE_ADV) {
+			have_temperature = true;
+		} else if (type == SURFACE) {
+			// SURFACE values are not given in the sample rate, but as seconds
+			if (divemode == FREEDIVE_ADV && (offset + 2 < size)) {
 				if (time)
-					t = 1;
-				time += (t * interval);
+					t = interval;
+				if (SUBSURFACE_CORRECTION(interval, (time + t)))
+					t = 2;
+				time += t;
 				depth = 0;
 
 				// Time (seconds).
-				sample.time = time * time_multiplier;
-				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
+				sample.time = time * cressi_goa_time_multiplier;
+				cressi_goa_parser_callback (DC_SAMPLE_TIME, &sample, &ctx);
 				// Depth (1/10 m).
-				sample.depth = depth / 10.0;
-				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
+				sample.depth = 0.0;
+				cressi_goa_parser_callback (DC_SAMPLE_DEPTH, &sample, &ctx);
 			}
-			time += (value - t) * interval;
+			// One `time` unit equals 500ms, so we have to multiply the `value` with 2 in order to count seconds
+			time += ((value * 2) - t);
 			if (divemode == FREEDIVE_ADV && t) {
+				unsigned int correction = SUBSURFACE_CORRECTION(interval, time) ? 1 : 0;
 				// Time (seconds).
-				sample.time = time * time_multiplier;
-				if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
+				sample.time = (time - correction) * cressi_goa_time_multiplier;
+				cressi_goa_parser_callback (DC_SAMPLE_TIME, &sample, &ctx);
 				// Depth (1/10 m).
-				sample.depth = depth / 10.0;
-				if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
+				sample.depth = 0.0;
+				cressi_goa_parser_callback (DC_SAMPLE_DEPTH, &sample, &ctx);
 			}
 		}
 
-		if (complete) {
+		if (complete && SUBSURFACE_ACCEPTABLE(interval, time)) {
 			// Time (seconds).
-			sample.time = time * time_multiplier;
-			if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
+			sample.time = time * cressi_goa_time_multiplier;
+			cressi_goa_parser_callback (DC_SAMPLE_TIME, &sample, &ctx);
 
 			// Temperature (1/10 °C).
 			if (have_temperature) {
 				sample.temperature = temperature / 10.0;
-				if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
-				have_temperature = 0;
+				cressi_goa_parser_callback (DC_SAMPLE_TEMPERATURE, &sample, &ctx);
+				have_temperature = false;
 			}
 
 			// Depth (1/10 m).
 			sample.depth = depth / 10.0;
-			if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
+			cressi_goa_parser_callback (DC_SAMPLE_DEPTH, &sample, &ctx);
 
 			// Gas change
 			if (divemode == SCUBA || divemode == NITROX) {
 				if (gasmix != gasmix_previous) {
 					sample.gasmix = gasmix;
-					if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
+					cressi_goa_parser_callback (DC_SAMPLE_GASMIX, &sample, &ctx);
 					gasmix_previous = gasmix;
 				}
 			}
 
-			complete = 0;
+			complete = false;
 		}
 
 		offset += 2;
+	}
+
+	if (!ctx.last_depth_is_zero) {
+		dc_sample_value_t sample = {0};
+		sample.time = time * cressi_goa_time_multiplier;
+		cressi_goa_parser_callback (DC_SAMPLE_TIME, &sample, &ctx);
+		sample.depth = 0.0;
+		cressi_goa_parser_callback (DC_SAMPLE_DEPTH, &sample, &ctx);
 	}
 
 	return DC_STATUS_SUCCESS;
