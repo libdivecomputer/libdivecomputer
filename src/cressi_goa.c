@@ -414,6 +414,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	logbook = dc_buffer_new(4096);
 	if (logbook == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
+		status = DC_STATUS_NOMEMORY;
 		goto error_exit;
 	}
 
@@ -455,6 +456,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	dive = dc_buffer_new(4096);
 	if (dive == NULL) {
 		ERROR (abstract->context, "Failed to allocate memory.");
+		status = DC_STATUS_NOMEMORY;
 		goto error_free_logbook;
 	}
 
