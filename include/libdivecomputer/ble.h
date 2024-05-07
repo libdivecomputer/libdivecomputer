@@ -48,6 +48,23 @@ extern "C" {
 #define DC_IOCTL_BLE_GET_ACCESSCODE   DC_IOCTL_IOR('b', 2, DC_IOCTL_SIZE_VARIABLE)
 #define DC_IOCTL_BLE_SET_ACCESSCODE   DC_IOCTL_IOW('b', 2, DC_IOCTL_SIZE_VARIABLE)
 
+/**
+ * Perform a BLE characteristic read/write operation.
+ *
+ * The UUID of the characteristic must be specified as a #dc_ble_uuid_t
+ * data structure. If the operation requires additional data as in- or
+ * output, the buffer must be located immediately after the
+ * #dc_ble_uuid_t data structure. The size of the ioctl request is the
+ * total size, including the size of the #dc_ble_uuid_t structure.
+ */
+#define DC_IOCTL_BLE_CHARACTERISTIC_READ  DC_IOCTL_IOR('b', 3, DC_IOCTL_SIZE_VARIABLE)
+#define DC_IOCTL_BLE_CHARACTERISTIC_WRITE DC_IOCTL_IOW('b', 3, DC_IOCTL_SIZE_VARIABLE)
+
+/**
+ * Bluetooth UUID (128 bits).
+ */
+typedef unsigned char dc_ble_uuid_t[16];
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
