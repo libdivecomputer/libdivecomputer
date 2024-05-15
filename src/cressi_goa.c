@@ -430,9 +430,9 @@ cressi_goa_irda_api_version(dc_device_t *abstract, dc_event_devinfo_t *devinfo)
 }
 
 static dc_status_t
-cressi_goa_read_id(dc_device_t *abstract, bool emit_events, const struct cressi_goa_irda_api_conf **conf)
+cressi_goa_read_id(dc_device_t *abstract, bool emit_events, struct cressi_goa_irda_api_conf *conf)
 {
-	static const struct cressi_goa_irda_api_conf version_differences[] = {
+	static const struct cressi_goa_irda_api_conf version_conf[] = {
 		{ 0,  9, SZ_HEADER, FP_OFFSET, CMD_LOGBOOK },
 		/*    4 is the new version
 		 *   11 is the new response length to the `CMD_VERSION` command
@@ -455,10 +455,10 @@ cressi_goa_read_id(dc_device_t *abstract, bool emit_events, const struct cressi_
 		ERROR (abstract->context, "Failed to read the version information.");
 		goto error_exit;
 	}
-	for (size_t version = 0; version < C_ARRAY_SIZE(version_differences); version++) {
-		if (dc_buffer_get_size(id) != version_differences[version].idlen)
+	for (size_t version = 0; version < C_ARRAY_SIZE(version_conf); version++) {
+		if (dc_buffer_get_size(id) != version_conf[version].idlen)
 			continue;
-		conf_ = &version_differences[version];
+		conf_ = &version_conf[version];
 		break;
 	}
 	if (conf_ == NULL) {
@@ -482,7 +482,8 @@ cressi_goa_read_id(dc_device_t *abstract, bool emit_events, const struct cressi_
 		status = DC_STATUS_UNSUPPORTED;
 		goto error_exit;
 	}
-	*conf = conf_;
+	*conf = *conf_;
+	conf->version = version;
 	if (emit_events) {
 		device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 		device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
@@ -505,7 +506,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the version information.
-	const struct cressi_goa_irda_api_conf *conf;
+	struct cressi_goa_irda_api_conf conf;
 	status = cressi_goa_read_id(abstract, false, &conf);
 	if (status != DC_STATUS_SUCCESS) {
 		return status;
@@ -520,7 +521,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 
 	// Read the logbook data.
-	status = cressi_goa_device_transfer (device, conf->cmd_logbook, NULL, 0, NULL, logbook, &progress);
+	status = cressi_goa_device_transfer (device, conf.cmd_logbook, NULL, 0, NULL, logbook, &progress);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the logbook data.");
 		goto error_free_logbook;
@@ -532,9 +533,9 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	// Count the number of dives.
 	unsigned int count = 0;
 	unsigned int offset = logbook_size;
-	while (offset > conf->logbook_entry_len) {
+	while (offset > conf.logbook_entry_len) {
 		// Move to the start of the logbook entry.
-		offset -= conf->logbook_entry_len;
+		offset -= conf.logbook_entry_len;
 
 		// Get the dive number.
 		unsigned int number= array_uint16_le (logbook_data + offset);
@@ -542,7 +543,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			break;
 
 		// Compare the fingerprint to identify previously downloaded entries.
-		if (memcmp (logbook_data + offset + conf->logbook_fp_offset, device->fingerprint, sizeof(device->fingerprint)) == 0) {
+		if (memcmp (logbook_data + offset + conf.logbook_fp_offset, device->fingerprint, sizeof(device->fingerprint)) == 0) {
 			break;
 		}
 
@@ -565,7 +566,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	offset = logbook_size;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Move to the start of the logbook entry.
-		offset -= conf->logbook_entry_len;
+		offset -= conf.logbook_entry_len;
 
 		// Read the dive data.
 		status = cressi_goa_device_transfer (device, CMD_DIVE, logbook_data + offset, 2, NULL, dive, &progress);
@@ -577,7 +578,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		const unsigned char *dive_data = dc_buffer_get_data (dive);
 		size_t dive_size = dc_buffer_get_size (dive);
 
-		if (conf->version == 0) {
+		if (conf.version != 4) {
 			// Verify the header in the logbook and dive data are identical.
 			// After the 2 byte dive number, the logbook header has 5 bytes
 			// extra, which are not present in the dive header.
@@ -633,14 +634,14 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		 * [2] = version       -  0x**
 		 * [3] = length        -  0x**
 		 */
-		unsigned char header[4] = {0xdc, 0xdc, conf->version, conf->logbook_entry_len};
+		unsigned char header[4] = {0xdc, 0xdc, conf.version, conf.logbook_entry_len};
 		if (!dc_buffer_insert (dive, 0, header, 4)) {
 			ERROR (abstract->context, "Out of memory.");
 			status = DC_STATUS_NOMEMORY;
 			goto error_free_dive;
 		}
 		/* Inject the logbook entry, which contains the dive mode */
-		if (!dc_buffer_insert (dive, 4, logbook_data + offset, conf->logbook_entry_len)) {
+		if (!dc_buffer_insert (dive, 4, logbook_data + offset, conf.logbook_entry_len)) {
 			ERROR (abstract->context, "Out of memory.");
 			status = DC_STATUS_NOMEMORY;
 			goto error_free_dive;
@@ -649,7 +650,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		dive_data = dc_buffer_get_data (dive);
 		dive_size = dc_buffer_get_size (dive);
 
-		if (callback && !callback(dive_data, dive_size, dive_data + 4 + conf->logbook_fp_offset, sizeof(device->fingerprint), userdata))
+		if (callback && !callback(dive_data, dive_size, dive_data + 4 + conf.logbook_fp_offset, sizeof(device->fingerprint), userdata))
 			break;
 	}
 

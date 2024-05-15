@@ -98,7 +98,7 @@ static const dc_parser_vtable_t cressi_goa_parser_vtable = {
 	NULL /* destroy */
 };
 
-static const cressi_goa_layout_t layouts_v0[] = {
+static const cressi_goa_layout_t layouts_original[] = {
 	/* SCUBA */
 	{
 		0x61, /* headersize */
@@ -153,8 +153,47 @@ static const cressi_goa_layout_t layouts_v0[] = {
 	},
 };
 
-static const cressi_goa_layout_t layouts_v4[] = {
-	/* SCUBA */
+static const cressi_goa_layout_t scuba_nitrox_layouts[] = {
+	/* v0 */
+	{
+		90, /* headersize */
+		12, /* datetime */
+		20, /* divetime */
+		{ 26, 28, UNDEFINED }, /* gasmix[0..2] */
+		23, /* atmospheric */
+		73, /* maxdepth */
+		75, /* avgdepth */
+		77, /* temperature */
+		0, /* version */
+		UNDEFINED, /* data_start */
+	},
+	/* v1-v2 */
+	{
+		92, /* headersize */
+		12, /* datetime */
+		20, /* divetime */
+		{ 26, 28, UNDEFINED }, /* gasmix[0..2] */
+		23, /* atmospheric */
+		73, /* maxdepth */
+		75, /* avgdepth */
+		77, /* temperature */
+		UNDEFINED, /* version */
+		UNDEFINED, /* data_start */
+	},
+	/* v3 */
+	{
+		92, /* headersize */
+		12, /* datetime */
+		20, /* divetime */
+		{ 26, 28, 87 }, /* gasmix[0..2] */
+		23, /* atmospheric */
+		73, /* maxdepth */
+		75, /* avgdepth */
+		77, /* temperature */
+		3, /* version */
+		UNDEFINED, /* data_start */
+	},
+	/* v4 */
 	{
 		82, /* headersize */
 		4, /* datetime */
@@ -167,24 +206,40 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		4, /* version */
 		UNDEFINED, /* data_start */
 	},
-	/* NITROX */
+};
+
+static const cressi_goa_layout_t freedive_layouts[] = {
+	/* v0 */
 	{
-		82, /* headersize */
-		4, /* datetime */
-		11, /* divetime */
-		{ 17, 19, 21 }, /* gasmix[0..2] */
-		23, /* atmospheric */
-		66, /* maxdepth */
-		68, /* avgdepth */
-		70, /* temperature */
-		4, /* version */
+		34, /* headersize */
+		12, /* datetime */
+		20, /* sessiontime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
+		UNDEFINED, /* atmospheric */
+		23, /* maxdepth */
+		UNDEFINED, /* avgdepth */
+		25, /* temperature */
+		0, /* version */
 		UNDEFINED, /* data_start */
 	},
-	/* FREEDIVE */
+	/* v1-v3 */
+	{
+		38, /* headersize */
+		12, /* datetime */
+		20, /* divetime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
+		UNDEFINED, /* atmospheric */
+		23, /* maxdepth */
+		UNDEFINED, /* avgdepth */
+		25, /* temperature */
+		UNDEFINED, /* version */
+		UNDEFINED, /* data_start */
+	},
+	/* v4 */
 	{
 		27, /* headersize */
 		4, /* datetime */
-		21, /* divetime */
+		11, /* divetime */
 		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
 		UNDEFINED, /* atmospheric */
 		15, /* maxdepth */
@@ -193,7 +248,36 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		4, /* version */
 		UNDEFINED, /* data_start */
 	},
-	/* GAUGE */
+};
+
+static const cressi_goa_layout_t gauge_layouts[] = {
+	/* v0 */
+	{
+		38, /* headersize */
+		12, /* datetime */
+		20, /* divetime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
+		22, /* atmospheric */
+		24, /* maxdepth */
+		26, /* avgdepth */
+		28, /* temperature */
+		0, /* version */
+		UNDEFINED, /* data_start */
+	},
+	/* v1-v3 */
+	{
+		38, /* headersize */
+		12, /* datetime */
+		20, /* divetime */
+		{ UNDEFINED, UNDEFINED, UNDEFINED }, /* gasmix */
+		22, /* atmospheric */
+		24, /* maxdepth */
+		26, /* avgdepth */
+		28, /* temperature */
+		UNDEFINED, /* version */
+		UNDEFINED, /* data_start */
+	},
+	/* v4 */
 	{
 		28, /* headersize */
 		4, /* datetime */
@@ -206,8 +290,9 @@ static const cressi_goa_layout_t layouts_v4[] = {
 		4, /* version */
 		UNDEFINED, /* data_start */
 	},
-	/* Undefined */
-	{ 0 },
+};
+
+static const cressi_goa_layout_t advanced_freedive_layouts[] = {
 	/* Advanced FREEDIVE */
 	{
 		28, /* headersize */
@@ -223,14 +308,73 @@ static const cressi_goa_layout_t layouts_v4[] = {
 	},
 };
 
+static const cressi_goa_layout_t *layouts_v0[] = {
+	/* SCUBA */
+	&scuba_nitrox_layouts[0],
+	/* NITROX */
+	&scuba_nitrox_layouts[0],
+	/* FREEDIVE */
+	&freedive_layouts[0],
+	/* GAUGE */
+	&gauge_layouts[0],
+};
+
+static const cressi_goa_layout_t *layouts_v1[] = {
+	/* SCUBA */
+	&scuba_nitrox_layouts[1],
+	/* NITROX */
+	&scuba_nitrox_layouts[1],
+	/* FREEDIVE */
+	&freedive_layouts[1],
+	/* GAUGE */
+	&gauge_layouts[1],
+};
+
+static const cressi_goa_layout_t *layouts_v2[] = {
+	/* SCUBA */
+	&scuba_nitrox_layouts[1],
+	/* NITROX */
+	&scuba_nitrox_layouts[1],
+	/* FREEDIVE */
+	&freedive_layouts[1],
+	/* GAUGE */
+	&gauge_layouts[1],
+};
+
+static const cressi_goa_layout_t *layouts_v3[] = {
+	/* SCUBA */
+	&scuba_nitrox_layouts[2],
+	/* NITROX */
+	&scuba_nitrox_layouts[2],
+	/* FREEDIVE */
+	&freedive_layouts[1],
+	/* GAUGE */
+	&gauge_layouts[1],
+};
+
+static const cressi_goa_layout_t *layouts_v4[] = {
+	/* SCUBA */
+	&scuba_nitrox_layouts[3],
+	/* NITROX */
+	&scuba_nitrox_layouts[3],
+	/* FREEDIVE */
+	&freedive_layouts[2],
+	/* GAUGE */
+	&gauge_layouts[2],
+	/* Undefined */
+	NULL,
+	/* Advanced FREEDIVE */
+	&advanced_freedive_layouts[0],
+};
+
 const struct {
-	const cressi_goa_layout_t *layout;
+	const cressi_goa_layout_t **layout;
 	size_t size;
 } layouts[] = {
 	{ layouts_v0, C_ARRAY_SIZE(layouts_v0) },
-	{ NULL, 0 },
-	{ NULL, 0 },
-	{ NULL, 0 },
+	{ layouts_v1, C_ARRAY_SIZE(layouts_v1) },
+	{ layouts_v2, C_ARRAY_SIZE(layouts_v2) },
+	{ layouts_v3, C_ARRAY_SIZE(layouts_v3) },
 	{ layouts_v4, C_ARRAY_SIZE(layouts_v4) },
 };
 
@@ -267,7 +411,7 @@ static dc_status_t cressi_goa_get_layout(dc_parser_t *abstract, unsigned int *di
 	unsigned int divemode_;
 
 	unsigned char version = data[2];
-	if (data[0] == 0xdc && data[1] == 0xdc && (version == 0x00 || version == 0x04)) {
+	if (data[0] == 0xdc && data[1] == 0xdc) {
 		if (version >= C_ARRAY_SIZE(layouts)) {
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -276,16 +420,19 @@ static dc_status_t cressi_goa_get_layout(dc_parser_t *abstract, unsigned int *di
 		if (divemode_ >= layouts[version].size) {
 			return DC_STATUS_DATAFORMAT;
 		}
+		if (layouts[version].layout[divemode_] == NULL) {
+			return DC_STATUS_DATAFORMAT;
+		}
 
-		*layout = layouts[version].layout[divemode_];
+		*layout = *(layouts[version].layout[divemode_]);
 		layout->version = version;
 		layout->data_start = 4 + data[3];
 	} else {
 		divemode_ = data[2];
-		if (divemode_ >= C_ARRAY_SIZE(layouts_v0)) {
+		if (divemode_ >= C_ARRAY_SIZE(layouts_original)) {
 			return DC_STATUS_DATAFORMAT;
 		}
-		*layout = layouts_v0[divemode_];
+		*layout = layouts_original[divemode_];
 		layout->data_start = 0;
 	}
 
