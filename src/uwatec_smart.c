@@ -31,7 +31,8 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &uwatec_smart_device_vtable)
 
-#define DATASIZE 254
+#define DATASIZE_RX 255
+#define DATASIZE_TX 254
 #define PACKETSIZE_USBHID_RX 64
 #define PACKETSIZE_USBHID_TX 32
 
@@ -89,13 +90,13 @@ uwatec_smart_irda_send (uwatec_smart_device_t *device, unsigned char cmd, const 
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	if (size > DATASIZE) {
+	if (size > DATASIZE_TX) {
 		ERROR (abstract->context, "Command too large (" DC_PRINTF_SIZE ").", size);
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Build the packet.
-	unsigned char packet[1 + DATASIZE] = {
+	unsigned char packet[1 + DATASIZE_TX] = {
 		cmd};
 	if (size) {
 		memcpy (packet + 1, data, size);
@@ -156,13 +157,13 @@ uwatec_smart_serial_send (uwatec_smart_device_t *device, unsigned char cmd, cons
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 
-	if (size > DATASIZE) {
+	if (size > DATASIZE_TX) {
 		ERROR (abstract->context, "Command too large (" DC_PRINTF_SIZE ").", size);
 		return DC_STATUS_PROTOCOL;
 	}
 
 	// Build the packet.
-	unsigned char packet[12 + DATASIZE + 1] = {
+	unsigned char packet[12 + DATASIZE_TX + 1] = {
 		0xFF, 0xFF, 0xFF,
 		0xA6, 0x59, 0xBD, 0xC2,
 		size + 1,
@@ -276,12 +277,12 @@ uwatec_smart_usbhid_send (uwatec_smart_device_t *device, unsigned char cmd, cons
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
-	unsigned char buf[DATASIZE + 3];
+	unsigned char buf[DATASIZE_TX + 3];
 
 	size_t packetsize = transport == DC_TRANSPORT_USBHID ?
 		PACKETSIZE_USBHID_TX + 1 : sizeof(buf);
 
-	if (size > DATASIZE || size + 3 > packetsize) {
+	if (size > DATASIZE_TX || size + 3 > packetsize) {
 		ERROR (abstract->context, "Command too large (" DC_PRINTF_SIZE ").", size);
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -315,7 +316,7 @@ uwatec_smart_usbhid_receive (uwatec_smart_device_t *device, dc_event_progress_t 
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_transport_t transport = dc_iostream_get_transport(device->iostream);
-	unsigned char buf[DATASIZE + 1];
+	unsigned char buf[DATASIZE_RX + 1];
 
 	size_t packetsize = transport == DC_TRANSPORT_USBHID ?
 		PACKETSIZE_USBHID_RX : sizeof(buf);
