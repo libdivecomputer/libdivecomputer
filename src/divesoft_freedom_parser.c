@@ -709,13 +709,21 @@ divesoft_freedom_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *date
 		return status;
 
 	unsigned int timestamp = array_uint32_le (data + 8);
-	dc_ticks_t ticks = (dc_ticks_t) timestamp + EPOCH;
+
+	int timezone = 0;
+	if (parser->version == HEADER_SIGNATURE_V2) {
+		timezone = ((signed short) array_uint16_le (data + 40)) * 60;
+	} else {
+		timezone = 0;
+	}
+
+	dc_ticks_t ticks = (dc_ticks_t) timestamp + EPOCH + timezone;
 
 	if (!dc_datetime_gmtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
 
 	if (parser->version == HEADER_SIGNATURE_V2) {
-		datetime->timezone = ((signed short) array_uint16_le (data + 40)) * 60;
+		datetime->timezone = timezone;
 	} else {
 		datetime->timezone = DC_TIMEZONE_NONE;
 	}
