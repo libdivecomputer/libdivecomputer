@@ -414,10 +414,10 @@ cressi_goa_irda_api_version(dc_parser_t *abstract, dc_event_devinfo_t *devinfo)
 		version = 1;
 	} else if (devinfo->firmware >= 170 && devinfo->firmware <= 179) {
 		version = 2;
-	} else if ((devinfo->firmware >= 100 && devinfo->firmware <= 110)
-			|| devinfo->firmware == 900) {
+	} else if (devinfo->firmware >= 100 && devinfo->firmware <= 110) {
 		version = 3;
-	} else if (devinfo->firmware >= 200 && devinfo->firmware <= 205) {
+	} else if ((devinfo->firmware >= 200 && devinfo->firmware <= 205)
+			|| devinfo->firmware >= 900) {
 		version = 4;
 	} else {
 		ERROR (abstract->context, "Unknown firmware version %d.", devinfo->firmware);
