@@ -400,33 +400,99 @@ cressi_goa_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 	return DC_STATUS_SUCCESS;
 }
 
+static int
+cressi_goa_irda_api_version(dc_parser_t *abstract, dc_event_devinfo_t *devinfo)
+{
+	if (devinfo->model > 11) {
+		ERROR (abstract->context, "Unknown model %d.", devinfo->model);
+		return -1;
+	}
+	int version;
+	if (devinfo->firmware >= 161 && devinfo->firmware <= 165) {
+		version = 0;
+	} else if (devinfo->firmware >= 166 && devinfo->firmware <= 169) {
+		version = 1;
+	} else if (devinfo->firmware >= 170 && devinfo->firmware <= 179) {
+		version = 2;
+	} else if ((devinfo->firmware >= 100 && devinfo->firmware <= 110)
+			|| devinfo->firmware == 900) {
+		version = 3;
+	} else if (devinfo->firmware >= 200 && devinfo->firmware <= 205) {
+		version = 4;
+	} else {
+		ERROR (abstract->context, "Unknown firmware version %d.", devinfo->firmware);
+		return -1;
+	}
+	const bool version_support_on_model[5][11] = {
+		/*  1      2      3      4      5      6      7      8      9      10     11  */
+		{  true,  true, false, false, false, false, false, false, false, false, false }, /* API v0 */
+		{  true,  true, false, false, false, false, false, false, false, false, false }, /* API v1 */
+		{  true,  true, false, false, false, false, false, false,  true, false, false }, /* API v2 */
+		{  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true }, /* API v3 */
+		{  true,  true, false,  true,  true, false, false, false,  true,  true, false }, /* API v4 */
+	};
+	if (!version_support_on_model[version][devinfo->model - 1]) {
+		ERROR (abstract->context, "Firmware version %d of Model %d not known to have support for API v%d.",
+				devinfo->firmware, devinfo->model, version);
+		return -1;
+	}
+	return version;
+}
+
 static dc_status_t cressi_goa_get_layout(dc_parser_t *abstract, unsigned int *divemode, cressi_goa_layout_t *layout)
 {
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
+	const unsigned int header_len = 4u;
 
-	if (size < 4)
+	if (size < header_len)
 		return DC_STATUS_DATAFORMAT;
 
 	unsigned int divemode_;
 
-	unsigned char version = data[2];
 	if (data[0] == 0xdc && data[1] == 0xdc) {
-		if (version >= C_ARRAY_SIZE(layouts)) {
+		const unsigned int id_len = data[3];
+		/* data[2] contains the package format version and we currently only support version 0. */
+		if (data[2] != 0x00 || size < header_len + id_len) {
+			return DC_STATUS_DATAFORMAT;
+		}
+		const unsigned char *id_data = data + header_len;
+		int version;
+		if (id_len == 11) {
+			version = array_uint16_le (id_data + 9);
+		} else {
+			dc_event_devinfo_t devinfo;
+			devinfo.model = id_data[4];
+			devinfo.firmware = array_uint16_le (id_data + 5);
+			devinfo.serial = array_uint32_le (id_data + 0);
+
+			version = cressi_goa_irda_api_version(abstract, &devinfo);
+			if (version < 0) {
+				return DC_STATUS_UNSUPPORTED;
+			}
+		}
+		if ((size_t)version >= C_ARRAY_SIZE(layouts)) {
+			return DC_STATUS_UNSUPPORTED;
+		}
+
+		const unsigned char *logbook = id_data + id_len;
+		const unsigned int logbook_len = version < 4 ? 23 : 15;
+
+		if (size < header_len + id_len + logbook_len) {
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		divemode_ = data[6];
+		divemode_ = logbook[2];
 		if (divemode_ >= layouts[version].size) {
-			return DC_STATUS_DATAFORMAT;
+			return DC_STATUS_UNSUPPORTED;
 		}
 		if (layouts[version].layout[divemode_] == NULL) {
-			return DC_STATUS_DATAFORMAT;
+			return DC_STATUS_UNSUPPORTED;
 		}
 
 		*layout = *(layouts[version].layout[divemode_]);
 		layout->version = version;
-		layout->data_start = 4 + data[3];
+		layout->data_start = header_len + id_len + logbook_len;
 	} else {
 		divemode_ = data[2];
 		if (divemode_ >= C_ARRAY_SIZE(layouts_original)) {
