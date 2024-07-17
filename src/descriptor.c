@@ -270,6 +270,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Sherwood", "Amphos Air 2.0",      DC_FAMILY_OCEANIC_ATOM2, 0x4658, DC_TRANSPORT_SERIAL, NULL},
 	{"Sherwood", "Beacon",              DC_FAMILY_OCEANIC_ATOM2, 0x4742, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Aqualung", "i470TC",              DC_FAMILY_OCEANIC_ATOM2, 0x4743, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Aqualung", "i100",                DC_FAMILY_OCEANIC_ATOM2, 0x4745, DC_TRANSPORT_SERIAL, NULL},
 	{"Aqualung", "i200C",               DC_FAMILY_OCEANIC_ATOM2, 0x4749, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Oceanic",  "Geo Air",             DC_FAMILY_OCEANIC_ATOM2, 0x474B, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_oceanic},
 	/* Pelagic I330R */

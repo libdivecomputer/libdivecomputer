@@ -513,6 +513,7 @@ static const oceanic_common_version_t versions[] = {
 	{"AERISAIR \0\0 1024", 0,      A300AI,        &oceanic_vt4_layout},
 	{"SWVISION \0\0 1024", 0,      VISION,        &oceanic_vt4_layout},
 	{"XPSUBAIR \0\0 1024", 0,      XPAIR,         &oceanic_vt4_layout},
+	{"AQUAI100 \0\0 1024", 0,      I100V2,        &oceanic_vt4_layout},
 
 	{"HOLLDG04 \0\0 2048", 0,      TX1,           &hollis_tx1_layout},
 
