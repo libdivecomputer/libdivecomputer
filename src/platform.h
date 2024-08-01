@@ -36,11 +36,12 @@ extern "C" {
 
 #ifdef _WIN32
 #define DC_PRINTF_SIZE "%Iu"
-#define DC_FORMAT_INT64 "%I64d"
+#define DC_PRI_LL "I64"
 #else
 #define DC_PRINTF_SIZE "%zu"
-#define DC_FORMAT_INT64 "%lld"
+#define DC_PRI_LL "ll"
 #endif
+#define DC_FORMAT_INT64 "%" DC_PRI_LL "d"
 
 #ifdef _MSC_VER
 #define strcasecmp _stricmp
