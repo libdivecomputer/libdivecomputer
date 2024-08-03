@@ -728,6 +728,7 @@ shearwater_common_get_model (shearwater_common_device_t *device, unsigned int ha
 		model = PERDIXAI;
 		break;
 	case 0xC407:
+	case 0xC964:
 		model = PERDIX2;
 		break;
 	case 0x0F0F:
