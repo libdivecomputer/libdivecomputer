@@ -48,7 +48,6 @@ typedef struct cressi_goa_parser_t cressi_goa_parser_t;
 
 struct cressi_goa_parser_t {
 	dc_parser_t base;
-	unsigned int model;
 };
 
 typedef struct cressi_goa_layout_t {
@@ -126,7 +125,7 @@ static const cressi_goa_layout_t layouts[] = {
 };
 
 dc_status_t
-cressi_goa_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
+cressi_goa_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
 {
 	cressi_goa_parser_t *parser = NULL;
 
@@ -139,8 +138,6 @@ cressi_goa_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 		ERROR (context, "Failed to allocate memory.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	parser->model = model;
 
 	*out = (dc_parser_t*) parser;
 

@@ -155,7 +155,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, const unsigned
 		rc = cressi_leonardo_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_CRESSI_GOA:
-		rc = cressi_goa_parser_create (&parser, context, data, size, model);
+		rc = cressi_goa_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_ATOMICS_COBALT:
 		rc = atomics_cobalt_parser_create (&parser, context, data, size);
