@@ -598,10 +598,19 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			goto error_free_dive;
 		}
 
-		// Those 5 extra bytes contain the dive mode, which is required for
-		// parsing the dive data. Therefore, insert all 5 bytes again. The
-		// remaining 4 bytes appear to be some 32 bit address.
-		if (!dc_buffer_insert (dive, 2, logbook_data + offset + 2, 5)) {
+		// The dive computer id data and the logbook entry contain important
+		// information that is required for parsing the dive data, but is
+		// not present in the dive data itself. Therefore, both pieces of data
+		// are prepended to the dive data, along with a small header containing
+		// their size.
+		const unsigned char header[] = {
+			sizeof(id),
+			SZ_HEADER,
+		};
+		unsigned int headersize = sizeof(header) + sizeof(id) + SZ_HEADER;
+		if (!dc_buffer_prepend(dive, logbook_data + offset, SZ_HEADER) ||
+			!dc_buffer_prepend(dive, id, sizeof(id)) ||
+			!dc_buffer_prepend(dive, header, sizeof(header))) {
 			ERROR (abstract->context, "Out of memory.");
 			status = DC_STATUS_NOMEMORY;
 			goto error_free_dive;
@@ -610,7 +619,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		dive_data = dc_buffer_get_data (dive);
 		dive_size = dc_buffer_get_size (dive);
 
-		if (callback && !callback(dive_data, dive_size, dive_data + FP_OFFSET, sizeof(device->fingerprint), userdata))
+		if (callback && !callback(dive_data, dive_size, dive_data + headersize + FP_OFFSET - 5, sizeof(device->fingerprint), userdata))
 			break;
 	}
 
