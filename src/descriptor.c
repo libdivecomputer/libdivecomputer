@@ -276,6 +276,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Pelagic I330R */
 	{"Apeks",    "DSX",                 DC_FAMILY_PELAGIC_I330R, 0x4741, DC_TRANSPORT_BLE, dc_filter_oceanic},
 	{"Aqualung", "i330R",               DC_FAMILY_PELAGIC_I330R, 0x4744, DC_TRANSPORT_BLE, dc_filter_oceanic},
+	{"Aqualung", "i330R Console",       DC_FAMILY_PELAGIC_I330R, 0x474D, DC_TRANSPORT_BLE, dc_filter_oceanic},
 	/* Mares Nemo */
 	{"Mares", "Nemo",         DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Mares", "Nemo Steel",   DC_FAMILY_MARES_NEMO, 0, DC_TRANSPORT_SERIAL, NULL},
@@ -763,6 +764,7 @@ dc_filter_oceanic (dc_descriptor_t *descriptor, dc_transport_t transport, const 
 		0x4744, // Aqualung i330R
 		0x4749, // Aqualung i200C
 		0x474B, // Oceanic Geo Air
+		0x474D, // Aqualung i330R Console
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {

@@ -129,6 +129,7 @@ extern "C" {
 // i330r
 #define DSX           0x4741
 #define I330R         0x4744
+#define I330R_C       0x474D
 
 #define PAGESIZE 0x10
 #define FPMAXSIZE 0x200
