@@ -40,7 +40,7 @@
 #define FREEDIVE_ADV 5
 
 #define NGASMIXES  3
-#define NVERSIONS  5
+#define NVERSIONS  6
 #define NDIVEMODES 6
 
 #define UNDEFINED 0xFFFFFFFF
@@ -127,6 +127,19 @@ static const cressi_goa_layout_t scuba_nitrox_layout_v4 = {
 	82, /* headersize */
 	10, /* nsamples */
 	2, /* samplerate */
+	4, /* datetime */
+	11, /* divetime */
+	{ 17, 19, 21 }, /* gasmix */
+	23, /* atmospheric */
+	66, /* maxdepth */
+	68, /* avgdepth */
+	70, /* temperature */
+};
+
+static const cressi_goa_layout_t scuba_nitrox_layout_v5 = {
+	83, /* headersize */
+	2, /* nsamples */
+	UNDEFINED, /* samplerate */
 	4, /* datetime */
 	11, /* divetime */
 	{ 17, 19, 21 }, /* gasmix */
@@ -268,6 +281,14 @@ static const cressi_goa_layout_t * const layouts[NVERSIONS][NDIVEMODES] = {
 		NULL, /* UNUSED */
 		&advanced_freedive_layout_v4, /* FREEDIVE_ADV */
 	},
+	{
+		&scuba_nitrox_layout_v5, /* SCUBA */
+		&scuba_nitrox_layout_v5, /* NITROX */
+		&freedive_layout_v4, /* FREEDIVE */
+		&gauge_layout_v4, /* GAUGE */
+		NULL, /* UNUSED */
+		NULL, /* FREEDIVE_ADV */
+	},
 };
 
 static dc_status_t
@@ -313,6 +334,8 @@ cressi_goa_init(cressi_goa_parser_t *parser)
 			version = 3;
 		} else if (firmware >= 200 && firmware <= 205) {
 			version = 4;
+		} else if (firmware >= 300) {
+			version = 5;
 		} else {
 			ERROR (abstract->context, "Unknown firmware version (%u).", firmware);
 			return DC_STATUS_DATAFORMAT;

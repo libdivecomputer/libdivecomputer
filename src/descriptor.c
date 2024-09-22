@@ -343,6 +343,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Cressi Goa */
 	{"Cressi", "Cartesio", DC_FAMILY_CRESSI_GOA, 1, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Goa",      DC_FAMILY_CRESSI_GOA, 2, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
+	{"Cressi", "Leonardo 2.0", DC_FAMILY_CRESSI_GOA, 3, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Donatello",    DC_FAMILY_CRESSI_GOA, 4, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Michelangelo", DC_FAMILY_CRESSI_GOA, 5, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Neon",     DC_FAMILY_CRESSI_GOA, 9, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
@@ -911,6 +912,7 @@ dc_filter_cressi (dc_descriptor_t *descriptor, dc_transport_t transport, const v
 	static const unsigned int model[] = {
 		1,  // Cartesio
 		2,  // Goa
+		3,  // Leonardo 2.0
 		4,  // Donatello
 		5,  // Michelangelo
 		9,  // Neon
