@@ -85,10 +85,10 @@ do_timesync (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t 
 	}
 
 	// Syncronize the device clock.
-	message ("Syncronize the device clock.\n");
+	message ("Synchronize the device clock.\n");
 	rc = dc_device_timesync (device, datetime);
 	if (rc != DC_STATUS_SUCCESS) {
-		ERROR ("Error syncronizing the device clock.");
+		ERROR ("Error synchronizing the device clock.");
 		goto cleanup;
 	}
 
