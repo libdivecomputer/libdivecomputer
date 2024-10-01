@@ -334,6 +334,9 @@ deepsix_excursion_parser_get_field (dc_parser_t *abstract, dc_field_type_t type,
 			case 2:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
 				break;
+			case 3:
+				*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
+				break;
 			default:
 				return DC_STATUS_DATAFORMAT;
 			}
@@ -550,6 +553,12 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 				return DC_STATUS_DATAFORMAT;
 			}
 			break;
+		case EVENT_CHANGE_SETPOINT:
+			if (event_info[i].size != 4 && event_info[i].size != 2) {
+				ERROR(abstract->context, "Unexpected event size (%u).", event_info[i].size);
+				return DC_STATUS_DATAFORMAT;
+			}
+			break;
 		case EVENT_SAMPLES_MISSED:
 			if (event_info[i].size != 6) {
 				ERROR(abstract->context, "Unexpected event size (%u).", event_info[i].size);
@@ -669,6 +678,14 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 
 					sample.gasmix = mix_idx;
 					if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
+					break;
+				case EVENT_CHANGE_SETPOINT:
+					// Ignore the 4 byte variant because it's not
+					// supposed to be present in the sample data.
+					if (event_info[i].size == 2) {
+						sample.setpoint = data[offset + event_offset] / 10.0;
+						if (callback) callback(DC_SAMPLE_SETPOINT, &sample, userdata);
+					}
 					break;
 				case EVENT_SAMPLES_MISSED:
 					count     = array_uint16_le(data + offset + event_offset);
