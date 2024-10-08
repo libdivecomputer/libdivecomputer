@@ -431,7 +431,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	// Count the number of dives.
 	unsigned int count = 0;
 	unsigned int offset = logbook_size;
-	while (offset > SZ_HEADER) {
+	while (offset >= SZ_HEADER) {
 		// Move to the start of the logbook entry.
 		offset -= SZ_HEADER;
 
