@@ -88,6 +88,7 @@ libdivecomputer_la_SOURCES = \
 	irda.c \
 	usb.c \
 	usbhid.c \
+	ble.c \
 	bluetooth.c \
 	custom.c
 

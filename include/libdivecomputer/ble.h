@@ -48,6 +48,59 @@ extern "C" {
 #define DC_IOCTL_BLE_GET_ACCESSCODE   DC_IOCTL_IOR('b', 2, DC_IOCTL_SIZE_VARIABLE)
 #define DC_IOCTL_BLE_SET_ACCESSCODE   DC_IOCTL_IOW('b', 2, DC_IOCTL_SIZE_VARIABLE)
 
+/**
+ * Perform a BLE characteristic read/write operation.
+ *
+ * The UUID of the characteristic must be specified as a #dc_ble_uuid_t
+ * data structure. If the operation requires additional data as in- or
+ * output, the buffer must be located immediately after the
+ * #dc_ble_uuid_t data structure. The size of the ioctl request is the
+ * total size, including the size of the #dc_ble_uuid_t structure.
+ */
+#define DC_IOCTL_BLE_CHARACTERISTIC_READ  DC_IOCTL_IOR('b', 3, DC_IOCTL_SIZE_VARIABLE)
+#define DC_IOCTL_BLE_CHARACTERISTIC_WRITE DC_IOCTL_IOW('b', 3, DC_IOCTL_SIZE_VARIABLE)
+
+/**
+ * The minimum number of bytes (including the terminating null byte) for
+ * formatting a bluetooth UUID as a string.
+ */
+#define DC_BLE_UUID_SIZE 37
+
+/**
+ * Bluetooth UUID (128 bits).
+ */
+typedef unsigned char dc_ble_uuid_t[16];
+
+/**
+ * Convert a bluetooth UUID to a string.
+ *
+ * The bluetooth UUID is formatted as
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX, where each XX pair is a
+ * hexadecimal number specifying an octet of the UUID.
+ * The minimum size for the buffer is #DC_BLE_UUID_SIZE bytes.
+ *
+ * @param[in]  uuid     A bluetooth UUID.
+ * @param[in]  str      The memory buffer to store the result.
+ * @param[in]  size     The size of the memory buffer.
+ * @returns The null-terminated string on success, or NULL on failure.
+ */
+char *
+dc_ble_uuid2str (const dc_ble_uuid_t uuid, char *str, size_t size);
+
+/**
+ * Convert a string to a bluetooth UUID.
+ *
+ * The string is expected to be in the format
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX, where each XX pair is a
+ * hexadecimal number specifying an octet of the UUID.
+ *
+ * @param[in]  str      A null-terminated string.
+ * @param[in]  uuid     The memory buffer to store the result.
+ * @returns Non-zero on success, or zero on failure.
+ */
+int
+dc_ble_str2uuid (const char *str, dc_ble_uuid_t uuid);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

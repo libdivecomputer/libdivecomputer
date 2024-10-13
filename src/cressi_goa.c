@@ -23,6 +23,8 @@
 #include <stdlib.h> // malloc, free
 #include <assert.h> // assert
 
+#include <libdivecomputer/ble.h>
+
 #include "cressi_goa.h"
 #include "context-private.h"
 #include "device-private.h"
@@ -35,6 +37,9 @@
 #define CMD_VERSION 0x00
 #define CMD_LOGBOOK 0x21
 #define CMD_DIVE    0x22
+
+#define CMD_LOGBOOK_BLE 0x02
+#define CMD_DIVE_BLE    0x03
 
 #define HEADER  0xAA
 #define TRAILER 0x55
@@ -77,6 +82,7 @@ cressi_goa_device_send (cressi_goa_device_t *device, unsigned char cmd, const un
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
 
 	if (size > SZ_PACKET) {
 		ERROR (abstract->context, "Unexpected payload size (%u).", size);
@@ -100,10 +106,15 @@ cressi_goa_device_send (cressi_goa_device_t *device, unsigned char cmd, const un
 
 	// Wait a small amount of time before sending the command. Without
 	// this delay, the transfer will fail most of the time.
-	dc_iostream_sleep (device->iostream, 100);
+	unsigned int delay = transport == DC_TRANSPORT_BLE ? 2000 : 100;
+	dc_iostream_sleep (device->iostream, delay);
 
 	// Send the command to the device.
-	status = dc_iostream_write (device->iostream, packet, size + 8, NULL);
+	if (transport == DC_TRANSPORT_BLE) {
+		status = dc_iostream_write (device->iostream, packet + 4, size + 1, NULL);
+	} else {
+		status = dc_iostream_write (device->iostream, packet, size + 8, NULL);
+	}
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the command.");
 		return status;
@@ -117,8 +128,17 @@ cressi_goa_device_receive (cressi_goa_device_t *device, unsigned char data[], un
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
 
 	unsigned char packet[SZ_PACKET + 8];
+
+	if (transport == DC_TRANSPORT_BLE) {
+		if (size) {
+			return DC_STATUS_INVALIDARGS;
+		} else {
+			return DC_STATUS_SUCCESS;
+		}
+	}
 
 	// Read the header of the data packet.
 	status = dc_iostream_read (device->iostream, packet, 4, NULL);
@@ -179,6 +199,7 @@ cressi_goa_device_download (cressi_goa_device_t *device, dc_buffer_t *buffer, dc
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
 
 	const unsigned char ack[] = {ACK};
 	const unsigned int initial = progress ? progress->current : 0;
@@ -193,27 +214,43 @@ cressi_goa_device_download (cressi_goa_device_t *device, dc_buffer_t *buffer, dc
 	unsigned int size = 2;
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
-		// Read the data packet.
 		unsigned char packet[3 + SZ_DATA + 2];
-		status = dc_iostream_read (device->iostream, packet, sizeof(packet), NULL);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to receive the answer.");
-			return status;
-		}
 
-		// Verify the checksum of the packet.
-		unsigned short crc = array_uint16_le (packet + sizeof(packet) - 2);
-		unsigned short ccrc = checksum_crc16_ccitt (packet + 3, sizeof(packet) - 5, 0x0000, 0x0000);
-		if (crc != ccrc) {
-			ERROR (abstract->context, "Unexpected answer checksum.");
-			return DC_STATUS_PROTOCOL;
-		}
+		if (transport == DC_TRANSPORT_BLE) {
+			// Read the data packet.
+			unsigned int packetsize = 0;
+			while (packetsize < SZ_DATA) {
+				size_t len = 0;
+				status = dc_iostream_read (device->iostream, packet + 3 + packetsize, SZ_DATA - packetsize, &len);
+				if (status != DC_STATUS_SUCCESS) {
+					ERROR (abstract->context, "Failed to receive the answer.");
+					return status;
+				}
 
-		// Send the ack byte to the device.
-		status = dc_iostream_write (device->iostream, ack, sizeof(ack), NULL);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to send the ack byte.");
-			return status;
+				packetsize += len;
+			}
+		} else {
+			// Read the data packet.
+			status = dc_iostream_read (device->iostream, packet, sizeof(packet), NULL);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to receive the answer.");
+				return status;
+			}
+
+			// Verify the checksum of the packet.
+			unsigned short crc = array_uint16_le (packet + sizeof(packet) - 2);
+			unsigned short ccrc = checksum_crc16_ccitt (packet + 3, sizeof(packet) - 5, 0x0000, 0x0000);
+			if (crc != ccrc) {
+				ERROR (abstract->context, "Unexpected answer checksum.");
+				return DC_STATUS_PROTOCOL;
+			}
+
+			// Send the ack byte to the device.
+			status = dc_iostream_write (device->iostream, ack, sizeof(ack), NULL);
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to send the ack byte.");
+				return status;
+			}
 		}
 
 		// Get the total size from the first data packet.
@@ -243,25 +280,45 @@ cressi_goa_device_download (cressi_goa_device_t *device, dc_buffer_t *buffer, dc
 		}
 	}
 
-	// Read the end byte.
-	unsigned char end = 0;
-	status = dc_iostream_read (device->iostream, &end, 1, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the end byte.");
-		return status;
-	}
+	if (transport == DC_TRANSPORT_BLE) {
+		// Read the end bytes.
+		unsigned char end[16] = {0};
+		size_t len = 0;
+		status = dc_iostream_read (device->iostream, end, sizeof(end), &len);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the end bytes.");
+			return status;
+		}
 
-	// Verify the end byte.
-	if (end != END) {
-		ERROR (abstract->context, "Unexpected end byte (%02x).", end);
-		return DC_STATUS_PROTOCOL;
-	}
+		// Verify the end bytes ("EOT xmodem").
+		const unsigned char validate[16] = {
+			0x45, 0x4F, 0x54, 0x20, 0x78, 0x6D, 0x6F, 0x64,
+			0x65, 0x6D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+		if (memcmp (end, validate, sizeof(validate)) != 0) {
+			ERROR (abstract->context, "Unexpected end bytes.");
+			return DC_STATUS_PROTOCOL;
+		}
+	} else {
+		// Read the end byte.
+		unsigned char end = 0;
+		status = dc_iostream_read (device->iostream, &end, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the end byte.");
+			return status;
+		}
 
-	// Send the ack byte to the device.
-	status = dc_iostream_write (device->iostream, ack, sizeof(ack), NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the ack byte.");
-		return status;
+		// Verify the end byte.
+		if (end != END) {
+			ERROR (abstract->context, "Unexpected end byte (%02x).", end);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		// Send the ack byte to the device.
+		status = dc_iostream_write (device->iostream, ack, sizeof(ack), NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to send the ack byte.");
+			return status;
+		}
 	}
 
 	return status;
@@ -328,8 +385,10 @@ cressi_goa_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t 
 		goto error_free;
 	}
 
-	// Set the timeout for receiving data (3000 ms).
-	status = dc_iostream_set_timeout (device->iostream, 3000);
+	// Set the timeout for receiving data (3000 - 5000 ms).
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
+	int timeout = transport == DC_TRANSPORT_BLE ? 5000 : 3000;
+	status = dc_iostream_set_timeout (device->iostream, timeout);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_free;
@@ -382,6 +441,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_goa_device_t *device = (cressi_goa_device_t *) abstract;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
 	dc_buffer_t *logbook = NULL;
 	dc_buffer_t *dive = NULL;
 
@@ -391,10 +451,49 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 	// Read the version information.
 	unsigned char id[9] = {0};
-	status = cressi_goa_device_transfer (device, CMD_VERSION, NULL, 0, id, sizeof(id), NULL, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the version information.");
-		goto error_exit;
+	if (transport == DC_TRANSPORT_BLE) {
+		/*
+		 * With the BLE communication, there is no variant of the CMD_VERSION
+		 * command available. The corresponding information must be obtained by
+		 * reading some secondary characteristics instead:
+		 *     6E400003-B5A3-F393-E0A9-E50E24DC10B8 - 5 bytes
+		 *     6E400004-B5A3-F393-E0A9-E50E24DC10B8 - 2 bytes
+		 *     6E400005-B5A3-F393-E0A9-E50E24DC10B8 - 2 bytes
+		 */
+		const dc_ble_uuid_t characteristics[] = {
+			{0x6E, 0x40, 0x00, 0x03, 0xB5, 0xA3, 0xF3, 0x93, 0xE0, 0xA9, 0xE5, 0x0E, 0x24, 0xDC, 0x10, 0xB8},
+			{0x6E, 0x40, 0x00, 0x04, 0xB5, 0xA3, 0xF3, 0x93, 0xE0, 0xA9, 0xE5, 0x0E, 0x24, 0xDC, 0x10, 0xB8},
+			{0x6E, 0x40, 0x00, 0x05, 0xB5, 0xA3, 0xF3, 0x93, 0xE0, 0xA9, 0xE5, 0x0E, 0x24, 0xDC, 0x10, 0xB8},
+		};
+		const size_t sizes[] = {5, 2, 2};
+
+		unsigned int offset = 0;
+		for (size_t i = 0; i < C_ARRAY_SIZE(characteristics); ++i) {
+			unsigned char request[sizeof(dc_ble_uuid_t) + 5] = {0};
+
+			// Setup the request.
+			memcpy (request, characteristics[i], sizeof(dc_ble_uuid_t));
+			memset (request + sizeof(dc_ble_uuid_t), 0, sizes[i]);
+
+			// Read the characteristic.
+			status = dc_iostream_ioctl (device->iostream, DC_IOCTL_BLE_CHARACTERISTIC_READ, request, sizeof(dc_ble_uuid_t) + sizes[i]);
+			if (status != DC_STATUS_SUCCESS) {
+				char uuidstr[DC_BLE_UUID_SIZE] = {0};
+				ERROR (abstract->context, "Failed to read the characteristic '%s'.",
+					dc_ble_uuid2str(characteristics[i], uuidstr, sizeof(uuidstr)));
+				goto error_exit;
+			}
+
+			// Copy the payload data.
+			memcpy (id + offset, request + sizeof(dc_ble_uuid_t), sizes[i]);
+			offset += sizes[i];
+		}
+	} else {
+		status = cressi_goa_device_transfer (device, CMD_VERSION, NULL, 0, id, sizeof(id), NULL, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to read the version information.");
+			goto error_exit;
+		}
 	}
 
 	// Emit a vendor event.
@@ -419,7 +518,12 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 
 	// Read the logbook data.
-	status = cressi_goa_device_transfer (device, CMD_LOGBOOK, NULL, 0, NULL, 0, logbook, &progress);
+	if (transport == DC_TRANSPORT_BLE) {
+		unsigned char args[] = {0x00};
+		status = cressi_goa_device_transfer (device, CMD_LOGBOOK_BLE, args, sizeof(args), NULL, 0, logbook, &progress);
+	} else {
+		status = cressi_goa_device_transfer (device, CMD_LOGBOOK, NULL, 0, NULL, 0, logbook, &progress);
+	}
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the logbook data.");
 		goto error_free_logbook;
@@ -467,7 +571,14 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		offset -= SZ_HEADER;
 
 		// Read the dive data.
-		status = cressi_goa_device_transfer (device, CMD_DIVE, logbook_data + offset, 2, NULL, 0, dive, &progress);
+		if (transport == DC_TRANSPORT_BLE) {
+			unsigned char number[2] = {
+				logbook_data[offset + 1],
+				logbook_data[offset + 0]};
+			status = cressi_goa_device_transfer (device, CMD_DIVE_BLE, number, 2, NULL, 0, dive, &progress);
+		} else {
+			status = cressi_goa_device_transfer (device, CMD_DIVE, logbook_data + offset, 2, NULL, 0, dive, &progress);
+		}
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive data.");
 			goto error_free_dive;

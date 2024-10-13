@@ -177,6 +177,7 @@
     <ClCompile Include="..\..\src\array.c" />
     <ClCompile Include="..\..\src\atomics_cobalt.c" />
     <ClCompile Include="..\..\src\atomics_cobalt_parser.c" />
+    <ClCompile Include="..\..\src\ble.c" />
     <ClCompile Include="..\..\src\bluetooth.c" />
     <ClCompile Include="..\..\src\buffer.c" />
     <ClCompile Include="..\..\src\checksum.c" />

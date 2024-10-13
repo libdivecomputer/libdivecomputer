@@ -9,6 +9,7 @@ LOCAL_SRC_FILES := \
 	src/array.c \
 	src/atomics_cobalt.c \
 	src/atomics_cobalt_parser.c \
+	src/ble.c \
 	src/bluetooth.c \
 	src/buffer.c \
 	src/checksum.c \
