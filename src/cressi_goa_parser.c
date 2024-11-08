@@ -24,6 +24,7 @@
 #include "cressi_goa.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "checksum.h"
 #include "array.h"
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &cressi_goa_parser_vtable)
@@ -363,6 +364,13 @@ cressi_goa_init(cressi_goa_parser_t *parser)
 	unsigned int headersize = 2 + id_len + logbook_len;
 	if (size < headersize + layout->headersize) {
 		ERROR (abstract->context, "Invalid dive length (%u).", size);
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	unsigned short crc = array_uint16_le (data + headersize + layout->headersize - 2);
+	unsigned short ccrc = checksum_crc16_ccitt (data + headersize, layout->headersize - 2, 0xffff, 0x0000);
+	if (crc != ccrc) {
+		ERROR (abstract->context, "Unexpected header checksum (%04x %04x).", crc, ccrc);
 		return DC_STATUS_DATAFORMAT;
 	}
 
