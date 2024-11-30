@@ -1006,6 +1006,40 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 				offset += 2;
 				length -= 2;
 			}
+
+			// Compass heading update
+			if (events & 0x0200) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				if (callback) {
+					unsigned int heading = array_uint16_le(data + offset);
+					dc_sample_value_t sample = {
+						.event.type = SAMPLE_EVENT_STRING,
+						.event.flags = SAMPLE_FLAGS_SEVERITY_INFO,
+					};
+
+					if (heading & 0x8000) {
+						sample.event.name = "Cleared compass heading";
+					} else {
+						if (heading & 0x4000) {
+							sample.event.type = SAMPLE_EVENT_HEADING;
+							sample.event.name = "Set compass heading";
+						} else {
+							sample.event.name = "Logged compass heading";
+						}
+
+						sample.event.value = heading & 0x1FF;
+					}
+
+					callback(DC_SAMPLE_EVENT, &sample, userdata);
+				}
+
+				offset += 2;
+				length -= 2;
+			}
 		}
 
 		// Extended sample info.
