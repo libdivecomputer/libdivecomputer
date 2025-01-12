@@ -759,7 +759,6 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	// Initial gas mix.
 	unsigned int gasmix_previous = 0xFFFFFFFF;
 
-	unsigned int count = 0;
 	unsigned int complete = 1;
 	unsigned int previous = 0;
 	unsigned int offset = parser->headersize;
@@ -1126,7 +1125,6 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 			}
 
-			count++;
 			complete = 1;
 		}
 

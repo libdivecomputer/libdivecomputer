@@ -436,7 +436,6 @@ divesoft_freedom_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	unsigned int recordsize = 0;
 
 	// Download the dive list.
-	unsigned int ndives = 0;
 	unsigned int total = 0;
 	unsigned int maxsize = 0;
 	unsigned int current = INVALID;
@@ -509,7 +508,6 @@ divesoft_freedom_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 
 			offset += recordsize;
 			count++;
-			ndives++;
 		}
 
 		// Append the records to the dive list buffer.
