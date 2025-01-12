@@ -27,6 +27,7 @@
 #include "cochran_commander.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define COCHRAN_MODEL_COMMANDER_TM 0
@@ -819,7 +820,7 @@ cochran_commander_parser_samples_foreach_emc (dc_parser_t *abstract, dc_sample_c
 		// Ascent rate is logged in the 0th sample, temp in the 1st, repeat.
 		if (time % 2 == 0) {
 			// Ascent rate
-			double ascent_rate = 0.0;
+			double DC_ATTR_UNUSED ascent_rate = 0.0;
 			if (s[1] & 0x80)
 				ascent_rate = (s[1] & 0x7f);
 			else

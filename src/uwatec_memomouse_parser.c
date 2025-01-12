@@ -26,6 +26,7 @@
 #include "uwatec_memomouse.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &uwatec_memomouse_parser_vtable)
@@ -128,7 +129,7 @@ uwatec_memomouse_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 
 	unsigned int model = data[3];
 
-	int is_nitrox = 0, is_oxygen = 0, is_air = 0;
+	int is_nitrox = 0, is_oxygen = 0, DC_ATTR_UNUSED is_air = 0;
 	if ((model & 0xF0) == 0xF0)
 		is_nitrox = 1;
 	if ((model & 0xF0) == 0xA0)
@@ -214,7 +215,7 @@ uwatec_memomouse_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 
 	unsigned int model = data[3];
 
-	int is_nitrox = 0, is_oxygen = 0, is_air = 0;
+	int is_nitrox = 0, is_oxygen = 0, DC_ATTR_UNUSED is_air = 0;
 	if ((model & 0xF0) == 0xF0)
 		is_nitrox = 1;
 	if ((model & 0xF0) == 0xA0)

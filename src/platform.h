@@ -30,8 +30,10 @@ extern "C" {
 
 #if defined(__GNUC__)
 #define DC_ATTR_FORMAT_PRINTF(a,b) __attribute__((format(printf, a, b)))
+#define DC_ATTR_UNUSED             __attribute__((unused))
 #else
 #define DC_ATTR_FORMAT_PRINTF(a,b)
+#define DC_ATTR_UNUSED
 #endif
 
 #ifdef _WIN32

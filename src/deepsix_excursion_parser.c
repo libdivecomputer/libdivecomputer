@@ -29,6 +29,7 @@
 #include "deepsix_excursion.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define HEADERSIZE_MIN 128
@@ -403,7 +404,7 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 			break;
 		}
 
-		unsigned int misc = data[offset + 1];
+		unsigned int DC_ATTR_UNUSED misc = data[offset + 1];
 		unsigned int depth = array_uint16_le(data + offset + 2);
 
 		if (type == TEMPERATURE) {
@@ -416,8 +417,8 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 		}
 
 		if (type == ALARM) {
-			unsigned int alarm_time  = array_uint16_le(data + offset + 4);
-			unsigned int alarm_value = array_uint16_le(data + offset + 6);
+			unsigned int DC_ATTR_UNUSED alarm_time  = array_uint16_le(data + offset + 4);
+			unsigned int DC_ATTR_UNUSED alarm_value = array_uint16_le(data + offset + 6);
 		} else if (type == TEMPERATURE) {
 			unsigned int temperature = array_uint16_le(data + offset + 4);
 			if (firmware4c) {
@@ -432,10 +433,10 @@ deepsix_excursion_parser_samples_foreach_v0 (dc_parser_t *abstract, dc_sample_ca
 				if (callback) callback(DC_SAMPLE_TEMPERATURE, &sample, userdata);
 			}
 		} else if (type == DECO) {
-			unsigned int deco = array_uint16_le(data + offset + 4);
+			unsigned int DC_ATTR_UNUSED deco = array_uint16_le(data + offset + 4);
 		} else if (type == CEILING) {
-			unsigned int ceiling_depth = array_uint16_le(data + offset + 4);
-			unsigned int ceiling_time  = array_uint16_le(data + offset + 6);
+			unsigned int DC_ATTR_UNUSED ceiling_depth = array_uint16_le(data + offset + 4);
+			unsigned int DC_ATTR_UNUSED ceiling_time  = array_uint16_le(data + offset + 6);
 		} else if (type == CNS) {
 			unsigned int cns = array_uint16_le(data + offset + 4);
 			sample.cns = cns / 100.0;

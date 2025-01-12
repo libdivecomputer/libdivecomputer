@@ -27,6 +27,7 @@
 #include "halcyon_symbios.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ID_HEADER          0x01
@@ -373,12 +374,12 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			unsigned int deco_major = data[offset + 8];
 			unsigned int deco_minor = data[offset + 9];
 			interval = data[offset + 10];
-			unsigned int detection = data[offset + 11];
-			unsigned int noflytime = data[offset + 12];
+			unsigned int DC_ATTR_UNUSED detection = data[offset + 11];
+			unsigned int DC_ATTR_UNUSED noflytime = data[offset + 12];
 			divemode = data[offset + 13];
 			atmospheric = array_uint16_le(data + offset + 16);
-			unsigned int number = array_uint16_le(data + offset + 18);
-			unsigned int battery = array_uint16_le(data + offset + 20);
+			unsigned int DC_ATTR_UNUSED number = array_uint16_le(data + offset + 18);
+			unsigned int DC_ATTR_UNUSED battery = array_uint16_le(data + offset + 20);
 			time_start = array_uint32_le(data + offset + 24);
 			unsigned int serial = array_uint32_le(data + offset + 28);
 			DEBUG (abstract->context, "Device: model=%u, hw=%u.%u, fw=%u.%u.%u, deco=%u.%u, serial=%u",
@@ -424,10 +425,10 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			sample.depth = temperature / 10.0;
 			if (callback) callback (DC_SAMPLE_TEMPERATURE, &sample, userdata);
 		} else if (type == ID_OC_CC_SWITCH) {
-			unsigned int ccr = data[offset + 2];
+			unsigned int DC_ATTR_UNUSED ccr = data[offset + 2];
 		} else if (type == ID_GAS_TRANSMITTER) {
 			unsigned int gas_id = data[offset + 2];
-			unsigned int battery = array_uint16_le (data + offset + 4);
+			unsigned int DC_ATTR_UNUSED battery = array_uint16_le (data + offset + 4);
 			unsigned int pressure = array_uint16_le (data + offset + 6);
 			unsigned int transmitter = array_uint16_le (data + offset + 8);
 			dc_usage_t usage = DC_USAGE_NONE;
@@ -483,8 +484,8 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			if (callback) callback(DC_SAMPLE_PRESSURE, &sample, userdata);
 		} else if (type == ID_COMPARTMENTS) {
 			for (unsigned int i = 0; i < 16; ++i) {
-				unsigned int n2 = array_uint16_le (data + offset +  4 + i * 2);
-				unsigned int he = array_uint16_le (data + offset + 36 + i * 2);
+				unsigned int DC_ATTR_UNUSED n2 = array_uint16_le (data + offset +  4 + i * 2);
+				unsigned int DC_ATTR_UNUSED he = array_uint16_le (data + offset + 36 + i * 2);
 			}
 		} else if (type == ID_GPS) {
 			if (!have_location) {
@@ -495,7 +496,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				WARNING (abstract->context, "Multiple GPS locations present.");
 			}
 		} else if (type == ID_PO2_BOARD) {
-			unsigned int serial = array_uint16_le (data + offset + 6);
+			unsigned int DC_ATTR_UNUSED serial = array_uint16_le (data + offset + 6);
 			for (unsigned int i = 0; i < 3; ++i) {
 				unsigned int ppo2 = data[offset + 2 + i];
 				sample.ppo2.sensor = i;
@@ -506,10 +507,10 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			unsigned int ndt = data[offset + 2];
 			unsigned int ceiling = data[offset + 3];
 			unsigned int cns = data[offset + 4];
-			unsigned int safetystop = data[offset + 5];
-			unsigned int ceiling_max = array_uint16_le (data + offset + 6);
+			unsigned int DC_ATTR_UNUSED safetystop = data[offset + 5];
+			unsigned int DC_ATTR_UNUSED ceiling_max = array_uint16_le (data + offset + 6);
 			unsigned int tts = array_uint16_le (data + offset + 8);
-			unsigned int otu = array_uint16_le (data + offset + 10);
+			unsigned int DC_ATTR_UNUSED otu = array_uint16_le (data + offset + 10);
 
 			// Deco / NDL
 			if (ceiling) {
@@ -534,12 +535,12 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				WARNING (abstract->context, "Multiple GF values present.");
 			}
 		} else if (type == ID_FOOTER) {
-			unsigned int cns = data[offset + 2];
-			unsigned int violations = data[offset + 3];
-			unsigned int otu = array_uint16_le (data + offset + 4);
-			unsigned int battery = array_uint16_le (data + offset + 6);
+			unsigned int DC_ATTR_UNUSED cns = data[offset + 2];
+			unsigned int DC_ATTR_UNUSED violations = data[offset + 3];
+			unsigned int DC_ATTR_UNUSED otu = array_uint16_le (data + offset + 4);
+			unsigned int DC_ATTR_UNUSED battery = array_uint16_le (data + offset + 6);
 			time_end = array_uint32_le(data + offset + 8);
-			unsigned int desaturation = array_uint32_le (data + offset + 12);
+			unsigned int DC_ATTR_UNUSED desaturation = array_uint32_le (data + offset + 12);
 		} else if (type == ID_PO2_REBREATHER) {
 			for (unsigned int i = 0; i < 3; ++i) {
 				unsigned int ppo2 = data[offset + 2 + i];
@@ -589,7 +590,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			sample.bearing = heading;
 			if (callback) callback(DC_SAMPLE_BEARING, &sample, userdata);
 		} else if (type == ID_TRIM) {
-			int trim = (signed int) data[offset + 2];
+			int DC_ATTR_UNUSED trim = (signed int) data[offset + 2];
 		} else if (type == ID_GAS_CONFIG) {
 			unsigned int id = data[offset + 2];
 			unsigned int o2 = data[offset + 3];

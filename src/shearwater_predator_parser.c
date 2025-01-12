@@ -28,6 +28,7 @@
 #include "shearwater_petrel.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ISINSTANCE(parser)	( \
@@ -1092,7 +1093,7 @@ shearwater_predator_parser_samples_foreach (dc_parser_t *abstract, dc_sample_cal
 			}
 		} else if (type == LOG_RECORD_INFO_EVENT) {
 			unsigned int event = data[offset + 1];
-			unsigned int timestamp = array_uint32_be (data + offset + 4);
+			unsigned int DC_ATTR_UNUSED timestamp = array_uint32_be (data + offset + 4);
 			unsigned int w1 = array_uint32_be (data + offset + 8);
 			unsigned int w2 = array_uint32_be (data + offset + 12);
 

@@ -27,6 +27,7 @@
 #include "liquivision_lynx.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &liquivision_lynx_parser_vtable)
@@ -376,7 +377,7 @@ liquivision_lynx_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			}
 
 			unsigned int type = value & 0x7FFF;
-			unsigned int timestamp = array_uint32_le (data + offset + 2);
+			unsigned int DC_ATTR_UNUSED timestamp = array_uint32_le (data + offset + 2);
 			offset += 4;
 
 			// Get the sample length.

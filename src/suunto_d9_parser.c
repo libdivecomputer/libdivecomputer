@@ -25,6 +25,7 @@
 #include "suunto_d9.h"
 #include "context-private.h"
 #include "parser-private.h"
+#include "platform.h"
 #include "array.h"
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &suunto_d9_parser_vtable)
@@ -551,7 +552,7 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 		if ((nsamples + 1) == marker) {
 			while (offset < size) {
 				unsigned int event = data[offset++];
-				unsigned int seconds, type, state, number, heading;
+				unsigned int seconds, type, DC_ATTR_UNUSED state, DC_ATTR_UNUSED number, heading;
 				unsigned int current, next;
 				unsigned int he, o2, ppo2, idx;
 				unsigned int length;
