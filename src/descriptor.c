@@ -507,15 +507,6 @@ dc_match_prefix (const void *key, const void *value)
 }
 
 static int
-dc_match_devname (const void *key, const void *value)
-{
-	const char *k = (const char *) key;
-	const char *v = *(const char * const *) value;
-
-	return strncmp (k, v, strlen (v)) == 0;
-}
-
-static int
 dc_match_usb (const void *key, const void *value)
 {
 	const dc_usb_desc_t *k = (const dc_usb_desc_t *) key;
@@ -626,13 +617,6 @@ dc_filter_internal (const void *key, const void *values, size_t count, size_t si
 	return count == 0;
 }
 
-static const char * const rfcomm[] = {
-#if defined (__linux__)
-	"/dev/rfcomm",
-#endif
-	NULL
-};
-
 static int
 dc_filter_uwatec (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata)
 {
@@ -709,8 +693,6 @@ dc_filter_hw (const dc_descriptor_t *descriptor, dc_transport_t transport, const
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
-	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return DC_FILTER_INTERNAL (userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
@@ -735,8 +717,6 @@ dc_filter_shearwater (const dc_descriptor_t *descriptor, dc_transport_t transpor
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
-	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return DC_FILTER_INTERNAL (userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
@@ -751,8 +731,6 @@ dc_filter_tecdiving (const dc_descriptor_t *descriptor, dc_transport_t transport
 
 	if (transport == DC_TRANSPORT_BLUETOOTH) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
-	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return DC_FILTER_INTERNAL (userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
@@ -832,8 +810,6 @@ dc_filter_mclean(const dc_descriptor_t *descriptor, dc_transport_t transport, co
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_name);
-	} else if (transport == DC_TRANSPORT_SERIAL) {
-		return DC_FILTER_INTERNAL(userdata, rfcomm, 1, dc_match_devname);
 	}
 
 	return 1;
