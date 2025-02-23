@@ -52,14 +52,13 @@
 #include "iostream-private.h"
 #include "iterator-private.h"
 #include "platform.h"
+#include "array.h"
 
 #ifdef _WIN32
 #define DC_ADDRESS_FORMAT "%012I64X"
 #else
 #define DC_ADDRESS_FORMAT "%012llX"
 #endif
-
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
 
 #define MAX_DEVICES 255
 #define MAX_PERIODS 8

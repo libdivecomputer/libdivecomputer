@@ -23,6 +23,7 @@
 #define ARRAY_H
 
 #define C_ARRAY_SIZE(a) (sizeof (a) / sizeof *(a))
+#define C_ARRAY_ITEMSIZE(a) (sizeof *(a))
 
 #ifdef __cplusplus
 extern "C" {

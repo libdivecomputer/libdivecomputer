@@ -29,9 +29,7 @@
 
 #include "iterator-private.h"
 #include "platform.h"
-
-#define C_ARRAY_SIZE(array) (sizeof (array) / sizeof *(array))
-#define C_ARRAY_ITEMSIZE(array) (sizeof *(array))
+#include "array.h"
 
 #define DC_FILTER_INTERNAL(key, values, isnullterminated, match) \
 	dc_filter_internal( \
