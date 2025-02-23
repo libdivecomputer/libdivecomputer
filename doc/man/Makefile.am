@@ -18,7 +18,7 @@ MANPAGES = \
 	dc_descriptor_get_product.3 \
 	dc_descriptor_get_vendor.3 \
 	dc_descriptor_get_transports.3 \
-	dc_descriptor_iterator.3 \
+	dc_descriptor_iterator_new.3 \
 	dc_device_close.3 \
 	dc_device_foreach.3 \
 	dc_device_open.3 \

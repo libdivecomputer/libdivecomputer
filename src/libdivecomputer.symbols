@@ -28,6 +28,7 @@ dc_iterator_next
 dc_iterator_free
 
 dc_descriptor_iterator
+dc_descriptor_iterator_new
 dc_descriptor_free
 dc_descriptor_get_vendor
 dc_descriptor_get_product

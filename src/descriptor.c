@@ -39,6 +39,10 @@
 		C_ARRAY_ITEMSIZE(values), \
 		match)
 
+#undef dc_descriptor_iterator
+
+dc_status_t dc_descriptor_iterator (dc_iterator_t **out);
+
 typedef int (*dc_match_t)(const void *, const void *);
 
 typedef int (*dc_filter_t) (dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
@@ -945,7 +949,7 @@ dc_filter_halcyon (dc_descriptor_t *descriptor, dc_transport_t transport, const 
 }
 
 dc_status_t
-dc_descriptor_iterator (dc_iterator_t **out)
+dc_descriptor_iterator_new (dc_iterator_t **out, dc_context_t *context)
 {
 	dc_descriptor_iterator_t *iterator = NULL;
 
@@ -961,6 +965,12 @@ dc_descriptor_iterator (dc_iterator_t **out)
 	*out = (dc_iterator_t *) iterator;
 
 	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+dc_descriptor_iterator (dc_iterator_t **out)
+{
+	return dc_descriptor_iterator_new (out, NULL);
 }
 
 static dc_status_t

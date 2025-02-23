@@ -48,7 +48,7 @@ and
 .Xr dc_context_set_loglevel 3 .
 .It
 Find a descriptor for their dive computer by iterating through
-.Xr dc_descriptor_iterator 3
+.Xr dc_descriptor_iterator_new 3
 and searching by name, vendor, or product family.
 .It
 Find the transport to use for the communication. To determine the supported transports use
@@ -145,7 +145,7 @@ return
 .El
 .Sh SEE ALSO
 .Xr dc_context_new 3 ,
-.Xr dc_descriptor_iterator 3
+.Xr dc_descriptor_iterator_new 3
 .Xr dc_device_open 3
 .Xr dc_parser_new 3
 .Sh AUTHORS

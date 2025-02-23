@@ -38,7 +38,7 @@ Gets the transports supported by the given
 The
 .Fa descriptor
 usually found by searching through
-.Xr dc_descriptor_iterator 3 .
+.Xr dc_descriptor_iterator_new 3 .
 .Sh RETURN VALUES
 Returns a union (bitwise OR) of the transports supported by the given
 .Fa descriptor .
@@ -59,7 +59,7 @@ if(transports & DC_TRANSPORT_USBHID) {
 }
 .Ed
 .Sh SEE ALSO
-.Xr dc_descriptor_iterator 3 .
+.Xr dc_descriptor_iterator_new 3 .
 .Sh AUTHORS
 The
 .Lb libdivecomputer

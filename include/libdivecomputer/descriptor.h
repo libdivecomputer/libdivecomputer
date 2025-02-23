@@ -23,6 +23,7 @@
 #define DC_DESCRIPTOR_H
 
 #include "common.h"
+#include "context.h"
 #include "iterator.h"
 
 #ifdef __cplusplus
@@ -38,11 +39,15 @@ typedef struct dc_descriptor_t dc_descriptor_t;
  * Create an iterator to enumerate the supported dive computers.
  *
  * @param[out] iterator  A location to store the iterator.
+ * @param[in]  context   A valid device descriptor.
  * @returns #DC_STATUS_SUCCESS on success, or another #dc_status_t code
  * on failure.
  */
 dc_status_t
-dc_descriptor_iterator (dc_iterator_t **iterator);
+dc_descriptor_iterator_new (dc_iterator_t **iterator, dc_context_t *context);
+
+/* For backwards compatibility */
+#define dc_descriptor_iterator(iterator) dc_descriptor_iterator_new(iterator, NULL)
 
 /**
  * Free the device descriptor.

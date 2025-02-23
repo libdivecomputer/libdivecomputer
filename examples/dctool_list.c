@@ -76,7 +76,7 @@ dctool_list_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t 
 
 	dc_iterator_t *iterator = NULL;
 	dc_descriptor_t *descriptor = NULL;
-	dc_descriptor_iterator (&iterator);
+	dc_descriptor_iterator_new (&iterator, context);
 	while (dc_iterator_next (iterator, &descriptor) == DC_STATUS_SUCCESS) {
 		printf ("%s %s\n",
 			dc_descriptor_get_vendor (descriptor),

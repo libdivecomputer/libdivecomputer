@@ -255,7 +255,7 @@ dctool_descriptor_search (dc_descriptor_t **out, const char *name, dc_family_t f
 	dc_status_t rc = DC_STATUS_SUCCESS;
 
 	dc_iterator_t *iterator = NULL;
-	rc = dc_descriptor_iterator (&iterator);
+	rc = dc_descriptor_iterator_new (&iterator, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error creating the device descriptor iterator.");
 		return rc;

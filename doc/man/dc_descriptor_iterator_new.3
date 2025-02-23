@@ -22,15 +22,16 @@
 .Dt DC_DESCRIPTOR_ITERATOR 3
 .Os
 .Sh NAME
-.Nm dc_descriptor_iterator
+.Nm dc_descriptor_iterator_new
 .Nd get all supported dive computers
 .Sh LIBRARY
 .Lb libdivecomputer
 .Sh SYNOPSIS
 .In libdivecomputer/descriptor.h
 .Ft dc_status_t
-.Fo dc_descriptor_iterator
+.Fo dc_descriptor_iterator_new
 .Fa "dc_iterator_t **iterator"
+.Fa "dc_descriptor_t *descriptor"
 .Fc
 .Sh DESCRIPTION
 Gets all descriptors available to
@@ -56,7 +57,7 @@ The following iterates over all descriptors, printing the vendor, then
 frees the iterator.
 It does no error checking.
 .Bd -literal
-dc_descriptor_iterator(&iter));
+dc_descriptor_iterator_new(&iter, context));
 while (dc_iterator_next(iter, &desc) == DC_STATUS_SUCCESS) {
 	printf("%s\en", dc_descriptor_get_vendor(desc));
 	dc_descriptor_free(desc);
