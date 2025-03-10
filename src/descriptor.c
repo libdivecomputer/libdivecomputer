@@ -318,6 +318,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Sirius",            DC_FAMILY_MARES_ICONHD , 0x2F, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Quad Ci",           DC_FAMILY_MARES_ICONHD , 0x31, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Puck 4",            DC_FAMILY_MARES_ICONHD , 0x35, DC_TRANSPORT_BLE, dc_filter_mares},
+	{"Mares", "Puck Lite",         DC_FAMILY_MARES_ICONHD , 0x35, DC_TRANSPORT_BLE, dc_filter_mares},
 	/* Heinrichs Weikamp */
 	{"Heinrichs Weikamp", "OSTC",     DC_FAMILY_HW_OSTC, 0, DC_TRANSPORT_SERIAL, NULL},
 	{"Heinrichs Weikamp", "OSTC Mk2", DC_FAMILY_HW_OSTC, 1, DC_TRANSPORT_SERIAL, NULL},
@@ -745,6 +746,7 @@ dc_filter_mares (const dc_descriptor_t *descriptor, dc_transport_t transport, co
 		"Sirius",
 		"Quad Ci",
 		"Puck4",
+		"Puck Lite",
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {
