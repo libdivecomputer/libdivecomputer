@@ -51,6 +51,14 @@ array_reverse_bits (unsigned char data[], unsigned int size)
 	}
 }
 
+void
+array_reverse_nibbles (unsigned char data[], unsigned int size)
+{
+	for (unsigned int i = 0; i < size; ++i) {
+		unsigned char tmp = data[i];
+		data[i] = ((tmp & 0xF0) >> 4) | ((tmp & 0x0F) << 4);
+	}
+}
 
 int
 array_isequal (const unsigned char data[], unsigned int size, unsigned char value)

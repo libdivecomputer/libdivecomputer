@@ -28,6 +28,7 @@
 
 #define ISINSTANCE(parser) dc_parser_isinstance((parser), &cressi_edy_parser_vtable)
 
+#define ARCHIMEDE 0x01
 #define IQ700 0x05
 #define EDY   0x08
 
@@ -78,6 +79,17 @@ static const cressi_edy_layout_t edy = {
 	22, /* temperature */
 	25, /* divetime */
 	46, 3, /* gasmix */
+};
+
+static const cressi_edy_layout_t archimede = {
+	 2, /* datetime_y */
+	 5, /* datetime_md */
+	25, /* datetime_hm */
+	22, /* avgdepth */
+	 9, /* maxdepth */
+	45, /* temperature */
+	29, /* divetime */
+	43, 1, /* gasmix */
 };
 
 static unsigned int
@@ -136,7 +148,12 @@ cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 
 	// Set the default values.
 	parser->model = model;
-	parser->layout = &edy;
+
+	if (model == ARCHIMEDE) {
+		parser->layout = &archimede;
+	} else {
+		parser->layout = &edy;
+	}
 
 	*out = (dc_parser_t*) parser;
 
@@ -260,7 +277,7 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		// Current gasmix
 		if (ngasmixes) {
 			unsigned int idx = (data[offset + 0] & 0x60) >> 5;
-			if (parser->model == IQ700)
+			if (parser->model == IQ700 || parser->model == ARCHIMEDE)
 				idx = 0; /* FIXME */
 			if (idx >= ngasmixes) {
 				ERROR (abstract->context, "Invalid gas mix index.");

@@ -35,6 +35,9 @@ array_reverse_bytes (unsigned char data[], unsigned int size);
 void
 array_reverse_bits (unsigned char data[], unsigned int size);
 
+void
+array_reverse_nibbles (unsigned char data[], unsigned int size);
+
 int
 array_isequal (const unsigned char data[], unsigned int size, unsigned char value);
 
