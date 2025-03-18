@@ -141,9 +141,19 @@ cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], u
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return status;
 		}
+	}
+
+	if (trailer) {
+		// Receive the trailer byte.
+		unsigned char end = 0;
+		status = dc_iostream_read (device->iostream, &end, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
+		}
 
 		// Verify the trailer of the packet.
-		if (trailer && answer[asize - 1] != 0x45) {
+		if (end != 0x45) {
 			ERROR (abstract->context, "Unexpected answer trailer byte.");
 			return DC_STATUS_PROTOCOL;
 		}
@@ -203,9 +213,8 @@ static dc_status_t
 cressi_edy_init3 (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x0C};
-	unsigned char answer[1] = {0};
 
-	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
+	return cressi_edy_transfer (device, command, sizeof (command), NULL, 0, 1);
 }
 
 
@@ -324,6 +333,7 @@ cressi_edy_device_close (dc_device_t *abstract)
 static dc_status_t
 cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
 
 	if ((address % SZ_PAGE != 0) ||
@@ -334,22 +344,18 @@ cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned ch
 	while (nbytes < size) {
 		// Read the package.
 		unsigned int number = address / SZ_PAGE;
-		unsigned char answer[SZ_PACKET + 1] = {0};
 		unsigned char command[3] = {0x52,
 				(number >> 8) & 0xFF, // high
 				(number     ) & 0xFF}; // low
-		dc_status_t rc = cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
-
-		memcpy (data, answer, SZ_PACKET);
+		status = cressi_edy_transfer (device, command, sizeof (command), data + nbytes, SZ_PACKET, 1);
+		if (status != DC_STATUS_SUCCESS)
+			return status;
 
 		nbytes += SZ_PACKET;
 		address += SZ_PACKET;
-		data += SZ_PACKET;
 	}
 
-	return DC_STATUS_SUCCESS;
+	return status;
 }
 
 
