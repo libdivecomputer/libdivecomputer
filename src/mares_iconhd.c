@@ -661,6 +661,10 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 		break;
 	case GENIUS:
 	case HORIZON:
+	case PUCKAIR2:
+	case SIRIUS:
+	case QUADCI:
+	case PUCK4:
 		device->layout = &mares_genius_layout;
 		device->packetsize = 4096;
 		device->fingerprint_size = 4;
