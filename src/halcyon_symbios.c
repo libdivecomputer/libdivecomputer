@@ -445,6 +445,8 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 		goto error_exit;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", info, sizeof(info));
+
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
 	vendor.data = info;
@@ -493,6 +495,8 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 	const unsigned char *data = dc_buffer_get_data (logbook);
 	size_t size = dc_buffer_get_size (logbook);
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Logbook", data, size);
 
 	// Get the number of dives.
 	unsigned int ndives = 0;

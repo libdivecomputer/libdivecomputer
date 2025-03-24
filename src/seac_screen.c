@@ -282,12 +282,16 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Hardware", device->info, SZ_HWINFO);
+
 	// Read the software info.
 	status = seac_screen_transfer (device, CMD_SWINFO, NULL, 0, device->info + SZ_HWINFO, SZ_SWINFO);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to read the software info.");
 		goto error_free;
 	}
+
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Software", device->info + SZ_HWINFO, SZ_SWINFO);
 
 	*out = (dc_device_t *) device;
 

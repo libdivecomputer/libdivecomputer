@@ -284,6 +284,8 @@ liquivision_lynx_device_open (dc_device_t **out, dc_context_t *context, dc_iostr
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Info", device->info, sizeof(device->info));
+
 	// Send the more info command.
 	const unsigned char cmd_more[] = {0x4D, 0x4F, 0x52, 0x45, 0x49, 0x4E, 0x46, 0x4F, 0x4D, 0x4F, 0x52, 0x45};
 	status = liquivision_lynx_transfer (device, cmd_more, sizeof(cmd_more), device->more, sizeof(device->more));
@@ -291,6 +293,8 @@ liquivision_lynx_device_open (dc_device_t **out, dc_context_t *context, dc_iostr
 		ERROR (context, "Failed to send the more info command.");
 		goto error_free;
 	}
+
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "More", device->more, sizeof(device->more));
 
 	*out = (dc_device_t *) device;
 

@@ -948,6 +948,8 @@ oceanic_atom2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->base.version, sizeof (device->base.version));
+
 	if (dc_iostream_get_transport (device->iostream) == DC_TRANSPORT_BLE) {
 		status = oceanic_atom2_ble_handshake(device);
 		if (status != DC_STATUS_SUCCESS) {

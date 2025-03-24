@@ -326,6 +326,8 @@ hw_frog_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void
 		return rc;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", id, sizeof (id));
+
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = 0;

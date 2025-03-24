@@ -570,11 +570,15 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Model", model, sizeof (model));
+
 	// Read the hardware version.
 	unsigned char hardware[1] = {0};
 	rc = uwatec_smart_transfer (device, CMD_HARDWARE, NULL, 0, hardware, sizeof (hardware));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", hardware, sizeof (hardware));
 
 	// Read the software version.
 	unsigned char software[1] = {0};
@@ -582,17 +586,23 @@ uwatec_smart_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Software", software, sizeof (software));
+
 	// Read the serial number.
 	unsigned char serial[4] = {0};
 	rc = uwatec_smart_transfer (device, CMD_SERIAL, NULL, 0, serial, sizeof (serial));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Serial", serial, sizeof (serial));
+
 	// Read the device clock.
 	unsigned char devtime[4] = {0};
 	rc = uwatec_smart_transfer (device, CMD_DEVTIME, NULL, 0, devtime, sizeof (devtime));
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Clock", devtime, sizeof (devtime));
 
 	// Store the clock calibration values.
 	device->systime = dc_datetime_now ();

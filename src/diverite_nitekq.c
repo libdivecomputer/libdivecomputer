@@ -191,6 +191,8 @@ diverite_nitekq_device_open (dc_device_t **out, dc_context_t *context, dc_iostre
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->version, sizeof (device->version));
+
 	*out = (dc_device_t*) device;
 
 	return DC_STATUS_SUCCESS;

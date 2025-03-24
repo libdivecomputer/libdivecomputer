@@ -526,6 +526,8 @@ oceanic_vtpro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->base.version, sizeof (device->base.version));
+
 	// Calibrate the device. Although calibration is optional, it's highly
 	// recommended because it reduces the transfer time considerably, even
 	// when processing the command itself is quite slow.

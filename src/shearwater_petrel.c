@@ -166,6 +166,8 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return rc;
 	}
 
+	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Serial", rsp_serial, sizeof(rsp_serial));
+
 	// Convert to a number.
 	unsigned char serial[4] = {0};
 	if (array_convert_hex2bin (rsp_serial, sizeof(rsp_serial), serial, sizeof (serial)) != 0 ) {
@@ -181,6 +183,8 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return rc;
 	}
 
+	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", rsp_firmware, sizeof(rsp_firmware));
+
 	// Convert to a number.
 	unsigned int firmware = str2num (rsp_firmware, sizeof(rsp_firmware), 1);
 
@@ -191,6 +195,8 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		ERROR (abstract->context, "Failed to read the hardware type.");
 		return rc;
 	}
+
+	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", rsp_hardware, sizeof(rsp_hardware));
 
 	// Convert and map to the model number.
 	unsigned int hardware = array_uint16_be (rsp_hardware);
@@ -255,6 +261,8 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			dc_buffer_free (manifests);
 			return rc;
 		}
+
+		HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Manifest", dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 
 		// Cache the buffer pointer and size.
 		unsigned char *data = dc_buffer_get_data (buffer);

@@ -453,6 +453,8 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", packet, commands->id.size);
+
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = array_uint16_le (packet);

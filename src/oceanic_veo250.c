@@ -318,6 +318,8 @@ oceanic_veo250_device_open (dc_device_t **out, dc_context_t *context, dc_iostrea
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->base.version, sizeof (device->base.version));
+
 	// Detect the memory layout.
 	const oceanic_common_version_t *version = OCEANIC_COMMON_MATCH(device->base.version, versions, &device->base.firmware);
 	if (version == NULL) {

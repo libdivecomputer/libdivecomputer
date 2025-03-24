@@ -141,6 +141,8 @@ suunto_vyper2_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_timer_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->base.version, sizeof (device->base.version));
+
 	// Override the base class values.
 	unsigned int model = device->base.version[0];
 	if (model == HELO2)

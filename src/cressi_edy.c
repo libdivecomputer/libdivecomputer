@@ -204,6 +204,8 @@ cressi_edy_init2 (cressi_edy_device_t *device)
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "Model", answer, sizeof (answer));
+
 	device->model = answer[0];
 
 	return DC_STATUS_SUCCESS;

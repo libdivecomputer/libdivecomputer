@@ -180,6 +180,8 @@ suunto_d9_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *
 		goto error_free;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->base.version, sizeof (device->base.version));
+
 	// Override the base class values.
 	model = device->base.version[0];
 	if (model == D4i || model == D6i || model == D9tx ||

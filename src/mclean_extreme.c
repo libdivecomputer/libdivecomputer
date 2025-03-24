@@ -541,6 +541,8 @@ mclean_extreme_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback
 		return status;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", firmware, sizeof(firmware));
+
 	// Read the serial number.
 	size_t serial_len = 0;
 	unsigned char serial[SZ_PACKET] = {0};
@@ -549,6 +551,8 @@ mclean_extreme_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback
 		ERROR(abstract->context, "Failed to read serial number.");
 		return status;
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Serial", serial, serial_len);
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
@@ -564,6 +568,8 @@ mclean_extreme_device_foreach(dc_device_t *abstract, dc_dive_callback_t callback
 		ERROR(abstract->context, "Failed to read the computer configuration.");
 		return status;
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Config", computer, sizeof(computer));
 
 	// Verify the format version.
 	unsigned int format = computer[0x0000];

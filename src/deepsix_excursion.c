@@ -283,6 +283,8 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return status;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", rsp_hardware, sizeof(rsp_hardware));
+
 	// Read the software version.
 	unsigned char rsp_software[6] = {0};
 	status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_SOFTWARE, DIR_READ, NULL, 0, rsp_software, sizeof(rsp_software), NULL);
@@ -291,6 +293,8 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		return status;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Software", rsp_software, sizeof(rsp_software));
+
 	// Read the serial number
 	unsigned char rsp_serial[12] = {0};
 	status = deepsix_excursion_transfer (device, GRP_INFO, CMD_INFO_SERIAL, DIR_READ, NULL, 0, rsp_serial, sizeof(rsp_serial), NULL);
@@ -298,6 +302,8 @@ deepsix_excursion_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		ERROR (abstract->context, "Failed to read the serial number.");
 		return status;
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Serial", rsp_serial, sizeof(rsp_serial));
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;

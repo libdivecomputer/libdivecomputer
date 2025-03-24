@@ -219,6 +219,8 @@ reefnet_sensus_handshake (reefnet_sensus_device_t *device)
 		return DC_STATUS_PROTOCOL;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Handshake", handshake + 2, sizeof(handshake) - 2);
+
 	// The device is now waiting for a data request.
 	device->waiting = 1;
 

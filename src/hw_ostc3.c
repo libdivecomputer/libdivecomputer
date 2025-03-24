@@ -605,6 +605,8 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		return rc;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", hardware, sizeof(hardware));
+
 	// Read the version information.
 	unsigned char version[SZ_VERSION] = {0};
 	rc = hw_ostc3_transfer (device, NULL, IDENTITY, NULL, 0, version, sizeof(version), NULL, NODELAY);
@@ -612,6 +614,8 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		ERROR (abstract->context, "Failed to read the version information.");
 		return rc;
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", version, sizeof(version));
 
 	// Cache the descriptor.
 	device->hardware = array_uint16_be(hardware + 0);

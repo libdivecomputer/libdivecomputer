@@ -243,6 +243,8 @@ reefnet_sensusultra_handshake (reefnet_sensusultra_device_t *device, unsigned sh
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
+	HEXDUMP (device->base.context, DC_LOGLEVEL_DEBUG, "Handshake", handshake, sizeof(handshake) - 2);
+
 	// Store the clock calibration values.
 	device->systime = dc_datetime_now ();
 	device->devtime = array_uint32_le (handshake + 4);

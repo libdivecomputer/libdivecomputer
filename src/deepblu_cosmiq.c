@@ -391,6 +391,8 @@ deepblu_cosmiq_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		goto error_exit;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", fw, sizeof(fw));
+
 	// Read the MAC address.
 	unsigned char mac[6] = {0};
 	status = deepblu_cosmiq_transfer (device, CMD_SYSTEM_MAC, &zero, 1, mac, sizeof(mac));
@@ -398,6 +400,8 @@ deepblu_cosmiq_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		ERROR (abstract->context, "Failed to read the MAC address.");
 		goto error_exit;
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Serial", mac, sizeof(mac));
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;

@@ -616,6 +616,8 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 		goto error_free_iostream;
 	}
 
+	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Version", device->version, sizeof (device->version));
+
 	// Autodetect the model using the version packet.
 	device->model = mares_iconhd_get_model (device);
 
@@ -1035,6 +1037,8 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		return rc;
 	}
 
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Model", dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
+
 	if (dc_buffer_get_size (buffer) < 4) {
 		ERROR (abstract->context, "Unexpected number of bytes received (" DC_PRINTF_SIZE ").",
 			dc_buffer_get_size (buffer));
@@ -1054,6 +1058,8 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		dc_buffer_free (buffer);
 		return rc;
 	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Serial", dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
 
 	if (dc_buffer_get_size (buffer) < 16) {
 		ERROR (abstract->context, "Unexpected number of bytes received (" DC_PRINTF_SIZE ").",
