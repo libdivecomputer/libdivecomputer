@@ -317,6 +317,8 @@ dc_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsi
 	if (device->vtable->set_fingerprint == NULL)
 		return DC_STATUS_UNSUPPORTED;
 
+	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Fingerprint", data, size);
+
 	return device->vtable->set_fingerprint (device, data, size);
 }
 
