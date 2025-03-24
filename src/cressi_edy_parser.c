@@ -141,6 +141,9 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = (bcd2dec (p[0x02] & 0x0F) * 100 + bcd2dec (p[0x03])) / 10.0;
 			break;
+		case DC_FIELD_AVGDEPTH:
+			*((double *) value) = (bcd2dec (p[0x00] & 0x0F) * 100 + bcd2dec (p[0x01])) / 10.0;
+			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = cressi_edy_parser_count_gasmixes(p);
 			break;
