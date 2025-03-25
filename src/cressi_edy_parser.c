@@ -65,7 +65,7 @@ cressi_edy_parser_count_gasmixes (const unsigned char *data)
 	// as the first gas marked as disabled is found.
 	unsigned int i = 0;
 	while (i < 3) {
-		if (data[0x17 - i] == 0xF0)
+		if ((data[0x17 - i] & 0xF0) == 0xF0)
 			break;
 		i++;
 	}
