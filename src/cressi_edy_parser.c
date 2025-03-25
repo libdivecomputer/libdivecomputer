@@ -35,9 +35,22 @@
 
 typedef struct cressi_edy_parser_t cressi_edy_parser_t;
 
+typedef struct cressi_edy_layout_t {
+	unsigned int datetime_y;
+	unsigned int datetime_md;
+	unsigned int datetime_hm;
+	unsigned int avgdepth;
+	unsigned int maxdepth;
+	unsigned int temperature;
+	unsigned int divetime;
+	unsigned int gasmix;
+	unsigned int gasmix_count;
+} cressi_edy_layout_t;
+
 struct cressi_edy_parser_t {
 	dc_parser_t base;
 	unsigned int model;
+	const cressi_edy_layout_t *layout;
 };
 
 static dc_status_t cressi_edy_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -56,16 +69,50 @@ static const dc_parser_vtable_t cressi_edy_parser_vtable = {
 	NULL /* destroy */
 };
 
+static const cressi_edy_layout_t edy = {
+	 8, /* datetime_y */
+	10, /* datetime_md */
+	28, /* datetime_hm */
+	 1, /* avgdepth */
+	 5, /* maxdepth */
+	22, /* temperature */
+	25, /* divetime */
+	46, 3, /* gasmix */
+};
 
 static unsigned int
-cressi_edy_parser_count_gasmixes (const unsigned char *data)
+decode (const unsigned char data[], unsigned int offset, unsigned int n)
+{
+	unsigned int result = 0;
+
+	for (unsigned int i = 0; i < n; ++i) {
+		unsigned char byte = data[offset / 2];
+
+		unsigned char nibble = 0;
+		if ((offset & 1) == 0) {
+			nibble = (byte >> 4) & 0x0F;
+		} else {
+			nibble = byte & 0x0F;
+		}
+
+		result *= 10;
+		result += nibble;
+		offset++;
+	}
+
+	return result;
+}
+
+static unsigned int
+cressi_edy_parser_count_gasmixes (const unsigned char data[], const cressi_edy_layout_t *layout)
 {
 	// Count the number of active gas mixes. The active gas
 	// mixes are always first, so we stop counting as soon
 	// as the first gas marked as disabled is found.
 	unsigned int i = 0;
-	while (i < 3) {
-		if ((data[0x17 - i] & 0xF0) == 0xF0)
+	while (i < layout->gasmix_count) {
+		unsigned int state = decode(data, layout->gasmix - i * 2, 1);
+		if (state == 0x0F)
 			break;
 		i++;
 	}
@@ -89,6 +136,7 @@ cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 
 	// Set the default values.
 	parser->model = model;
+	parser->layout = &edy;
 
 	*out = (dc_parser_t*) parser;
 
@@ -99,17 +147,19 @@ cressi_edy_parser_create (dc_parser_t **out, dc_context_t *context, const unsign
 static dc_status_t
 cressi_edy_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 {
+	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) abstract;
+	const cressi_edy_layout_t *layout = parser->layout;
+	const unsigned char *data = abstract->data;
+
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
-	const unsigned char *p = abstract->data;
-
 	if (datetime) {
-		datetime->year = bcd2dec (p[4]) + 2000;
-		datetime->month = (p[5] & 0xF0) >> 4;
-		datetime->day = (p[5] & 0x0F) * 10 + ((p[6] & 0xF0) >> 4);
-		datetime->hour = bcd2dec (p[14]);
-		datetime->minute = bcd2dec (p[15]);
+		datetime->year   = decode(data, layout->datetime_y, 2) + 2000;
+		datetime->month  = decode(data, layout->datetime_md, 1);
+		datetime->day    = decode(data, layout->datetime_md + 1, 2);
+		datetime->hour   = decode(data, layout->datetime_hm, 2);
+		datetime->minute = decode(data, layout->datetime_hm + 2, 2);
 		datetime->second = 0;
 		datetime->timezone = DC_TIMEZONE_NONE;
 	}
@@ -122,11 +172,11 @@ static dc_status_t
 cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value)
 {
 	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) abstract;
+	const cressi_edy_layout_t *layout = parser->layout;
+	const unsigned char *data = abstract->data;
 
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
-
-	const unsigned char *p = abstract->data;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 
@@ -134,27 +184,27 @@ cressi_edy_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsign
 		switch (type) {
 		case DC_FIELD_DIVETIME:
 			if (parser->model == EDY)
-				*((unsigned int *) value) = bcd2dec (p[0x0C] & 0x0F) * 60 + bcd2dec (p[0x0D]);
+				*((unsigned int *) value) = decode(data, layout->divetime, 1) * 60 + decode(data, layout->divetime + 1, 2);
 			else
-				*((unsigned int *) value) = (bcd2dec (p[0x0C] & 0x0F) * 100 + bcd2dec (p[0x0D])) * 60;
+				*((unsigned int *) value) = decode(data, layout->divetime, 3) * 60;
 			break;
 		case DC_FIELD_MAXDEPTH:
-			*((double *) value) = (bcd2dec (p[0x02] & 0x0F) * 100 + bcd2dec (p[0x03])) / 10.0;
+			*((double *) value) = decode(data, layout->maxdepth, 3) / 10.0;
 			break;
 		case DC_FIELD_AVGDEPTH:
-			*((double *) value) = (bcd2dec (p[0x00] & 0x0F) * 100 + bcd2dec (p[0x01])) / 10.0;
+			*((double *) value) = decode(data, layout->avgdepth, 3) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
-			*((unsigned int *) value) = cressi_edy_parser_count_gasmixes(p);
+			*((unsigned int *) value) = cressi_edy_parser_count_gasmixes(data, layout);
 			break;
 		case DC_FIELD_GASMIX:
 			gasmix->usage = DC_USAGE_NONE;
 			gasmix->helium = 0.0;
-			gasmix->oxygen = bcd2dec (p[0x17 - flags]) / 100.0;
+			gasmix->oxygen = decode(data, layout->gasmix - flags * 2, 2) / 100.0;
 			gasmix->nitrogen = 1.0 - gasmix->oxygen - gasmix->helium;
 			break;
 		case DC_FIELD_TEMPERATURE_MINIMUM:
-			*((double *) value) = (bcd2dec (p[0x0B]) * 10 + ((p[0x0C] & 0xF0) >> 4)) / 10.0;
+			*((double *) value) = decode(data, layout->temperature, 3) / 10.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -169,6 +219,7 @@ static dc_status_t
 cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	cressi_edy_parser_t *parser = (cressi_edy_parser_t *) abstract;
+	const cressi_edy_layout_t *layout = parser->layout;
 
 	const unsigned char *data = abstract->data;
 	unsigned int size = abstract->size;
@@ -182,7 +233,7 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 			interval = 15;
 	}
 
-	unsigned int ngasmixes = cressi_edy_parser_count_gasmixes(data);
+	unsigned int ngasmixes = cressi_edy_parser_count_gasmixes(data, layout);
 	unsigned int gasmix = 0xFFFFFFFF;
 
 	unsigned int offset = SZ_HEADER;
@@ -202,7 +253,7 @@ cressi_edy_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 		if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 
 		// Depth (1/10 m).
-		unsigned int depth = bcd2dec (data[offset + 0] & 0x0F) * 100 + bcd2dec (data[offset + 1]);
+		unsigned int depth = decode(data + offset, 1, 3);
 		sample.depth = depth / 10.0;
 		if (callback) callback (DC_SAMPLE_DEPTH, &sample, userdata);
 
