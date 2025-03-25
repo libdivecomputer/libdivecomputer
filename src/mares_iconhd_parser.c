@@ -1054,7 +1054,7 @@ mares_genius_foreach (dc_parser_t *abstract, dc_sample_callback_t callback, void
 	unsigned int profile_minor = data[offset + 2];
 	unsigned int profile_major = data[offset + 3];
 	if (profile_type > 1 ||
-		(profile_type == 0 && OBJVERSION(profile_major,profile_minor) > OBJVERSION(1,0)) ||
+		(profile_type == 0 && OBJVERSION(profile_major,profile_minor) > OBJVERSION(2,0)) ||
 		(profile_type == 1 && OBJVERSION(profile_major,profile_minor) > OBJVERSION(0,2))) {
 		ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 			profile_type, profile_major, profile_minor);
