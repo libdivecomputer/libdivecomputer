@@ -397,3 +397,32 @@ suunto_common2_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 
 	return status;
 }
+
+dc_status_t
+suunto_common2_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+
+	unsigned char answer[5] = {0};
+	unsigned char command[11] = {0x10, 0x00, 0x07,
+			(datetime->year >> 8) & 0xFF,
+			(datetime->year     ) & 0xFF,
+			datetime->month,
+			datetime->day,
+			datetime->hour,
+			datetime->minute,
+			datetime->second,
+			0};  // CRC
+	command[10] = checksum_xor_uint8 (command, 10, 0x00);
+
+	status = suunto_common2_transfer (abstract, command, sizeof (command), answer, sizeof (answer), 1);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	if (answer[3] != 1) {
+		ERROR (abstract->context, "Unexpected response code (%u).", answer[3]);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	return status;
+}

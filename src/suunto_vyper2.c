@@ -51,7 +51,7 @@ static const suunto_common2_device_vtable_t suunto_vyper2_device_vtable = {
 		suunto_common2_device_write, /* write */
 		suunto_common2_device_dump, /* dump */
 		suunto_common2_device_foreach, /* foreach */
-		NULL, /* timesync */
+		suunto_common2_device_timesync, /* timesync */
 		suunto_vyper2_device_close /* close */
 	},
 	suunto_vyper2_device_packet

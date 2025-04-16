@@ -74,6 +74,9 @@ dc_status_t
 suunto_common2_device_foreach (dc_device_t *device, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
+suunto_common2_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
+
+dc_status_t
 suunto_common2_device_reset_maxdepth (dc_device_t *device);
 
 #ifdef __cplusplus
