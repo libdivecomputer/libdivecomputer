@@ -35,11 +35,11 @@
 
 #define MAXRETRIES        4
 
-#define SZ_PACKET         0x80
-#define SZ_PAGE           (SZ_PACKET / 4)
+#define SZ_PAGE           32
 
 #define SZ_HEADER 32
 
+#define ARCHIMEDE 0x01
 #define IQ700 0x05
 #define EDY   0x08
 
@@ -60,6 +60,7 @@ typedef struct cressi_edy_device_t {
 	const cressi_edy_layout_t *layout;
 	unsigned char fingerprint[SZ_PAGE / 2];
 	unsigned int model;
+	unsigned int packetsize;
 } cressi_edy_device_t;
 
 static dc_status_t cressi_edy_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
@@ -141,9 +142,19 @@ cressi_edy_packet (cressi_edy_device_t *device, const unsigned char command[], u
 			ERROR (abstract->context, "Failed to receive the answer.");
 			return status;
 		}
+	}
+
+	if (trailer) {
+		// Receive the trailer byte.
+		unsigned char end = 0;
+		status = dc_iostream_read (device->iostream, &end, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the answer.");
+			return status;
+		}
 
 		// Verify the trailer of the packet.
-		if (trailer && answer[asize - 1] != 0x45) {
+		if (end != 0x45) {
 			ERROR (abstract->context, "Unexpected answer trailer byte.");
 			return DC_STATUS_PROTOCOL;
 		}
@@ -203,9 +214,8 @@ static dc_status_t
 cressi_edy_init3 (cressi_edy_device_t *device)
 {
 	unsigned char command[1] = {0x0C};
-	unsigned char answer[1] = {0};
 
-	return cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
+	return cressi_edy_transfer (device, command, sizeof (command), NULL, 0, 1);
 }
 
 
@@ -238,6 +248,7 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t 
 	device->iostream = iostream;
 	device->layout = NULL;
 	device->model = 0;
+	device->packetsize = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Set the serial communication protocol (1200 8N1).
@@ -275,19 +286,26 @@ cressi_edy_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t 
 	// Send the init commands.
 	cressi_edy_init1 (device);
 	cressi_edy_init2 (device);
-	cressi_edy_init3 (device);
+	if (device->model != ARCHIMEDE) {
+		cressi_edy_init3 (device);
+	}
 
-	if (device->model == IQ700) {
+	device->packetsize = device->model == ARCHIMEDE ?
+		SZ_PAGE : SZ_PAGE * 4;
+
+	if (device->model == IQ700 || device->model == ARCHIMEDE) {
 		device->layout = &tusa_iq700_layout;
 	} else {
 		device->layout = &cressi_edy_layout;
 	}
 
-	// Set the serial communication protocol (4800 8N1).
-	status = dc_iostream_configure (device->iostream, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_free;
+	if (device->model != ARCHIMEDE) {
+		// Set the serial communication protocol (4800 8N1).
+		status = dc_iostream_configure (device->iostream, 4800, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to set the terminal attributes.");
+			goto error_free;
+		}
 	}
 
 	// Make sure everything is in a sane state.
@@ -324,32 +342,40 @@ cressi_edy_device_close (dc_device_t *abstract)
 static dc_status_t
 cressi_edy_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
+	dc_status_t status = DC_STATUS_SUCCESS;
 	cressi_edy_device_t *device = (cressi_edy_device_t*) abstract;
 
 	if ((address % SZ_PAGE != 0) ||
-		(size    % SZ_PACKET != 0))
+		(size    % device->packetsize != 0))
 		return DC_STATUS_INVALIDARGS;
 
 	unsigned int nbytes = 0;
 	while (nbytes < size) {
 		// Read the package.
 		unsigned int number = address / SZ_PAGE;
-		unsigned char answer[SZ_PACKET + 1] = {0};
-		unsigned char command[3] = {0x52,
-				(number >> 8) & 0xFF, // high
-				(number     ) & 0xFF}; // low
-		dc_status_t rc = cressi_edy_transfer (device, command, sizeof (command), answer, sizeof (answer), 1);
-		if (rc != DC_STATUS_SUCCESS)
-			return rc;
+		unsigned char command[3] = {0};
+		if (device->model == ARCHIMEDE) {
+			command[0] = 0x45;
+			command[1] = 0x52;
+			command[2] = number & 0xFF;
+		} else {
+			command[0] = 0x52;
+			command[1] = (number >> 8) & 0xFF; // high;
+			command[2] = (number     ) & 0xFF; // low
+		}
+		status = cressi_edy_transfer (device, command, sizeof (command), data + nbytes, device->packetsize, 1);
+		if (status != DC_STATUS_SUCCESS)
+			return status;
 
-		memcpy (data, answer, SZ_PACKET);
-
-		nbytes += SZ_PACKET;
-		address += SZ_PACKET;
-		data += SZ_PACKET;
+		nbytes += device->packetsize;
+		address += device->packetsize;
 	}
 
-	return DC_STATUS_SUCCESS;
+	if (device->model == ARCHIMEDE) {
+		array_reverse_nibbles (data, size);
+	}
+
+	return status;
 }
 
 
@@ -389,7 +415,7 @@ cressi_edy_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	return device_dump_read (abstract, 0, dc_buffer_get_data (buffer),
-		dc_buffer_get_size (buffer), SZ_PACKET);
+		dc_buffer_get_size (buffer), device->packetsize);
 }
 
 
@@ -401,7 +427,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = SZ_PACKET +
+	progress.maximum = 4 * SZ_PAGE +
 		(layout->rb_profile_end - layout->rb_profile_begin);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
@@ -413,7 +439,7 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Read the logbook data.
-	unsigned char logbook[SZ_PACKET] = {0};
+	unsigned char logbook[4 * SZ_PAGE] = {0};
 	dc_status_t rc = cressi_edy_device_read (abstract, layout->rb_logbook_offset, logbook, sizeof (logbook));
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the logbook data.");
@@ -475,13 +501,13 @@ cressi_edy_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	}
 
 	// Update and emit a progress event.
-	progress.current += SZ_PACKET;
-	progress.maximum = SZ_PACKET + total;
+	progress.current += 4 * SZ_PAGE;
+	progress.maximum = 4 * SZ_PAGE + total;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	rc = dc_rbstream_new (&rbstream, abstract, SZ_PAGE, SZ_PACKET, layout->rb_profile_begin, layout->rb_profile_end, eop, DC_RBSTREAM_BACKWARD);
+	rc = dc_rbstream_new (&rbstream, abstract, SZ_PAGE, device->packetsize, layout->rb_profile_begin, layout->rb_profile_end, eop, DC_RBSTREAM_BACKWARD);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		return rc;
