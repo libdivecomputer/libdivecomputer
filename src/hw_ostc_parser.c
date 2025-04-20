@@ -1132,14 +1132,15 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 					if (value & OSTC4_COMPASS_HEADING_CLEARED_FLAG) {
 						snprintf(buf, BUFLEN, "Cleared compass heading");
 					} else {
+						sample.event.value = heading;
+
 						if (value & OSTC4_COMPASS_HEADING_SET_FLAG) {
 							sample.event.type = SAMPLE_EVENT_HEADING;
-							snprintf(buf, BUFLEN, "Set compass heading %d degrees", heading);
+							snprintf(buf, BUFLEN, "Set compass heading [degrees]%s", sample.event.value ? "" : ": 0");
 						} else {
-							snprintf(buf, BUFLEN, "Logged compass heading %d degrees", heading);
+							snprintf(buf, BUFLEN, "Logged compass heading [degrees]%s", sample.event.value ? "" : ": 0");
 						}
 
-						sample.event.value = heading;
 					}
 
 					sample.event.name = buf;
@@ -1159,7 +1160,10 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 				}
 
 				unsigned int scrubberState = array_uint16_le(data + offset);
-				int scrubberTimeMinutes = (scrubberState & 0x0800) ? (-1 ^ 0x0FFF) | (scrubberState & 0x0FFF) : scrubberState & 0x0FFF; // extract 12 bit signed int
+				int scrubberTimeMinutes = scrubberState & 0x0FFF; // Extract the 12-bit value
+				if (scrubberState & 0x0800) { // Check if the sign bit is set
+					scrubberTimeMinutes -= 0x1000; // Perform sign extension
+				}
 				if (parser->first_scrubber_time_minutes == INT_MAX) {
 					parser->first_scrubber_time_minutes = scrubberTimeMinutes;
 				}
@@ -1169,23 +1173,23 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 					dc_sample_value_t sample = {
 						.event.type = SAMPLE_EVENT_STRING,
 						.event.flags = SAMPLE_FLAGS_SEVERITY_STATE,
+						.event.value = scrubberTimeMinutes,
 					};
-
 
 					if (scrubberState & OSTC4_SCRUBBER_STATE_ERROR_FLAG) {
 						if (!parser->scrubber_error_reported) {
-						    sample.event.flags = SAMPLE_FLAGS_SEVERITY_ALARM;
-						    parser->scrubber_error_reported = true;
+							sample.event.flags = SAMPLE_FLAGS_SEVERITY_ALARM;
+							parser->scrubber_error_reported = true;
 						}
-						snprintf(buf, BUFLEN, "Scrubber exhausted: %d minutes remaining", scrubberTimeMinutes);
+						snprintf(buf, BUFLEN, "Scrubber exhausted, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
 					} else if (scrubberState & OSTC4_SCRUBBER_STATE_WARNING_FLAG) {
 						if (!parser->scrubber_warning_reported) {
-						    sample.event.flags = SAMPLE_FLAGS_SEVERITY_WARN;
-						    parser->scrubber_warning_reported = true;
+							sample.event.flags = SAMPLE_FLAGS_SEVERITY_WARN;
+							parser->scrubber_warning_reported = true;
 						}
-						snprintf(buf, BUFLEN, "Scrubber warning: %d minutes remaining", scrubberTimeMinutes);
+						snprintf(buf, BUFLEN, "Scrubber warning, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
 					} else {
-						snprintf(buf, BUFLEN, "Scrubber: %d minutes remaining", scrubberTimeMinutes);
+						snprintf(buf, BUFLEN, "Scrubber time remaining [minutes]%s", sample.event.value ? "" : ": 0");
 					}
 
 					sample.event.name = buf;
