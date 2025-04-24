@@ -19,8 +19,8 @@
  * MA 02110-1301 USA
  */
 
-#ifndef OXYGENSCIENTIFIC_RNO_H
-#define OXYGENSCIENTIFIC_RNO_H
+#ifndef HALCYON_SYMBIOS_H
+#define HALCYON_SYMBIOS_H
 
 #include <libdivecomputer/context.h>
 #include <libdivecomputer/iostream.h>
@@ -40,4 +40,4 @@ halcyon_symbios_parser_create (dc_parser_t **parser, dc_context_t *context, cons
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-#endif /* OXYGENSCIENTIFIC_RNO_H */
+#endif /* HALCYON_SYMBIOS_H */
