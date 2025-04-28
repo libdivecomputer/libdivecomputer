@@ -423,7 +423,7 @@ divesoft_freedom_cache (divesoft_freedom_parser_t *parser)
 				seawater = misc & 0x02;
 				vpm      = misc & 0x20;
 			} else if (id == CFG_ID_VERSION) {
-				DEBUG (abstract->context, "Device: model=%u, hw=%u.%u, sw=%u.%u.%u.%u flags=%u",
+				DEBUG (abstract->context, "Device: type=%u, hw=%u.%u, sw=%u.%u.%u.%u flags=%u",
 					data[offset + 4],
 					data[offset + 5], data[offset + 6],
 					data[offset + 7], data[offset + 8], data[offset + 9],
