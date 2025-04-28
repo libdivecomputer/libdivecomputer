@@ -47,6 +47,8 @@
 #define ID_LOG_VERSION     0x0F
 #define ID_TRIM            0x10
 #define ID_GAS_CONFIG      0x11
+#define ID_TANK_TRANSMITTER 0x12
+#define ID_GF_INFO          0x13
 
 #define ISCONFIG(type) ( \
 	(type) == ID_LOG_VERSION || \
@@ -64,6 +66,8 @@
 
 #define NGASMIXES 10
 #define NTANKS    10
+
+#define TRANSMITTER_ID (1u << 16)
 
 typedef struct halcyon_symbios_gasmix_t {
 	unsigned int id;
@@ -305,6 +309,8 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		4,  /* ID_LOG_VERSION */
 		4,  /* ID_TRIM */
 		8,  /* ID_GAS_CONFIG */
+		8,  /* ID_TANK_TRANSMITTER */
+		6,  /* ID_GF_INFO */
 	};
 
 	unsigned int time_start = UNDEFINED, time_end = UNDEFINED;
@@ -632,6 +638,49 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 					if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 				}
 			}
+		} else if (type == ID_TANK_TRANSMITTER) {
+			unsigned int id = data[offset + 2] | TRANSMITTER_ID;
+			unsigned int DC_ATTR_UNUSED battery = array_uint16_le (data + offset + 4);
+			unsigned int pressure = array_uint16_le (data + offset + 6) / 10;
+			dc_usage_t usage = DC_USAGE_NONE;
+
+			if (tank_id_previous != id ||
+				tank_usage_previous != usage) {
+				// Find the tank in the list.
+				unsigned int idx = 0;
+				while (idx < ntanks) {
+					if (tank[idx].id == id &&
+						tank[idx].usage == usage)
+						break;
+					idx++;
+				}
+
+				// Add a new tank if necessary.
+				if (idx >= ntanks) {
+					if (ngasmixes >= NTANKS) {
+						ERROR (abstract->context, "Maximum number of tanks reached.");
+						return DC_STATUS_NOMEMORY;
+					}
+					tank[ntanks].id = id;
+					tank[ntanks].beginpressure = pressure;
+					tank[ntanks].endpressure = pressure;
+					tank[ntanks].gasmix = DC_GASMIX_UNKNOWN;
+					tank[ntanks].usage = usage;
+					ntanks++;
+				}
+
+				tank_id_previous = id;
+				tank_usage_previous = usage;
+				tank_idx = idx;
+			}
+			tank[tank_idx].endpressure = pressure;
+
+			sample.pressure.tank = tank_idx;
+			sample.pressure.value = pressure / 10.0;
+			if (callback) callback(DC_SAMPLE_PRESSURE, &sample, userdata);
+		} else if (type == ID_GF_INFO) {
+			unsigned int DC_ATTR_UNUSED gf_now  = array_uint16_le (data + offset + 2);
+			unsigned int DC_ATTR_UNUSED gf_surface  = array_uint16_le (data + offset + 4);
 		} else {
 			WARNING (abstract->context, "Unknown record (type=%u, size=%u", type, length);
 		}
