@@ -75,6 +75,7 @@ typedef struct halcyon_symbios_tank_t {
 	unsigned int id;
 	unsigned int beginpressure;
 	unsigned int endpressure;
+	unsigned int gasmix;
 	dc_usage_t usage;
 } halcyon_symbios_tank_t;
 
@@ -150,6 +151,7 @@ halcyon_symbios_parser_create (dc_parser_t **out, dc_context_t *context, const u
 		parser->tank[i].id = 0;
 		parser->tank[i].beginpressure = 0;
 		parser->tank[i].endpressure = 0;
+		parser->tank[i].gasmix = DC_GASMIX_UNKNOWN;
 		parser->tank[i].usage = DC_USAGE_NONE;
 	}
 
@@ -251,8 +253,8 @@ halcyon_symbios_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			tank->workpressure = 0.0;
 			tank->beginpressure = parser->tank[flags].beginpressure / 10.0;
 			tank->endpressure   = parser->tank[flags].endpressure   / 10.0;
+			tank->gasmix        = parser->tank[flags].gasmix;
 			tank->usage         = parser->tank[flags].usage;
-			tank->gasmix = DC_GASMIX_UNKNOWN;
 			break;
 		case DC_FIELD_DECOMODEL:
 			if (parser->gf_lo == UNDEFINED || parser->gf_hi == UNDEFINED)
@@ -318,6 +320,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	halcyon_symbios_gasmix_t gasmix[NGASMIXES] = {0};
 	halcyon_symbios_tank_t tank[NTANKS] = {0};
 	unsigned int gasmix_id_previous = UNDEFINED;
+	unsigned int gasmix_idx = DC_GASMIX_UNKNOWN;
 	unsigned int tank_id_previous = UNDEFINED;
 	unsigned int tank_usage_previous = UNDEFINED;
 	unsigned int tank_idx = UNDEFINED;
@@ -447,6 +450,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				sample.gasmix = idx;
 				if (callback) callback(DC_SAMPLE_GASMIX, &sample, userdata);
 				gasmix_id_previous = gas_id;
+				gasmix_idx = idx;
 			}
 
 			if (tank_id_previous != transmitter ||
@@ -469,6 +473,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 					tank[ntanks].id = transmitter;
 					tank[ntanks].beginpressure = pressure;
 					tank[ntanks].endpressure = pressure;
+					tank[ntanks].gasmix = gasmix_idx;
 					tank[ntanks].usage = usage;
 					ntanks++;
 				}
@@ -572,6 +577,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 					tank[ntanks].id = serial;
 					tank[ntanks].beginpressure = pressure;
 					tank[ntanks].endpressure = pressure;
+					tank[ntanks].gasmix = DC_GASMIX_UNKNOWN;
 					tank[ntanks].usage = usage;
 					ntanks++;
 				}
