@@ -502,7 +502,7 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 	unsigned int type = array_uint16_le (data);
 	unsigned int minor = data[2];
 	unsigned int major = data[3];
-	if (type != 1 || OBJVERSION(major,minor) > OBJVERSION(1,1)) {
+	if (type != 1 || OBJVERSION(major,minor) > OBJVERSION(2,0)) {
 		ERROR (abstract->context, "Unsupported object type (%u) or version (%u.%u).",
 			type, major, minor);
 		return DC_STATUS_DATAFORMAT;
@@ -521,7 +521,7 @@ mares_genius_cache (mares_iconhd_parser_t *parser)
 
 	// The Genius header (v1.x) has 10 bytes more at the end.
 	unsigned int more = 0;
-	if (major == 1) {
+	if (major >= 1) {
 		more = 16;
 	}
 
