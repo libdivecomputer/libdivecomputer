@@ -528,7 +528,7 @@ dc_match_prefix (const void *key, const void *value)
 }
 
 static int
-dc_match_number_with_prefix (const void *key, const void *value)
+dc_match_prefix_with_number (const void *key, const void *value)
 {
 	const char *str = (const char *) key;
 	const char *prefix = *(const char * const *) value;
@@ -551,7 +551,7 @@ dc_match_number_with_prefix (const void *key, const void *value)
 }
 
 static int
-dc_match_hex_with_prefix (const void *key, const void *value)
+dc_match_prefix_with_hex (const void *key, const void *value)
 {
 	const char *str = (const char *) key;
 	const char *prefix = *(const char * const *) value;
@@ -588,7 +588,7 @@ dc_match_oceanic (const void *key, const void *value)
 
 	const char *p = prefix;
 
-	return dc_match_number_with_prefix (key, &p);
+	return dc_match_prefix_with_number (key, &p);
 }
 
 static int
@@ -602,7 +602,7 @@ dc_match_cressi (const void *key, const void *value)
 
 	const char *p = prefix;
 
-	return dc_match_hex_with_prefix (key, &p);
+	return dc_match_prefix_with_hex (key, &p);
 }
 
 static int
@@ -797,7 +797,7 @@ dc_filter_divesystem (const dc_descriptor_t *descriptor, dc_transport_t transpor
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
-		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_number_with_prefix);
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix_with_number);
 	}
 
 	return 1;
