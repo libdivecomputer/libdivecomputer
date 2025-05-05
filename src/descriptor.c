@@ -492,24 +492,6 @@ static const dc_descriptor_t g_descriptors[] = {
 };
 
 static int
-dc_match_name (const void *key, const void *value)
-{
-	const char *k = (const char *) key;
-	const char *v = *(const char * const *) value;
-
-	return strcasecmp (k, v) == 0;
-}
-
-static int
-dc_match_prefix (const void *key, const void *value)
-{
-	const char *k = (const char *) key;
-	const char *v = *(const char * const *) value;
-
-	return strncasecmp (k, v, strlen (v)) == 0;
-}
-
-static int
 dc_match_usb (const void *key, const void *value)
 {
 	const dc_usb_desc_t *k = (const dc_usb_desc_t *) key;
@@ -525,6 +507,24 @@ dc_match_usbhid (const void *key, const void *value)
 	const dc_usbhid_desc_t *v = (const dc_usbhid_desc_t *) value;
 
 	return k->vid == v->vid && k->pid == v->pid;
+}
+
+static int
+dc_match_name (const void *key, const void *value)
+{
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strcasecmp (k, v) == 0;
+}
+
+static int
+dc_match_prefix (const void *key, const void *value)
+{
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strncasecmp (k, v, strlen (v)) == 0;
 }
 
 static int
