@@ -28,6 +28,7 @@
 #include "device-private.h"
 #include "ringbuffer.h"
 #include "rbstream.h"
+#include "packet.h"
 #include "checksum.h"
 #include "array.h"
 
@@ -101,6 +102,7 @@ static dc_status_t seac_screen_device_set_fingerprint (dc_device_t *abstract, co
 static dc_status_t seac_screen_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t seac_screen_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t seac_screen_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t seac_screen_device_vtable = {
 	sizeof(seac_screen_device_t),
@@ -111,7 +113,7 @@ static const dc_device_vtable_t seac_screen_device_vtable = {
 	seac_screen_device_dump, /* dump */
 	seac_screen_device_foreach, /* foreach */
 	NULL, /* timesync */
-	NULL, /* close */
+	seac_screen_device_close, /* close */
 };
 
 static const seac_screen_commands_t cmds_screen = {
@@ -307,6 +309,7 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	seac_screen_device_t *device = NULL;
+	dc_transport_t transport = dc_iostream_get_transport (iostream);
 
 	if (out == NULL)
 		return DC_STATUS_INVALIDARGS;
@@ -319,24 +322,34 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 	}
 
 	// Set the default values.
-	device->iostream = iostream;
 	device->cmds = NULL;
 	device->layout = NULL;
 	device->fingerprint = 0;
 	memset (device->info, 0, sizeof (device->info));
 
+	// Create the packet stream.
+	if (transport == DC_TRANSPORT_BLE) {
+		status = dc_packet_open (&device->iostream, context, iostream, 244, 244);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (context, "Failed to create the packet stream.");
+			goto error_free;
+		}
+	} else {
+		device->iostream = iostream;
+	}
+
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the terminal attributes.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Set the timeout for receiving data (1000ms).
 	status = dc_iostream_set_timeout (device->iostream, 1000);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	// Make sure everything is in a sane state.
@@ -351,7 +364,7 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 	status = seac_screen_transfer (device, CMD_HWINFO, NULL, 0, device->info, SZ_HWINFO);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to read the hardware info.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Hardware", device->info, SZ_HWINFO);
@@ -360,7 +373,7 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 	status = seac_screen_transfer (device, CMD_SWINFO, NULL, 0, device->info + SZ_HWINFO, SZ_SWINFO);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to read the software info.");
-		goto error_free;
+		goto error_free_iostream;
 	}
 
 	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Software", device->info + SZ_HWINFO, SZ_SWINFO);
@@ -378,9 +391,27 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 
 	return DC_STATUS_SUCCESS;
 
+error_free_iostream:
+	if (transport == DC_TRANSPORT_BLE) {
+		dc_iostream_close (device->iostream);
+	}
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
+}
+
+static dc_status_t
+seac_screen_device_close (dc_device_t *abstract)
+{
+	seac_screen_device_t *device = (seac_screen_device_t *) abstract;
+	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
+
+	// Close the packet stream.
+	if (transport == DC_TRANSPORT_BLE) {
+		return dc_iostream_close (device->iostream);
+	}
+
+	return DC_STATUS_SUCCESS;
 }
 
 static dc_status_t

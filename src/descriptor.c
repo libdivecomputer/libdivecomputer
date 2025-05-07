@@ -63,6 +63,7 @@ static int dc_filter_oceans (const dc_descriptor_t *descriptor, dc_transport_t t
 static int dc_filter_divesoft (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 static int dc_filter_cressi (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 static int dc_filter_halcyon (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
+static int dc_filter_seac (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 
 static dc_status_t dc_descriptor_iterator_next (dc_iterator_t *iterator, void *item);
 
@@ -478,7 +479,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	/* Seac Screen */
 	{"Seac", "Action", DC_FAMILY_SEAC_SCREEN, 0x01, DC_TRANSPORT_SERIAL, NULL},
 	{"Seac", "Screen", DC_FAMILY_SEAC_SCREEN, 0x02, DC_TRANSPORT_SERIAL, NULL},
-	{"Seac", "Tablet", DC_FAMILY_SEAC_SCREEN, 0x10, DC_TRANSPORT_SERIAL, NULL},
+	{"Seac", "Tablet", DC_FAMILY_SEAC_SCREEN, 0x10, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_seac},
 	/* Deepblu Cosmiq */
 	{"Deepblu", "Cosmiq+", DC_FAMILY_DEEPBLU_COSMIQ, 0, DC_TRANSPORT_BLE, dc_filter_deepblu},
 	/* Oceans S1 */
@@ -955,6 +956,20 @@ dc_filter_halcyon (const dc_descriptor_t *descriptor, dc_transport_t transport, 
 
 	if (transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, model, 0, dc_match_halcyon);
+	}
+
+	return 1;
+}
+
+static int
+dc_filter_seac (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata)
+{
+	static const char * const bluetooth[] = {
+		"Tablet",
+	};
+
+	if (transport == DC_TRANSPORT_BLE) {
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix_with_number);
 	}
 
 	return 1;
