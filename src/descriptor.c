@@ -492,24 +492,6 @@ static const dc_descriptor_t g_descriptors[] = {
 };
 
 static int
-dc_match_name (const void *key, const void *value)
-{
-	const char *k = (const char *) key;
-	const char *v = *(const char * const *) value;
-
-	return strcasecmp (k, v) == 0;
-}
-
-static int
-dc_match_prefix (const void *key, const void *value)
-{
-	const char *k = (const char *) key;
-	const char *v = *(const char * const *) value;
-
-	return strncasecmp (k, v, strlen (v)) == 0;
-}
-
-static int
 dc_match_usb (const void *key, const void *value)
 {
 	const dc_usb_desc_t *k = (const dc_usb_desc_t *) key;
@@ -528,14 +510,32 @@ dc_match_usbhid (const void *key, const void *value)
 }
 
 static int
-dc_match_number_with_prefix (const void *key, const void *value)
+dc_match_name (const void *key, const void *value)
+{
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strcasecmp (k, v) == 0;
+}
+
+static int
+dc_match_prefix (const void *key, const void *value)
+{
+	const char *k = (const char *) key;
+	const char *v = *(const char * const *) value;
+
+	return strncasecmp (k, v, strlen (v)) == 0;
+}
+
+static int
+dc_match_prefix_with_number (const void *key, const void *value)
 {
 	const char *str = (const char *) key;
 	const char *prefix = *(const char * const *) value;
 
 	size_t n = strlen (prefix);
 
-	if (strncmp (str, prefix, n) != 0) {
+	if (strncasecmp (str, prefix, n) != 0) {
 		return 0;
 	}
 
@@ -551,14 +551,14 @@ dc_match_number_with_prefix (const void *key, const void *value)
 }
 
 static int
-dc_match_hex_with_prefix (const void *key, const void *value)
+dc_match_prefix_with_hex (const void *key, const void *value)
 {
 	const char *str = (const char *) key;
 	const char *prefix = *(const char * const *) value;
 
 	size_t n = strlen (prefix);
 
-	if (strncmp (str, prefix, n) != 0) {
+	if (strncasecmp (str, prefix, n) != 0) {
 		return 0;
 	}
 
@@ -588,7 +588,7 @@ dc_match_oceanic (const void *key, const void *value)
 
 	const char *p = prefix;
 
-	return dc_match_number_with_prefix (key, &p);
+	return dc_match_prefix_with_number (key, &p);
 }
 
 static int
@@ -602,7 +602,7 @@ dc_match_cressi (const void *key, const void *value)
 
 	const char *p = prefix;
 
-	return dc_match_hex_with_prefix (key, &p);
+	return dc_match_prefix_with_hex (key, &p);
 }
 
 static int
@@ -797,7 +797,7 @@ dc_filter_divesystem (const dc_descriptor_t *descriptor, dc_transport_t transpor
 	};
 
 	if (transport == DC_TRANSPORT_BLUETOOTH || transport == DC_TRANSPORT_BLE) {
-		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_number_with_prefix);
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix_with_number);
 	}
 
 	return 1;
