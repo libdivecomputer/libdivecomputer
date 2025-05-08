@@ -606,6 +606,35 @@ dc_match_cressi (const void *key, const void *value)
 }
 
 static int
+dc_match_halcyon (const void *key, const void *value)
+{
+	const char *str = (const char *) key;
+	unsigned int model = *(const unsigned int *) value;
+
+	char prefix[16] = {0};
+	dc_platform_snprintf(prefix, sizeof(prefix), "H%02u", model);
+
+	if (strncasecmp (str, prefix, 3) == 0) {
+		return 1;
+	}
+
+	size_t n = 0;
+	while (str[n] != 0) {
+		const char c = str[n];
+		if (c < '0' || c > '9') {
+			return 0;
+		}
+		n++;
+	}
+
+	if (n < 10) {
+		return 0;
+	}
+
+	return strncasecmp (str + 4, prefix + 1, 2) == 0;
+}
+
+static int
 dc_filter_internal (const void *key, const void *values, size_t count, size_t size, dc_match_t match)
 {
 	if (key == NULL)
@@ -916,13 +945,13 @@ dc_filter_cressi (const dc_descriptor_t *descriptor, dc_transport_t transport, c
 static int
 dc_filter_halcyon (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata)
 {
-	static const char * const bluetooth[] = {
-		"H01", // Symbios HUD
-		"H07", // Symbios Handset
+	static const unsigned int model[] = {
+		1, // Symbios HUD
+		7, // Symbios Handset
 	};
 
 	if (transport == DC_TRANSPORT_BLE) {
-		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
+		return DC_FILTER_INTERNAL (userdata, model, 0, dc_match_halcyon);
 	}
 
 	return 1;
