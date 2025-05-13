@@ -251,6 +251,7 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 
 	// Set the default values.
 	device->iostream = iostream;
+	memset (device->info, 0, sizeof (device->info));
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Set the serial communication protocol (115200 8N1).
