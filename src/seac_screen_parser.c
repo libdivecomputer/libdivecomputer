@@ -353,7 +353,7 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		if (decodepth) {
 			sample.deco.type = DC_DECO_DECOSTOP;
 			sample.deco.time = decotime;
-			sample.deco.depth = decodepth;
+			sample.deco.depth = decodepth / 100.0;
 		} else {
 			sample.deco.type = DC_DECO_NDL;
 			sample.deco.time = ndl_tts;
