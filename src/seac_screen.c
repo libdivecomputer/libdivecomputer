@@ -370,7 +370,7 @@ seac_screen_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = array_uint32_le (device->info + 4);
 	devinfo.firmware = array_uint32_le (device->info + 0x11C);
 	devinfo.serial = array_uint32_le (device->info + 0x10);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
@@ -404,7 +404,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
+	devinfo.model = array_uint32_le (device->info + 4);
 	devinfo.firmware = array_uint32_le (device->info + 0x11C);
 	devinfo.serial = array_uint32_le (device->info + 0x010);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
