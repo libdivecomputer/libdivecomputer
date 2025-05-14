@@ -598,7 +598,7 @@ dc_match_cressi (const void *key, const void *value)
 
 	char prefix[16] = {0};
 
-	dc_platform_snprintf(prefix, sizeof(prefix), "%u_", model);
+	dc_platform_snprintf(prefix, sizeof(prefix), "%x_", model);
 
 	const char *p = prefix;
 

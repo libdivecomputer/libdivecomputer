@@ -333,7 +333,7 @@ cressi_goa_init(cressi_goa_parser_t *parser)
 			version = 2;
 		} else if (firmware >= 100 && firmware <= 110) {
 			version = 3;
-		} else if (firmware >= 200 && firmware <= 205) {
+		} else if (firmware >= 200 && firmware <= 299) {
 			version = 4;
 		} else if (firmware >= 300) {
 			version = 5;

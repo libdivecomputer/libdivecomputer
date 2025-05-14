@@ -548,7 +548,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 			version = 2;
 		} else if (firmware >= 100 && firmware <= 110) {
 			version = 3;
-		} else if (firmware >= 200 && firmware <= 205) {
+		} else if (firmware >= 200 && firmware <= 299) {
 			version = 4;
 		} else if (firmware >= 300) {
 			version = 5;
