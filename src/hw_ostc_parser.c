@@ -1064,7 +1064,7 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 					}
 					if (count) {
 						for (unsigned int j = 0; j < 3; ++j) {
-							sample.ppo2.sensor = i;
+							sample.ppo2.sensor = j;
 							sample.ppo2.value = ppo2[j] / 100.0;
 							if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
 						}
