@@ -34,6 +34,16 @@
 
 #define MAXRETRIES 4
 
+#define START     0x55
+#define ACK       0x09
+#define NAK       0x30
+
+#define ERR_INVALID_CMD    0x02
+#define ERR_INVALID_LENGTH 0x03
+#define ERR_INVALID_DATA   0x04
+#define ERR_BATTERY_LOW    0x05
+#define ERR_BUSY           0x06
+
 #define SZ_MAXCMD   8
 #define SZ_MAXRSP   SZ_READ
 
@@ -106,7 +116,7 @@ seac_screen_send (seac_screen_device_t *device, unsigned short cmd, const unsign
 	// Setup the data packet
 	unsigned len = size + 6;
 	unsigned char packet[SZ_MAXCMD + 7] = {
-		0x55,
+		START,
 		(len >> 8) & 0xFF,
 		(len     ) & 0xFF,
 		(cmd >> 8) & 0xFF,
@@ -144,7 +154,7 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 	}
 
 	// Verify the start byte.
-	if (packet[0] != 0x55) {
+	if (packet[0] != START) {
 		ERROR (abstract->context, "Unexpected start byte (%02x).", packet[0]);
 		return DC_STATUS_PROTOCOL;
 	}
@@ -173,14 +183,29 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 
 	// Verify the command response.
 	unsigned int rsp = array_uint16_be (packet + 3);
-	unsigned int misc = packet[1 + length - 3];
-	if (rsp != cmd || misc != 0x09) {
-		ERROR (abstract->context, "Unexpected command response (%04x %02x).", rsp, misc);
+	if (rsp != cmd) {
+		ERROR (abstract->context, "Unexpected command response (%04x).", rsp);
 		return DC_STATUS_PROTOCOL;
 	}
 
-	if (length - 7 != size) {
+	// Verify the ACK/NAK byte.
+	unsigned int type = packet[1 + length - 3];
+	if (type != ACK && type != NAK) {
+		ERROR (abstract->context, "Unexpected ACK/NAK byte (%02x).", type);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Verify the length of the packet.
+	unsigned int expected = (type == ACK ? size : 1) + 7;
+	if (length != expected) {
 		ERROR (abstract->context, "Unexpected packet length (%u).", length);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Get the error code from a NAK packet.
+	if (type == NAK) {
+		unsigned int errcode = packet[5];
+		ERROR (abstract->context, "Received NAK packet with error code %02x.", errcode);
 		return DC_STATUS_PROTOCOL;
 	}
 
