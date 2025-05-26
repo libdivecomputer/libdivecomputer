@@ -146,17 +146,25 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[SZ_MAXRSP + 8] = {0};
 
-	// Read the packet header.
-	status = dc_iostream_read (device->iostream, packet, 3, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the packet header.");
-		return status;
+	// Read the packet start byte.
+	while (1) {
+		status = dc_iostream_read (device->iostream, packet + 0, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the packet start byte.");
+			return status;
+		}
+
+		if (packet[0] == START)
+			break;
+
+		WARNING (abstract->context, "Unexpected packet header byte (%02x).", packet[0]);
 	}
 
-	// Verify the start byte.
-	if (packet[0] != START) {
-		ERROR (abstract->context, "Unexpected start byte (%02x).", packet[0]);
-		return DC_STATUS_PROTOCOL;
+	// Read the packet length.
+	status = dc_iostream_read (device->iostream, packet + 1, 2, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to receive the packet length.");
+		return status;
 	}
 
 	// Verify the length.
