@@ -477,8 +477,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Genesis",  "Centauri",  DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 	{"Scorpena", "Alpha",     DC_FAMILY_DEEPSIX_EXCURSION, 0, DC_TRANSPORT_BLE, dc_filter_deepsix},
 	/* Seac Screen */
-	{"Seac", "Screen", DC_FAMILY_SEAC_SCREEN, 0, DC_TRANSPORT_SERIAL, NULL},
-	{"Seac", "Action", DC_FAMILY_SEAC_SCREEN, 0, DC_TRANSPORT_SERIAL, NULL},
+	{"Seac", "Action", DC_FAMILY_SEAC_SCREEN, 0x01, DC_TRANSPORT_SERIAL, NULL},
+	{"Seac", "Screen", DC_FAMILY_SEAC_SCREEN, 0x02, DC_TRANSPORT_SERIAL, NULL},
+	{"Seac", "Tablet", DC_FAMILY_SEAC_SCREEN, 0x10, DC_TRANSPORT_SERIAL, NULL},
 	/* Deepblu Cosmiq */
 	{"Deepblu", "Cosmiq+", DC_FAMILY_DEEPBLU_COSMIQ, 0, DC_TRANSPORT_BLE, dc_filter_deepblu},
 	/* Oceans S1 */

@@ -34,14 +34,31 @@
 
 #define MAXRETRIES 4
 
+#define START     0x55
+#define ACK       0x09
+#define NAK       0x30
+
+#define ERR_INVALID_CMD    0x02
+#define ERR_INVALID_LENGTH 0x03
+#define ERR_INVALID_DATA   0x04
+#define ERR_BATTERY_LOW    0x05
+#define ERR_BUSY           0x06
+
 #define SZ_MAXCMD   8
 #define SZ_MAXRSP   SZ_READ
 
 #define CMD_HWINFO  0x1833
 #define CMD_SWINFO  0x1834
-#define CMD_RANGE   0x1840
-#define CMD_ADDRESS 0x1841
-#define CMD_READ    0x1842
+
+// Screen
+#define CMD_SCREEN_RANGE   0x1840
+#define CMD_SCREEN_ADDRESS 0x1841
+#define CMD_SCREEN_READ    0x1842
+
+// Tablet
+#define CMD_TABLET_RANGE   0x1850
+#define CMD_TABLET_ADDRESS 0x1851
+#define CMD_TABLET_READ    0x1852
 
 #define SZ_HWINFO  256
 #define SZ_SWINFO  256
@@ -55,15 +72,29 @@
 #define FP_OFFSET   0x0A
 #define FP_SIZE     7
 
-#define RB_PROFILE_BEGIN         0x010000
-#define RB_PROFILE_END           0x200000
-#define RB_PROFILE_SIZE          (RB_PROFILE_END - RB_PROFILE_BEGIN)
-#define RB_PROFILE_DISTANCE(a,b) ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, RB_PROFILE_BEGIN, RB_PROFILE_END)
-#define RB_PROFILE_INCR(a,d)     ringbuffer_increment (a, d, RB_PROFILE_BEGIN, RB_PROFILE_END)
+#define RB_PROFILE_DISTANCE(a,b,l) ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, l->rb_profile_begin, l->rb_profile_end)
+#define RB_PROFILE_INCR(a,b,l)     ringbuffer_increment (a, b, l->rb_profile_begin, l->rb_profile_end)
+
+#define ACTION 0x01
+#define SCREEN 0x02
+#define TABLET 0x10
+
+typedef struct seac_screen_commands_t {
+	unsigned short range;
+	unsigned short address;
+	unsigned short read;
+} seac_screen_commands_t;
+
+typedef struct seac_screen_layout_t {
+	unsigned int rb_profile_begin;
+	unsigned int rb_profile_end;
+} seac_screen_layout_t;
 
 typedef struct seac_screen_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
+	const seac_screen_commands_t *cmds;
+	const seac_screen_layout_t *layout;
 	unsigned char info[SZ_HWINFO + SZ_SWINFO];
 	unsigned char fingerprint[FP_SIZE];
 } seac_screen_device_t;
@@ -90,6 +121,28 @@ static const dc_device_vtable_t seac_screen_device_vtable = {
 	NULL, /* close */
 };
 
+static const seac_screen_commands_t cmds_screen = {
+	CMD_SCREEN_RANGE,
+	CMD_SCREEN_ADDRESS,
+	CMD_SCREEN_READ,
+};
+
+static const seac_screen_commands_t cmds_tablet = {
+	CMD_TABLET_RANGE,
+	CMD_TABLET_ADDRESS,
+	CMD_TABLET_READ,
+};
+
+static const seac_screen_layout_t layout_screen = {
+	0x010000, /* rb_profile_begin */
+	0x200000, /* rb_profile_end */
+};
+
+static const seac_screen_layout_t layout_tablet = {
+	0x0A0000, /* rb_profile_begin */
+	0x200000, /* rb_profile_end */
+};
+
 static dc_status_t
 seac_screen_send (seac_screen_device_t *device, unsigned short cmd, const unsigned char data[], size_t size)
 {
@@ -106,7 +159,7 @@ seac_screen_send (seac_screen_device_t *device, unsigned short cmd, const unsign
 	// Setup the data packet
 	unsigned len = size + 6;
 	unsigned char packet[SZ_MAXCMD + 7] = {
-		0x55,
+		START,
 		(len >> 8) & 0xFF,
 		(len     ) & 0xFF,
 		(cmd >> 8) & 0xFF,
@@ -136,17 +189,25 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[SZ_MAXRSP + 8] = {0};
 
-	// Read the packet header.
-	status = dc_iostream_read (device->iostream, packet, 3, NULL);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the packet header.");
-		return status;
+	// Read the packet start byte.
+	while (1) {
+		status = dc_iostream_read (device->iostream, packet + 0, 1, NULL);
+		if (status != DC_STATUS_SUCCESS) {
+			ERROR (abstract->context, "Failed to receive the packet start byte.");
+			return status;
+		}
+
+		if (packet[0] == START)
+			break;
+
+		WARNING (abstract->context, "Unexpected packet header byte (%02x).", packet[0]);
 	}
 
-	// Verify the start byte.
-	if (packet[0] != 0x55) {
-		ERROR (abstract->context, "Unexpected start byte (%02x).", packet[0]);
-		return DC_STATUS_PROTOCOL;
+	// Read the packet length.
+	status = dc_iostream_read (device->iostream, packet + 1, 2, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to receive the packet length.");
+		return status;
 	}
 
 	// Verify the length.
@@ -173,14 +234,29 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 
 	// Verify the command response.
 	unsigned int rsp = array_uint16_be (packet + 3);
-	unsigned int misc = packet[1 + length - 3];
-	if (rsp != cmd || misc != 0x09) {
-		ERROR (abstract->context, "Unexpected command response (%04x %02x).", rsp, misc);
+	if (rsp != cmd) {
+		ERROR (abstract->context, "Unexpected command response (%04x).", rsp);
 		return DC_STATUS_PROTOCOL;
 	}
 
-	if (length - 7 != size) {
+	// Verify the ACK/NAK byte.
+	unsigned int type = packet[1 + length - 3];
+	if (type != ACK && type != NAK) {
+		ERROR (abstract->context, "Unexpected ACK/NAK byte (%02x).", type);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Verify the length of the packet.
+	unsigned int expected = (type == ACK ? size : 1) + 7;
+	if (length != expected) {
 		ERROR (abstract->context, "Unexpected packet length (%u).", length);
+		return DC_STATUS_PROTOCOL;
+	}
+
+	// Get the error code from a NAK packet.
+	if (type == NAK) {
+		unsigned int errcode = packet[5];
+		ERROR (abstract->context, "Received NAK packet with error code %02x.", errcode);
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -251,6 +327,9 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 
 	// Set the default values.
 	device->iostream = iostream;
+	device->cmds = NULL;
+	device->layout = NULL;
+	memset (device->info, 0, sizeof (device->info));
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Set the serial communication protocol (115200 8N1).
@@ -292,6 +371,15 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 	}
 
 	HEXDUMP (context, DC_LOGLEVEL_DEBUG, "Software", device->info + SZ_HWINFO, SZ_SWINFO);
+
+	unsigned int model = array_uint32_le (device->info + 4);
+	if (model == TABLET) {
+		device->cmds = &cmds_tablet;
+		device->layout = &layout_tablet;
+	} else {
+		device->cmds = &cmds_screen;
+		device->layout = &layout_screen;
+	}
 
 	*out = (dc_device_t *) device;
 
@@ -345,7 +433,8 @@ seac_screen_device_read (dc_device_t *abstract, unsigned int address, unsigned c
 			(len      ) & 0xFF,
 		};
 		unsigned char packet[SZ_READ] = {0};
-		status = seac_screen_transfer (device, CMD_READ, params, sizeof(params), packet, sizeof(packet));
+		const unsigned int packetsize = device->cmds->read == CMD_TABLET_READ ? len : sizeof(packet);
+		status = seac_screen_transfer (device, device->cmds->read, params, sizeof(params), packet, packetsize);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to send the read command.");
 			return status;
@@ -366,11 +455,16 @@ static dc_status_t
 seac_screen_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 {
 	seac_screen_device_t *device = (seac_screen_device_t *) abstract;
+	const seac_screen_layout_t *layout = device->layout;
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
-	devinfo.firmware = array_uint32_le (device->info + 0x11C);
+	devinfo.model = array_uint32_le (device->info + 4);
+	if (devinfo.model == TABLET) {
+		devinfo.firmware = array_uint32_le (device->info + 0x114);
+	} else {
+		devinfo.firmware = array_uint32_le (device->info + 0x11C);
+	}
 	devinfo.serial = array_uint32_le (device->info + 0x10);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
@@ -381,12 +475,12 @@ seac_screen_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Allocate the required amount of memory.
-	if (!dc_buffer_resize (buffer, RB_PROFILE_SIZE)) {
+	if (!dc_buffer_resize (buffer, layout->rb_profile_end - layout->rb_profile_begin)) {
 		ERROR (abstract->context, "Insufficient buffer space available.");
 		return DC_STATUS_NOMEMORY;
 	}
 
-	return device_dump_read (abstract, RB_PROFILE_BEGIN, dc_buffer_get_data (buffer),
+	return device_dump_read (abstract, layout->rb_profile_begin, dc_buffer_get_data (buffer),
 		dc_buffer_get_size (buffer), SZ_READ);
 }
 
@@ -395,16 +489,21 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	seac_screen_device_t *device = (seac_screen_device_t *) abstract;
+	const seac_screen_layout_t *layout = device->layout;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = RB_PROFILE_SIZE;
+	progress.maximum = layout->rb_profile_end - layout->rb_profile_begin;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
-	devinfo.model = 0;
-	devinfo.firmware = array_uint32_le (device->info + 0x11C);
+	devinfo.model = array_uint32_le (device->info + 4);
+	if (devinfo.model == TABLET) {
+		devinfo.firmware = array_uint32_le (device->info + 0x114);
+	} else {
+		devinfo.firmware = array_uint32_le (device->info + 0x11C);
+	}
 	devinfo.serial = array_uint32_le (device->info + 0x010);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
@@ -416,7 +515,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 	// Read the range of the available dive numbers.
 	unsigned char range[SZ_RANGE] = {0};
-	status = seac_screen_transfer (device, CMD_RANGE, NULL, 0, range, sizeof(range));
+	status = seac_screen_transfer (device, device->cmds->range, NULL, 0, range, sizeof(range));
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the range command.");
 		goto error_exit;
@@ -452,7 +551,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 	unsigned int count = 0;
 	unsigned int skip = 0;
 	unsigned int rb_profile_size = 0;
-	unsigned int remaining = RB_PROFILE_SIZE;
+	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
 	for (unsigned int i = 0; i < ndives; ++i) {
 		unsigned int number = last - i;
 
@@ -464,7 +563,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 			(number      ) & 0xFF,
 		};
 		unsigned char rsp_address[SZ_ADDRESS] = {0};
-		status = seac_screen_transfer (device, CMD_ADDRESS, cmd_address, sizeof(cmd_address), rsp_address, sizeof(rsp_address));
+		status = seac_screen_transfer (device, device->cmds->address, cmd_address, sizeof(cmd_address), rsp_address, sizeof(rsp_address));
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive address.");
 			goto error_free_logbook;
@@ -472,7 +571,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 		// Get the dive address.
 		logbook[i].address = array_uint32_be (rsp_address);
-		if (logbook[i].address < RB_PROFILE_BEGIN || logbook[i].address >= RB_PROFILE_END) {
+		if (logbook[i].address < layout->rb_profile_begin || logbook[i].address >= layout->rb_profile_end) {
 			ERROR (abstract->context, "Invalid ringbuffer pointer (0x%08x).", logbook[i].address);
 			status = DC_STATUS_DATAFORMAT;
 			goto error_free_logbook;
@@ -509,11 +608,11 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 		// Get the end-of-profile pointer.
 		if (eop == 0) {
-			eop = previous = RB_PROFILE_INCR (logbook[i].address, nbytes);
+			eop = previous = RB_PROFILE_INCR (logbook[i].address, nbytes, layout);
 		}
 
 		// Calculate the length.
-		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous);
+		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous, layout);
 
 		// Check for the end of the ringbuffer.
 		if (length > remaining) {
@@ -533,7 +632,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 	// Update and emit a progress event.
 	progress.maximum -= (ndives - count - skip) * (SZ_ADDRESS + SZ_HEADER) +
-		(RB_PROFILE_SIZE - rb_profile_size);
+		((layout->rb_profile_end - layout->rb_profile_begin) - rb_profile_size);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Exit if no dives to download.
@@ -550,7 +649,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 	// Create the ringbuffer stream.
 	dc_rbstream_t *rbstream = NULL;
-	status = dc_rbstream_new (&rbstream, abstract, SZ_READ, SZ_READ, RB_PROFILE_BEGIN, RB_PROFILE_END, eop, DC_RBSTREAM_BACKWARD);
+	status = dc_rbstream_new (&rbstream, abstract, SZ_READ, SZ_READ, layout->rb_profile_begin, layout->rb_profile_end, eop, DC_RBSTREAM_BACKWARD);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to create the ringbuffer stream.");
 		goto error_free_profile;
@@ -560,7 +659,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 	unsigned int offset = rb_profile_size;
 	for (unsigned int i = 0; i < count; ++i) {
 		// Calculate the length.
-		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous);
+		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous, layout);
 
 		// Move to the start of the current dive.
 		offset -= length;

@@ -195,7 +195,7 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, const unsigned
 		rc = deepsix_excursion_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_SEAC_SCREEN:
-		rc = seac_screen_parser_create (&parser, context, data, size);
+		rc = seac_screen_parser_create (&parser, context, data, size, model);
 		break;
 	case DC_FAMILY_DEEPBLU_COSMIQ:
 		rc = deepblu_cosmiq_parser_create (&parser, context, data, size);

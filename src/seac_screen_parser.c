@@ -36,10 +36,15 @@
 
 #define INVALID 0xFFFFFFFF
 
+#define ACTION 0x01
+#define SCREEN 0x02
+#define TABLET 0x10
+
 typedef struct seac_screen_parser_t seac_screen_parser_t;
 
 struct seac_screen_parser_t {
 	dc_parser_t base;
+	unsigned int model;
 	// Cached fields.
 	unsigned int cached;
 	unsigned int ngasmixes;
@@ -65,7 +70,7 @@ static const dc_parser_vtable_t seac_screen_parser_vtable = {
 };
 
 dc_status_t
-seac_screen_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
+seac_screen_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size, unsigned int model)
 {
 	seac_screen_parser_t *parser = NULL;
 
@@ -80,6 +85,7 @@ seac_screen_parser_create (dc_parser_t **out, dc_context_t *context, const unsig
 	}
 
 	// Set the default values.
+	parser->model = model;
 	parser->cached = 0;
 	parser->ngasmixes = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
@@ -298,6 +304,7 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		unsigned int decodepth   = array_uint16_le (data + offset + 0x0E);
 		unsigned int decotime    = array_uint16_le (data + offset + 0x10);
 		unsigned int ndl_tts     = array_uint16_le (data + offset + 0x12);
+		unsigned int pressure    = array_uint16_le (data + offset + 0x14);
 		unsigned int cns         = array_uint16_le (data + offset + 0x16);
 		unsigned int gf_hi       = data[offset + 0x3B];
 		unsigned int gf_lo       = data[offset + 0x3C];
@@ -353,7 +360,7 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		if (decodepth) {
 			sample.deco.type = DC_DECO_DECOSTOP;
 			sample.deco.time = decotime;
-			sample.deco.depth = decodepth;
+			sample.deco.depth = decodepth / 100.0;
 		} else {
 			sample.deco.type = DC_DECO_NDL;
 			sample.deco.time = ndl_tts;
@@ -365,6 +372,13 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		// CNS
 		sample.cns = cns / 100.0;
 		if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
+
+		// Tank pressure
+		if (pressure && parser->model == TABLET) {
+			sample.pressure.tank = 0;
+			sample.pressure.value = pressure;
+			if (callback) callback (DC_SAMPLE_PRESSURE, &sample, userdata);
+		}
 
 		// Deco model
 		if (gf_low == 0 && gf_high == 0) {
