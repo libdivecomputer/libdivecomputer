@@ -916,6 +916,11 @@ uwatec_smart_parse (uwatec_smart_parser_t *parser, dc_sample_callback_t callback
 	double density = (parser->watertype == DC_WATER_SALT ? SALT : FRESH);
 
 	unsigned int interval = 4;
+	
+	if (parser->model == LUNA2) {
+		interval = 2;
+	}
+	
 	if (parser->divemode == DC_DIVEMODE_FREEDIVE) {
 		interval = 1;
 	}
