@@ -182,10 +182,8 @@ halcyon_symbios_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datet
 
 	dc_ticks_t ticks = (dc_ticks_t) parser->datetime + EPOCH;
 
-	if (!dc_datetime_gmtime (datetime, ticks))
+	if (!dc_datetime_localtime (datetime, ticks))
 		return DC_STATUS_DATAFORMAT;
-
-	datetime->timezone = DC_TIMEZONE_NONE;
 
 	return DC_STATUS_SUCCESS;
 }
