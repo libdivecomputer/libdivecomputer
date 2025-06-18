@@ -21,8 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <limits.h>
 
 #include "libdivecomputer/units.h"
 
@@ -137,10 +135,6 @@ typedef struct hw_ostc_parser_t {
 	unsigned int initial_setpoint;
 	unsigned int initial_cns;
 	hw_ostc_gasmix_t gasmix[NGASMIXES];
-	int first_scrubber_time_minutes;
-	int last_scrubber_time_minutes;
-	bool scrubber_error_reported;
-	bool scrubber_warning_reported;
 } hw_ostc_parser_t;
 
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -431,11 +425,6 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, const 
 		parser->gasmix[i].active = 0;
 		parser->gasmix[i].diluent = 0;
 	}
-	parser->first_scrubber_time_minutes = INT_MAX;
-	parser->last_scrubber_time_minutes = INT_MAX;
-	parser->scrubber_error_reported = false;
-	parser->scrubber_warning_reported = false;
-	parser->serial = serial;
 
 	*out = (dc_parser_t *) parser;
 
@@ -706,95 +695,6 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 			}
 			decomodel->conservatism = 0;
 			break;
-		case DC_FIELD_STRING:
-			switch(flags) {
-			case 0: /* serial */
-				string->desc = "Serial";
-				snprintf(buf, BUFLEN, "%u", parser->serial);
-				break;
-			case 1: /* battery */
-				string->desc = "Battery at end";
-				unsigned int percentage = (unsigned int) data[layout->battery_percentage];
-				if (percentage != 0xFF && (version == 0x23 || version == 0x24)) {
-					percentage = percentage>100? 100: percentage;
-					snprintf(buf, BUFLEN, "%.2fV, %u%% remaining",
-					         array_uint16_le (data + layout->battery) / 1000.0,
-					         percentage);
-				} else {
-					snprintf(buf, BUFLEN, "%.2fV", array_uint16_le (data + layout->battery) / 1000.0);
-				}
-				break;
-			case 2: /* desat */
-				string->desc = "Desat time";
-				snprintf(buf, BUFLEN, "%0u:%02u", array_uint16_le (data + layout->desat) / 60,
-						 array_uint16_le (data + layout->desat) % 60);
-				break;
-			case 3: /* firmware */
-				string->desc = "FW Version";
-				/* OSTC4 stores firmware as XXXX XYYY YYZZ ZZZB, -> X.Y.Z beta? */
-				if (parser->model == OSTC4) {
-					int firmwareOnDevice = array_uint16_le (data + layout->firmware);
-					unsigned char X = 0, Y = 0, Z = 0, beta = 0;
-					X = (firmwareOnDevice & 0xF800) >> 11;
-					Y = (firmwareOnDevice & 0x07C0) >> 6;
-					Z = (firmwareOnDevice & 0x003E) >> 1;
-					beta = firmwareOnDevice & 0x0001;
-
-					snprintf(buf, BUFLEN, "%u.%u.%u%s\n", X, Y, Z, beta? "beta": "");
-				} else {
-					snprintf(buf, BUFLEN, "%0u.%02u", data[layout->firmware], data[layout->firmware + 1]);
-				}
-				break;
-
-			case 4: /* Deco model */
-				string->desc = "Deco model";
-				if (((version == 0x23 || version == 0x24) && data[layout->decomodel] == OSTC3_ZHL16) ||
-						(version == 0x22 && data[layout->divemode] == FROG_ZHL16) ||
-						(version == 0x21 && (data[layout->divemode] == OSTC_ZHL16_OC || data[layout->divemode] == OSTC_ZHL16_CC)))
-					strncpy(buf, "ZH-L16", BUFLEN);
-				else if (((version == 0x23 || version == 0x24) && data[layout->decomodel] == OSTC3_ZHL16_GF) ||
-						(version == 0x22 && data[layout->divemode] == FROG_ZHL16_GF) ||
-						(version == 0x21 && (data[layout->divemode] == OSTC_ZHL16_OC_GF || data[layout->divemode] == OSTC_ZHL16_CC_GF)))
-					strncpy(buf, "ZH-L16-GF", BUFLEN);
-				else if (((version == 0x24) && data[layout->divemode] == OSTC4_VPM))
-					strncpy(buf, "VPM", BUFLEN);
-				else
-					return DC_STATUS_DATAFORMAT;
-				break;
-			case 5: /* Deco model info */
-				string->desc = "Deco model info";
-				if (((version == 0x23 || version == 0x24) && data[layout->decomodel] == OSTC3_ZHL16) ||
-						(version == 0x22 && data[layout->divemode] == FROG_ZHL16) ||
-						(version == 0x21 && (data[layout->divemode] == OSTC_ZHL16_OC || data[layout->divemode] == OSTC_ZHL16_CC)))
-					snprintf(buf, BUFLEN, "Saturation %u, Desaturation %u", data[layout->gf], data[layout->gf+1]);
-				else if (((version == 0x23 || version == 0x24) && data[layout->decomodel] == OSTC3_ZHL16_GF) ||
-						(version == 0x22 && data[layout->divemode] == FROG_ZHL16_GF) ||
-						(version == 0x21 && (data[layout->divemode] == OSTC_ZHL16_OC_GF || data[layout->divemode] == OSTC_ZHL16_CC_GF)))
-					snprintf(buf, BUFLEN, "GF %u/%u", data[layout->gf], data[layout->gf+1]);
-				else
-					return DC_STATUS_DATAFORMAT;
-				break;
-			case 6:
-				if (parser->first_scrubber_time_minutes == INT_MAX) {
-					return DC_STATUS_DATAFORMAT;
-				}
-
-				string->desc = "Remaining scrubber time at start [minutes]";
-				snprintf(buf, BUFLEN, "%d", parser->first_scrubber_time_minutes);
-				break;
-			case 7:
-				if (parser->last_scrubber_time_minutes == INT_MAX) {
-					return DC_STATUS_DATAFORMAT;
-				}
-
-				string->desc = "Remaining scrubber time at end [minutes]";
-				snprintf(buf, BUFLEN, "%d", parser->last_scrubber_time_minutes);
-				break;
-			default:
-				return DC_STATUS_UNSUPPORTED;
-			}
-			string->value = strdup(buf);
-			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
@@ -919,7 +819,6 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 	unsigned int tank = parser->initial != UNDEFINED ? parser->initial - 1 : 0;
 
 	unsigned int offset = header;
-	char buf[BUFLEN];
 	if (version == 0x23 || version == 0x24)
 		offset += 5 + 3 * nconfig;
 	while (offset + 3 <= size) {
@@ -1124,28 +1023,15 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 				if (callback) {
 					unsigned int value = array_uint16_le(data + offset);
 					dc_sample_value_t sample = {
-						.event.type = SAMPLE_EVENT_STRING,
-						.event.flags = SAMPLE_FLAGS_SEVERITY_INFO,
+						.event.type = SAMPLE_EVENT_HEADING,
+						.event.flags = 0x08,
 					};
 
 					unsigned int heading = value & 0x1FF;
-					if (value & OSTC4_COMPASS_HEADING_CLEARED_FLAG) {
-						snprintf(buf, BUFLEN, "Cleared compass heading");
-					} else {
+					if (value & OSTC4_COMPASS_HEADING_SET_FLAG) {
 						sample.event.value = heading;
-
-						if (value & OSTC4_COMPASS_HEADING_SET_FLAG) {
-							sample.event.type = SAMPLE_EVENT_HEADING;
-							snprintf(buf, BUFLEN, "Set compass heading [degrees]%s", sample.event.value ? "" : ": 0");
-						} else {
-							snprintf(buf, BUFLEN, "Logged compass heading [degrees]%s", sample.event.value ? "" : ": 0");
-						}
-
+						callback(DC_SAMPLE_EVENT, &sample, userdata);
 					}
-
-					sample.event.name = buf;
-
-					callback(DC_SAMPLE_EVENT, &sample, userdata);
 				}
 
 				offset += 2;
@@ -1159,43 +1045,41 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 					return DC_STATUS_DATAFORMAT;
 				}
 
-				unsigned int scrubberState = array_uint16_le(data + offset);
-				int scrubberTimeMinutes = scrubberState & 0x0FFF; // Extract the 12-bit value
-				if (scrubberState & 0x0800) { // Check if the sign bit is set
-					scrubberTimeMinutes -= 0x1000; // Perform sign extension
-				}
-				if (parser->first_scrubber_time_minutes == INT_MAX) {
-					parser->first_scrubber_time_minutes = scrubberTimeMinutes;
-				}
-				parser->last_scrubber_time_minutes = scrubberTimeMinutes;
+				//unsigned int scrubberState = array_uint16_le(data + offset);
+				//int scrubberTimeMinutes = scrubberState & 0x0FFF; // Extract the 12-bit value
+				//if (scrubberState & 0x0800) { // Check if the sign bit is set
+				//	scrubberTimeMinutes -= 0x1000; // Perform sign extension
+				//}
 
-				if (callback) {
-					dc_sample_value_t sample = {
-						.event.type = SAMPLE_EVENT_STRING,
-						.event.flags = SAMPLE_FLAGS_SEVERITY_STATE,
-						.event.value = scrubberTimeMinutes,
-					};
+				//if (callback) {
+				//	dc_sample_value_t sample = {
+				//		.event.type = SAMPLE_EVENT_STRING,
+				//		.event.flags = 0x04,
+				//		.event.value = scrubberTimeMinutes,
+				//	};
 
-					if (scrubberState & OSTC4_SCRUBBER_STATE_ERROR_FLAG) {
-						if (!parser->scrubber_error_reported) {
-							sample.event.flags = SAMPLE_FLAGS_SEVERITY_ALARM;
-							parser->scrubber_error_reported = true;
-						}
-						snprintf(buf, BUFLEN, "Scrubber exhausted, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
-					} else if (scrubberState & OSTC4_SCRUBBER_STATE_WARNING_FLAG) {
-						if (!parser->scrubber_warning_reported) {
-							sample.event.flags = SAMPLE_FLAGS_SEVERITY_WARN;
-							parser->scrubber_warning_reported = true;
-						}
-						snprintf(buf, BUFLEN, "Scrubber warning, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
-					} else {
-						snprintf(buf, BUFLEN, "Scrubber time remaining [minutes]%s", sample.event.value ? "" : ": 0");
-					}
+				//	if (scrubberState & OSTC4_SCRUBBER_STATE_ERROR_FLAG) {
+				//		if (!parser->scrubber_error_reported) {
+				//			sample.event.flags = 0x10;
+				//			parser->scrubber_error_reported = true;
+				//		}
+				//		snprintf(buf, BUFLEN, "Scrubber exhausted, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
+				//	} else if (scrubberState & OSTC4_SCRUBBER_STATE_WARNING_FLAG) {
+				//		if (!parser->scrubber_warning_reported) {
+				//			sample.event.flags = 0x0C;
+				//			parser->scrubber_warning_reported = true;
+				//		}
+				//		snprintf(buf, BUFLEN, "Scrubber warning, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
+				//	} else {
+				//		snprintf(buf, BUFLEN, "Scrubber time remaining [minutes]%s", sample.event.value ? "" : ": 0");
+				//	}
 
-					sample.event.name = buf;
+				//	sample.event.name = buf;
 
-					callback(DC_SAMPLE_EVENT, &sample, userdata);
-				}
+				//	callback(DC_SAMPLE_EVENT, &sample, userdata);
+				//}
+
+				// Due to the lack of string event support we have to discard the information
 
 				offset += 2;
 				length -= 2;
