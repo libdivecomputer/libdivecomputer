@@ -520,7 +520,7 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 
 
 dc_status_t
-shearwater_common_rdbi (shearwater_common_device_t *device, unsigned int id, unsigned char data[], unsigned int size)
+shearwater_common_rdbi (shearwater_common_device_t *device, unsigned int id, unsigned char data[], unsigned int size, unsigned int *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -549,9 +549,20 @@ shearwater_common_rdbi (shearwater_common_device_t *device, unsigned int id, uns
 
 	unsigned int length = n - 3;
 
-	if (length != size) {
+	if (length > size) {
 		ERROR (abstract->context, "Unexpected packet size (%u bytes).", length);
 		return DC_STATUS_PROTOCOL;
+	}
+
+	if (actual == NULL) {
+		// Verify the actual length.
+		if (length != size) {
+			ERROR (abstract->context, "Unexpected packet size (%u bytes).", length);
+			return DC_STATUS_PROTOCOL;
+		}
+	} else {
+		// Return the actual length.
+		*actual = length;
 	}
 
 	if (length) {
