@@ -176,17 +176,18 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	}
 
 	// Read the firmware version.
-	unsigned char rsp_firmware[11] = {0};
-	rc = shearwater_common_rdbi (&device->base, ID_FIRMWARE, rsp_firmware, sizeof(rsp_firmware), NULL);
+	unsigned char rsp_firmware[12] = {0};
+	unsigned int rsp_firmware_length = 0;
+	rc = shearwater_common_rdbi (&device->base, ID_FIRMWARE, rsp_firmware, sizeof(rsp_firmware), &rsp_firmware_length);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the firmware version.");
 		return rc;
 	}
 
-	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", rsp_firmware, sizeof(rsp_firmware));
+	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", rsp_firmware, rsp_firmware_length);
 
 	// Convert to a number.
-	unsigned int firmware = str2num (rsp_firmware, sizeof(rsp_firmware), 1);
+	unsigned int firmware = str2num (rsp_firmware, rsp_firmware_length, 1);
 
 	// Read the hardware type.
 	unsigned char rsp_hardware[2] = {0};
