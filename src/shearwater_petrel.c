@@ -160,7 +160,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 	// Read the serial number.
 	unsigned char rsp_serial[8] = {0};
-	rc = shearwater_common_rdbi (&device->base, ID_SERIAL, rsp_serial, sizeof(rsp_serial));
+	rc = shearwater_common_rdbi (&device->base, ID_SERIAL, rsp_serial, sizeof(rsp_serial), NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the serial number.");
 		return rc;
@@ -176,21 +176,22 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	}
 
 	// Read the firmware version.
-	unsigned char rsp_firmware[11] = {0};
-	rc = shearwater_common_rdbi (&device->base, ID_FIRMWARE, rsp_firmware, sizeof(rsp_firmware));
+	unsigned char rsp_firmware[12] = {0};
+	unsigned int rsp_firmware_length = 0;
+	rc = shearwater_common_rdbi (&device->base, ID_FIRMWARE, rsp_firmware, sizeof(rsp_firmware), &rsp_firmware_length);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the firmware version.");
 		return rc;
 	}
 
-	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", rsp_firmware, sizeof(rsp_firmware));
+	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Firmware", rsp_firmware, rsp_firmware_length);
 
 	// Convert to a number.
-	unsigned int firmware = str2num (rsp_firmware, sizeof(rsp_firmware), 1);
+	unsigned int firmware = str2num (rsp_firmware, rsp_firmware_length, 1);
 
 	// Read the hardware type.
 	unsigned char rsp_hardware[2] = {0};
-	rc = shearwater_common_rdbi (&device->base, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware));
+	rc = shearwater_common_rdbi (&device->base, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware), NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the hardware type.");
 		return rc;
@@ -211,7 +212,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 	// Read the logbook type
 	unsigned char rsp_logupload[9] = {0};
-	rc = shearwater_common_rdbi (&device->base, ID_LOGUPLOAD, rsp_logupload, sizeof(rsp_logupload));
+	rc = shearwater_common_rdbi (&device->base, ID_LOGUPLOAD, rsp_logupload, sizeof(rsp_logupload), NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the logbook type.");
 		return rc;
@@ -368,7 +369,7 @@ shearwater_petrel_device_timesync (dc_device_t *abstract, const dc_datetime_t *d
 
 	// Read the hardware type.
 	unsigned char rsp_hardware[2] = {0};
-	status = shearwater_common_rdbi (device, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware));
+	status = shearwater_common_rdbi (device, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the hardware type.");
 		return status;
