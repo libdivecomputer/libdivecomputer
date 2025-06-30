@@ -82,6 +82,12 @@
 		(((micro) & 0x1F) << 1) | \
 		((beta) & 0x01))
 
+#define OSTC4_COMPASS_HEADING_CLEARED_FLAG 0x8000
+#define OSTC4_COMPASS_HEADING_SET_FLAG 0x4000
+
+#define OSTC4_SCRUBBER_STATE_ERROR_FLAG 0x4000
+#define OSTC4_SCRUBBER_STATE_WARNING_FLAG 0x2000
+
 typedef struct hw_ostc_sample_info_t {
 	unsigned int type;
 	unsigned int divisor;
@@ -1003,6 +1009,78 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 
 				sample.gasmix = idx;
 				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
+				offset += 2;
+				length -= 2;
+			}
+
+			// Compass heading update
+			if (events & 0x0200) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer underflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				if (callback) {
+					unsigned int value = array_uint16_le(data + offset);
+					dc_sample_value_t sample = {
+						.event.type = SAMPLE_EVENT_HEADING,
+						.event.flags = 0x08,
+					};
+
+					unsigned int heading = value & 0x1FF;
+					if (value & OSTC4_COMPASS_HEADING_SET_FLAG) {
+						sample.event.value = heading;
+						callback(DC_SAMPLE_EVENT, &sample, userdata);
+					}
+				}
+
+				offset += 2;
+				length -= 2;
+			}
+
+			// Scrubber state update
+			if (events & 0x0800) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer underflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				//unsigned int scrubberState = array_uint16_le(data + offset);
+				//int scrubberTimeMinutes = scrubberState & 0x0FFF; // Extract the 12-bit value
+				//if (scrubberState & 0x0800) { // Check if the sign bit is set
+				//	scrubberTimeMinutes -= 0x1000; // Perform sign extension
+				//}
+
+				//if (callback) {
+				//	dc_sample_value_t sample = {
+				//		.event.type = SAMPLE_EVENT_STRING,
+				//		.event.flags = 0x04,
+				//		.event.value = scrubberTimeMinutes,
+				//	};
+
+				//	if (scrubberState & OSTC4_SCRUBBER_STATE_ERROR_FLAG) {
+				//		if (!parser->scrubber_error_reported) {
+				//			sample.event.flags = 0x10;
+				//			parser->scrubber_error_reported = true;
+				//		}
+				//		snprintf(buf, BUFLEN, "Scrubber exhausted, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
+				//	} else if (scrubberState & OSTC4_SCRUBBER_STATE_WARNING_FLAG) {
+				//		if (!parser->scrubber_warning_reported) {
+				//			sample.event.flags = 0x0C;
+				//			parser->scrubber_warning_reported = true;
+				//		}
+				//		snprintf(buf, BUFLEN, "Scrubber warning, time remaining [minutes]%s", sample.event.value ? "" : ": 0");
+				//	} else {
+				//		snprintf(buf, BUFLEN, "Scrubber time remaining [minutes]%s", sample.event.value ? "" : ": 0");
+				//	}
+
+				//	sample.event.name = buf;
+
+				//	callback(DC_SAMPLE_EVENT, &sample, userdata);
+				//}
+
+				// Due to the lack of string event support we have to discard the information
+
 				offset += 2;
 				length -= 2;
 			}
