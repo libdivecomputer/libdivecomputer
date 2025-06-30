@@ -1,3 +1,46 @@
+Version 0.9.0 (2025-06-30)
+==========================
+
+The v0.9.0 release adds support for several new devices. It also introduces some
+important parser api changes to be able to add some new features and remove a
+few deprecated ones. Some BLE enabled dive computers also required some extra
+additions to the BLE I/O layer. Due to all these api changes, this release is
+not backwards compatible.
+
+New features:
+
+ * Add support for new backends:
+    - i330r: Aqualung i330R, Apeks DSX
+    - symbios: Halcyon Symbios
+ * Add support for some new devices:
+    - Aqualung: i100
+    - Cressi: Leonardo 2.0, Nepto, Archimede
+    - Heinrichs Weikamp: OSTC 5
+    - Mares: Puck Air 2, Sirius, Quad Ci, Puck 4, Puck Lite
+    - Ratio: iDive 2, iX3M 2 GPS
+    - Scubapro: G3, Luna 2.0, Luna 2.0 AI
+    - Seac: Tablet
+    - Shearwater: Tern, Tern TX, Peregrine TX
+    - Uwatec: Aladin One
+ * Add the sensor index to the ppO2 sample
+ * Add a TTS field to the deco sample
+ * Add a usage field to the tank and gas mix
+ * Export the filter function in the public api
+ * Add ioctl's for the bluetooth authentication
+ * Add ioctl's for reading and writing BLE characteristics
+ * Add helper functions to convert UUID to/from strings
+ * Add a new field to report the GPS location
+
+Removed/changed features:
+
+ * Change the units for the sample time to milliseconds
+ * Pass the sample struct by reference
+ * Remove the backend specific calibration functions
+ * Remove the clock parameters from the constructor
+ * Remove the dc_parser_set_data function
+ * Use separate data structures for USB and USB HID
+ * Replace the dc_descriptor_iterator function
+
 Version 0.8.0 (2023-05-11)
 ==========================
 
