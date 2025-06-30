@@ -675,6 +675,10 @@ shearwater_predator_parser_cache (shearwater_predator_parser_t *parser)
 	// Get the correct model number from the final block.
 	if (parser->final != UNDEFINED) {
 		parser->model = data[parser->final + 13];
+		DEBUG (abstract->context, "Device: model=%u, serial=%u, firmware=%u",
+			data[parser->final + 13],
+			array_uint32_be (data + parser->final + 2),
+			bcd2dec (data[parser->final + 10]));
 	}
 
 	// Fix the Teric tank serial number.
