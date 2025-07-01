@@ -78,7 +78,7 @@
 
 #define OSTC4FW(major,minor,micro,beta) ( \
 		(((major) & 0x1F) << 11) | \
-		(((minor) & 0x1F) >> 6) | \
+		(((minor) & 0x1F) << 6) | \
 		(((micro) & 0x1F) << 1) | \
 		((beta) & 0x01))
 
