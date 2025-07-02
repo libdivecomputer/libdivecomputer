@@ -191,6 +191,12 @@ deepblu_cosmiq_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback
 	unsigned int time = 0;
 	unsigned int offset = SZ_HEADER;
 	while (offset + SZ_SAMPLE <= size) {
+		// Ignore empty samples.
+		if (array_isequal (data + offset, SZ_SAMPLE, 0xFF)) {
+			offset += SZ_SAMPLE;
+			continue;
+		}
+
 		dc_sample_value_t sample = {0};
 		unsigned int temperature = array_uint16_le(data + offset + 0);
 		unsigned int depth = array_uint16_le(data + offset + 2);
