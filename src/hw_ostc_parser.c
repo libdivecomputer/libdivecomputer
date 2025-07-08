@@ -78,6 +78,9 @@
 #define OSTC4_SCRUBBER_WARNING 0x2000
 #define OSTC4_SCRUBBER_ERROR   0x4000
 
+#define OSTC4_GNSS_DUMMY_LATITUDE   8.99f
+#define OSTC4_GNSS_DUMMY_LONGITUDE 47.77f
+
 #define OSTC3FW(major,minor) ( \
 		(((major) & 0xFF) << 8) | \
 		((minor) & 0xFF))
@@ -1066,12 +1069,15 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 				float longitude = array_float_le (data + offset);
 				float latitude  = array_float_le (data + offset + 4);
 
-				if (!parser->have_location) {
-					parser->latitude  = latitude;
-					parser->longitude = longitude;
-					parser->have_location = 1;
-				} else {
-					WARNING (abstract->context, "Multiple GNSS locations present.");
+				if (latitude != OSTC4_GNSS_DUMMY_LATITUDE ||
+					longitude != OSTC4_GNSS_DUMMY_LONGITUDE) {
+					if (!parser->have_location) {
+						parser->latitude  = latitude;
+						parser->longitude = longitude;
+						parser->have_location = 1;
+					} else {
+						WARNING (abstract->context, "Multiple GNSS locations present.");
+					}
 				}
 
 				offset += 8;
