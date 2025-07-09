@@ -55,6 +55,10 @@
 	(type) == ID_HEADER || \
 	(type) == ID_FOOTER)
 
+#define LOGVERSION(major,minor) ( \
+		(((major) & 0xFF) << 8) | \
+		((minor) & 0xFF))
+
 #define UNDEFINED 0xFFFFFFFF
 
 #define EPOCH 1609459200 /* 2021-01-01 00:00:00 */
@@ -87,6 +91,7 @@ typedef struct halcyon_symbios_parser_t {
 	dc_parser_t base;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int logversion;
 	unsigned int datetime;
 	unsigned int divetime;
 	unsigned int maxdepth;
@@ -135,6 +140,7 @@ halcyon_symbios_parser_create (dc_parser_t **out, dc_context_t *context, const u
 
 	// Set the default values.
 	parser->cached = 0;
+	parser->logversion = 0;
 	parser->datetime = UNDEFINED;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
@@ -311,6 +317,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		6,  /* ID_GF_INFO */
 	};
 
+	unsigned int logversion = 0;
 	unsigned int time_start = UNDEFINED, time_end = UNDEFINED;
 	unsigned int maxdepth = 0;
 	unsigned int divemode = UNDEFINED;
@@ -367,6 +374,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		}
 
 		if (type == ID_LOG_VERSION) {
+			logversion = array_uint16_be (data + offset + 2);
 			unsigned int version_major = data[offset + 2];
 			unsigned int version_minor = data[offset + 3];
 			DEBUG (abstract->context, "Version: %u.%u",
@@ -687,6 +695,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	}
 
 	parser->cached = 1;
+	parser->logversion = logversion;
 	parser->datetime = time_start;
 	if (time_start != UNDEFINED && time_end != UNDEFINED) {
 		parser->divetime = time_end - time_start;
