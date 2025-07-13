@@ -546,6 +546,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 	// Read the header of each dive in reverse order (most recent first).
 	unsigned int eop = 0;
 	unsigned int previous = 0;
+	unsigned int begin = 0;
 	unsigned int count = 0;
 	unsigned int skip = 0;
 	unsigned int rb_profile_size = 0;
@@ -586,30 +587,42 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 		progress.current += SZ_ADDRESS + SZ_HEADER;
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-		// Check the header records.
-		for (unsigned int j = 0; j < 2; ++j) {
-			unsigned int type = j == 0 ? HEADER1 : HEADER2;
-			if (!seac_screen_record_isvalid (abstract->context,
-				logbook[i].header + j * SZ_HEADER / 2, SZ_HEADER / 2,
-				type, number)) {
-				ERROR (abstract->context, "Invalid header record %u.", j);
-				status = DC_STATUS_DATAFORMAT;
-				goto error_free_logbook;
-			}
-		}
-
 		// Check the fingerprint.
 		if (memcmp (logbook[i].header + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0) {
 			skip = 1;
 			break;
 		}
 
-		// Get the number of samples.
-		unsigned int nsamples = array_uint32_le (logbook[i].header + 0x44);
-		unsigned int nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
-
 		// Get the end-of-profile pointer.
 		if (eop == 0) {
+			// Check the header records.
+			unsigned int isvalid = 1;
+			for (unsigned int j = 0; j < 2; ++j) {
+				unsigned int type = j == 0 ? HEADER1 : HEADER2;
+				if (!seac_screen_record_isvalid (abstract->context,
+					logbook[i].header + j * SZ_HEADER / 2, SZ_HEADER / 2,
+					type, number)) {
+					WARNING (abstract->context, "Invalid header record %u.", j);
+					isvalid = 0;
+				}
+			}
+
+			// For dives with an invalid header, the number of samples in the
+			// header is not guaranteed to be valid. Discard the entire dive
+			// instead and take its start address as the end of the profile.
+			if (!isvalid) {
+				WARNING (abstract->context, "Unable to locate the end of the profile.");
+				eop = previous = logbook[i].address;
+				begin = 1;
+				skip++;
+				continue;
+			}
+
+			// Get the number of samples.
+			unsigned int nsamples = array_uint32_le (logbook[i].header + 0x44);
+			unsigned int nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
+
+			// Calculate the end of the profile.
 			eop = previous = RB_PROFILE_INCR (logbook[i].address, nbytes, layout);
 		}
 
@@ -619,7 +632,7 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 		// Check for the end of the ringbuffer.
 		if (length > remaining) {
 			WARNING (abstract->context, "Reached the end of the ringbuffer.");
-			skip = 1;
+			skip++;
 			break;
 		}
 
@@ -660,12 +673,15 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 	previous = eop;
 	unsigned int offset = rb_profile_size;
 	for (unsigned int i = 0; i < count; ++i) {
+		unsigned int idx = begin + i;
+		unsigned int number = last - idx;
+
 		// Calculate the length.
-		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous, layout);
+		unsigned int length = RB_PROFILE_DISTANCE (logbook[idx].address, previous, layout);
 
 		// Move to the start of the current dive.
 		offset -= length;
-		previous = logbook[i].address;
+		previous = logbook[idx].address;
 
 		// Read the dive.
 		status = dc_rbstream_read (rbstream, &progress, profile + offset, length);
@@ -688,12 +704,32 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 			goto error_free_rbstream;
 		}
 
+		// Check the header records.
+		unsigned int isvalid = 1;
+		for (unsigned int j = 0; j < 2; ++j) {
+			unsigned int type = j == 0 ? HEADER1 : HEADER2;
+			if (!seac_screen_record_isvalid (abstract->context,
+				profile + offset + j * SZ_HEADER / 2, SZ_HEADER / 2,
+				type, number)) {
+				WARNING (abstract->context, "Invalid header record %u.", j);
+				isvalid = 0;
+			}
+		}
+
 		// Get the number of samples.
 		// The actual size of the dive, based on the number of samples, can
 		// sometimes be smaller than the maximum length. In that case, the
 		// remainder of the data is padded with 0xFF bytes.
-		unsigned int nsamples = array_uint32_le (logbook[i].header + 0x44);
-		unsigned int nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
+		unsigned int nsamples = 0;
+		unsigned int nbytes = 0;
+		if (isvalid) {
+			nsamples = array_uint32_le (profile + offset + 0x44);
+			nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
+		} else {
+			WARNING (abstract->context, "Unable to locate the padding bytes.");
+			nbytes = length;
+		}
+
 		if (nbytes > length) {
 			ERROR (abstract->context, "Unexpected dive length (%u %u).", nbytes, length);
 			status = DC_STATUS_DATAFORMAT;
