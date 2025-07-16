@@ -22,15 +22,12 @@
 #include <stdlib.h>
 
 #include "seac_screen.h"
+#include "seac_screen_common.h"
 #include "context-private.h"
 #include "parser-private.h"
-#include "checksum.h"
 #include "array.h"
 
 #define ISINSTANCE(parser) dc_device_isinstance((parser), &seac_screen_parser_vtable)
-
-#define SZ_HEADER 128
-#define SZ_SAMPLE  64
 
 #define NGASMIXES 2
 
@@ -152,6 +149,20 @@ seac_screen_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime)
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
+	// Get the dive ID.
+	unsigned int dive_id = array_uint32_le (data + 0x00);
+
+	// Check the header records.
+	for (unsigned int i = 0; i < 2; ++i) {
+		unsigned int type = i == 0 ? HEADER1 : HEADER2;
+		if (!seac_screen_record_isvalid (abstract->context,
+			data + i * SZ_HEADER / 2, SZ_HEADER / 2,
+			type, dive_id)) {
+			ERROR (abstract->context, "Invalid header record %u.", i);
+			return DC_STATUS_DATAFORMAT;
+		}
+	}
+
 	// The date/time is stored as UTC time with a timezone offset. To convert to
 	// local time, the UTC time is first converted to unix time (seconds since
 	// the epoch), then adjusted for the timezone offset, and finally converted
@@ -271,13 +282,19 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 	if (abstract->size < SZ_HEADER)
 		return DC_STATUS_DATAFORMAT;
 
-	if (checksum_crc16_ccitt (data, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0 ||
-		checksum_crc16_ccitt (data + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0) {
-		ERROR (abstract->context, "Unexpected header checksum.");
-		return DC_STATUS_DATAFORMAT;
-	}
-
+	// Get the dive ID.
 	unsigned int dive_id = array_uint32_le (data + 0x00);
+
+	// Check the header records.
+	for (unsigned int i = 0; i < 2; ++i) {
+		unsigned int type = i == 0 ? HEADER1 : HEADER2;
+		if (!seac_screen_record_isvalid (abstract->context,
+			data + i * SZ_HEADER / 2, SZ_HEADER / 2,
+			type, dive_id)) {
+			ERROR (abstract->context, "Invalid header record %u.", i);
+			return DC_STATUS_DATAFORMAT;
+		}
+	}
 
 	unsigned int ngasmixes = 0;
 	unsigned int oxygen[NGASMIXES] = {0};
@@ -291,12 +308,12 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 	while (offset + SZ_SAMPLE <= size) {
 		dc_sample_value_t sample = {0};
 
-		if (checksum_crc16_ccitt (data + offset, SZ_SAMPLE, 0xFFFF, 0x0000) != 0) {
-			ERROR (abstract->context, "Unexpected sample checksum.");
+		// Check the sample record.
+		if (!seac_screen_record_isvalid (abstract->context, data + offset, SZ_SAMPLE, SAMPLE, dive_id)) {
+			ERROR (abstract->context, "Invalid sample record.");
 			return DC_STATUS_DATAFORMAT;
 		}
 
-		unsigned int id          = array_uint32_le (data + offset + 0x00);
 		unsigned int timestamp   = array_uint32_le (data + offset + 0x04);
 		unsigned int depth       = array_uint16_le (data + offset + 0x08);
 		unsigned int temperature = array_uint16_le (data + offset + 0x0A);
@@ -308,11 +325,6 @@ seac_screen_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t 
 		unsigned int cns         = array_uint16_le (data + offset + 0x16);
 		unsigned int gf_hi       = data[offset + 0x3B];
 		unsigned int gf_lo       = data[offset + 0x3C];
-
-		if (id != dive_id) {
-			ERROR (abstract->context, "Unexpected sample id (%u %u).", dive_id, id);
-			return DC_STATUS_DATAFORMAT;
-		}
 
 		// Time (seconds).
 		if (timestamp < time) {

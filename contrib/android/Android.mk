@@ -85,6 +85,7 @@ LOCAL_SRC_FILES := \
 	src/reefnet_sensusultra_parser.c \
 	src/ringbuffer.c \
 	src/seac_screen.c \
+	src/seac_screen_common.c \
 	src/seac_screen_parser.c \
 	src/serial_posix.c \
 	src/shearwater_common.c \

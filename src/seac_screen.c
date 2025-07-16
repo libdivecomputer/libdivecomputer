@@ -23,6 +23,7 @@
 #include <stdlib.h> // malloc, free
 
 #include "seac_screen.h"
+#include "seac_screen_common.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "ringbuffer.h"
@@ -65,9 +66,6 @@
 #define SZ_RANGE   8
 #define SZ_ADDRESS 4
 #define SZ_READ    2048
-
-#define SZ_HEADER  128
-#define SZ_SAMPLE   64
 
 #define FP_OFFSET   0x0A
 #define FP_SIZE     7
@@ -588,12 +586,16 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 		progress.current += SZ_ADDRESS + SZ_HEADER;
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-		// Check the header checksums.
-		if (checksum_crc16_ccitt (logbook[i].header, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0 ||
-			checksum_crc16_ccitt (logbook[i].header + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0) {
-			ERROR (abstract->context, "Unexpected header checksum.");
-			status = DC_STATUS_DATAFORMAT;
-			goto error_free_logbook;
+		// Check the header records.
+		for (unsigned int j = 0; j < 2; ++j) {
+			unsigned int type = j == 0 ? HEADER1 : HEADER2;
+			if (!seac_screen_record_isvalid (abstract->context,
+				logbook[i].header + j * SZ_HEADER / 2, SZ_HEADER / 2,
+				type, number)) {
+				ERROR (abstract->context, "Invalid header record %u.", j);
+				status = DC_STATUS_DATAFORMAT;
+				goto error_free_logbook;
+			}
 		}
 
 		// Check the fingerprint.
