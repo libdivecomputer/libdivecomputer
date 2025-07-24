@@ -49,6 +49,8 @@
 #define ID_GAS_CONFIG      0x11
 #define ID_TANK_TRANSMITTER 0x12
 #define ID_GF_INFO          0x13
+#define ID_SGC             0x14
+#define ID_GF_DATA         0x15
 
 #define ISCONFIG(type) ( \
 	(type) == ID_LOG_VERSION || \
@@ -332,6 +334,8 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		8,  /* ID_GAS_CONFIG */
 		8,  /* ID_TANK_TRANSMITTER */
 		6,  /* ID_GF_INFO */
+		4,  /* ID_SGC */
+		8,  /* ID_GF_DATA */
 	};
 
 	unsigned int logversion = 0;
@@ -370,6 +374,15 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		if (length < 2 || offset + length > size) {
 			ERROR (abstract->context, "Buffer overflow detected!");
 			return DC_STATUS_DATAFORMAT;
+		}
+
+		// Since log version 1.9, the ID_GF_INFO record has been deprecated and
+		// replaced with the larger ID_GF_DATA record. Unfortunately some
+		// earlier firmware versions produced records with the new type, but
+		// with the old size. This has been fixed in log version 1.12.
+		// Correct the record type to workaround this bug.
+		if (type == ID_GF_DATA && length == lengths[ID_GF_INFO]) {
+			type = ID_GF_INFO;
 		}
 
 		if (type < C_ARRAY_SIZE(lengths)) {
@@ -703,9 +716,15 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			sample.pressure.tank = tank_idx;
 			sample.pressure.value = pressure / 10.0;
 			if (callback) callback(DC_SAMPLE_PRESSURE, &sample, userdata);
-		} else if (type == ID_GF_INFO) {
+		} else if (type == ID_GF_INFO || type == ID_GF_DATA) {
 			unsigned int DC_ATTR_UNUSED gf_now  = array_uint16_le (data + offset + 2);
 			unsigned int DC_ATTR_UNUSED gf_surface  = array_uint16_le (data + offset + 4);
+			if (type == ID_GF_DATA) {
+				unsigned int DC_ATTR_UNUSED leading_tissue_gf_now = data[offset + 6];
+				unsigned int DC_ATTR_UNUSED leading_tissue_gf_surface = data[offset + 7];
+			}
+		} else if (type == ID_SGC) {
+			unsigned int DC_ATTR_UNUSED sgc = array_uint16_le (data + offset + 2);
 		} else {
 			WARNING (abstract->context, "Unknown record (type=%u, size=%u", type, length);
 		}
