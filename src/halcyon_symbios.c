@@ -443,19 +443,27 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the device status.
-	unsigned char info[20] = {0};
-	status = halcyon_symbios_transfer (device, CMD_GET_STATUS, NULL, 0, info, sizeof(info), NULL, NULL);
+	unsigned char info[36] = {0};
+	unsigned int info_size = 0;
+	status = halcyon_symbios_transfer (device, CMD_GET_STATUS, NULL, 0, info, sizeof(info), &info_size, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the device status.");
 		goto error_exit;
 	}
 
-	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", info, sizeof(info));
+	// Verify the length of the packet.
+	if (info_size < 20) {
+		ERROR (abstract->context, "Unexpected packet length (%u).", info_size);
+		status = DC_STATUS_PROTOCOL;
+		goto error_exit;
+	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", info, info_size);
 
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
 	vendor.data = info;
-	vendor.size = sizeof(info);
+	vendor.size = info_size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Emit a device info event.
