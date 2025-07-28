@@ -72,6 +72,15 @@
 
 #define OSTC4      0x3B
 
+#define OSTC4_COMPASS_SET     0x4000
+#define OSTC4_COMPASS_CLEARED 0x8000
+
+#define OSTC4_SCRUBBER_WARNING 0x2000
+#define OSTC4_SCRUBBER_ERROR   0x4000
+
+#define OSTC4_GNSS_DUMMY_LATITUDE   8.99f
+#define OSTC4_GNSS_DUMMY_LONGITUDE 47.77f
+
 #define OSTC3FW(major,minor) ( \
 		(((major) & 0xFF) << 8) | \
 		((minor) & 0xFF))
@@ -129,6 +138,9 @@ typedef struct hw_ostc_parser_t {
 	unsigned int initial_setpoint;
 	unsigned int initial_cns;
 	hw_ostc_gasmix_t gasmix[NGASMIXES];
+	unsigned int have_location;
+	float latitude;
+	float longitude;
 } hw_ostc_parser_t;
 
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -419,6 +431,9 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, const 
 		parser->gasmix[i].active = 0;
 		parser->gasmix[i].diluent = 0;
 	}
+	parser->have_location = 0;
+	parser->latitude = 0.0;
+	parser->longitude = 0.0;
 
 	*out = (dc_parser_t *) parser;
 
@@ -522,6 +537,7 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
+	dc_location_t *location = (dc_location_t *) value;
 
 	unsigned int salinity = data[layout->salinity];
 	if (version == 0x23 || version == 0x24)
@@ -688,6 +704,13 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 				return DC_STATUS_UNSUPPORTED;
 			}
 			decomodel->conservatism = 0;
+			break;
+		case DC_FIELD_LOCATION:
+			if (!parser->have_location)
+				return DC_STATUS_UNSUPPORTED;
+			location->latitude  = parser->latitude;
+			location->longitude = parser->longitude;
+			location->altitude  = 0.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -1013,6 +1036,64 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 
 				sample.gasmix = idx;
 				if (callback) callback (DC_SAMPLE_GASMIX, &sample, userdata);
+				offset += 2;
+				length -= 2;
+			}
+
+			// Compass heading
+			if (events & 0x0200) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				unsigned int value = array_uint16_le (data + offset);
+				unsigned int heading = value & 0x1FF;
+
+				if ((value & OSTC4_COMPASS_CLEARED) == 0) {
+					sample.bearing = heading;
+					if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
+				}
+
+				offset += 2;
+				length -= 2;
+			}
+
+			// GNSS position
+			if (events & 0x0400) {
+				if (length < 8) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				float longitude = array_float_le (data + offset);
+				float latitude  = array_float_le (data + offset + 4);
+
+				if (latitude != OSTC4_GNSS_DUMMY_LATITUDE ||
+					longitude != OSTC4_GNSS_DUMMY_LONGITUDE) {
+					if (!parser->have_location) {
+						parser->latitude  = latitude;
+						parser->longitude = longitude;
+						parser->have_location = 1;
+					} else {
+						WARNING (abstract->context, "Multiple GNSS locations present.");
+					}
+				}
+
+				offset += 8;
+				length -= 8;
+			}
+
+			// Scrubber state
+			if (events & 0x0800) {
+				if (length < 2) {
+					ERROR (abstract->context, "Buffer overflow detected!");
+					return DC_STATUS_DATAFORMAT;
+				}
+
+				unsigned int value = array_uint16_le (data + offset);
+				int DC_ATTR_UNUSED remaining = (int) signextend (value & 0x0FFF, 12);
+
 				offset += 2;
 				length -= 2;
 			}

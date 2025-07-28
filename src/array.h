@@ -97,6 +97,9 @@ array_uint16_be (const unsigned char data[]);
 unsigned short
 array_uint16_le (const unsigned char data[]);
 
+float
+array_float_le (const unsigned char data[]);
+
 void
 array_uint64_be_set (unsigned char data[], const unsigned long long input);
 

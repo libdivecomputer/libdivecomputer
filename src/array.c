@@ -302,6 +302,15 @@ array_uint16_le (const unsigned char data[])
 	       ((unsigned int) data[1] <<  8);
 }
 
+float
+array_float_le (const unsigned char data[])
+{
+	float result = 0;
+	unsigned int value = array_uint32_le (data);
+	memcpy (&result, &value, sizeof(value));
+	return result;
+}
+
 void
 array_uint64_be_set (unsigned char data[], const unsigned long long input)
 {
