@@ -55,6 +55,10 @@
 	(type) == ID_HEADER || \
 	(type) == ID_FOOTER)
 
+#define LOGVERSION(major,minor) ( \
+		(((major) & 0xFF) << 8) | \
+		((minor) & 0xFF))
+
 #define UNDEFINED 0xFFFFFFFF
 
 #define EPOCH 1609459200 /* 2021-01-01 00:00:00 */
@@ -87,7 +91,9 @@ typedef struct halcyon_symbios_parser_t {
 	dc_parser_t base;
 	// Cached fields.
 	unsigned int cached;
+	unsigned int logversion;
 	unsigned int datetime;
+	int timezone;
 	unsigned int divetime;
 	unsigned int maxdepth;
 	unsigned int divemode;
@@ -135,7 +141,9 @@ halcyon_symbios_parser_create (dc_parser_t **out, dc_context_t *context, const u
 
 	// Set the default values.
 	parser->cached = 0;
+	parser->logversion = 0;
 	parser->datetime = UNDEFINED;
+	parser->timezone = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0;
 	parser->divemode = UNDEFINED;
@@ -182,8 +190,23 @@ halcyon_symbios_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datet
 
 	dc_ticks_t ticks = (dc_ticks_t) parser->datetime + EPOCH;
 
-	if (!dc_datetime_localtime (datetime, ticks))
-		return DC_STATUS_DATAFORMAT;
+	if (parser->logversion >= LOGVERSION(1,9)) {
+		// For firmware versions with timezone support, the UTC offset of the
+		// device is used.
+		int timezone = parser->timezone * 3600;
+
+		ticks += timezone;
+
+		if (!dc_datetime_gmtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+
+		datetime->timezone = timezone;
+	} else {
+		// For firmware versions without timezone support, the current timezone
+		// of the host system is used.
+		if (!dc_datetime_localtime (datetime, ticks))
+			return DC_STATUS_DATAFORMAT;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -311,7 +334,9 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		6,  /* ID_GF_INFO */
 	};
 
+	unsigned int logversion = 0;
 	unsigned int time_start = UNDEFINED, time_end = UNDEFINED;
+	int timezone = 0;
 	unsigned int maxdepth = 0;
 	unsigned int divemode = UNDEFINED;
 	unsigned int atmospheric = UNDEFINED;
@@ -367,6 +392,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		}
 
 		if (type == ID_LOG_VERSION) {
+			logversion = array_uint16_be (data + offset + 2);
 			unsigned int version_major = data[offset + 2];
 			unsigned int version_minor = data[offset + 3];
 			DEBUG (abstract->context, "Version: %u.%u",
@@ -384,6 +410,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			unsigned int DC_ATTR_UNUSED detection = data[offset + 11];
 			unsigned int DC_ATTR_UNUSED noflytime = data[offset + 12];
 			divemode = data[offset + 13];
+			timezone = (signed char) data[offset + 14];
 			atmospheric = array_uint16_le(data + offset + 16);
 			unsigned int DC_ATTR_UNUSED number = array_uint16_le(data + offset + 18);
 			unsigned int DC_ATTR_UNUSED battery = array_uint16_le(data + offset + 20);
@@ -687,7 +714,9 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	}
 
 	parser->cached = 1;
+	parser->logversion = logversion;
 	parser->datetime = time_start;
+	parser->timezone = timezone;
 	if (time_start != UNDEFINED && time_end != UNDEFINED) {
 		parser->divetime = time_end - time_start;
 	} else {
