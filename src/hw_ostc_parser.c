@@ -78,7 +78,7 @@
 
 #define OSTC4FW(major,minor,micro,beta) ( \
 		(((major) & 0x1F) << 11) | \
-		(((minor) & 0x1F) >> 6) | \
+		(((minor) & 0x1F) << 6) | \
 		(((micro) & 0x1F) << 1) | \
 		((beta) & 0x01))
 
@@ -797,8 +797,18 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 	unsigned int firmware = 0;
 	if (parser->model == OSTC4) {
 		firmware = array_uint16_le (data + layout->firmware);
+		DEBUG (abstract->context, "Device: firmware=%u (%u.%u.%u.%u)",
+			firmware,
+			(firmware >> 11) & 0x1F,
+			(firmware >>  6) & 0x1F,
+			(firmware >>  1) & 0x1F,
+			(firmware      ) & 0x01);
 	} else {
 		firmware = array_uint16_be (data + layout->firmware);
+		DEBUG (abstract->context, "Device: firmware=%u (%u.%u)",
+			firmware,
+			(firmware >>  8) & 0xFF,
+			(firmware      ) & 0xFF);
 	}
 
 	// Get the dive mode.
