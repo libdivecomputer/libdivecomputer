@@ -52,6 +52,8 @@ typedef struct dive_data_t {
 	dc_device_t *device;
 	dc_buffer_t **fingerprint;
 	unsigned int number;
+	unsigned int relaxed;
+	unsigned int parsing_failed;
 	dctool_output_t *output;
 } dive_data_t;
 
@@ -90,13 +92,14 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 	message ("Parsing the dive data.\n");
 	rc = dctool_output_write (divedata->output, parser, data, size, fingerprint, fsize);
 	if (rc != DC_STATUS_SUCCESS) {
+		divedata->parsing_failed = 1;
 		ERROR ("Error parsing the dive data.");
 		goto cleanup;
 	}
 
 cleanup:
 	dc_parser_destroy (parser);
-	return 1;
+	return rc == DC_STATUS_SUCCESS || divedata->relaxed;
 }
 
 static void
@@ -146,7 +149,7 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 }
 
 static dc_status_t
-download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const char *cachedir, dc_buffer_t *fingerprint, dctool_output_t *output)
+download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const char *cachedir, dc_buffer_t *fingerprint, dctool_output_t *output, unsigned int relaxed)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_iostream_t *iostream = NULL;
@@ -213,6 +216,7 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 	divedata.device = device;
 	divedata.fingerprint = &ofingerprint;
 	divedata.number = 0;
+	divedata.relaxed = relaxed;
 	divedata.output = output;
 
 	// Download the dives.
@@ -221,6 +225,10 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error downloading the dives.");
 		goto cleanup;
+	}
+	if (divedata.parsing_failed) {
+		ERROR ("Parsing failed! Continue, but return with failure.");
+		rc = DC_STATUS_PROTOCOL;
 	}
 
 	// Store the fingerprint data.
@@ -260,10 +268,11 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	const char *filename = NULL;
 	const char *cachedir = NULL;
 	const char *format = "xml";
+	unsigned int relaxed = 1;
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ht:o:p:c:f:u:";
+	const char *optstring = "ht:o:p:c:f:u:s";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
@@ -273,6 +282,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		{"cache",       required_argument, 0, 'c'},
 		{"format",      required_argument, 0, 'f'},
 		{"units",       required_argument, 0, 'u'},
+		{"strict",      no_argument,       0, 's'},
 		{0,             0,                 0,  0 }
 	};
 	while ((opt = getopt_long (argc, argv, optstring, options, NULL)) != -1) {
@@ -303,6 +313,9 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 				units = DCTOOL_UNITS_METRIC;
 			if (strcmp (optarg, "imperial") == 0)
 				units = DCTOOL_UNITS_IMPERIAL;
+			break;
+		case 's':
+			relaxed = 0;
 			break;
 		default:
 			return EXIT_FAILURE;
@@ -345,7 +358,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	}
 
 	// Download the dives.
-	status = download (context, descriptor, transport, argv[0], cachedir, fingerprint, output);
+	status = download (context, descriptor, transport, argv[0], cachedir, fingerprint, output, relaxed);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -375,6 +388,7 @@ const dctool_command_t dctool_download = {
 	"   -c, --cache <directory>    Cache directory\n"
 	"   -f, --format <format>      Output format\n"
 	"   -u, --units <units>        Set units (metric or imperial)\n"
+	"   -s, --strict               Enable strict parsing (Exit if there has been an error while parsing)\n"
 #else
 	"   -h                 Show help message\n"
 	"   -t <transport>     Transport type\n"
@@ -383,6 +397,7 @@ const dctool_command_t dctool_download = {
 	"   -c <directory>     Cache directory\n"
 	"   -f <format>        Output format\n"
 	"   -u <units>         Set units (metric or imperial)\n"
+	"   -s                 Enable strict parsing (Exit if there has been an error while parsing)\n"
 #endif
 	"\n"
 	"Supported output formats:\n"
