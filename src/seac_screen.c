@@ -672,6 +672,13 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 			goto error_free_rbstream;
 		}
 
+		// Check the minimum header length.
+		if (length < SZ_HEADER) {
+			ERROR (abstract->context, "Unexpected dive length (%u).", length);
+			status = DC_STATUS_DATAFORMAT;
+			goto error_free_rbstream;
+		}
+
 		// Check the dive header.
 		if (memcmp (profile + offset, logbook[i].header, SZ_HEADER) != 0) {
 			ERROR (abstract->context, "Unexpected dive header.");
