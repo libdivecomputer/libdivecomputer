@@ -210,7 +210,7 @@ error_exit:
 }
 
 static dc_status_t
-halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize, unsigned int *errorcode)
+halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize, unsigned int *actual, unsigned int *errorcode)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -231,11 +231,16 @@ halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, c
 		goto error_exit;
 	}
 
-	// Verify the length of the packet.
-	if (length != asize) {
-		ERROR (abstract->context, "Unexpected packet length (%u).", length);
-		status = DC_STATUS_PROTOCOL;
-		goto error_exit;
+	if (actual == NULL) {
+		// Verify the length of the packet.
+		if (length != asize) {
+			ERROR (abstract->context, "Unexpected packet length (%u).", length);
+			status = DC_STATUS_PROTOCOL;
+			goto error_exit;
+		}
+	} else {
+		// Return the actual length.
+		*actual = length;
 	}
 
 error_exit:
@@ -257,7 +262,7 @@ halcyon_symbios_download (halcyon_symbios_device_t *device, dc_event_progress_t 
 
 	// Request the data.
 	unsigned char response[4] = {0};
-	status = halcyon_symbios_transfer (device, request, data, size, response, sizeof(response), &errcode);
+	status = halcyon_symbios_transfer (device, request, data, size, response, sizeof(response), NULL, &errcode);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to request the data.");
 		goto error_exit;
@@ -438,19 +443,27 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Read the device status.
-	unsigned char info[20] = {0};
-	status = halcyon_symbios_transfer (device, CMD_GET_STATUS, NULL, 0, info, sizeof(info), NULL);
+	unsigned char info[36] = {0};
+	unsigned int info_size = 0;
+	status = halcyon_symbios_transfer (device, CMD_GET_STATUS, NULL, 0, info, sizeof(info), &info_size, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the device status.");
 		goto error_exit;
 	}
 
-	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", info, sizeof(info));
+	// Verify the length of the packet.
+	if (info_size < 20) {
+		ERROR (abstract->context, "Unexpected packet length (%u).", info_size);
+		status = DC_STATUS_PROTOCOL;
+		goto error_exit;
+	}
+
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", info, info_size);
 
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
 	vendor.data = info;
-	vendor.size = sizeof(info);
+	vendor.size = info_size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Emit a device info event.
@@ -568,7 +581,7 @@ halcyon_symbios_device_timesync (dc_device_t *abstract, const dc_datetime_t *dat
 		datetime->minute,
 		datetime->second,
 	};
-	status = halcyon_symbios_transfer (device, CMD_SET_TIME, request, sizeof(request), NULL, 0, NULL);
+	status = halcyon_symbios_transfer (device, CMD_SET_TIME, request, sizeof(request), NULL, 0, NULL, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to set the time.");
 		goto error_exit;
