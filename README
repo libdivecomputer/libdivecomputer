@@ -34,6 +34,25 @@ To uninstall libdivecomputer again, run:
 
   $ make uninstall
 
+Docker Usage
+============
+
+This project provides a Dockerfile to create a consistent and isolated environment for both building and running the `libdivecomputer` tools.
+
+To build the Docker image:
+
+  $ docker build -t libdivecomputer .
+
+To run a `libdivecomputer` command and interact with a dive computer (e.g., downloading data from a Suunto Cobra 3 via a serial device):
+
+  $ docker run --rm -it \
+    --device /dev/ttyUSB0 \
+    -v $(pwd):/out \
+    libdivecomputer \
+    download -t serial -f XML -o cobra3.xml suunto_cobra3
+
+*Note: Replace `/dev/ttyUSB0` with the actual path to your dive computer device (e.g., `/dev/ttyUSB0` for a serial device or `/dev/bus/usb/001/002` for a usb device). The `-v $(pwd):/out` mounts your current directory into the container, allowing output files (like `cobra3.xml`) to be saved to your host machine.*
+
 Support
 =======
 
