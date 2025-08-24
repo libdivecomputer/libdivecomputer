@@ -51,6 +51,7 @@
 #define PUCKAIR2  0x2D
 #define SIRIUS    0x2F
 #define QUADCI    0x31
+#define QUAD2     0x32
 #define PUCK4     0x35
 
 #define ISSMART(model) ( \
@@ -64,12 +65,14 @@
 	(model) == PUCKAIR2 || \
 	(model) == SIRIUS || \
 	(model) == QUADCI || \
+	(model) == QUAD2 || \
 	(model) == PUCK4)
 
 #define ISSIRIUS(model) ( \
 	(model) == PUCKAIR2 || \
 	(model) == SIRIUS || \
 	(model) == QUADCI || \
+	(model) == QUAD2 || \
 	(model) == PUCK4)
 
 #define MAXRETRIES 4
@@ -195,6 +198,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 		{"Puck Air 2",  PUCKAIR2},
 		{"Sirius",      SIRIUS},
 		{"Quad Ci",     QUADCI},
+		{"Quad2",       QUAD2},
 		{"Puck4",       PUCK4},
 		{"Puck Lite",   PUCK4},
 		{"Puck",        PUCK4},
@@ -668,6 +672,7 @@ mares_iconhd_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_
 	case PUCKAIR2:
 	case SIRIUS:
 	case QUADCI:
+	case QUAD2:
 	case PUCK4:
 		device->layout = &mares_genius_layout;
 		device->packetsize = 4096;

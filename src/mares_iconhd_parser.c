@@ -49,6 +49,7 @@
 #define PUCKAIR2  0x2D
 #define SIRIUS    0x2F
 #define QUADCI    0x31
+#define QUAD2     0x32
 #define PUCK4     0x35
 
 #define ISSMART(model) ( \
@@ -62,6 +63,7 @@
 	(model) == PUCKAIR2 || \
 	(model) == SIRIUS || \
 	(model) == QUADCI || \
+	(model) == QUAD2 || \
 	(model) == PUCK4)
 
 #define NGASMIXES_ICONHD 3
