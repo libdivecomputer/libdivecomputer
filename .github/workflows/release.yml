@@ -20,6 +20,7 @@ jobs:
       - name: Build distribution tarball
         id: build
         run: |
+          sudo apt-get update
           sudo apt-get install libbluetooth-dev libusb-1.0-0-dev
           autoreconf --install --force
           ./configure

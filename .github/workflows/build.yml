@@ -21,7 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: sudo apt-get install libbluetooth-dev libusb-1.0-0-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install libbluetooth-dev libusb-1.0-0-dev
       - run: autoreconf --install --force
       - run: ./configure --prefix=/usr
       - run: make
@@ -80,7 +82,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: sudo apt-get install gcc-mingw-w64 binutils-mingw-w64 mingw-w64-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-mingw-w64 binutils-mingw-w64 mingw-w64-tools
       - name: Install libusb
         env:
           LIBUSB_VERSION: 1.0.26
