@@ -313,7 +313,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 				units = DCTOOL_UNITS_IMPERIAL;
 			break;
 		case 'l':
-			limit = atoi (optarg);
+			limit = strtoul (optarg, NULL, 0);
 			break;
 		default:
 			return EXIT_FAILURE;
