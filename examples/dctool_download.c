@@ -53,7 +53,7 @@ typedef struct dive_data_t {
 	dc_buffer_t **fingerprint;
 	unsigned int number;
 	dctool_output_t *output;
-	unsigned int count;
+	unsigned int limit;
 } dive_data_t;
 
 static int
@@ -95,7 +95,7 @@ dive_cb (const unsigned char *data, unsigned int size, const unsigned char *fing
 		goto cleanup;
 	}
 	
-	if (divedata->count > 0 && divedata->number >= divedata->count) {
+	if (divedata->limit > 0 && divedata->number >= divedata->limit) {
 		return 0;
 	}
 
@@ -151,7 +151,7 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 }
 
 static dc_status_t
-download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const char *cachedir, dc_buffer_t *fingerprint, dctool_output_t *output, unsigned int count)
+download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transport, const char *devname, const char *cachedir, dc_buffer_t *fingerprint, dctool_output_t *output, unsigned int limit)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_iostream_t *iostream = NULL;
@@ -219,7 +219,7 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 	divedata.fingerprint = &ofingerprint;
 	divedata.number = 0;
 	divedata.output = output;
-	divedata.count = count;
+	divedata.limit = limit;
 
 	// Download the dives.
 	message ("Downloading the dives.\n");
@@ -266,11 +266,11 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	const char *filename = NULL;
 	const char *cachedir = NULL;
 	const char *format = "xml";
-	unsigned int count = 0;
+	unsigned int limit = 0;
 
 	// Parse the command-line options.
 	int opt = 0;
-	const char *optstring = "ht:o:p:c:f:u:n:";
+	const char *optstring = "ht:o:p:c:f:u:l:";
 #ifdef HAVE_GETOPT_LONG
 	struct option options[] = {
 		{"help",        no_argument,       0, 'h'},
@@ -280,7 +280,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		{"cache",       required_argument, 0, 'c'},
 		{"format",      required_argument, 0, 'f'},
 		{"units",       required_argument, 0, 'u'},
-		{"count",       required_argument, 0, 'n'},
+		{"limit",       required_argument, 0, 'l'},
 		{0,             0,                 0,  0 }
 	};
 	while ((opt = getopt_long (argc, argv, optstring, options, NULL)) != -1) {
@@ -312,8 +312,8 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 			if (strcmp (optarg, "imperial") == 0)
 				units = DCTOOL_UNITS_IMPERIAL;
 			break;
-		case 'n':
-			count = atoi (optarg);
+		case 'l':
+			limit = atoi (optarg);
 			break;
 		default:
 			return EXIT_FAILURE;
@@ -356,7 +356,7 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 	}
 
 	// Download the dives.
-	status = download (context, descriptor, transport, argv[0], cachedir, fingerprint, output, count);
+	status = download (context, descriptor, transport, argv[0], cachedir, fingerprint, output, limit);
 	if (status != DC_STATUS_SUCCESS) {
 		message ("ERROR: %s\n", dctool_errmsg (status));
 		exitcode = EXIT_FAILURE;
@@ -386,7 +386,7 @@ const dctool_command_t dctool_download = {
 	"   -c, --cache <directory>    Cache directory\n"
 	"   -f, --format <format>      Output format\n"
 	"   -u, --units <units>        Set units (metric or imperial)\n"
-	"   -n, --count <number>       Number of dives to download\n"
+	"   -l, --limit <number>       Maximum number of dives to download\n"
 #else
 	"   -h                 Show help message\n"
 	"   -t <transport>     Transport type\n"
@@ -395,7 +395,7 @@ const dctool_command_t dctool_download = {
 	"   -c <directory>     Cache directory\n"
 	"   -f <format>        Output format\n"
 	"   -u <units>         Set units (metric or imperial)\n"
-	"   -n <count>         Number of dives to download\n"
+	"   -l <limit>         Maximum number of dives to download\n"
 #endif
 	"\n"
 	"Supported output formats:\n"
