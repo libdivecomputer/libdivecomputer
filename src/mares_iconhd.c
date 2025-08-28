@@ -197,6 +197,7 @@ mares_iconhd_get_model (mares_iconhd_device_t *device)
 		{"Quad Ci",     QUADCI},
 		{"Puck4",       PUCK4},
 		{"Puck Lite",   PUCK4},
+		{"Puck",        PUCK4},
 	};
 
 	// Check the product name in the version packet against the list
