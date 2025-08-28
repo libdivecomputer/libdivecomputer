@@ -237,7 +237,7 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 		// Generate the fingerprint filename.
 		family = dc_device_get_type (device);
 		snprintf (filename, sizeof (filename), "%s/%s-%08X.bin",
-					cachedir, dctool_family_name (family), eventdata.devinfo.serial);
+			cachedir, dctool_family_name (family), eventdata.devinfo.serial);
 
 		// Write the fingerprint file.
 		dctool_file_write (filename, ofingerprint);
