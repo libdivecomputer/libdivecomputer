@@ -237,7 +237,7 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 		// Generate the fingerprint filename.
 		family = dc_device_get_type (device);
 		snprintf (filename, sizeof (filename), "%s/%s-%08X.bin",
-					cachedir, dctool_family_name (family), eventdata.devinfo.serial);
+			cachedir, dctool_family_name (family), eventdata.devinfo.serial);
 
 		// Write the fingerprint file.
 		dctool_file_write (filename, ofingerprint);
@@ -329,12 +329,6 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 		return EXIT_SUCCESS;
 	}
 
-	if (fphex && limit > 0) {
-		message ("Using --limit and --fingerprint together is not allowed because it may lead to missed dives during a fingerprinted import.\n");
-		exitcode = EXIT_FAILURE;
-		goto cleanup;
-	}
-
 	// Check the transport type.
 	if (transport == DC_TRANSPORT_NONE) {
 		message ("No valid transport type specified.\n");
@@ -392,7 +386,7 @@ const dctool_command_t dctool_download = {
 	"   -c, --cache <directory>    Cache directory\n"
 	"   -f, --format <format>      Output format\n"
 	"   -u, --units <units>        Set units (metric or imperial)\n"
-	"   -l, --limit <number>       Maximum number of dives to download (not allowed with -p/--fingerprint)\n"
+	"   -l, --limit <number>       Maximum number of dives to download\n"
 #else
 	"   -h                 Show help message\n"
 	"   -t <transport>     Transport type\n"
@@ -401,7 +395,7 @@ const dctool_command_t dctool_download = {
 	"   -c <directory>     Cache directory\n"
 	"   -f <format>        Output format\n"
 	"   -u <units>         Set units (metric or imperial)\n"
-	"   -l <limit>         Maximum number of dives to download (not allowed with -p/--fingerprint)\n"
+	"   -l <limit>         Maximum number of dives to download\n"
 #endif
 	"\n"
 	"Supported output formats:\n"
