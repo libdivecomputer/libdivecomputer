@@ -22,6 +22,7 @@
 #ifndef DC_PLATFORM_H
 #define DC_PLATFORM_H
 
+#include <stddef.h>
 #include <stdarg.h>
 
 #ifdef __cplusplus
