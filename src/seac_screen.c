@@ -23,6 +23,7 @@
 #include <stdlib.h> // malloc, free
 
 #include "seac_screen.h"
+#include "seac_screen_common.h"
 #include "context-private.h"
 #include "device-private.h"
 #include "ringbuffer.h"
@@ -66,11 +67,8 @@
 #define SZ_ADDRESS 4
 #define SZ_READ    2048
 
-#define SZ_HEADER  128
-#define SZ_SAMPLE   64
-
-#define FP_OFFSET   0x0A
-#define FP_SIZE     7
+#define FP_OFFSET   0
+#define FP_SIZE     4
 
 #define RB_PROFILE_DISTANCE(a,b,l) ringbuffer_distance (a, b, DC_RINGBUFFER_FULL, l->rb_profile_begin, l->rb_profile_end)
 #define RB_PROFILE_INCR(a,b,l)     ringbuffer_increment (a, b, l->rb_profile_begin, l->rb_profile_end)
@@ -95,14 +93,9 @@ typedef struct seac_screen_device_t {
 	dc_iostream_t *iostream;
 	const seac_screen_commands_t *cmds;
 	const seac_screen_layout_t *layout;
+	unsigned int fingerprint;
 	unsigned char info[SZ_HWINFO + SZ_SWINFO];
-	unsigned char fingerprint[FP_SIZE];
 } seac_screen_device_t;
-
-typedef struct seac_screen_logbook_t {
-	unsigned int address;
-	unsigned char header[SZ_HEADER];
-} seac_screen_logbook_t;
 
 static dc_status_t seac_screen_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
 static dc_status_t seac_screen_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
@@ -329,8 +322,8 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 	device->iostream = iostream;
 	device->cmds = NULL;
 	device->layout = NULL;
+	device->fingerprint = 0;
 	memset (device->info, 0, sizeof (device->info));
-	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
@@ -395,13 +388,14 @@ seac_screen_device_set_fingerprint (dc_device_t *abstract, const unsigned char d
 {
 	seac_screen_device_t *device = (seac_screen_device_t *) abstract;
 
-	if (size && size != sizeof (device->fingerprint))
+	if (size && size != FP_SIZE)
 		return DC_STATUS_INVALIDARGS;
 
-	if (size)
-		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
-	else
-		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	if (size) {
+		device->fingerprint = array_uint32_le (data);
+	} else {
+		device->fingerprint = 0;
+	}
 
 	return DC_STATUS_SUCCESS;
 }
@@ -533,21 +527,35 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 	// Calculate the number of dives.
 	unsigned int ndives = last - first + 1;
 
+	// Check the fingerprint.
+	if (device->fingerprint >= last) {
+		ndives = 0;
+	} else if (device->fingerprint >= first) {
+		first = device->fingerprint + 1;
+		ndives = last - first + 1;
+	}
+
 	// Update and emit a progress event.
 	progress.current += SZ_RANGE;
-	progress.maximum += SZ_RANGE + ndives * (SZ_ADDRESS + SZ_HEADER);
+	progress.maximum += SZ_RANGE + ndives * SZ_ADDRESS;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-	// Allocate memory for the logbook data.
-	seac_screen_logbook_t *logbook = (seac_screen_logbook_t *) malloc (ndives * sizeof (seac_screen_logbook_t));
-	if (logbook == NULL) {
+	// Exit if no dives to download.
+	if (ndives == 0) {
+		goto error_exit;
+	}
+
+	// Allocate memory for the dive addresses.
+	unsigned int *address = (unsigned int *) malloc (ndives * sizeof (unsigned int));
+	if (address == NULL) {
 		status = DC_STATUS_NOMEMORY;
 		goto error_exit;
 	}
 
-	// Read the header of each dive in reverse order (most recent first).
+	// Read the address of each dive in reverse order (most recent first).
 	unsigned int eop = 0;
 	unsigned int previous = 0;
+	unsigned int begin = 0;
 	unsigned int count = 0;
 	unsigned int skip = 0;
 	unsigned int rb_profile_size = 0;
@@ -569,55 +577,71 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 			goto error_free_logbook;
 		}
 
-		// Get the dive address.
-		logbook[i].address = array_uint32_be (rsp_address);
-		if (logbook[i].address < layout->rb_profile_begin || logbook[i].address >= layout->rb_profile_end) {
-			ERROR (abstract->context, "Invalid ringbuffer pointer (0x%08x).", logbook[i].address);
-			status = DC_STATUS_DATAFORMAT;
-			goto error_free_logbook;
-		}
-
-		// Read the dive header.
-		status = seac_screen_device_read (abstract, logbook[i].address, logbook[i].header, SZ_HEADER);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to read the dive header.");
-			goto error_free_logbook;
-		}
-
 		// Update and emit a progress event.
-		progress.current += SZ_ADDRESS + SZ_HEADER;
+		progress.current += SZ_ADDRESS;
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-		// Check the header checksums.
-		if (checksum_crc16_ccitt (logbook[i].header, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0 ||
-			checksum_crc16_ccitt (logbook[i].header + SZ_HEADER / 2, SZ_HEADER / 2, 0xFFFF, 0x0000) != 0) {
-			ERROR (abstract->context, "Unexpected header checksum.");
+		// Get the dive address.
+		address[i] = array_uint32_be (rsp_address);
+		if (address[i] < layout->rb_profile_begin || address[i] >= layout->rb_profile_end) {
+			ERROR (abstract->context, "Invalid ringbuffer pointer (0x%08x).", address[i]);
 			status = DC_STATUS_DATAFORMAT;
 			goto error_free_logbook;
 		}
-
-		// Check the fingerprint.
-		if (memcmp (logbook[i].header + FP_OFFSET, device->fingerprint, sizeof (device->fingerprint)) == 0) {
-			skip = 1;
-			break;
-		}
-
-		// Get the number of samples.
-		unsigned int nsamples = array_uint32_le (logbook[i].header + 0x44);
-		unsigned int nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
 
 		// Get the end-of-profile pointer.
 		if (eop == 0) {
-			eop = previous = RB_PROFILE_INCR (logbook[i].address, nbytes, layout);
+			// Read the dive header.
+			unsigned char header[SZ_HEADER] = {0};
+			status = seac_screen_device_read (abstract, address[i], header, sizeof(header));
+			if (status != DC_STATUS_SUCCESS) {
+				ERROR (abstract->context, "Failed to read the dive header.");
+				goto error_free_logbook;
+			}
+
+			// Update and emit a progress event.
+			progress.current += sizeof(header);
+			progress.maximum += sizeof(header);
+			device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+			// Check the header records.
+			unsigned int isvalid = 1;
+			for (unsigned int j = 0; j < 2; ++j) {
+				unsigned int type = j == 0 ? HEADER1 : HEADER2;
+				if (!seac_screen_record_isvalid (abstract->context,
+					header + j * SZ_HEADER / 2, SZ_HEADER / 2,
+					type, number)) {
+					WARNING (abstract->context, "Invalid header record %u.", j);
+					isvalid = 0;
+				}
+			}
+
+			// For dives with an invalid header, the number of samples in the
+			// header is not guaranteed to be valid. Discard the entire dive
+			// instead and take its start address as the end of the profile.
+			if (!isvalid) {
+				WARNING (abstract->context, "Unable to locate the end of the profile.");
+				eop = previous = address[i];
+				begin = 1;
+				skip++;
+				continue;
+			}
+
+			// Get the number of samples.
+			unsigned int nsamples = array_uint32_le (header + 0x44);
+			unsigned int nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
+
+			// Calculate the end of the profile.
+			eop = previous = RB_PROFILE_INCR (address[i], nbytes, layout);
 		}
 
 		// Calculate the length.
-		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous, layout);
+		unsigned int length = RB_PROFILE_DISTANCE (address[i], previous, layout);
 
 		// Check for the end of the ringbuffer.
 		if (length > remaining) {
 			WARNING (abstract->context, "Reached the end of the ringbuffer.");
-			skip = 1;
+			skip++;
 			break;
 		}
 
@@ -626,12 +650,12 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 
 		// Move to the start of the current dive.
 		remaining -= length;
-		previous = logbook[i].address;
+		previous = address[i];
 		count++;
 	}
 
 	// Update and emit a progress event.
-	progress.maximum -= (ndives - count - skip) * (SZ_ADDRESS + SZ_HEADER) +
+	progress.maximum -= (ndives - count - skip) * SZ_ADDRESS +
 		((layout->rb_profile_end - layout->rb_profile_begin) - rb_profile_size);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
@@ -658,12 +682,15 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 	previous = eop;
 	unsigned int offset = rb_profile_size;
 	for (unsigned int i = 0; i < count; ++i) {
+		unsigned int idx = begin + i;
+		unsigned int number = last - idx;
+
 		// Calculate the length.
-		unsigned int length = RB_PROFILE_DISTANCE (logbook[i].address, previous, layout);
+		unsigned int length = RB_PROFILE_DISTANCE (address[idx], previous, layout);
 
 		// Move to the start of the current dive.
 		offset -= length;
-		previous = logbook[i].address;
+		previous = address[idx];
 
 		// Read the dive.
 		status = dc_rbstream_read (rbstream, &progress, profile + offset, length);
@@ -672,26 +699,46 @@ seac_screen_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, 
 			goto error_free_rbstream;
 		}
 
-		// Check the dive header.
-		if (memcmp (profile + offset, logbook[i].header, SZ_HEADER) != 0) {
-			ERROR (abstract->context, "Unexpected dive header.");
+		// Check the minimum header length.
+		if (length < SZ_HEADER) {
+			ERROR (abstract->context, "Unexpected dive length (%u).", length);
 			status = DC_STATUS_DATAFORMAT;
 			goto error_free_rbstream;
+		}
+
+		// Check the header records.
+		unsigned int isvalid = 1;
+		for (unsigned int j = 0; j < 2; ++j) {
+			unsigned int type = j == 0 ? HEADER1 : HEADER2;
+			if (!seac_screen_record_isvalid (abstract->context,
+				profile + offset + j * SZ_HEADER / 2, SZ_HEADER / 2,
+				type, number)) {
+				WARNING (abstract->context, "Invalid header record %u.", j);
+				isvalid = 0;
+			}
 		}
 
 		// Get the number of samples.
 		// The actual size of the dive, based on the number of samples, can
 		// sometimes be smaller than the maximum length. In that case, the
 		// remainder of the data is padded with 0xFF bytes.
-		unsigned int nsamples = array_uint32_le (logbook[i].header + 0x44);
-		unsigned int nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
+		unsigned int nsamples = 0;
+		unsigned int nbytes = 0;
+		if (isvalid) {
+			nsamples = array_uint32_le (profile + offset + 0x44);
+			nbytes = SZ_HEADER + nsamples * SZ_SAMPLE;
+		} else {
+			WARNING (abstract->context, "Unable to locate the padding bytes.");
+			nbytes = length;
+		}
+
 		if (nbytes > length) {
 			ERROR (abstract->context, "Unexpected dive length (%u %u).", nbytes, length);
 			status = DC_STATUS_DATAFORMAT;
 			goto error_free_rbstream;
 		}
 
-		if (callback && !callback (profile + offset, nbytes, profile + offset + FP_OFFSET, sizeof(device->fingerprint), userdata)) {
+		if (callback && !callback (profile + offset, nbytes, profile + offset + FP_OFFSET, FP_SIZE, userdata)) {
 			break;
 		}
 	}
@@ -701,7 +748,7 @@ error_free_rbstream:
 error_free_profile:
 	free (profile);
 error_free_logbook:
-	free (logbook);
+	free (address);
 error_exit:
 	return status;
 }
