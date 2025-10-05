@@ -58,10 +58,13 @@
 
 #define RSP_READY 1
 #define RSP_DONE  2
+#define RSP_ACCESSCODE_INVALID 13
 
 #define MAXPACKET 255
 
 #define MAXPASSCODE 6
+
+#define MAXRETRIES 3
 
 typedef struct pelagic_i330r_device_t {
 	oceanic_common_device_t base;
@@ -276,6 +279,8 @@ pelagic_i330r_transfer (pelagic_i330r_device_t *device, unsigned char cmd, unsig
 
 	if (errorcode != response) {
 		ERROR (abstract->context, "Unexpected response code (%u)", errorcode);
+		if (errorcode == RSP_ACCESSCODE_INVALID)
+			return DC_STATUS_NOACCESS;
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -388,12 +393,27 @@ pelagic_i330r_init (pelagic_i330r_device_t *device)
 		return status;
 	}
 
-	if (array_isequal (device->accesscode, sizeof(device->accesscode), 0)) {
-		// Request to display the PIN code.
+	unsigned int nretries = 0;
+	while (1) {
+		// Try to request access.
 		status = pelagic_i330r_init_accesscode (device);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to display the PIN code.");
+		if (status != DC_STATUS_SUCCESS && status != DC_STATUS_NOACCESS) {
+			ERROR (abstract->context, "Failed to request access.");
 			return status;
+		}
+
+		if (array_isequal (device->accesscode, sizeof(device->accesscode), 0)) {
+			WARNING (abstract->context, "Access denied, no access code.");
+		} else {
+			if (status == DC_STATUS_SUCCESS)
+				break;
+			WARNING (abstract->context, "Access denied, invalid access code.");
+		}
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES) {
+			ERROR (abstract->context, "Maximum number of retries reached.");
+			return DC_STATUS_NOACCESS;
 		}
 
 		// Get the bluetooth PIN code.
@@ -420,13 +440,6 @@ pelagic_i330r_init (pelagic_i330r_device_t *device)
 			ERROR (abstract->context, "Failed to store the access code.");
 			return status;
 		}
-	}
-
-	// Request access.
-	status = pelagic_i330r_init_accesscode (device);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to request access.");
-		return status;
 	}
 
 	// Send the wakeup command.
