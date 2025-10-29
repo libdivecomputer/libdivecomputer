@@ -736,6 +736,7 @@ shearwater_common_get_model (shearwater_common_device_t *device, unsigned int ha
 	case 0x0C0D:
 	case 0x7C2D:
 	case 0x8D6C:
+	case 0x425B:
 		model = PERDIXAI;
 		break;
 	case 0x704C:
@@ -753,6 +754,7 @@ shearwater_common_get_model (shearwater_common_device_t *device, unsigned int ha
 		model = PEREGRINE;
 		break;
 	case 0x1712:
+	case 0x813A:
 		model = PEREGRINE_TX;
 		break;
 	case 0xC0E0:
