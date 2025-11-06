@@ -341,6 +341,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x12, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0x13, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC 2 TR",  DC_FAMILY_HW_OSTC3, 0x33, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC Nano",  DC_FAMILY_HW_OSTC3, 0x11, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_hw},
 	/* Cressi Edy */
 	{"Cressi", "Archimede", DC_FAMILY_CRESSI_EDY, 0x01, DC_TRANSPORT_SERIAL, NULL},
 	{"Tusa",   "IQ-700", DC_FAMILY_CRESSI_EDY, 0x05, DC_TRANSPORT_SERIAL, NULL},
