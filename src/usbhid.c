@@ -240,7 +240,11 @@ dc_usbhid_session_new (dc_usbhid_session_t **out, dc_context_t *context)
 	session->refcount = 1;
 
 #if defined(USE_LIBUSB)
+#if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x0100010A)
+	int rc = libusb_init_context (&session->handle, NULL, 0);
+#else
 	int rc = libusb_init (&session->handle);
+#endif
 	if (rc != LIBUSB_SUCCESS) {
 		ERROR (context, "Failed to initialize usb support (%s).",
 			libusb_error_name (rc));
