@@ -34,7 +34,7 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc3_device_vtable)
 
-#define ISHWOS4(hardware) ((hardware) == OSTC4)
+#define ISHWOS4(hardware) ((hardware) == 0x3B)
 
 #define OSTC3FW(major,minor) ( \
 		(((major) & 0xFF) << 8) | \
@@ -83,11 +83,9 @@
 #define EXIT       0xFF
 
 #define INVALID    0xFFFFFFFF
-#define UNKNOWN    0x00
-#define OSTC3      0x0A
-#define OSTC4      0x3B
-#define SPORT      0x12
-#define CR         0x05
+
+#define OSTC4      0x43
+#define OSTC5      0x44
 
 #define NODELAY 0
 #define TIMEOUT 400
@@ -612,6 +610,14 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 	device->model = hardware[4];
 	device->serial = array_uint16_le (version + 0);
 	if (ISHWOS4(device->hardware)) {
+		// The parser uses the model number to distinguish the OSTC 4 and 5
+		// from the other hwOS models. Therefore, set the model number manually
+		// if it's not available because the HARDWARE2 command isn't supported.
+		// Detecting the difference between the OSTC 4 and 5 isn't possible
+		// here, so assume an OSTC 4.
+		if (hardware_size != SZ_HARDWARE2) {
+			device->model = OSTC4;
+		}
 		device->firmware = array_uint16_le (version + 2);
 	} else {
 		device->firmware = array_uint16_be (version + 2);
@@ -753,15 +759,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 	dc_event_devinfo_t devinfo;
 	devinfo.firmware = device->firmware;
 	devinfo.serial = device->serial;
-	if (device->hardware != UNKNOWN) {
-		devinfo.model = device->hardware;
-	} else {
-		// Fallback to the serial number.
-		if (devinfo.serial > 10000)
-			devinfo.model = SPORT;
-		else
-			devinfo.model = OSTC3;
-	}
+	devinfo.model = device->model;
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate memory.
@@ -1736,15 +1734,7 @@ hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	dc_event_devinfo_t devinfo;
 	devinfo.firmware = device->firmware;
 	devinfo.serial = device->serial;
-	if (device->hardware != UNKNOWN) {
-		devinfo.model = device->hardware;
-	} else {
-		// Fallback to the serial number.
-		if (devinfo.serial > 10000)
-			devinfo.model = SPORT;
-		else
-			devinfo.model = OSTC3;
-	}
+	devinfo.model = device->model;
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
 	// Allocate the required amount of memory.

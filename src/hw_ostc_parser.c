@@ -70,7 +70,8 @@
 #define OSTC3_ZHL16_GF 1
 #define OSTC4_VPM      2
 
-#define OSTC4      0x3B
+#define OSTC4      0x43
+#define OSTC5      0x44
 
 #define OSTC4_COMPASS_SET     0x4000
 #define OSTC4_COMPASS_CLEARED 0x8000
@@ -81,8 +82,8 @@
 #define OSTC4_GNSS_DUMMY_LATITUDE   8.99f
 #define OSTC4_GNSS_DUMMY_LONGITUDE 47.77f
 
-#define ISHWOS3(hwos,model) ((hwos) && (model) != OSTC4)
-#define ISHWOS4(hwos,model) ((hwos) && (model) == OSTC4)
+#define ISHWOS3(hwos,model) ((hwos) && ((model) != OSTC4 && (model) != OSTC5))
+#define ISHWOS4(hwos,model) ((hwos) && ((model) == OSTC4 || (model) == OSTC5))
 
 #define OSTC3FW(major,minor) ( \
 		(((major) & 0xFF) << 8) | \
