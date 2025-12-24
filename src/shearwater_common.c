@@ -743,11 +743,13 @@ shearwater_common_get_model (shearwater_common_device_t *device, unsigned int ha
 	case 0xC407:
 	case 0xC964:
 	case 0x9C64:
+	case 0x924C:
 		model = PERDIX2;
 		break;
 	case 0x0F0F:
 	case 0x1F0A:
 	case 0x1F0F:
+	case 0x1F1A:
 		model = TERIC;
 		break;
 	case 0x1512:
