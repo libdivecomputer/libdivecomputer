@@ -876,7 +876,8 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 				return DC_STATUS_UNSUPPORTED;
 			latitude  = (signed int) array_uint32_be (data + parser->opening[9] + 21);
 			longitude = (signed int) array_uint32_be (data + parser->opening[9] + 25);
-			if (latitude == 0 && longitude == 0)
+			if ((latitude == 0 && longitude == 0) ||
+				(latitude == -1 && longitude == -1))
 				return DC_STATUS_UNSUPPORTED;
 			location->latitude  = latitude  / 100000.0;
 			location->longitude = longitude / 100000.0;
