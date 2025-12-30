@@ -743,14 +743,17 @@ deepsix_excursion_parser_samples_foreach_v1 (dc_parser_t *abstract, dc_sample_ca
 						sample.deco.type = DC_DECO_DECOSTOP;
 						sample.deco.depth = pressure_to_depth(deco_depth, atmospheric, density);
 						sample.deco.time = deco_time;
+						sample.deco.tts = deco_ndl_tts;
 					} else if (deco_flags & SAFETYSTOP) {
 						sample.deco.type = DC_DECO_SAFETYSTOP;
 						sample.deco.depth = pressure_to_depth(deco_depth, atmospheric, density);
 						sample.deco.time = deco_time;
+						sample.deco.tts = 0;
 					} else {
 						sample.deco.type = DC_DECO_NDL;
 						sample.deco.depth = 0;
 						sample.deco.time = deco_ndl_tts;
+						sample.deco.tts = 0;
 					}
 					if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 					break;
