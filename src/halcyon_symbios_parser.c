@@ -726,7 +726,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 		} else if (type == ID_SGC) {
 			unsigned int DC_ATTR_UNUSED sgc = array_uint16_le (data + offset + 2);
 		} else {
-			WARNING (abstract->context, "Unknown record (type=%u, size=%u", type, length);
+			WARNING (abstract->context, "Unknown record (type=%u, size=%u)", type, length);
 		}
 
 		offset += length;
