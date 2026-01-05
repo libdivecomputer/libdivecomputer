@@ -34,6 +34,8 @@
 
 #define ISINSTANCE(device) dc_device_isinstance((device), &hw_ostc3_device_vtable)
 
+#define ISHWOS4(hardware) ((hardware) == OSTC4)
+
 #define OSTC3FW(major,minor) ( \
 		(((major) & 0xFF) << 8) | \
 		((minor) & 0xFF))
@@ -240,7 +242,7 @@ hw_ostc3_write (hw_ostc3_device_t *device, dc_event_progress_t *progress, const 
 	size_t nbytes = 0;
 	while (nbytes < size) {
 		// Set the maximum packet size.
-		size_t length = (device->hardware == OSTC4) ? 64 : 1024;
+		size_t length = ISHWOS4(device->hardware) ? 64 : 1024;
 
 		// Limit the packet size to the total size.
 		if (nbytes + length > size)
@@ -622,7 +624,7 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 	device->feature = array_uint16_be(hardware + 2);
 	device->model = hardware[4];
 	device->serial = array_uint16_le (version + 0);
-	if (device->hardware == OSTC4) {
+	if (ISHWOS4(device->hardware)) {
 		device->firmware = array_uint16_le (version + 2);
 	} else {
 		device->firmware = array_uint16_be (version + 2);
@@ -802,7 +804,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 
 		// Get the internal dive number.
 		unsigned int current = array_uint16_le (header + offset + logbook->number);
-		if (current > maximum || device->hardware == OSTC4) {
+		if (current > maximum || ISHWOS4(device->hardware)) {
 			maximum = current;
 			latest = i;
 		}
@@ -904,7 +906,7 @@ hw_ostc3_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, voi
 		}
 
 		// Detect invalid profile data.
-		unsigned int delta = device->hardware == OSTC4 ? 3 : 0;
+		unsigned int delta = ISHWOS4(device->hardware) ? 3 : 0;
 		if (length < RB_LOGBOOK_SIZE_FULL + 2 ||
 			profile[length - 2] != 0xFD || profile[length - 1] != 0xFD) {
 			// A valid profile should have at least a correct 2 byte
@@ -1022,7 +1024,7 @@ hw_ostc3_device_config_read (dc_device_t *abstract, unsigned int config, unsigne
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	if (device->hardware == OSTC4 ? size != SZ_CONFIG : size > SZ_CONFIG) {
+	if (ISHWOS4(device->hardware) ? size != SZ_CONFIG : size > SZ_CONFIG) {
 		ERROR (abstract->context, "Invalid parameter specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -1048,7 +1050,7 @@ hw_ostc3_device_config_write (dc_device_t *abstract, unsigned int config, const 
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
-	if (device->hardware == OSTC4 ? size != SZ_CONFIG : size > SZ_CONFIG) {
+	if (ISHWOS4(device->hardware) ? size != SZ_CONFIG : size > SZ_CONFIG) {
 		ERROR (abstract->context, "Invalid parameter specified.");
 		return DC_STATUS_INVALIDARGS;
 	}
@@ -1615,7 +1617,7 @@ hw_ostc3_device_fwupdate (dc_device_t *abstract, const char *filename)
 		return status;
 	}
 
-	if (device->hardware == OSTC4) {
+	if (ISHWOS4(device->hardware)) {
 		return hw_ostc3_device_fwupdate4 (abstract, filename);
 	} else {
 		return hw_ostc3_device_fwupdate3 (abstract, filename);
@@ -1640,7 +1642,7 @@ hw_ostc3_device_read (dc_device_t *abstract, unsigned int address, unsigned char
 		return status;
 	}
 
-	if (device->hardware == OSTC4) {
+	if (ISHWOS4(device->hardware)) {
 		return DC_STATUS_UNSUPPORTED;
 	}
 
@@ -1677,7 +1679,7 @@ hw_ostc3_device_write (dc_device_t *abstract, unsigned int address, const unsign
 		return status;
 	}
 
-	if (device->hardware == OSTC4) {
+	if (ISHWOS4(device->hardware)) {
 		return DC_STATUS_UNSUPPORTED;
 	}
 
@@ -1719,7 +1721,7 @@ hw_ostc3_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 		return rc;
 	}
 
-	if (device->hardware == OSTC4) {
+	if (ISHWOS4(device->hardware)) {
 		return DC_STATUS_UNSUPPORTED;
 	}
 

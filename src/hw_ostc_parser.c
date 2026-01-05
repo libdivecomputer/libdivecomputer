@@ -81,6 +81,9 @@
 #define OSTC4_GNSS_DUMMY_LATITUDE   8.99f
 #define OSTC4_GNSS_DUMMY_LONGITUDE 47.77f
 
+#define ISHWOS3(hwos,model) ((hwos) && (model) != OSTC4)
+#define ISHWOS4(hwos,model) ((hwos) && (model) == OSTC4)
+
 #define OSTC3FW(major,minor) ( \
 		(((major) & 0xFF) << 8) | \
 		((minor) & 0xFF))
@@ -818,7 +821,7 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 
 	// Get the firmware version.
 	unsigned int firmware = 0;
-	if (parser->model == OSTC4) {
+	if (ISHWOS4(parser->hwos, parser->model)) {
 		firmware = array_uint16_le (data + layout->firmware);
 		DEBUG (abstract->context, "Device: firmware=%u (%u.%u.%u.%u)",
 			firmware,
@@ -979,7 +982,7 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 				return DC_STATUS_DATAFORMAT;
 			}
 			unsigned int id = data[offset];
-			if (parser->model == OSTC4 && ccr && id > parser->nfixed) {
+			if (ISHWOS4(parser->hwos, parser->model) && ccr && id > parser->nfixed) {
 				// Fix the OSTC4 diluent index.
 				id -= parser->nfixed;
 			}
@@ -1107,7 +1110,7 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 					// the hwOS Sport firmware v10.57 to v10.63, the ppO2 divisor
 					// is sometimes not correctly reset to zero when no ppO2
 					// samples are being recorded.
-					if (info[i].type == PPO2 && parser->hwos && parser->model != OSTC4 &&
+					if (info[i].type == PPO2 && ISHWOS3(parser->hwos, parser->model) &&
 						((firmware >= OSTC3FW(3,3) && firmware <= OSTC3FW(3,8)) ||
 						(firmware >= OSTC3FW(10,57) && firmware <= OSTC3FW(10,63)))) {
 						WARNING (abstract->context, "Reset invalid ppO2 divisor to zero.");
@@ -1130,7 +1133,7 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 				case DECO:
 					// Due to a firmware bug, the deco/ndl info is incorrect for
 					// all OSTC4 dives with a firmware older than version 1.0.8.
-					if (parser->model == OSTC4 && firmware < OSTC4FW(1,0,8,0))
+					if (ISHWOS4(parser->hwos, parser->model) && firmware < OSTC4FW(1,0,8,0))
 						break;
 					if (data[offset]) {
 						sample.deco.type = DC_DECO_DECOSTOP;
@@ -1175,7 +1178,7 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 						sample.pressure.value = value;
 						// The hwOS Sport firmware used a resolution of
 						// 0.1 bar between versions 10.40 and 10.50.
-						if (parser->hwos && parser->model != OSTC4 &&
+						if (ISHWOS3(parser->hwos, parser->model) &&
 							(firmware >= OSTC3FW(10,40) && firmware <= OSTC3FW(10,50))) {
 							sample.pressure.value /= 10.0;
 						}
