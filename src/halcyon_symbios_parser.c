@@ -66,9 +66,10 @@
 #define EPOCH 1609459200 /* 2021-01-01 00:00:00 */
 
 #define OC        0
-#define CC        1
-#define GAUGE     2
+#define CCR       1
+#define CCR_FSP   2
 #define SIDEMOUNT 3
+#define GAUGE     4
 
 #define NGASMIXES 10
 #define NTANKS    10
@@ -250,7 +251,8 @@ halcyon_symbios_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			case SIDEMOUNT:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 				break;
-			case CC:
+			case CCR:
+			case CCR_FSP:
 				*((dc_divemode_t *) value) = DC_DIVEMODE_CCR;
 				break;
 			case GAUGE:
