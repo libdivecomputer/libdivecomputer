@@ -949,12 +949,7 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 				if (callback) callback(DC_SAMPLE_PPO2, &sample, userdata);
 			}
 
-			if (id == POINT_2) {
-				unsigned int orientation = array_uint32_le (data + offset + 8);
-				unsigned int heading = orientation & 0x1FF;
-				sample.bearing = heading;
-				if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
-			} else if (id == POINT_1 || id == POINT_1_OLD) {
+			if (id == POINT_1 || id == POINT_1_OLD) {
 				unsigned int misc = array_uint32_le (data + offset + 8);
 				unsigned int ceiling = array_uint16_le (data + offset + 12);
 				unsigned int setpoint = data[offset + 15];
@@ -1021,6 +1016,12 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			} else if (event == EVENT_SETPOINT_MANUAL || event == EVENT_SETPOINT_AUTO) {
 				sample.setpoint = data[offset + 6] / 100.0;
 				if (callback) callback(DC_SAMPLE_SETPOINT, &sample, userdata);
+			} else if (event == EVENT_WAYPOINT) {
+				unsigned int heading = array_uint16_le (data + offset + 8);
+				if ((heading & 0x8000) == 0) {
+					sample.bearing = heading;
+					if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
+				}
 			}
 		} else if (type == LREC_MEASURE) {
 			// Measurement record.
