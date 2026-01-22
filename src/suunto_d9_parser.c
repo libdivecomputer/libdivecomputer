@@ -706,12 +706,12 @@ suunto_d9_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t ca
 					if (heading == 0xFFFF) {
 						sample.event.type = SAMPLE_EVENT_BOOKMARK;
 						sample.event.value = 0;
+						sample.event.time = seconds;
+						if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 					} else {
-						sample.event.type = SAMPLE_EVENT_HEADING;
-						sample.event.value = heading / 2;
+						sample.bearing = heading / 2;
+						if (callback) callback (DC_SAMPLE_BEARING, &sample, userdata);
 					}
-					sample.event.time = seconds;
-					if (callback) callback (DC_SAMPLE_EVENT, &sample, userdata);
 					offset += 4;
 					break;
 				case 0x05: // Gas Change

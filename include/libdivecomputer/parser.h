@@ -91,7 +91,7 @@ typedef enum parser_sample_event_t {
 	SAMPLE_EVENT_PO2,
 	SAMPLE_EVENT_AIRTIME,
 	SAMPLE_EVENT_RGBM,
-	SAMPLE_EVENT_HEADING,
+	SAMPLE_EVENT_HEADING, /* Deprecated: replaced by DC_SAMPLE_BEARING. */
 	SAMPLE_EVENT_TISSUELEVEL,
 	SAMPLE_EVENT_GASCHANGE2, /* Deprecated: replaced by DC_SAMPLE_GASMIX. */
 } parser_sample_event_t;
