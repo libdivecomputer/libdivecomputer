@@ -630,6 +630,25 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		device->firmware = array_uint16_be (version + 2);
 	}
 
+	DEBUG (abstract->context, "Device: hardware=%04x, feature=%04x, model=%02x",
+		device->hardware, device->feature, device->model);
+
+	if (ISHWOS4(device->hardware)) {
+		DEBUG (abstract->context, "Device: serial=%u, firmware=%u (%u.%u.%u.%u)",
+			device->serial,
+			device->firmware,
+			(device->firmware >> 11) & 0x1F,
+			(device->firmware >>  6) & 0x1F,
+			(device->firmware >>  1) & 0x1F,
+			(device->firmware      ) & 0x01);
+	} else {
+		DEBUG (abstract->context, "Device: serial=%u, firmware=%u (%u.%u)",
+			device->serial,
+			device->firmware,
+			(device->firmware >>  8) & 0xFF,
+			(device->firmware      ) & 0xFF);
+	}
+
 	return DC_STATUS_SUCCESS;
 }
 
