@@ -600,14 +600,28 @@ hw_ostc3_device_init (hw_ostc3_device_t *device, hw_ostc3_state_t state)
 		return DC_STATUS_SUCCESS;
 
 	// Read the hardware descriptor.
-	unsigned char hardware[SZ_HARDWARE2] = {0, UNKNOWN};
-	rc = hw_ostc3_device_id (device, hardware, sizeof(hardware));
-	if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
-		ERROR (abstract->context, "Failed to read the hardware descriptor.");
-		return rc;
+	// Try reading the extended 5 byte variant first and if it's not supported,
+	// fall back to reading the 1 byte variant. Some (older) firmware versions
+	// don't support reading the hardware descriptor at all.
+	unsigned char hardware[SZ_HARDWARE2] = {0};
+	unsigned int hardware_offset = 0, hardware_size = 0;
+	const unsigned char hardware_cmd[] = {HARDWARE2, HARDWARE};
+	const unsigned int hardware_len[] = {SZ_HARDWARE2, SZ_HARDWARE};
+	for (unsigned int i = 0; i < 2; ++i) {
+		rc = hw_ostc3_transfer (device, NULL, hardware_cmd[i], NULL, 0, hardware + i, hardware_len[i], NULL, NODELAY);
+		if (rc != DC_STATUS_SUCCESS && rc != DC_STATUS_UNSUPPORTED) {
+			ERROR (abstract->context, "Failed to read the hardware descriptor.");
+			return rc;
+		}
+
+		if (rc == DC_STATUS_SUCCESS) {
+			hardware_offset = i;
+			hardware_size = hardware_len[i];
+			break;
+		}
 	}
 
-	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", hardware, sizeof(hardware));
+	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", hardware + hardware_offset, hardware_size);
 
 	// Read the version information.
 	unsigned char version[SZ_VERSION] = {0};
