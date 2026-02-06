@@ -483,33 +483,6 @@ error_free:
 
 
 static dc_status_t
-hw_ostc3_device_id (hw_ostc3_device_t *device, unsigned char data[], unsigned int size)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-
-	if (size != SZ_HARDWARE && size != SZ_HARDWARE2)
-		return DC_STATUS_INVALIDARGS;
-
-	// Send the command.
-	unsigned char hardware[SZ_HARDWARE2] = {0};
-	status = hw_ostc3_transfer (device, NULL, HARDWARE2, NULL, 0, hardware, SZ_HARDWARE2, NULL, NODELAY);
-	if (status == DC_STATUS_UNSUPPORTED) {
-		status = hw_ostc3_transfer (device, NULL, HARDWARE, NULL, 0, hardware + 1, SZ_HARDWARE, NULL, NODELAY);
-	}
-	if (status != DC_STATUS_SUCCESS)
-		return status;
-
-	if (size == SZ_HARDWARE2) {
-		memcpy (data, hardware, SZ_HARDWARE2);
-	} else {
-		memcpy (data, hardware + 1, SZ_HARDWARE);
-	}
-
-	return DC_STATUS_SUCCESS;
-}
-
-
-static dc_status_t
 hw_ostc3_device_init_download (hw_ostc3_device_t *device)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -753,7 +726,8 @@ hw_ostc3_device_hardware (dc_device_t *abstract, unsigned char data[], unsigned 
 		return rc;
 
 	// Send the command.
-	rc = hw_ostc3_device_id (device, data, size);
+	const unsigned char cmd = size == SZ_HARDWARE2 ? HARDWARE2 : HARDWARE;
+	rc = hw_ostc3_transfer (device, NULL, cmd, NULL, 0, data, size, NULL, NODELAY);
 	if (rc != DC_STATUS_SUCCESS)
 		return rc;
 
