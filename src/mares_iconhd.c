@@ -92,6 +92,7 @@
 #define CMD_OBJ_INIT  0xBF
 #define CMD_OBJ_EVEN  0xAC
 #define CMD_OBJ_ODD   0xFE
+#define CMD_SET_TIME  0xB0
 
 #define OBJ_DEVICE        0x2000
 #define OBJ_DEVICE_MODEL  0x02
@@ -134,6 +135,7 @@ static dc_status_t mares_iconhd_device_set_fingerprint (dc_device_t *abstract, c
 static dc_status_t mares_iconhd_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size);
 static dc_status_t mares_iconhd_device_dump (dc_device_t *abstract, dc_buffer_t *buffer);
 static dc_status_t mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, void *userdata);
+static dc_status_t mares_iconhd_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime);
 static dc_status_t mares_iconhd_device_close (dc_device_t *abstract);
 
 static const dc_device_vtable_t mares_iconhd_device_vtable = {
@@ -144,7 +146,7 @@ static const dc_device_vtable_t mares_iconhd_device_vtable = {
 	NULL, /* write */
 	mares_iconhd_device_dump, /* dump */
 	mares_iconhd_device_foreach, /* foreach */
-	NULL, /* timesync */
+	mares_iconhd_device_timesync, /* timesync */
 	mares_iconhd_device_close /* close */
 };
 
@@ -1162,4 +1164,37 @@ mares_iconhd_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	} else {
 		return mares_iconhd_device_foreach_raw (abstract, callback, userdata);
 	}
+}
+
+
+static dc_status_t
+mares_iconhd_device_timesync (dc_device_t *abstract, const dc_datetime_t *datetime)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	mares_iconhd_device_t *device = (mares_iconhd_device_t *) abstract;
+
+	// Convert to local time.
+	dc_datetime_t local = *datetime;
+	local.timezone = DC_TIMEZONE_NONE;
+
+	dc_ticks_t ticks = dc_datetime_mktime (&local);
+	if (ticks == -1) {
+		ERROR (abstract->context, "Invalid date/time value specified.");
+		return DC_STATUS_INVALIDARGS;
+	}
+
+	const unsigned char timestamp[] = {
+		(ticks      ) & 0xFF,
+		(ticks >>  8) & 0xFF,
+		(ticks >> 16) & 0xFF,
+		(ticks >> 24) & 0xFF,
+	};
+
+	status = mares_iconhd_transfer (device, CMD_SET_TIME, timestamp, sizeof (timestamp), NULL, 0, NULL);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to set the local time.");
+		return status;
+	}
+
+	return status;
 }
