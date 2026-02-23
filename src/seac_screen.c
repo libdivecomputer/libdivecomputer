@@ -345,8 +345,9 @@ seac_screen_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t
 		goto error_free_iostream;
 	}
 
-	// Set the timeout for receiving data (1000ms).
-	status = dc_iostream_set_timeout (device->iostream, 1000);
+	// Set the timeout for receiving data.
+	int timeout = transport == DC_TRANSPORT_BLE ? 6000 : 1000;
+	status = dc_iostream_set_timeout (device->iostream, timeout);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to set the timeout.");
 		goto error_free_iostream;
