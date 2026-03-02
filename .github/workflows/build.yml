@@ -34,8 +34,8 @@ jobs:
           tar -czf ${{ github.job }}-${{ matrix.compiler }}.tar.gz -C artifacts usr/local
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.job }}-${{ matrix.compiler }}
           path: ${{ github.job }}-${{ matrix.compiler }}.tar.gz
+          archive: false
 
   mac:
 
@@ -65,8 +65,8 @@ jobs:
           tar -czf ${{ github.job }}-${{ matrix.compiler }}.tar.gz -C artifacts usr/local
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.job }}-${{ matrix.compiler }}
           path: ${{ github.job }}-${{ matrix.compiler }}.tar.gz
+          archive: false
 
   windows:
 
@@ -124,8 +124,8 @@ jobs:
           tar -czf ${{ github.job }}-${{ matrix.arch }}.tar.gz -C artifacts usr/local
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.job }}-${{ matrix.arch }}
           path: ${{ github.job }}-${{ matrix.arch }}.tar.gz
+          archive: false
 
   msvc:
 
@@ -155,7 +155,7 @@ jobs:
       - run: msbuild -m -p:Platform=${{ matrix.platform }} -p:Configuration=${{ env.CONFIGURATION }} contrib/msvc/libdivecomputer.vcxproj
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.job }}-${{ matrix.platform }}
+          name: ${{ github.job }}-${{ matrix.platform }}.zip
           path: contrib/msvc/${{ matrix.platform }}/${{ env.CONFIGURATION }}/bin
 
   android:
@@ -173,5 +173,5 @@ jobs:
       - run: $ANDROID_NDK/ndk-build -C contrib/android NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.job }}
+          name: ${{ github.job }}.zip
           path: contrib/android/libs
