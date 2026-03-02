@@ -19,7 +19,7 @@ jobs:
       CC: ${{ matrix.compiler }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -32,7 +32,7 @@ jobs:
         run: |
           make install DESTDIR=$PWD/artifacts
           tar -czf ${{ github.job }}-${{ matrix.compiler }}.tar.gz -C artifacts usr/local
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ matrix.compiler }}
           path: ${{ github.job }}-${{ matrix.compiler }}.tar.gz
@@ -52,7 +52,7 @@ jobs:
       CC: ${{ matrix.compiler }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: brew install autoconf automake libtool hidapi libusb
       - run: autoreconf --install --force
@@ -63,7 +63,7 @@ jobs:
         run: |
           make install DESTDIR=$PWD/artifacts
           tar -czf ${{ github.job }}-${{ matrix.compiler }}.tar.gz -C artifacts usr/local
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ matrix.compiler }}
           path: ${{ github.job }}-${{ matrix.compiler }}.tar.gz
@@ -80,7 +80,7 @@ jobs:
         arch: [i686, x86_64]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -122,7 +122,7 @@ jobs:
         run: |
           make install DESTDIR=$PWD/artifacts
           tar -czf ${{ github.job }}-${{ matrix.arch }}.tar.gz -C artifacts usr/local
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ matrix.arch }}
           path: ${{ github.job }}-${{ matrix.arch }}.tar.gz
@@ -142,7 +142,7 @@ jobs:
       CONFIGURATION: Release
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: msys2/setup-msys2@v2
         with:
           install: autoconf automake libtool pkg-config make gcc
@@ -151,9 +151,9 @@ jobs:
           ./configure
           make -C src revision.h
         shell: msys2 {0}
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
       - run: msbuild -m -p:Platform=${{ matrix.platform }} -p:Configuration=${{ env.CONFIGURATION }} contrib/msvc/libdivecomputer.vcxproj
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ matrix.platform }}
           path: contrib/msvc/${{ matrix.platform }}/${{ env.CONFIGURATION }}/bin
@@ -165,13 +165,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: |
           autoreconf --install --force
           ./configure
           make -C src revision.h
       - run: $ANDROID_NDK/ndk-build -C contrib/android NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}
           path: contrib/android/libs
