@@ -512,7 +512,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 				// Add a new tank if necessary.
 				if (idx >= ntanks) {
-					if (ngasmixes >= NTANKS) {
+					if (ntanks >= NTANKS) {
 						ERROR (abstract->context, "Maximum number of tanks reached.");
 						return DC_STATUS_NOMEMORY;
 					}
@@ -616,7 +616,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 				// Add a new tank if necessary.
 				if (idx >= ntanks) {
-					if (ngasmixes >= NTANKS) {
+					if (ntanks >= NTANKS) {
 						ERROR (abstract->context, "Maximum number of tanks reached.");
 						return DC_STATUS_NOMEMORY;
 					}
@@ -697,7 +697,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 				// Add a new tank if necessary.
 				if (idx >= ntanks) {
-					if (ngasmixes >= NTANKS) {
+					if (ntanks >= NTANKS) {
 						ERROR (abstract->context, "Maximum number of tanks reached.");
 						return DC_STATUS_NOMEMORY;
 					}
