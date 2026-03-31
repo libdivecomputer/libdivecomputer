@@ -638,7 +638,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			sample.pressure.value = pressure / 10.0;
 			if (callback) callback(DC_SAMPLE_PRESSURE, &sample, userdata);
 		} else if (type == ID_COMPASS) {
-			unsigned int heading = array_uint16_le (data + offset + 4);
+			unsigned int heading = array_uint16_le (data + offset + 2);
 			sample.bearing = heading;
 			if (callback) callback(DC_SAMPLE_BEARING, &sample, userdata);
 		} else if (type == ID_TRIM) {
