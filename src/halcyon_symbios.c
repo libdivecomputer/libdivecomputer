@@ -469,13 +469,15 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
 	devinfo.model = info[5];
-	devinfo.firmware = 0;
+	devinfo.firmware = array_uint24_be (info + 16);
 	devinfo.serial = array_uint32_le (info);
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
-	DEBUG (abstract->context, "Device: serial=%u, hw=%u, model=%u, bt=%u.%u, battery=%u, pressure=%u, errorbits=%u",
+	DEBUG (abstract->context, "Device: model=%u, serial=%u, firmware=%u.%u.%u, hw=%u, bt=%u.%u, battery=%u, pressure=%u, errorbits=%u",
+		info[5],
 		array_uint32_le (info),
-		info[4], info[5], info[6], info[7],
+		info[16], info[17], info[18],
+		info[4], info[6], info[7],
 		array_uint16_le (info + 8),
 		array_uint16_le (info + 10),
 		array_uint32_le (info + 12));

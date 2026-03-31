@@ -431,12 +431,12 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			unsigned int DC_ATTR_UNUSED battery = array_uint16_le(data + offset + 20);
 			time_start = array_uint32_le(data + offset + 24);
 			unsigned int serial = array_uint32_le(data + offset + 28);
-			DEBUG (abstract->context, "Device: model=%u, hw=%u.%u, fw=%u.%u.%u, deco=%u.%u, serial=%u",
+			DEBUG (abstract->context, "Device: model=%u, serial=%u, firmware=%u.%u.%u, hw=%u.%u, deco=%u.%u",
 				model,
-				hw_major, hw_minor,
+				serial,
 				fw_major, fw_minor, fw_bugfix,
-				deco_major, deco_minor,
-				serial);
+				hw_major, hw_minor,
+				deco_major, deco_minor);
 		} else if (type == ID_GAS_SWITCH) {
 			unsigned int id = UNDEFINED;
 			unsigned int o2 = data[offset + 2];
