@@ -184,40 +184,111 @@ which matches the reverse-engineering workflow and is good enough for a first pa
 2. The `0x51` records are strong enough to drive a useful first implementation without needing `0x58` to be exposed yet.
 3. Skipping `0x58` blocks during the `0x51` scan is important to avoid false positives.
 
-## Step 5: Attempt Build Verification
+## Step 5: Complete Build Verification
 
 ### What was done
 
-We attempted to bootstrap the autotools build using:
+After the missing Homebrew autotools pieces were installed, we bootstrapped and built the repo using:
 
 ```text
 autoreconf --install --force
 ```
 
-This failed because the system has `autoconf` installed but is missing:
+```text
+autoreconf --install --force
+./configure
+make -j1
+```
 
-- `automake`
-- `aclocal`
-
-We then performed a narrower syntax-only compilation check on the newly added CR5L sources.
+The CR5L scaffold commit was then created after the full build succeeded.
 
 ### How it was done
 
-The full autotools bootstrap was attempted first.
+The full autotools bootstrap and build were rerun on this branch after installing:
 
-When that failed due to missing tooling, a direct compiler syntax check was run on:
+- `autoconf`
+- `automake`
+- `libtool`
 
-- `src/crest_cr5l.c`
-- `src/crest_cr5l_parser.c`
+The resulting build compiled and linked the new CR5L parser successfully through the normal libdivecomputer build flow.
 
 ### What was learned
 
-1. The repo cannot be fully bootstrapped yet on this machine until automake is installed.
-2. The new CR5L source files themselves pass direct syntax checking.
-3. Full integration verification is still pending:
-   - `autoreconf`
-   - `./configure`
-   - `make`
+1. The CR5L parser scaffold integrates cleanly with the existing autotools build.
+2. The current blocking work is no longer “can it compile?” but “how do we validate parser behavior against the reverse-engineered fixtures?”
+3. The local build produces extra generated documentation artifacts that should not be committed.
+
+## Step 6: Make The Example CLI Understand CR5L
+
+### What was done
+
+We added the CR5L family alias to the example CLI backend table in:
+
+- `examples/common.c`
+
+The new family name is:
+
+```text
+cr5l
+```
+
+### How it was done
+
+The `dctool` backend lookup table was extended so the existing `parse` command can be pointed at the new CR5L parser via:
+
+```text
+./examples/dctool -f cr5l parse ...
+```
+
+### What was learned
+
+1. No separate one-off validation binary was needed.
+2. The existing `dctool parse` path is already enough to exercise the CR5L parser through libdivecomputer’s public parser APIs.
+3. This gives us a low-friction way to validate parser behavior against fixture dives before implementing BLE transport.
+
+## Step 7: Add Fixture-Driven CR5L Parser Validation
+
+### What was done
+
+We added a fixture validation helper at:
+
+- `tools/validate_cr5l_parser.py`
+
+This validator:
+
+- reads the handoff pointer file
+- loads the exported CR5L fixture manifest
+- locates the original reconstructed `.bin` payloads
+- runs the built `examples/dctool` parser path for each dive
+- compares the parsed output against the reverse-engineered expected values
+
+Validated fields include:
+
+- datetime
+- divetime
+- max depth
+- avg depth
+- minimum temperature
+- sample count / representative sample points
+
+### How it was done
+
+Instead of building a new test subsystem, we reused the repo’s existing CLI example and validated the parser through the actual public parse path:
+
+```text
+./examples/dctool -f cr5l parse -o <tmp.xml> <raw.bin>
+```
+
+The validator parses the resulting XML and compares it to the exported fixture JSON from the handoff bundle.
+
+### What was learned
+
+1. The current CR5L parser validates cleanly across all 9 main reversed dive fixtures.
+2. The parser is already strong enough to reproduce the key header fields and the `0x51` sample stream through libdivecomputer’s real parser interface.
+3. One apparent discrepancy in `transfer_08` turned out to be a limitation in the older reverse-engineering exporter:
+   - the exporter had an off-by-one end condition and dropped a valid final `0x51` sample at EOF
+   - the library parser’s extra final sample is therefore plausible and not treated as a parser regression
+4. The parser-validation problem is now solved well enough to move on to transport work.
 
 ## Current State
 
@@ -229,26 +300,22 @@ Implemented:
 - device registration
 - parser-first CR5L scaffold
 - minimal summary/sample decoding
+- example CLI family alias for CR5L
+- repeatable fixture-driven parser validation
 
 Not implemented yet:
 
 - live BLE transport/backend
-- fixture-driven parser validation inside libdivecomputer
 - exposure of `0x58` tissue-state data through libdivecomputer fields
-- full build verification on this machine
+- transport-side fixture or protocol replay validation
 
 ## Immediate Next Steps
 
-1. Install missing autotools pieces via Homebrew:
-   - `automake` (which provides `aclocal`)
-2. Run:
-
-```text
-autoreconf --install --force
-./configure
-make
-```
-
-3. Fix any compile or integration issues that appear in the full build.
-4. Add fixture-driven validation for the CR5L parser.
-5. Only after parser confidence is good, begin the CR5L BLE transport implementation.
+1. Start the CR5L BLE transport implementation in `src/crest_cr5l.c`.
+2. Reconstruct the captured command flow inside libdivecomputer:
+   - enumerate dives
+   - select/open a dive
+   - request payload
+   - finalize/close
+3. Reuse the already-validated parser for downloaded payload decoding.
+4. Decide whether `0x58` stays internal for v1 or should be surfaced later via new parser fields.
