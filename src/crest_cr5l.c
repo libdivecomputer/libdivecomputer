@@ -51,6 +51,9 @@ typedef struct crest_cr5l_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
 	unsigned char fingerprint[CR5L_FP_SIZE];
+	unsigned char pending_packet[CR5L_PACKET_MAX];
+	unsigned int pending_size;
+	unsigned char pending_available;
 } crest_cr5l_device_t;
 
 static dc_status_t crest_cr5l_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size);
@@ -199,6 +202,20 @@ crest_cr5l_emit_devinfo (crest_cr5l_device_t *device)
 }
 
 static dc_status_t
+crest_cr5l_send_session_init (crest_cr5l_device_t *device)
+{
+	static const unsigned char command[] = {0x06, 0xC0, 0x01, 0xD9, 0x69};
+	dc_status_t status = crest_cr5l_send (device, command, sizeof(command));
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	/* The official app pauses for a few seconds after this command before
+	 * proceeding with the final pre-list queries and DIVELOG enumeration. */
+	dc_iostream_sleep (device->iostream, 3500);
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
 crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[], unsigned int capacity, unsigned int *count)
 {
 	static const unsigned char command[] = {0x38, 0x00, 'D', 'I', 'V', 'E', 'L', 'O', 'G'};
@@ -213,25 +230,66 @@ crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[]
 	if (status != DC_STATUS_SUCCESS)
 		return status;
 
-	if (transferred < 2 || packet[0] != 0x38)
+	if (transferred >= 2 && packet[0] == 0x38) {
+		unsigned int ndives = packet[1];
+		if (ndives > capacity)
+			return DC_STATUS_NOMEMORY;
+
+		for (unsigned int i = 0; i < ndives; ++i) {
+			status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
+			if (status != DC_STATUS_SUCCESS)
+				return status;
+
+			if (transferred != CR5L_ENTRY_SIZE)
+				return DC_STATUS_PROTOCOL;
+
+			entries[i].index = packet[0];
+			memcpy (entries[i].dive_id, packet + 2, CR5L_FP_SIZE);
+			entries[i].size = array_uint32_le (packet + 10);
+			entries[i].metadata = array_uint32_le (packet + 14);
+		}
+
+		if (count)
+			*count = ndives;
+
+		return DC_STATUS_SUCCESS;
+	}
+
+	if (transferred != CR5L_ENTRY_SIZE)
 		return DC_STATUS_PROTOCOL;
 
-	unsigned int ndives = packet[1];
-	if (ndives > capacity)
-		return DC_STATUS_NOMEMORY;
+	unsigned int ndives = 0;
+	do {
+		if (ndives >= capacity)
+			return DC_STATUS_NOMEMORY;
 
-	for (unsigned int i = 0; i < ndives; ++i) {
-		status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
+		entries[ndives].index = packet[0];
+		memcpy (entries[ndives].dive_id, packet + 2, CR5L_FP_SIZE);
+		entries[ndives].size = array_uint32_le (packet + 10);
+		entries[ndives].metadata = array_uint32_le (packet + 14);
+		ndives++;
+
+		status = dc_iostream_set_timeout (device->iostream, 500);
 		if (status != DC_STATUS_SUCCESS)
 			return status;
 
-		if (transferred != CR5L_ENTRY_SIZE)
-			return DC_STATUS_PROTOCOL;
+		status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
+	} while (status == DC_STATUS_SUCCESS && transferred == CR5L_ENTRY_SIZE);
 
-		entries[i].index = packet[0];
-		memcpy (entries[i].dive_id, packet + 2, CR5L_FP_SIZE);
-		entries[i].size = array_uint32_le (packet + 10);
-		entries[i].metadata = array_uint32_le (packet + 14);
+	dc_status_t restore = dc_iostream_set_timeout (device->iostream, 5000);
+	if (restore != DC_STATUS_SUCCESS)
+		return restore;
+
+	if (status == DC_STATUS_SUCCESS) {
+		if (transferred >= 2 && packet[0] == 0x38) {
+			unsigned int reported = packet[1];
+			if (reported != ndives)
+				return DC_STATUS_PROTOCOL;
+		} else {
+			return DC_STATUS_PROTOCOL;
+		}
+	} else if (status != DC_STATUS_TIMEOUT) {
+		return status;
 	}
 
 	if (count)
@@ -292,8 +350,18 @@ crest_cr5l_request_block (crest_cr5l_device_t *device, const crest_cr5l_entry_t 
 	if (status != DC_STATUS_SUCCESS)
 		return status;
 
-	if (transferred < 1 || packet[0] != 0x39)
+	if (transferred >= 1 && packet[0] == 0x39)
+		return DC_STATUS_SUCCESS;
+
+	/* Live CR5L traffic may start streaming block data immediately after the
+	 * 0x39 request without a standalone 0x39 acknowledgement packet. Preserve
+	 * the first chunk so the download path can consume it normally. */
+	if (transferred < 2 || packet[0] != 0x00)
 		return DC_STATUS_PROTOCOL;
+
+	memcpy (device->pending_packet, packet, transferred);
+	device->pending_size = transferred;
+	device->pending_available = 1;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -304,9 +372,18 @@ crest_cr5l_download_block (crest_cr5l_device_t *device, dc_buffer_t *buffer, uns
 	unsigned char packet[CR5L_PACKET_MAX] = {0};
 	for (unsigned int i = 0; i < chunks; ++i) {
 		unsigned int transferred = 0;
-		dc_status_t status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
-		if (status != DC_STATUS_SUCCESS)
-			return status;
+		dc_status_t status = DC_STATUS_SUCCESS;
+
+		if (device->pending_available) {
+			memcpy (packet, device->pending_packet, device->pending_size);
+			transferred = device->pending_size;
+			device->pending_available = 0;
+			device->pending_size = 0;
+		} else {
+			status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
+			if (status != DC_STATUS_SUCCESS)
+				return status;
+		}
 
 		if (transferred < 2 || packet[0] != (i & 0xFF))
 			return DC_STATUS_PROTOCOL;
@@ -314,6 +391,23 @@ crest_cr5l_download_block (crest_cr5l_device_t *device, dc_buffer_t *buffer, uns
 		if (!dc_buffer_append (buffer, packet + 1, transferred - 1))
 			return DC_STATUS_NOMEMORY;
 	}
+
+	return DC_STATUS_SUCCESS;
+}
+
+static dc_status_t
+crest_cr5l_finish_block (crest_cr5l_device_t *device)
+{
+	unsigned char packet[CR5L_PACKET_MAX] = {0};
+	unsigned int transferred = 0;
+	dc_status_t status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
+	if (status == DC_STATUS_TIMEOUT)
+		return DC_STATUS_SUCCESS;
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	if (transferred < 1 || packet[0] != 0x39)
+		return DC_STATUS_PROTOCOL;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -337,16 +431,31 @@ crest_cr5l_close_dive (crest_cr5l_device_t *device, const crest_cr5l_entry_t *en
 
 	unsigned char packet[CR5L_PACKET_MAX] = {0};
 	unsigned int transferred = 0;
-	for (unsigned int i = 0; i < 2; ++i) {
+	unsigned int seen = 0;
+
+	status = dc_iostream_set_timeout (device->iostream, 1000);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	while (1) {
 		status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
+		if (status == DC_STATUS_TIMEOUT)
+			break;
 		if (status != DC_STATUS_SUCCESS)
 			return status;
-
 		if (transferred < 2 || packet[0] != 0x32)
 			return DC_STATUS_PROTOCOL;
+
+		seen++;
+		if (transferred == 2 && packet[1] == 0x00)
+			break;
 	}
 
-	return DC_STATUS_SUCCESS;
+	status = dc_iostream_set_timeout (device->iostream, 5000);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	return seen ? DC_STATUS_SUCCESS : DC_STATUS_PROTOCOL;
 }
 
 static dc_status_t
@@ -371,6 +480,10 @@ crest_cr5l_download_dive (crest_cr5l_device_t *device, const crest_cr5l_entry_t 
 			return status;
 
 		status = crest_cr5l_download_block (device, buffer, chunks);
+		if (status != DC_STATUS_SUCCESS)
+			return status;
+
+		status = crest_cr5l_finish_block (device);
 		if (status != DC_STATUS_SUCCESS)
 			return status;
 
@@ -403,6 +516,8 @@ crest_cr5l_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t 
 
 	device->iostream = iostream;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+	device->pending_size = 0;
+	device->pending_available = 0;
 
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
 	if (status != DC_STATUS_SUCCESS && status != DC_STATUS_UNSUPPORTED) {
@@ -465,6 +580,16 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	status = crest_cr5l_emit_devinfo (device);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	status = crest_cr5l_send_session_init (device);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to initialize the CR5L transfer session.");
+		return status;
+	}
 
 	status = crest_cr5l_emit_devinfo (device);
 	if (status != DC_STATUS_SUCCESS)
