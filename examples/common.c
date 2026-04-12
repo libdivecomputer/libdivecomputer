@@ -101,7 +101,6 @@ static const backend_table_t g_backends[] = {
 	{"s1",          DC_FAMILY_OCEANS_S1,           0},
 	{"freedom",     DC_FAMILY_DIVESOFT_FREEDOM,    19},
 	{"symbios",     DC_FAMILY_HALCYON_SYMBIOS,     1},
-	{"cr5l",        DC_FAMILY_CREST_CR5L,          0},
 };
 
 static const transport_table_t g_transports[] = {
