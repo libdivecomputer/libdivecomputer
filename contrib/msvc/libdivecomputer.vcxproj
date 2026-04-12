@@ -193,6 +193,8 @@
     <ClCompile Include="..\..\src\cressi_goa_parser.c" />
     <ClCompile Include="..\..\src\cressi_leonardo.c" />
     <ClCompile Include="..\..\src\cressi_leonardo_parser.c" />
+    <ClCompile Include="..\..\src\crest_cr5l.c" />
+    <ClCompile Include="..\..\src\crest_cr5l_parser.c" />
     <ClCompile Include="..\..\src\custom.c" />
     <ClCompile Include="..\..\src\datetime.c" />
     <ClCompile Include="..\..\src\deepblu_cosmiq.c" />
@@ -334,6 +336,7 @@
     <ClInclude Include="..\..\src\cressi_edy.h" />
     <ClInclude Include="..\..\src\cressi_goa.h" />
     <ClInclude Include="..\..\src\cressi_leonardo.h" />
+    <ClInclude Include="..\..\src\crest_cr5l.h" />
     <ClInclude Include="..\..\src\deepblu_cosmiq.h" />
     <ClInclude Include="..\..\src\deepsix_excursion.h" />
     <ClInclude Include="..\..\src\device-private.h" />
