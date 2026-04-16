@@ -44,6 +44,8 @@ typedef struct crest_cr5l_entry_t {
 	unsigned char index;
 	unsigned char dive_id[CR5L_FP_SIZE];
 	unsigned int size;
+	/* Observed in the list entry trailer. Preserve it for now so future
+	 * work can identify it without changing the transfer structure again. */
 	unsigned int metadata;
 } crest_cr5l_entry_t;
 
@@ -218,6 +220,8 @@ crest_cr5l_send_session_init (crest_cr5l_device_t *device)
 static dc_status_t
 crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[], unsigned int capacity, unsigned int *count)
 {
+	/* The list request uses the literal DIVELOG namespace from the official
+	 * app capture. */
 	static const unsigned char command[] = {0x38, 0x00, 'D', 'I', 'V', 'E', 'L', 'O', 'G'};
 	unsigned char packet[CR5L_PACKET_MAX] = {0};
 	unsigned int transferred = 0;
@@ -301,6 +305,7 @@ crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[]
 static dc_status_t
 crest_cr5l_open_dive (crest_cr5l_device_t *device, const crest_cr5l_entry_t *entry)
 {
+	/* 0x33 packets are <opcode, pad, "DIVELOG", NUL, 8-byte dive id>. */
 	unsigned char command[2 + CR5L_NAMESPACE_SIZE + 1 + CR5L_FP_SIZE] = {0};
 	unsigned int offset = 0;
 	command[offset++] = 0x33;
@@ -330,6 +335,8 @@ crest_cr5l_open_dive (crest_cr5l_device_t *device, const crest_cr5l_entry_t *ent
 static dc_status_t
 crest_cr5l_request_block (crest_cr5l_device_t *device, const crest_cr5l_entry_t *entry, unsigned int block_index, unsigned int chunks)
 {
+	/* 0x39 packets are a 6-byte block header followed by the DIVELOG
+	 * namespace and a trailing NUL. */
 	unsigned char command[6 + CR5L_NAMESPACE_SIZE + 1] = {0};
 	command[0] = 0x39;
 	command[1] = entry->index;
@@ -415,6 +422,8 @@ crest_cr5l_finish_block (crest_cr5l_device_t *device)
 static dc_status_t
 crest_cr5l_close_dive (crest_cr5l_device_t *device, const crest_cr5l_entry_t *entry)
 {
+	/* 0x32 close packets reuse the same namespace + dive-id layout as the
+	 * corresponding 0x33 open request. */
 	unsigned char command[2 + CR5L_NAMESPACE_SIZE + 1 + CR5L_FP_SIZE] = {0};
 	unsigned int offset = 0;
 	command[offset++] = 0x32;
@@ -475,6 +484,8 @@ crest_cr5l_download_dive (crest_cr5l_device_t *device, const crest_cr5l_entry_t 
 
 	while (remaining > 0) {
 		unsigned int chunks = remaining > CR5L_BLOCK_CHUNKS ? CR5L_BLOCK_CHUNKS : remaining;
+		/* In this protocol, zero encodes a full 256-chunk block instead of an
+		 * empty request. */
 		status = crest_cr5l_request_block (device, entry, block_index, chunks == CR5L_BLOCK_CHUNKS ? 0 : chunks);
 		if (status != DC_STATUS_SUCCESS)
 			return status;
@@ -591,6 +602,8 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		return status;
 	}
 
+	/* The official app repeats the version/serial queries after session init
+	 * and before dive enumeration. Mirror that ordering for compatibility. */
 	status = crest_cr5l_emit_devinfo (device);
 	if (status != DC_STATUS_SUCCESS)
 		return status;
