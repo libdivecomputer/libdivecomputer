@@ -97,6 +97,10 @@ crest_cr5l_valid_0x51_at (const unsigned char *data, unsigned int size, unsigned
 static unsigned int
 crest_cr5l_skip_0x58_block (const unsigned char *data, unsigned int size, unsigned int offset)
 {
+	/* 0x58 carries additional state blocks that are still only partially
+	 * understood. For parsing the public dive profile, it is sufficient to
+	 * recognize their structure and skip forward to the next valid 0x51
+	 * sample record. */
 	if (offset + 8 > size || data[offset] != 0x58)
 		return 0;
 
@@ -238,6 +242,9 @@ crest_cr5l_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_t c
 	while (offset + 6 <= detail_size) {
 		if (crest_cr5l_valid_0x51_at (detail, detail_size, offset)) {
 			dc_sample_value_t sample = {0};
+			/* The CR5L sample records do not currently expose an explicit sample
+			 * interval, so distribute timestamps evenly across the stored dive
+			 * duration after filtering out the interleaved 0x58 blocks. */
 			unsigned int time_ms = (unsigned int) ((((unsigned long long) duration) * 1000ULL * index) / nsamples);
 			unsigned int depth_cm = array_uint16_le (detail + offset + 2);
 			unsigned int temperature = array_uint16_le (detail + offset + 4);
