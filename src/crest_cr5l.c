@@ -218,11 +218,12 @@ crest_cr5l_send_session_init (crest_cr5l_device_t *device)
 }
 
 static dc_status_t
-crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[], unsigned int capacity, unsigned int *count)
+crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t **out, unsigned int *count)
 {
 	/* The list request uses the literal DIVELOG namespace from the official
 	 * app capture. */
 	static const unsigned char command[] = {0x38, 0x00, 'D', 'I', 'V', 'E', 'L', 'O', 'G'};
+	crest_cr5l_entry_t *entries = NULL;
 	unsigned char packet[CR5L_PACKET_MAX] = {0};
 	unsigned int transferred = 0;
 
@@ -236,16 +237,21 @@ crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[]
 
 	if (transferred >= 2 && packet[0] == 0x38) {
 		unsigned int ndives = packet[1];
-		if (ndives > capacity)
+		entries = (crest_cr5l_entry_t *) calloc (ndives ? ndives : 1, sizeof(crest_cr5l_entry_t));
+		if (entries == NULL)
 			return DC_STATUS_NOMEMORY;
 
 		for (unsigned int i = 0; i < ndives; ++i) {
 			status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
-			if (status != DC_STATUS_SUCCESS)
+			if (status != DC_STATUS_SUCCESS) {
+				free (entries);
 				return status;
+			}
 
-			if (transferred != CR5L_ENTRY_SIZE)
+			if (transferred != CR5L_ENTRY_SIZE) {
+				free (entries);
 				return DC_STATUS_PROTOCOL;
+			}
 
 			entries[i].index = packet[0];
 			memcpy (entries[i].dive_id, packet + 2, CR5L_FP_SIZE);
@@ -253,6 +259,8 @@ crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[]
 			entries[i].metadata = array_uint32_le (packet + 14);
 		}
 
+		if (out)
+			*out = entries;
 		if (count)
 			*count = ndives;
 
@@ -262,10 +270,26 @@ crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[]
 	if (transferred != CR5L_ENTRY_SIZE)
 		return DC_STATUS_PROTOCOL;
 
+	unsigned int capacity = 16;
 	unsigned int ndives = 0;
+	entries = (crest_cr5l_entry_t *) calloc (capacity, sizeof(crest_cr5l_entry_t));
+	if (entries == NULL)
+		return DC_STATUS_NOMEMORY;
+
 	do {
-		if (ndives >= capacity)
-			return DC_STATUS_NOMEMORY;
+		if (ndives == capacity) {
+			unsigned int new_capacity = capacity * 2;
+			crest_cr5l_entry_t *new_entries = (crest_cr5l_entry_t *) realloc (entries,
+				new_capacity * sizeof(crest_cr5l_entry_t));
+			if (new_entries == NULL) {
+				free (entries);
+				return DC_STATUS_NOMEMORY;
+			}
+
+			memset (new_entries + capacity, 0, (new_capacity - capacity) * sizeof(crest_cr5l_entry_t));
+			entries = new_entries;
+			capacity = new_capacity;
+		}
 
 		entries[ndives].index = packet[0];
 		memcpy (entries[ndives].dive_id, packet + 2, CR5L_FP_SIZE);
@@ -274,28 +298,38 @@ crest_cr5l_list_dives (crest_cr5l_device_t *device, crest_cr5l_entry_t entries[]
 		ndives++;
 
 		status = dc_iostream_set_timeout (device->iostream, 500);
-		if (status != DC_STATUS_SUCCESS)
+		if (status != DC_STATUS_SUCCESS) {
+			free (entries);
 			return status;
+		}
 
 		status = crest_cr5l_recv (device, packet, sizeof(packet), &transferred);
 	} while (status == DC_STATUS_SUCCESS && transferred == CR5L_ENTRY_SIZE);
 
 	dc_status_t restore = dc_iostream_set_timeout (device->iostream, 5000);
-	if (restore != DC_STATUS_SUCCESS)
+	if (restore != DC_STATUS_SUCCESS) {
+		free (entries);
 		return restore;
+	}
 
 	if (status == DC_STATUS_SUCCESS) {
 		if (transferred >= 2 && packet[0] == 0x38) {
 			unsigned int reported = packet[1];
-			if (reported != ndives)
+			if (reported != ndives) {
+				free (entries);
 				return DC_STATUS_PROTOCOL;
+			}
 		} else {
+			free (entries);
 			return DC_STATUS_PROTOCOL;
 		}
 	} else if (status != DC_STATUS_TIMEOUT) {
+		free (entries);
 		return status;
 	}
 
+	if (out)
+		*out = entries;
 	if (count)
 		*count = ndives;
 
@@ -586,7 +620,7 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	crest_cr5l_device_t *device = (crest_cr5l_device_t *) abstract;
-	crest_cr5l_entry_t entries[64] = {{0}};
+	crest_cr5l_entry_t *entries = NULL;
 	unsigned int ndives = 0;
 
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
@@ -608,7 +642,7 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	if (status != DC_STATUS_SUCCESS)
 		return status;
 
-	status = crest_cr5l_list_dives (device, entries, sizeof(entries) / sizeof(entries[0]), &ndives);
+	status = crest_cr5l_list_dives (device, &entries, &ndives);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to enumerate the dive list.");
 		return status;
@@ -618,8 +652,10 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	dc_buffer_t *buffer = dc_buffer_new (0);
-	if (buffer == NULL)
+	if (buffer == NULL) {
+		free (entries);
 		return DC_STATUS_NOMEMORY;
+	}
 
 	for (unsigned int i = 0; i < ndives; ++i) {
 		const crest_cr5l_entry_t *entry = &entries[ndives - 1 - i];
@@ -633,6 +669,7 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		status = crest_cr5l_download_dive (device, entry, buffer);
 		if (status != DC_STATUS_SUCCESS) {
 			dc_buffer_free (buffer);
+			free (entries);
 			return status;
 		}
 
@@ -643,10 +680,12 @@ crest_cr5l_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		unsigned int size = dc_buffer_get_size (buffer);
 		if (callback && !callback (data, size, entry->dive_id, sizeof(entry->dive_id), userdata)) {
 			dc_buffer_free (buffer);
+			free (entries);
 			return DC_STATUS_SUCCESS;
 		}
 	}
 
 	dc_buffer_free (buffer);
+	free (entries);
 	return DC_STATUS_SUCCESS;
 }
