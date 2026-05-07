@@ -870,7 +870,7 @@ mares_iconhd_device_foreach_raw (dc_device_t *abstract, dc_dive_callback_t callb
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 		eop = array_uint32_le (pointer);
-		if (eop != 0xFFFFFFFF)
+		if (eop >= layout->rb_profile_begin && eop < layout->rb_profile_end)
 			break;
 	}
 	if (eop < layout->rb_profile_begin || eop >= layout->rb_profile_end) {
