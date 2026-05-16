@@ -107,6 +107,13 @@
 #define PETREL   3
 #define TERIC    8
 
+#define GNSS_NOSAT    0
+#define GNSS_NOFIX    1
+#define GNSS_FIX_2D   2
+#define GNSS_FIX_3D   3
+#define GNSS_UNKNOWN  0xFF
+#define GNSS_DISABLED 0x10
+
 #define UNDEFINED 0xFFFFFFFF
 
 typedef struct shearwater_predator_parser_t shearwater_predator_parser_t;
@@ -758,6 +765,7 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 	unsigned int decomodel_idx = parser->pnf ? parser->opening[2] + 18 : 67;
 	unsigned int gf_idx        = parser->pnf ? parser->opening[0] +  4 : 4;
 	int latitude = 0, longitude = 0;
+	unsigned int gnss = 0;
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
@@ -873,12 +881,12 @@ shearwater_predator_parser_get_field (dc_parser_t *abstract, dc_field_type_t typ
 			}
 			break;
 		case DC_FIELD_LOCATION:
-			if (parser->opening[9] == UNDEFINED || parser->aimode != AI_ON_GPS)
+			if (parser->opening[9] == UNDEFINED || parser->logversion < 17)
 				return DC_STATUS_UNSUPPORTED;
+			gnss = data[parser->opening[9] + 16];
 			latitude  = (signed int) array_uint32_be (data + parser->opening[9] + 21);
 			longitude = (signed int) array_uint32_be (data + parser->opening[9] + 25);
-			if ((latitude == 0 && longitude == 0) ||
-				(latitude == -1 && longitude == -1))
+			if (gnss != GNSS_FIX_2D && gnss != GNSS_FIX_3D)
 				return DC_STATUS_UNSUPPORTED;
 			location->latitude  = latitude  / 100000.0;
 			location->longitude = longitude / 100000.0;
