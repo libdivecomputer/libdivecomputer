@@ -189,19 +189,15 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 	// Convert to a number.
 	unsigned int firmware = str2num (rsp_firmware, rsp_firmware_length, 1);
 
-	// Read the hardware type.
-	unsigned char rsp_hardware[2] = {0};
-	rc = shearwater_common_rdbi (&device->base, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware), NULL);
+	// Read the model number.
+	unsigned char model = 0;
+	rc = shearwater_common_rdbi (&device->base, ID_MODEL, &model, sizeof(model), NULL);
 	if (rc != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the hardware type.");
+		ERROR (abstract->context, "Failed to read the model number.");
 		return rc;
 	}
 
-	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Hardware", rsp_hardware, sizeof(rsp_hardware));
-
-	// Convert and map to the model number.
-	unsigned int hardware = array_uint16_be (rsp_hardware);
-	unsigned int model = shearwater_common_get_model (&device->base, hardware);
+	HEXDUMP(abstract->context, DC_LOGLEVEL_DEBUG, "Model", &model, sizeof(model));
 
 	// Emit a device info event.
 	dc_event_devinfo_t devinfo;
@@ -367,17 +363,13 @@ shearwater_petrel_device_timesync (dc_device_t *abstract, const dc_datetime_t *d
 	dc_status_t status = DC_STATUS_SUCCESS;
 	shearwater_common_device_t *device = (shearwater_common_device_t *) abstract;
 
-	// Read the hardware type.
-	unsigned char rsp_hardware[2] = {0};
-	status = shearwater_common_rdbi (device, ID_HARDWARE, rsp_hardware, sizeof(rsp_hardware), NULL);
+	// Read the model number.
+	unsigned char model = 0;
+	status = shearwater_common_rdbi (device, ID_MODEL, &model, sizeof(model), NULL);
 	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to read the hardware type.");
+		ERROR (abstract->context, "Failed to read the model number.");
 		return status;
 	}
-
-	// Convert and map to the model number.
-	unsigned int hardware = array_uint16_be (rsp_hardware);
-	unsigned int model = shearwater_common_get_model (device, hardware);
 
 	if (model == TERIC) {
 		return shearwater_common_timesync_utc (device, datetime);
