@@ -50,6 +50,7 @@
 #define SIRIUS    0x2F
 #define QUADCI    0x31
 #define QUAD2     0x32
+#define SIRIUS_L  0x33
 #define PUCK4     0x35
 
 #define ISSMART(model) ( \
@@ -64,6 +65,7 @@
 	(model) == SIRIUS || \
 	(model) == QUADCI || \
 	(model) == QUAD2 || \
+	(model) == SIRIUS_L || \
 	(model) == PUCK4)
 
 #define NGASMIXES_ICONHD 3
