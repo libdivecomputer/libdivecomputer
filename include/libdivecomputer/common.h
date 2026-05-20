@@ -123,6 +123,8 @@ typedef enum dc_family_t {
 	DC_FAMILY_DIVESOFT_FREEDOM = (23 << 16),
 	/* Halcyon Symbios */
 	DC_FAMILY_HALCYON_SYMBIOS = (24 << 16),
+	/* Crest CR5L */
+	DC_FAMILY_CREST_CR5L = (25 << 16),
 } dc_family_t;
 
 #ifdef __cplusplus

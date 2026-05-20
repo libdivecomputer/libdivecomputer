@@ -61,6 +61,7 @@
 #include "liquivision_lynx.h"
 #include "sporasub_sp2.h"
 #include "deepsix_excursion.h"
+#include "crest_cr5l.h"
 #include "seac_screen.h"
 #include "deepblu_cosmiq.h"
 #include "oceans_s1.h"
@@ -193,6 +194,9 @@ dc_parser_new_internal (dc_parser_t **out, dc_context_t *context, const unsigned
 		break;
 	case DC_FAMILY_DEEPSIX_EXCURSION:
 		rc = deepsix_excursion_parser_create (&parser, context, data, size);
+		break;
+	case DC_FAMILY_CREST_CR5L:
+		rc = crest_cr5l_parser_create (&parser, context, data, size);
 		break;
 	case DC_FAMILY_SEAC_SCREEN:
 		rc = seac_screen_parser_create (&parser, context, data, size, model);
