@@ -649,6 +649,10 @@ divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *da
 	// Adjust the epoch.
 	timestamp -= EPOCH;
 
+	// UTC offset.
+	int tz_offset = datetime->timezone != DC_TIMEZONE_NONE ?
+		datetime->timezone : 0;
+
 	// Find the timezone index.
 	size_t tz_idx = C_ARRAY_SIZE(tz_array);
 	for (size_t i = 0; i < C_ARRAY_SIZE(tz_array); i += 2) {
@@ -659,7 +663,7 @@ divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *da
 			timezone += tz_array[i + 1] * 60;
 		}
 
-		if (timezone == datetime->timezone) {
+		if (timezone == tz_offset) {
 			tz_idx = i;
 			break;
 		}
