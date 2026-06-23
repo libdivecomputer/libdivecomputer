@@ -149,7 +149,7 @@ citizen_aqualand_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	unsigned int maxcount = (2 * (size - SZ_HEADER) + 2) / 3;
 
 	// Allocate storage for the processed 16 bit samples.
-	unsigned short *samples = (unsigned short *) malloc(maxcount * sizeof(unsigned short));
+	unsigned short *samples = (unsigned short *) calloc(maxcount, sizeof(unsigned short));
 	if (samples == NULL) {
 		return DC_STATUS_NOMEMORY;
 	}
