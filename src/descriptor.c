@@ -744,6 +744,7 @@ dc_filter_shearwater (const dc_descriptor_t *descriptor, dc_transport_t transpor
 		"NERD 2",
 		"Perdix",
 		"Perdix 2",
+		"Perdix 3",
 		"Teric",
 		"Peregrine",
 		"Peregrine TX",
