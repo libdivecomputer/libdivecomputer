@@ -207,7 +207,7 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = shearwater_predator_device_open (&device, context, iostream);
 		break;
 	case DC_FAMILY_SHEARWATER_PETREL:
-		rc = shearwater_petrel_device_open (&device, context, iostream);
+		rc = shearwater_petrel_device_open (&device, context, iostream, dc_descriptor_get_model (descriptor));
 		break;
 	case DC_FAMILY_DIVERITE_NITEKQ:
 		rc = diverite_nitekq_device_open (&device, context, iostream);

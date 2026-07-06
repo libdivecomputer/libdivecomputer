@@ -54,6 +54,7 @@ extern "C" {
 #define PERDIX2  11
 #define TERN     12
 #define PEREGRINE_TX 13
+#define PERDIX3  14
 
 #define NSTEPS    10000
 #define STEP(i,n) ((NSTEPS * (i) + (n) / 2) / (n))
@@ -61,6 +62,7 @@ extern "C" {
 typedef struct shearwater_common_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
+	unsigned int bluetooth_v2; /* Perdix 3 (and later) revised BLE framing. */
 } shearwater_common_device_t;
 
 dc_status_t

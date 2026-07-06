@@ -78,7 +78,7 @@ str2num (unsigned char data[], unsigned int size, unsigned int offset)
 
 
 dc_status_t
-shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
+shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	shearwater_petrel_device_t *device = NULL;
@@ -101,6 +101,9 @@ shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, dc_iost
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
+
+	// Enable the revised BLE framing for the Perdix 3.
+	device->base.bluetooth_v2 = (model == PERDIX3);
 
 	*out = (dc_device_t *) device;
 

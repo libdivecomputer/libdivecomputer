@@ -29,6 +29,7 @@
 #include "array.h"
 
 #define SZ_PACKET  254
+#define SZ_PACKET_V2 4096
 
 // SLIP special character codes
 #define END       0xC0
@@ -50,6 +51,7 @@ shearwater_common_setup (shearwater_common_device_t *device, dc_context_t *conte
 	dc_status_t status = DC_STATUS_SUCCESS;
 
 	device->iostream = iostream;
+	device->bluetooth_v2 = 0;
 
 	// Set the serial communication protocol (115200 8N1).
 	status = dc_iostream_configure (device->iostream, 115200, 8, DC_PARITY_NONE, DC_STOPBITS_ONE, DC_FLOWCONTROL_NONE);
@@ -139,7 +141,7 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 	unsigned char buffer[32];
 	unsigned int nbytes = 0;
 
-	if (transport == DC_TRANSPORT_BLE) {
+	if (transport == DC_TRANSPORT_BLE && !device->bluetooth_v2) {
 		// Calculate the total number of bytes.
 		unsigned int count = 1;
 		for (unsigned int i = 0; i < size; ++i) {
@@ -174,7 +176,7 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 					return status;
 				}
 
-				if (transport == DC_TRANSPORT_BLE) {
+				if (transport == DC_TRANSPORT_BLE && !device->bluetooth_v2) {
 					buffer[1]++;
 					nbytes = 2;
 				} else {
@@ -201,7 +203,7 @@ shearwater_common_slip_write (shearwater_common_device_t *device, const unsigned
 				return status;
 			}
 
-			if (transport == DC_TRANSPORT_BLE) {
+			if (transport == DC_TRANSPORT_BLE && !device->bluetooth_v2) {
 				buffer[1]++;
 				nbytes = 2;
 			} else {
@@ -249,7 +251,7 @@ shearwater_common_slip_read (shearwater_common_device_t *device, unsigned char d
 		}
 
 		size_t offset = 0;
-		if (transport == DC_TRANSPORT_BLE) {
+		if (transport == DC_TRANSPORT_BLE && !device->bluetooth_v2) {
 			if (transferred < 2) {
 				ERROR (device->base.context, "Invalid packet length (" DC_PRINTF_SIZE ").", transferred);
 				return DC_STATUS_PROTOCOL;
@@ -330,24 +332,35 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
-	unsigned char packet[SZ_PACKET + 4];
+	unsigned char packet[SZ_PACKET_V2 + 7];
 	unsigned int n = 0;
 
-	if (isize > SZ_PACKET || osize > SZ_PACKET)
+	unsigned int sz_max = device->bluetooth_v2 ? (SZ_PACKET_V2 + 2) : SZ_PACKET;
+	if (isize > SZ_PACKET || osize > sz_max)
 		return DC_STATUS_INVALIDARGS;
 
 	if (device_is_cancelled (abstract))
 		return DC_STATUS_CANCELLED;
 
-	// Setup the request packet.
-	packet[0] = 0xFF;
-	packet[1] = 0x01;
-	packet[2] = isize + 1;
-	packet[3] = 0x00;
-	memcpy (packet + 4, input, isize);
-
-	// Send the request packet.
-	status = shearwater_common_slip_write (device, packet, isize + 4);
+	// Setup and send the request packet.
+	if (device->bluetooth_v2) {
+		// v2 framing: FF 01 00 00 [len] [data]
+		packet[0] = 0xFF;
+		packet[1] = 0x01;
+		packet[2] = 0x00;
+		packet[3] = 0x00;
+		packet[4] = isize;
+		memcpy (packet + 5, input, isize);
+		status = shearwater_common_slip_write (device, packet, isize + 5);
+	} else {
+		// v1 framing: FF 01 [len+1] 00 [data]
+		packet[0] = 0xFF;
+		packet[1] = 0x01;
+		packet[2] = isize + 1;
+		packet[3] = 0x00;
+		memcpy (packet + 4, input, isize);
+		status = shearwater_common_slip_write (device, packet, isize + 4);
+	}
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to send the request packet.");
 		return status;
@@ -365,6 +378,41 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the response packet.");
 		return status;
+	}
+
+	if (device->bluetooth_v2) {
+		// v2 response: 01 FF 00 00 [len] [data]   (normal)
+		//              01 FF 00 [XX] 02 [body]    (block, XX != 0x00)
+		if (n < 5 || packet[0] != 0x01 || packet[1] != 0xFF || packet[2] != 0x00) {
+			ERROR (abstract->context, "Invalid packet header.");
+			return DC_STATUS_PROTOCOL;
+		}
+		unsigned int datalen;
+		if (packet[3] == 0x00) {
+			// Normal response.
+			datalen = packet[4];
+			if (datalen + 5 != n || datalen > osize) {
+				ERROR (abstract->context, "Invalid packet length.");
+				return DC_STATUS_PROTOCOL;
+			}
+			memcpy (output, packet + 5, datalen);
+		} else {
+			// Block response: strip the 5 byte header and hand the
+			// body (0x76 block data) to the caller.
+			if (packet[4] != 0x02) {
+				ERROR (abstract->context, "Unexpected block response type.");
+				return DC_STATUS_PROTOCOL;
+			}
+			datalen = n - 5;
+			if (datalen > osize) {
+				ERROR (abstract->context, "Invalid packet length.");
+				return DC_STATUS_PROTOCOL;
+			}
+			memcpy (output, packet + 5, datalen);
+		}
+		if (actual)
+			*actual = datalen;
+		return DC_STATUS_SUCCESS;
 	}
 
 	// Validate the packet header.
@@ -395,20 +443,54 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned int n = 0;
 
-	unsigned char req_init[] = {
-		0x35,
-		(compression ? 0x10 : 0x00),
-		0x34,
-		(address >> 24) & 0xFF,
-		(address >> 16) & 0xFF,
-		(address >>  8) & 0xFF,
-		(address      ) & 0xFF,
-		(size >> 16) & 0xFF,
-		(size >>  8) & 0xFF,
-		(size      ) & 0xFF};
-	unsigned char req_block[] = {0x36, 0x00};
+	unsigned char req_init[10];
+	unsigned int req_init_len;
+	if (device->bluetooth_v2) {
+		// The v2 protocol always has the 0x10 bit set in the request.
+		// Whether the payload is actually LRE compressed still follows
+		// the caller's compression flag: manifests (sub-command 0x24)
+		// arrive uncompressed, dive data (sub-command 0x04) compressed.
+		req_init[0] = 0x35;
+		req_init[1] = 0x10;
+		if (size > 0xFFFF) {
+			// Stream to the end of the data, without a size field
+			// (sub-command 0x04). The device signals the end of the
+			// stream with a 0x7F response.
+			req_init[2] = 0x04;
+			req_init[3] = (address >> 24) & 0xFF;
+			req_init[4] = (address >> 16) & 0xFF;
+			req_init[5] = (address >>  8) & 0xFF;
+			req_init[6] = (address      ) & 0xFF;
+			req_init_len = 7;
+		} else {
+			// Fixed size transfer with a 2 byte size field
+			// (sub-command 0x24).
+			req_init[2] = 0x24;
+			req_init[3] = (address >> 24) & 0xFF;
+			req_init[4] = (address >> 16) & 0xFF;
+			req_init[5] = (address >>  8) & 0xFF;
+			req_init[6] = (address      ) & 0xFF;
+			req_init[7] = (size >>  8) & 0xFF;
+			req_init[8] = (size      ) & 0xFF;
+			req_init_len = 9;
+		}
+	} else {
+		req_init[0] = 0x35;
+		req_init[1] = (compression ? 0x10 : 0x00);
+		req_init[2] = 0x34;
+		req_init[3] = (address >> 24) & 0xFF;
+		req_init[4] = (address >> 16) & 0xFF;
+		req_init[5] = (address >>  8) & 0xFF;
+		req_init[6] = (address      ) & 0xFF;
+		req_init[7] = (size >> 16) & 0xFF;
+		req_init[8] = (size >>  8) & 0xFF;
+		req_init[9] = (size      ) & 0xFF;
+		req_init_len = 10;
+	}
+	unsigned char req_block[3] = {0x36, 0x00, 0x00};
+	unsigned int req_block_len = device->bluetooth_v2 ? 3 : 2;
 	unsigned char req_quit[] = {0x37};
-	unsigned char response[SZ_PACKET];
+	unsigned char response[SZ_PACKET_V2 + 2];
 
 	// Erase the current contents of the buffer.
 	if (!dc_buffer_clear (buffer)) {
@@ -424,15 +506,22 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	}
 
 	// Transfer the init request.
-	rc = shearwater_common_transfer (device, req_init, sizeof (req_init), response, 3, &n);
+	rc = shearwater_common_transfer (device, req_init, req_init_len, response, 4, &n);
 	if (rc != DC_STATUS_SUCCESS) {
 		return rc;
 	}
 
 	// Verify the init response.
-	if (n != 3 || response[0] != 0x75 || response[1] != 0x10 || response[2] > SZ_PACKET) {
-		ERROR (abstract->context, "Unexpected response packet.");
-		return DC_STATUS_PROTOCOL;
+	if (device->bluetooth_v2) {
+		if (n < 2 || response[0] != 0x75 || (response[1] != 0x10 && response[1] != 0x20)) {
+			ERROR (abstract->context, "Unexpected response packet.");
+			return DC_STATUS_PROTOCOL;
+		}
+	} else {
+		if (n != 3 || response[0] != 0x75 || response[1] != 0x10 || response[2] > SZ_PACKET) {
+			ERROR (abstract->context, "Unexpected response packet.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	// Update and emit a progress event.
@@ -443,14 +532,27 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	}
 
 	unsigned int done = 0;
+	unsigned int ended = 0;
 	unsigned char block = 1;
 	unsigned int nbytes = 0;
 	while (nbytes < size && !done) {
 		// Transfer the block request.
 		req_block[1] = block;
-		rc = shearwater_common_transfer (device, req_block, sizeof (req_block), response, sizeof (response), &n);
+		rc = shearwater_common_transfer (device, req_block, req_block_len, response, device->bluetooth_v2 ? sizeof (response) : SZ_PACKET, &n);
 		if (rc != DC_STATUS_SUCCESS) {
 			return rc;
+		}
+
+		// In v2 streaming mode (sub-command 0x04), the device signals the
+		// end of the data with a response carrying command 0x7F (0x3F | 0x40)
+		// instead of another block response. This is a clean "no more blocks"
+		// indication: keep the blocks already collected and stop the
+		// transfer. The device has already closed the session, so the quit
+		// request is skipped below. This is v2 only, to avoid affecting the
+		// other Shearwater devices, which reuse 0x7F as a NAK code.
+		if (device->bluetooth_v2 && n >= 1 && response[0] == 0x7F) {
+			ended = 1;
+			break;
 		}
 
 		// Verify the block header.
@@ -496,16 +598,20 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 		}
 	}
 
-	// Transfer the quit request.
-	rc = shearwater_common_transfer (device, req_quit, sizeof (req_quit), response, 2, &n);
-	if (rc != DC_STATUS_SUCCESS) {
-		return rc;
-	}
+	// Transfer the quit request. When a v2 device has already signalled
+	// the end of the data with a 0x7F response, the transfer session is
+	// already closed, and the quit request is skipped.
+	if (!ended) {
+		rc = shearwater_common_transfer (device, req_quit, sizeof (req_quit), response, 2, &n);
+		if (rc != DC_STATUS_SUCCESS) {
+			return rc;
+		}
 
-	// Verify the quit response.
-	if (n != 2 || response[0] != 0x77 || response[1] != 0x00) {
-		ERROR (abstract->context, "Unexpected response packet.");
-		return DC_STATUS_PROTOCOL;
+		// Verify the quit response.
+		if (n != 2 || response[0] != 0x77 || response[1] != 0x00) {
+			ERROR (abstract->context, "Unexpected response packet.");
+			return DC_STATUS_PROTOCOL;
+		}
 	}
 
 	// Update and emit a progress event.
