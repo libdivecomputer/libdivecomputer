@@ -458,24 +458,33 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 	if (device->bluetooth_v2) {
 		// The v2 protocol always has the 0x10 bit set in the request.
 		// Whether the payload is actually LRE compressed still follows
-		// the caller's compression flag: manifests (sub-command 0x24)
-		// arrive uncompressed, dive data (sub-command 0x04) compressed.
+		// the caller's compression flag: manifests arrive uncompressed,
+		// dive data compressed.
+		//
+		// The third byte is not an opaque sub-command but a field-width
+		// descriptor: the low nibble is the number of address bytes and
+		// the high nibble is the number of size bytes that follow. So a
+		// 4 byte address with a 2 byte size gives 0x24, and a 4 byte
+		// address with no size field (stream to end of data) gives 0x04.
+		// (Interpretation per libdivecomputer review; matches the bytes
+		// observed in a capture of the official Shearwater application.)
+		const unsigned int addr_bytes = 4;
+		unsigned int size_bytes;
 		req_init[0] = 0x35;
 		req_init[1] = 0x10;
 		if (size > 0xFFFF) {
-			// Stream to the end of the data, without a size field
-			// (sub-command 0x04). The device signals the end of the
-			// stream with a 0x7F response.
-			req_init[2] = 0x04;
+			// Stream to the end of the data, without a size field.
+			size_bytes = 0;
+			req_init[2] = (size_bytes << 4) | addr_bytes; // 0x04
 			req_init[3] = (address >> 24) & 0xFF;
 			req_init[4] = (address >> 16) & 0xFF;
 			req_init[5] = (address >>  8) & 0xFF;
 			req_init[6] = (address      ) & 0xFF;
 			req_init_len = 7;
 		} else {
-			// Fixed size transfer with a 2 byte size field
-			// (sub-command 0x24).
-			req_init[2] = 0x24;
+			// Fixed size transfer with a 2 byte size field.
+			size_bytes = 2;
+			req_init[2] = (size_bytes << 4) | addr_bytes; // 0x24
 			req_init[3] = (address >> 24) & 0xFF;
 			req_init[4] = (address >> 16) & 0xFF;
 			req_init[5] = (address >>  8) & 0xFF;
@@ -485,9 +494,12 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 			req_init_len = 9;
 		}
 	} else {
+		// Legacy framing. The third byte is the same field-width
+		// descriptor: 4 byte address (low nibble) and 3 byte size
+		// (high nibble) gives 0x34.
 		req_init[0] = 0x35;
 		req_init[1] = (compression ? 0x10 : 0x00);
-		req_init[2] = 0x34;
+		req_init[2] = (3 << 4) | 4; // 0x34
 		req_init[3] = (address >> 24) & 0xFF;
 		req_init[4] = (address >> 16) & 0xFF;
 		req_init[5] = (address >>  8) & 0xFF;
