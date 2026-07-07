@@ -381,35 +381,41 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 	}
 
 	if (device->bluetooth_v2) {
-		// v2 response: 01 FF 00 00 [len] [data]   (normal)
-		//              01 FF 00 [XX] 02 [body]    (block, XX != 0x00)
+		// v2 response header: 01 FF 00 [len_hi] [len_lo] [payload]
+		//
+		// The two bytes at packet[3..4] form a single 16-bit big-endian
+		// length of the payload that follows. For short RDBI responses the
+		// high byte is 0x00, so the length is in packet[4]. For block (0x76)
+		// responses it spans both bytes: a 512 byte block arrives as
+		// 01 FF 00 02 02 (0x0202 = 514 = 512 data + the 2 byte 76 XX
+		// sub-header), and a 2306 byte compressed dive as 01 FF 00 09 02
+		// (0x0902 = 2306). Reading it as one 16-bit length is the general
+		// form (credit: Jef Driesen / libdivecomputer review).
 		if (n < 5 || packet[0] != 0x01 || packet[1] != 0xFF || packet[2] != 0x00) {
 			ERROR (abstract->context, "Invalid packet header.");
 			return DC_STATUS_PROTOCOL;
 		}
-		unsigned int datalen;
-		if (packet[3] == 0x00) {
-			// Normal response.
-			datalen = packet[4];
-			if (datalen + 5 != n || datalen > osize) {
-				ERROR (abstract->context, "Invalid packet length.");
-				return DC_STATUS_PROTOCOL;
-			}
-			memcpy (output, packet + 5, datalen);
-		} else {
-			// Block response: strip the 5 byte header and hand the
-			// body (0x76 block data) to the caller.
-			if (packet[4] != 0x02) {
-				ERROR (abstract->context, "Unexpected block response type.");
-				return DC_STATUS_PROTOCOL;
-			}
-			datalen = n - 5;
-			if (datalen > osize) {
-				ERROR (abstract->context, "Invalid packet length.");
-				return DC_STATUS_PROTOCOL;
-			}
-			memcpy (output, packet + 5, datalen);
+
+		unsigned int datalen = (packet[3] << 8) | packet[4];
+
+		if (datalen > osize) {
+			ERROR (abstract->context, "Unexpected packet length (%u > %u).", datalen, osize);
+			return DC_STATUS_PROTOCOL;
 		}
+
+		// This assumes the full frame arrived in a single SLIP read. If the
+		// declared length exceeds what was received, the response was split
+		// across multiple BLE notifications and needs reassembly, which is not
+		// yet implemented. Rather than silently truncate, flag the condition
+		// so it is visible in the field.
+		if (datalen + 5 != n) {
+			ERROR (abstract->context,
+				"v2 length mismatch: declared=%u received=%u (multi-notification frame, reassembly not implemented).",
+				datalen, n >= 5 ? n - 5 : 0);
+			return DC_STATUS_PROTOCOL;
+		}
+
+		memcpy (output, packet + 5, datalen);
 		if (actual)
 			*actual = datalen;
 		return DC_STATUS_SUCCESS;
