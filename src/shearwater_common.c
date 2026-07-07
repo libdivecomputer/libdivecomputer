@@ -344,12 +344,16 @@ shearwater_common_transfer (shearwater_common_device_t *device, const unsigned c
 
 	// Setup and send the request packet.
 	if (device->bluetooth_v2) {
-		// v2 framing: FF 01 00 00 [len] [data]
+		// v2 framing: FF 01 00 [len_hi] [len_lo] [data]
+		// The length is a 2 byte big-endian field, symmetric with the
+		// response header. All current requests are short (isize < 256), so
+		// the high byte is always 0x00 on the wire; the 2 byte form is used
+		// to match the documented format rather than rely on that.
 		packet[0] = 0xFF;
 		packet[1] = 0x01;
 		packet[2] = 0x00;
-		packet[3] = 0x00;
-		packet[4] = isize;
+		packet[3] = (isize >> 8) & 0xFF;
+		packet[4] = isize & 0xFF;
 		memcpy (packet + 5, input, isize);
 		status = shearwater_common_slip_write (device, packet, isize + 5);
 	} else {
