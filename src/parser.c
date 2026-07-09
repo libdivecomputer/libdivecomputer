@@ -42,7 +42,6 @@
 #include "mares_iconhd.h"
 #include "mares_nemo.h"
 #include "mares_puck.h"
-#include "hw_frog.h"
 #include "hw_ostc.h"
 #include "hw_ostc3.h"
 #include "cressi_edy.h"

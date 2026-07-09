@@ -43,7 +43,6 @@
 #include "mares_iconhd.h"
 #include "mares_nemo.h"
 #include "mares_puck.h"
-#include "hw_frog.h"
 #include "hw_ostc.h"
 #include "hw_ostc3.h"
 #include "cressi_edy.h"
@@ -183,10 +182,10 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		rc = hw_ostc_device_open (&device, context, iostream);
 		break;
 	case DC_FAMILY_HW_FROG:
-		rc = hw_frog_device_open (&device, context, iostream);
+		rc = hw_ostc3_device_open (&device, context, iostream, 1);
 		break;
 	case DC_FAMILY_HW_OSTC3:
-		rc = hw_ostc3_device_open (&device, context, iostream);
+		rc = hw_ostc3_device_open (&device, context, iostream, 0);
 		break;
 	case DC_FAMILY_CRESSI_EDY:
 		rc = cressi_edy_device_open (&device, context, iostream);

@@ -51,7 +51,6 @@ libdivecomputer_la_SOURCES = \
 	mares_iconhd.h mares_iconhd.c mares_iconhd_parser.c \
 	ihex.h ihex.c \
 	hw_ostc.h hw_ostc.c hw_ostc_parser.c \
-	hw_frog.h hw_frog.c \
 	hw_ostc3.h hw_ostc3.c \
 	aes.h aes.c \
 	cressi_edy.h cressi_edy.c cressi_edy_parser.c \
