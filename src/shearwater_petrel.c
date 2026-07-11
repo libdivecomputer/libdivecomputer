@@ -97,13 +97,10 @@ shearwater_petrel_device_open (dc_device_t **out, dc_context_t *context, dc_iost
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Setup the device.
-	status = shearwater_common_setup (&device->base, context, iostream);
+	status = shearwater_common_setup (&device->base, context, iostream, model);
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}
-
-	// Enable the revised BLE framing for the Perdix 3.
-	device->base.bluetooth_v2 = (model == PERDIX3);
 
 	*out = (dc_device_t *) device;
 
