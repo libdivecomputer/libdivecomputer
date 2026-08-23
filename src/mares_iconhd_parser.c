@@ -149,6 +149,7 @@ typedef struct mares_iconhd_layout_t {
 	unsigned int datetime;
 	unsigned int divetime;
 	unsigned int maxdepth;
+	unsigned int avgdepth;
 	unsigned int atmospheric;
 	unsigned int atmospheric_divisor;
 	unsigned int temperature_min;
@@ -195,6 +196,20 @@ static const mares_iconhd_layout_t iconhd = {
 	0x02, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x00, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
+	0x22, 8, /* atmospheric */
+	0x42, /* temperature_min */
+	0x44, /* temperature_max */
+	0x10, /* gasmixes */
+	UNSUPPORTED, /* tanks */
+};
+
+static const mares_iconhd_layout_t smart = {
+	0x0C, /* settings */
+	0x02, /* datetime */
+	UNSUPPORTED, /* divetime */
+	0x00, /* maxdepth */
+	0x26, /* avgdepth */
 	0x22, 8, /* atmospheric */
 	0x42, /* temperature_min */
 	0x44, /* temperature_max */
@@ -207,6 +222,7 @@ static const mares_iconhd_layout_t iconhdnet = {
 	0x02, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x00, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x22, 8, /* atmospheric */
 	0x42, /* temperature_min */
 	0x44, /* temperature_max */
@@ -219,6 +235,7 @@ static const mares_iconhd_layout_t smartair = {
 	0x02, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x00, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x22, 8, /* atmospheric */
 	0x42, /* temperature_min */
 	0x44, /* temperature_max */
@@ -231,6 +248,7 @@ static const mares_iconhd_layout_t smartapnea = {
 	0x40, /* datetime */
 	0x24, /* divetime */
 	0x3A, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x38, 1, /* atmospheric */
 	0x3E, /* temperature_min */
 	0x3C, /* temperature_max */
@@ -243,6 +261,7 @@ static const mares_iconhd_layout_t smart_freedive = {
 	0x20, /* datetime */
 	0x0C, /* divetime */
 	0x1A, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x18, 1, /* atmospheric */
 	0x1C, /* temperature_min */
 	0x1E, /* temperature_max */
@@ -255,6 +274,7 @@ static const mares_iconhd_layout_t smartair_freedive = {
 	0x22, /* datetime */
 	0x0E, /* divetime */
 	0x1C, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x1A, 1, /* atmospheric */
 	0x20, /* temperature_min */
 	0x1E, /* temperature_max */
@@ -267,6 +287,7 @@ static const mares_iconhd_layout_t genius = {
 	0x08, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x22, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x3E, 1, /* atmospheric */
 	0x28, /* temperature_min */
 	0x26, /* temperature_max */
@@ -279,6 +300,7 @@ static const mares_iconhd_layout_t horizon = {
 	0x08, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x22 + 8, /* maxdepth */
+	UNSUPPORTED, /* avgdepth */
 	0x3E + 8, 1, /* atmospheric */
 	0x28 + 8, /* temperature_min */
 	0x26 + 8, /* temperature_max */
@@ -363,7 +385,7 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 		} else {
 			headersize = 0x5C;
 			samplesize = 8;
-			layout = &iconhd;
+			layout = &smart;
 		}
 	} else if (parser->model == SMARTAPNEA) {
 		headersize = 0x50;
@@ -780,6 +802,11 @@ mares_iconhd_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsi
 			break;
 		case DC_FIELD_MAXDEPTH:
 			*((double *) value) = array_uint16_le (p + parser->layout->maxdepth) / 10.0;
+			break;
+		case DC_FIELD_AVGDEPTH:
+			if (parser->layout->avgdepth == UNSUPPORTED)
+				return DC_STATUS_UNSUPPORTED;
+			*((double *) value) = array_uint16_le (p + parser->layout->avgdepth) / 10.0;
 			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = parser->ngasmixes;
