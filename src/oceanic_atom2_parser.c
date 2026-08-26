@@ -41,6 +41,9 @@
 #define DSX_SIDEGAUGE 3
 #define DSX_GAUGE     4
 
+#define DSX_SURFACE_TIMEOUT (10 * 60 * 1000) // 10 minutes in milliseconds
+#define DSX_SURFACE_DEPTH   30 // 30 * 1/10 feet = 3 feet = 0.9 meters
+
 #define NGASMIXES 6
 
 #define HEADER  1
@@ -719,6 +722,32 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		samplesize = 32;
 	}
 
+	// The DSX continues storing samples during the final 10 minute surface interval.
+	// -> Remove the final ten minutes only when every recorded depth during that interval is at or below 3 ft.
+	unsigned int profile_end = size - parser->footersize;
+	if (parser->model == DSX && interval > 0 &&
+		DSX_SURFACE_TIMEOUT % interval == 0) {
+		unsigned int nsamples = DSX_SURFACE_TIMEOUT / interval;
+		unsigned int nbytes = nsamples * samplesize;
+
+		if (profile_end >= parser->headersize + nbytes) {
+			unsigned int begin = profile_end - nbytes;
+			unsigned int surface = 1;
+
+			for (unsigned int current = begin; current < profile_end; current += samplesize) {
+				unsigned int depth = array_uint16_le (data + current + 2);
+
+				if (depth > DSX_SURFACE_DEPTH) {
+					surface = 0;
+					break;
+				}
+			}
+
+			if (surface)
+				profile_end = begin;
+		}
+	}
+
 	unsigned int have_temperature = 1, have_pressure = 1;
 	if (is_freedive (parser->mode, parser->model)) {
 		have_temperature = 0;
@@ -762,7 +791,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int complete = 1;
 	unsigned int previous = 0;
 	unsigned int offset = parser->headersize;
-	while (offset + samplesize <= size - parser->footersize) {
+	while (offset + samplesize <= profile_end) {
 		dc_sample_value_t sample = {0};
 
 		// Ignore empty samples.
@@ -788,7 +817,7 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 		unsigned int length = samplesize;
 		if (sampletype == 0xBB) {
 			length = PAGESIZE;
-			if (offset + length > size - parser->footersize) {
+			if (offset + length > profile_end) {
 				ERROR (abstract->context, "Buffer overflow detected!");
 				return DC_STATUS_DATAFORMAT;
 			}
