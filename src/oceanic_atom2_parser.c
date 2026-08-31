@@ -532,6 +532,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				parser->model == F11A || parser->model == F11B ||
 				parser->model == MUNDIAL2 || parser->model == MUNDIAL3)
 				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
+			else if (parser->model == DSX) 
+				*((unsigned int *) value) = array_uint16_le(data + parser->footer + 8);
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
