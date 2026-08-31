@@ -143,7 +143,15 @@ static const divesystem_idive_commands_t ix3m_apos4 = {
 
 static const divesystem_idive_signature_t signatures[] = {
 	{"dsh01", 50}, // IX3M GPS
+	{"dsh05", 50}, // iX5M
+	{"dsh06", 50}, // iX3M 2 / iX3M 2 GPS
+	{"dsh23", 50}, // iDive HD
+	{"dsh24", 50}, // iDive HD 3
+	{"dsh26", 50}, // iDive HD 2
 	{"dsh30", 50}, // IX3M Pro
+	{"dsh35", 50}, // iX5M PRO
+	{"dsh36", 50}, // iX3M 2 PRO
+	{"dsh41", 50}, // iCastro
 	{"dsh20",  5}, // iDive Sport
 	{"dsh23",  5}, // iDive Color
 	{"acx",    5}, // WPT
