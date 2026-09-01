@@ -196,19 +196,6 @@ static const mares_iconhd_layout_t iconhd = {
 	0x02, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x00, /* maxdepth */
-	UNSUPPORTED, /* avgdepth */
-	0x22, 8, /* atmospheric */
-	0x42, /* temperature_min */
-	0x44, /* temperature_max */
-	0x10, /* gasmixes */
-	UNSUPPORTED, /* tanks */
-};
-
-static const mares_iconhd_layout_t smart = {
-	0x0C, /* settings */
-	0x02, /* datetime */
-	UNSUPPORTED, /* divetime */
-	0x00, /* maxdepth */
 	0x26, /* avgdepth */
 	0x22, 8, /* atmospheric */
 	0x42, /* temperature_min */
@@ -222,7 +209,7 @@ static const mares_iconhd_layout_t iconhdnet = {
 	0x02, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x00, /* maxdepth */
-	UNSUPPORTED, /* avgdepth */
+	0x26, /* avgdepth */
 	0x22, 8, /* atmospheric */
 	0x42, /* temperature_min */
 	0x44, /* temperature_max */
@@ -235,7 +222,7 @@ static const mares_iconhd_layout_t smartair = {
 	0x02, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x00, /* maxdepth */
-	UNSUPPORTED, /* avgdepth */
+	0x26, /* avgdepth */
 	0x22, 8, /* atmospheric */
 	0x42, /* temperature_min */
 	0x44, /* temperature_max */
@@ -287,7 +274,7 @@ static const mares_iconhd_layout_t genius = {
 	0x08, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x22, /* maxdepth */
-	UNSUPPORTED, /* avgdepth */
+	0x24, /* avgdepth */
 	0x3E, 1, /* atmospheric */
 	0x28, /* temperature_min */
 	0x26, /* temperature_max */
@@ -300,7 +287,7 @@ static const mares_iconhd_layout_t horizon = {
 	0x08, /* datetime */
 	UNSUPPORTED, /* divetime */
 	0x22 + 8, /* maxdepth */
-	UNSUPPORTED, /* avgdepth */
+	0x24 + 8, /* avgdepth */
 	0x3E + 8, 1, /* atmospheric */
 	0x28 + 8, /* temperature_min */
 	0x26 + 8, /* temperature_max */
@@ -385,7 +372,7 @@ mares_iconhd_cache (mares_iconhd_parser_t *parser)
 		} else {
 			headersize = 0x5C;
 			samplesize = 8;
-			layout = &smart;
+			layout = &iconhd;
 		}
 	} else if (parser->model == SMARTAPNEA) {
 		headersize = 0x50;
