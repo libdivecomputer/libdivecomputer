@@ -354,6 +354,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Cressi", "Leonardo 2.0", DC_FAMILY_CRESSI_GOA, 3, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Donatello",    DC_FAMILY_CRESSI_GOA, 4, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Michelangelo", DC_FAMILY_CRESSI_GOA, 5, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
+	{"Cressi", "Raffaello",    DC_FAMILY_CRESSI_GOA, 6, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Neon",     DC_FAMILY_CRESSI_GOA, 9, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Nepto",    DC_FAMILY_CRESSI_GOA, 10, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	/* Zeagle N2iTiON3 */
@@ -939,6 +940,7 @@ dc_filter_cressi (const dc_descriptor_t *descriptor, dc_transport_t transport, c
 		3,  // Leonardo 2.0
 		4,  // Donatello
 		5,  // Michelangelo
+		6,  // Raffaello
 		9,  // Neon
 		10, // Nepto
 	};
