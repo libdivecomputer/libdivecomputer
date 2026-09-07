@@ -158,6 +158,8 @@ typedef struct suunto_nautic_parser_t {
 	dc_decomodel_t decomodel;
 	unsigned int have_tankvolume;
 	double tankvolume; // litres, from /Summary +0xD0
+	unsigned int have_ppo2max;
+	double ppo2max; // bar, configured oxygen partial-pressure limit, from /Summary +0xCC
 } suunto_nautic_parser_t;
 
 typedef struct sbem_chunk_t {
@@ -309,6 +311,14 @@ suunto_nautic_parse_summary (suunto_nautic_parser_t *parser, const unsigned char
 		if (m3 > 0.0005 && m3 < 0.05) { // 0.5 .. 50 L
 			parser->tankvolume = m3 * 1000.0; // m^3 -> litres
 			parser->have_tankvolume = 1;
+		}
+	}
+
+	if (size >= SUMMARY_PPO2_MAX + 4) {
+		double ppo2 = array_float_le (sbem + SUMMARY_PPO2_MAX);
+		if (ppo2 >= 0.5 && ppo2 <= 3.0) { // a sane oxygen partial-pressure limit
+			parser->ppo2max = ppo2;
+			parser->have_ppo2max = 1;
 		}
 	}
 
@@ -830,6 +840,8 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	parser->have_decomodel = 0;
 	parser->have_tankvolume = 0;
 	parser->tankvolume = 0.0;
+	parser->have_ppo2max = 0;
+	parser->ppo2max = 0.0;
 	memset (parser->gasmix, 0, sizeof (parser->gasmix));
 	memset (&parser->decomodel, 0, sizeof (parser->decomodel));
 	if (profile_size < abstract->size) {
@@ -945,6 +957,11 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		if (!parser->have_decomodel)
 			return DC_STATUS_UNSUPPORTED;
 		*((dc_decomodel_t *) value) = parser->decomodel;
+		break;
+	case DC_FIELD_PPO2_MAX:
+		if (!parser->have_ppo2max)
+			return DC_STATUS_UNSUPPORTED;
+		*((double *) value) = parser->ppo2max;
 		break;
 	default:
 		return DC_STATUS_UNSUPPORTED;
