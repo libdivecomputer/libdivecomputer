@@ -535,6 +535,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
 			else if (parser->model == DSX)
 				*((unsigned int *) value) = array_uint16_le(data + parser->footer + 8);
+			else if (parser->model == I770R)
+				*((unsigned int *) value) = (array_uint16_le(data + parser->footer) & 0x7FFF) * 60;
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
@@ -559,6 +561,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			if (parser->model == DSX) {
 				unsigned int temperature = array_uint16_le (data + parser->footer + 16);
 				*((double *) value) = ((temperature / 10.0) - 32.0) * (5.0 / 9.0);
+			} else if (parser->model == I770R) {
+				*((double *) value) = (data[parser->footer + 6] - 32.0) * (5.0 / 9.0);
 			} else {
 				return DC_STATUS_UNSUPPORTED;
 			}
@@ -582,7 +586,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			break;
 		case DC_FIELD_SALINITY:
 			if (parser->model == A300CS || parser->model == VTX ||
-				parser->model == I750TC) {
+				parser->model == I750TC || parser->model == I770R) {
 				if (data[0x18] & 0x80) {
 					water->type = DC_WATER_FRESH;
 				} else {
