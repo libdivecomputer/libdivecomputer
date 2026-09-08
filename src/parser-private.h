@@ -77,9 +77,12 @@ dc_parser_isinstance (dc_parser_t *parser, const dc_parser_vtable_t *vtable);
 typedef struct sample_statistics_t {
 	unsigned int divetime;
 	double maxdepth;
+	double totaldepth;
+	unsigned int ndepths;
+	double maxtemp;
 } sample_statistics_t;
 
-#define SAMPLE_STATISTICS_INITIALIZER {0, 0.0}
+#define SAMPLE_STATISTICS_INITIALIZER {0, 0.0, 0.0, 0, 0.0}
 
 void
 sample_statistics_cb (dc_sample_type_t type, const dc_sample_value_t *value, void *userdata);

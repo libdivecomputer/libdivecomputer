@@ -64,6 +64,8 @@ struct oceanic_atom2_parser_t {
 	unsigned int helium[NGASMIXES];
 	unsigned int divetime;
 	double maxdepth;
+	double avgdepth;
+	double maxtemp;
 };
 
 static dc_status_t oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -520,6 +522,10 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		parser->cached = PROFILE;
 		parser->divetime = statistics.divetime;
 		parser->maxdepth = statistics.maxdepth;
+		parser->avgdepth = statistics.ndepths
+			? statistics.totaldepth / statistics.ndepths
+			: 0.0;
+		parser->maxtemp = statistics.maxtemp;
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
@@ -534,8 +540,11 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
 			else if (parser->model == DSX)
 				*((unsigned int *) value) = array_uint16_le(data + parser->footer + 8);
-			else
+			else if (parser->model == I770R) {
+				*((unsigned int *) value) = array_uint16_le(data + parser->footer) * 60;
+			} else {
 				*((unsigned int *) value) = parser->divetime;
+			}
 			break;
 		case DC_FIELD_MAXDEPTH:
 			if (parser->model == F10A || parser->model == F10B ||
@@ -550,6 +559,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		case DC_FIELD_AVGDEPTH:
 			if (parser->model == I330R || parser->model == I330R_C || parser->model == DSX) {
 				*((double *) value) = array_uint16_le (data + parser->footer + 12) / 10.0 * FEET;
+			} else if (parser->model == I770R) {
+				*((double *) value) = parser->avgdepth;
 			} else {
 				return DC_STATUS_UNSUPPORTED;
 			}
@@ -565,7 +576,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			break;
 		case DC_FIELD_SALINITY:
 			if (parser->model == A300CS || parser->model == VTX ||
-				parser->model == I750TC) {
+				parser->model == I750TC || parser->model == I770R) {
 				if (data[0x18] & 0x80) {
 					water->type = DC_WATER_FRESH;
 				} else {
@@ -615,6 +626,16 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				default:
 					return DC_STATUS_DATAFORMAT;
 				}
+			}
+			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			if (parser->model == I770R) {
+				*((double *) value) = (data[parser->footer + 6] - 32.0) * (5.0 / 9.0);
+			}
+			break;
+		case DC_FIELD_TEMPERATURE_MAXIMUM:
+			if (parser->model == I770R) {
+				*((double *) value) = parser->maxtemp;
 			}
 			break;
 		default:
@@ -749,13 +770,17 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int tank = 1;
 	unsigned int pressure = 0;
 	if (have_pressure) {
-		unsigned int idx = 2;
-		if (parser->model == A300CS || parser->model == VTX ||
-			parser->model == I750TC)
-			idx = 16;
-		pressure = array_uint16_le(data + parser->header + idx);
-		if (pressure == 10000)
-			have_pressure = 0;
+		if (parser->model == I770R) {
+			pressure = 0;
+		} else {
+			unsigned int idx = 2;
+			if (parser->model == A300CS || parser->model == VTX ||
+				parser->model == I750TC)
+				idx = 16;
+			pressure = array_uint16_le(data + parser->header + idx);
+			if (pressure == 10000)
+				have_pressure = 0;
+		}
 	}
 
 	// Initial gas mix.

@@ -426,8 +426,14 @@ sample_statistics_cb (dc_sample_type_t type, const dc_sample_value_t *value, voi
 		statistics->divetime = value->time / 1000;
 		break;
 	case DC_SAMPLE_DEPTH:
+		statistics->totaldepth += value->depth;
+		statistics->ndepths++;
 		if (statistics->maxdepth < value->depth)
 			statistics->maxdepth = value->depth;
+		break;
+	case DC_SAMPLE_TEMPERATURE:
+		if (statistics->maxtemp < value->temperature)
+			statistics->maxtemp = value->temperature;
 		break;
 	default:
 		break;
