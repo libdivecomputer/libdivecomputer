@@ -64,8 +64,6 @@ struct oceanic_atom2_parser_t {
 	unsigned int helium[NGASMIXES];
 	unsigned int divetime;
 	double maxdepth;
-	double avgdepth;
-	double maxtemp;
 };
 
 static dc_status_t oceanic_atom2_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -522,10 +520,6 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		parser->cached = PROFILE;
 		parser->divetime = statistics.divetime;
 		parser->maxdepth = statistics.maxdepth;
-		parser->avgdepth = statistics.ndepths
-			? statistics.totaldepth / statistics.ndepths
-			: 0.0;
-		parser->maxtemp = statistics.maxtemp;
 	}
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
@@ -559,8 +553,6 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		case DC_FIELD_AVGDEPTH:
 			if (parser->model == I330R || parser->model == I330R_C || parser->model == DSX) {
 				*((double *) value) = array_uint16_le (data + parser->footer + 12) / 10.0 * FEET;
-			} else if (parser->model == I770R) {
-				*((double *) value) = parser->avgdepth;
 			} else {
 				return DC_STATUS_UNSUPPORTED;
 			}
