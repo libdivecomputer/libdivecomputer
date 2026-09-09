@@ -770,17 +770,13 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 	unsigned int tank = 1;
 	unsigned int pressure = 0;
 	if (have_pressure) {
-		if (parser->model == I770R) {
-			pressure = 0;
-		} else {
-			unsigned int idx = 2;
-			if (parser->model == A300CS || parser->model == VTX ||
-				parser->model == I750TC)
-				idx = 16;
-			pressure = array_uint16_le(data + parser->header + idx);
-			if (pressure == 10000)
-				have_pressure = 0;
-		}
+		unsigned int idx = 2;
+		if (parser->model == A300CS || parser->model == VTX ||
+			parser->model == I750TC)
+			idx = 16;
+		pressure = array_uint16_le(data + parser->header + idx);
+		if (pressure == 10000)
+			have_pressure = 0;
 	}
 
 	// Initial gas mix.
