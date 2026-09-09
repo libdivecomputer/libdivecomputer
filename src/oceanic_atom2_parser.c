@@ -631,11 +631,8 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		case DC_FIELD_TEMPERATURE_MINIMUM:
 			if (parser->model == I770R) {
 				*((double *) value) = (data[parser->footer + 6] - 32.0) * (5.0 / 9.0);
-			}
-			break;
-		case DC_FIELD_TEMPERATURE_MAXIMUM:
-			if (parser->model == I770R) {
-				*((double *) value) = parser->maxtemp;
+			} else {
+				return DC_STATUS_UNSUPPORTED;
 			}
 			break;
 		default:
