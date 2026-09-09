@@ -1139,8 +1139,10 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				sample.ppo2.sensor = DC_SENSOR_NONE;
 				sample.ppo2.value = array_uint16_le (data + offset + 12) / 100.0;
 				if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
+			}
 
-				// CNS
+			// CNS
+			if (parser->model == DSX) {
 				sample.cns = data[offset + 16] / 100.0;
 				if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 			}
