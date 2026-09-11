@@ -485,6 +485,19 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 			convert_pressure(atmospheric, output->units));
 	}
 
+	// Parse the configured oxygen partial-pressure limit.
+	message ("Parsing the ppO2 maximum.\n");
+	double ppo2max = 0.0;
+	status = dc_parser_get_field (parser, DC_FIELD_PPO2_MAX, 0, &ppo2max);
+	if (status != DC_STATUS_SUCCESS && status != DC_STATUS_UNSUPPORTED) {
+		ERROR ("Error parsing the ppO2 maximum.");
+		goto cleanup;
+	}
+
+	if (status != DC_STATUS_UNSUPPORTED) {
+		fprintf (output->ostream, "<ppo2max>%.2f</ppo2max>\n", ppo2max);
+	}
+
 	// Parse the GPS location.
 	message ("Parsing the GPS location.\n");
 	dc_location_t location = {0};
