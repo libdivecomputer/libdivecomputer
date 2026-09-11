@@ -23,10 +23,10 @@
 
 
 unsigned char
-checksum_add_uint4 (const unsigned char data[], unsigned int size, unsigned char init)
+checksum_add_uint4 (const unsigned char data[], size_t size, unsigned char init)
 {
 	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		crc += (data[i] & 0xF0) >> 4;
 		crc += (data[i] & 0x0F);
 	}
@@ -36,10 +36,10 @@ checksum_add_uint4 (const unsigned char data[], unsigned int size, unsigned char
 
 
 unsigned char
-checksum_add_uint8 (const unsigned char data[], unsigned int size, unsigned char init)
+checksum_add_uint8 (const unsigned char data[], size_t size, unsigned char init)
 {
 	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc += data[i];
 
 	return crc;
@@ -47,10 +47,10 @@ checksum_add_uint8 (const unsigned char data[], unsigned int size, unsigned char
 
 
 unsigned short
-checksum_add_uint16 (const unsigned char data[], unsigned int size, unsigned short init)
+checksum_add_uint16 (const unsigned char data[], size_t size, unsigned short init)
 {
 	unsigned short crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc += data[i];
 
 	return crc;
@@ -58,10 +58,10 @@ checksum_add_uint16 (const unsigned char data[], unsigned int size, unsigned sho
 
 
 unsigned char
-checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char init)
+checksum_xor_uint8 (const unsigned char data[], size_t size, unsigned char init)
 {
 	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc ^= data[i];
 
 	return crc;
@@ -73,7 +73,7 @@ checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char
  * RefOut: False
  */
 unsigned char
-checksum_crc8 (const unsigned char data[], unsigned int size, unsigned char init, unsigned char xorout)
+checksum_crc8 (const unsigned char data[], size_t size, unsigned char init, unsigned char xorout)
 {
 	static const unsigned char crc_table[] = {
 		0x00, 0x07, 0x0e, 0x09, 0x1c, 0x1b, 0x12, 0x15,
@@ -111,7 +111,7 @@ checksum_crc8 (const unsigned char data[], unsigned int size, unsigned char init
 	};
 
 	unsigned char crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = crc_table[data[i] ^ crc];
 
 	return crc ^ xorout;
@@ -123,7 +123,7 @@ checksum_crc8 (const unsigned char data[], unsigned int size, unsigned char init
  * RefOut: False
  */
 unsigned short
-checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
+checksum_crc16_ccitt (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout)
 {
 	static const unsigned short crc_ccitt_table[] = {
 		0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
@@ -161,7 +161,7 @@ checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned sh
 	};
 
 	unsigned short crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = (crc << 8) ^ crc_ccitt_table[(crc >> 8) ^ data[i]];
 
 	return crc ^ xorout;
@@ -174,7 +174,7 @@ checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned sh
  * RefOut: True
  */
 unsigned short
-checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
+checksum_crc16r_ccitt (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout)
 {
 	static const unsigned short crc_ccitt_table[] = {
 		0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -212,7 +212,7 @@ checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned s
 	};
 
 	unsigned short crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ data[i]) & 0xff];
 
 	return crc ^ xorout;
@@ -224,7 +224,7 @@ checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned s
  * RefOut: False
  */
 unsigned short
-checksum_crc16_ansi (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
+checksum_crc16_ansi (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout)
 {
 	static const unsigned short crc_ccitt_table[] = {
 		0x0000, 0x8005, 0x800f, 0x000a, 0x801b, 0x001e, 0x0014, 0x8011,
@@ -262,7 +262,7 @@ checksum_crc16_ansi (const unsigned char data[], unsigned int size, unsigned sho
 	};
 
 	unsigned short crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = (crc << 8) ^ crc_ccitt_table[(crc >> 8) ^ data[i]];
 
 	return crc ^ xorout;
@@ -274,7 +274,7 @@ checksum_crc16_ansi (const unsigned char data[], unsigned int size, unsigned sho
  * RefOut: True
  */
 unsigned short
-checksum_crc16r_ansi (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout)
+checksum_crc16r_ansi (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout)
 {
 	static const unsigned short crc_ccitt_table[] = {
 		0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241,
@@ -312,7 +312,7 @@ checksum_crc16r_ansi (const unsigned char data[], unsigned int size, unsigned sh
 	};
 
 	unsigned short crc = init;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ data[i]) & 0xff];
 
 	return crc ^ xorout;
@@ -327,7 +327,7 @@ checksum_crc16r_ansi (const unsigned char data[], unsigned int size, unsigned sh
  * RefOut: True
  */
 unsigned int
-checksum_crc32r (const unsigned char data[], unsigned int size)
+checksum_crc32r (const unsigned char data[], size_t size)
 {
 	static const unsigned int crc_table[] = {
 		0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
@@ -365,7 +365,7 @@ checksum_crc32r (const unsigned char data[], unsigned int size)
 	};
 
 	unsigned int crc = 0xffffffff;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = crc_table[(crc ^ data[i]) & 0xff] ^ (crc >> 8);
 
 	return crc ^ 0xffffffff;
@@ -380,7 +380,7 @@ checksum_crc32r (const unsigned char data[], unsigned int size)
  * RefOut: False
  */
 unsigned int
-checksum_crc32 (const unsigned char data[], unsigned int size)
+checksum_crc32 (const unsigned char data[], size_t size)
 {
 	static const unsigned int crc_table[] = {
 		0x00000000, 0x04C11DB7, 0x09823B6E, 0x0D4326D9, 0x130476DC, 0x17C56B6B, 0x1A864DB2, 0x1E475005,
@@ -418,7 +418,7 @@ checksum_crc32 (const unsigned char data[], unsigned int size)
 	};
 
 	unsigned int crc = 0xffffffff;
-	for (unsigned int i = 0; i < size; ++i)
+	for (size_t i = 0; i < size; ++i)
 		crc = crc_table[((crc >> 24) ^ data[i]) & 0xFF] ^ (crc << 8);
 
 	return crc ^ 0xffffffff;

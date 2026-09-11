@@ -577,8 +577,13 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		}
 
 		unsigned char *data = dc_buffer_get_data(buffer);
-		unsigned int   size = dc_buffer_get_size(buffer);
-		if (callback && !callback (data, size, data + 7, sizeof(device->fingerprint), userdata)) {
+		size_t         size = dc_buffer_get_size(buffer);
+		if (size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			dc_buffer_free (buffer);
+			return DC_STATUS_DATAFORMAT;
+		}
+		if (callback && !callback (data, (unsigned int) size, data + 7, sizeof(device->fingerprint), userdata)) {
 			dc_buffer_free (buffer);
 			return DC_STATUS_SUCCESS;
 		}
@@ -865,10 +870,15 @@ divesystem_idive_device_fwupdate (dc_device_t *abstract, const char *filename)
 	// Cache the data and size.
 	const unsigned char *data = dc_buffer_get_data (buffer);
 	size_t size = dc_buffer_get_size (buffer);
+	if (size > UINT_MAX) {
+		ERROR (abstract->context, "Firmware file is too large.");
+		status = DC_STATUS_INVALIDARGS;
+		goto error_free;
+	}
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = size;
+	progress.maximum = (unsigned int) size;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Activate the bootloader.

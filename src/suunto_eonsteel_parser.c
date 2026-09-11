@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -306,10 +307,14 @@ static int record_type(suunto_eonsteel_parser_t *eon, unsigned short type, const
 
 		next = strchr(name, '\n');
 		if (next) {
-			len = next - name;
+			if (next - name > INT_MAX)
+				return -1;
+			len = (int) (next - name);
 			next++;
 		} else {
-			len = strlen(name);
+			if (strlen(name) > INT_MAX)
+				return -1;
+			len = (int) strlen(name);
 			if (!len)
 				break;
 		}
@@ -429,7 +434,9 @@ static int traverse_entry(suunto_eonsteel_parser_t *eon, const unsigned char *p,
 		end += len;
 	}
 
-	return end - p;
+	if (end - p > INT_MAX)
+		return -1;
+	return (int) (end - p);
 }
 
 static int traverse_data(suunto_eonsteel_parser_t *eon, eon_data_cb_t callback, void *user)
@@ -1013,7 +1020,11 @@ static dc_status_t
 suunto_eonsteel_parser_samples_foreach(dc_parser_t *abstract, dc_sample_callback_t callback, void *userdata)
 {
 	suunto_eonsteel_parser_t *eon = (suunto_eonsteel_parser_t *) abstract;
-	struct sample_data data = { eon, callback, userdata, 0 };
+	struct sample_data data = {
+		.eon = eon,
+		.callback = callback,
+		.userdata = userdata,
+	};
 
 	traverse_data(eon, traverse_samples, &data);
 

@@ -344,7 +344,7 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	while ((rc = atomics_cobalt_read_dive (abstract, buffer, (ndives == 0), &progress)) == DC_STATUS_SUCCESS) {
 		unsigned char *data = dc_buffer_get_data (buffer);
-		unsigned int size = dc_buffer_get_size (buffer);
+		size_t size = dc_buffer_get_size (buffer);
 
 		if (size == 0) {
 			dc_buffer_free (buffer);
@@ -352,7 +352,12 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 		}
 
 		if (size < SZ_HEADER) {
-			ERROR (abstract->context, "Dive header is too small (%u).", size);
+			ERROR (abstract->context, "Dive header is too small (" DC_PRINTF_SIZE ").", size);
+			dc_buffer_free (buffer);
+			return DC_STATUS_DATAFORMAT;
+		}
+		if (size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
 			dc_buffer_free (buffer);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -362,7 +367,7 @@ atomics_cobalt_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 			return DC_STATUS_SUCCESS;
 		}
 
-		if (callback && !callback (data, size, data + FP_OFFSET, sizeof (device->fingerprint), userdata)) {
+		if (callback && !callback (data, (unsigned int) size, data + FP_OFFSET, sizeof (device->fingerprint), userdata)) {
 			dc_buffer_free (buffer);
 			return DC_STATUS_SUCCESS;
 		}

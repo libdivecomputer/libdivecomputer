@@ -459,7 +459,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 
 	// Cache the logbook pointer and size.
 	const unsigned char *logbooks = dc_buffer_get_data (logbook);
-	unsigned int rb_logbook_size = dc_buffer_get_size (logbook);
+	size_t rb_logbook_size = dc_buffer_get_size (logbook);
 
 	// Go through the logbook entries a first time, to get the end of
 	// profile pointer and calculate the total amount of bytes in the
@@ -474,7 +474,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	// of the memory buffer.
 	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
 	unsigned int previous = rb_profile_end;
-	unsigned int entry = rb_logbook_size;
+	size_t entry = rb_logbook_size;
 	while (entry) {
 		// Move to the start of the current entry.
 		entry -= layout->rb_logbook_entry_size;
@@ -561,7 +561,7 @@ oceanic_common_device_profile (dc_device_t *abstract, dc_event_progress_t *progr
 	}
 
 	// Keep track of the current position.
-	unsigned int offset = rb_profile_size + rb_logbook_size;
+	size_t offset = rb_profile_size + rb_logbook_size;
 
 	// Traverse the logbook ringbuffer backwards to retrieve the most recent
 	// dives first. The logbook ringbuffer is linearized at this point, so

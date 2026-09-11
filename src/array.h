@@ -30,39 +30,39 @@ extern "C" {
 #endif /* __cplusplus */
 
 void
-array_reverse_bytes (unsigned char data[], unsigned int size);
+array_reverse_bytes (unsigned char data[], size_t size);
 
 void
-array_reverse_bits (unsigned char data[], unsigned int size);
+array_reverse_bits (unsigned char data[], size_t size);
 
 void
-array_reverse_nibbles (unsigned char data[], unsigned int size);
+array_reverse_nibbles (unsigned char data[], size_t size);
 
 int
-array_isequal (const unsigned char data[], unsigned int size, unsigned char value);
+array_isequal (const unsigned char data[], size_t size, unsigned char value);
 
 const unsigned char *
-array_search_forward (const unsigned char *data, unsigned int size,
-                      const unsigned char *marker, unsigned int msize);
+array_search_forward (const unsigned char *data, size_t size,
+					  const unsigned char *marker, size_t msize);
 
 const unsigned char *
-array_search_backward (const unsigned char *data, unsigned int size,
-                       const unsigned char *marker, unsigned int msize);
+array_search_backward (const unsigned char *data, size_t size,
+					   const unsigned char *marker, size_t msize);
 
 int
-array_convert_bin2hex (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize);
+array_convert_bin2hex (const unsigned char input[], size_t isize, unsigned char output[], size_t osize);
 
 int
-array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize);
+array_convert_hex2bin (const unsigned char input[], size_t isize, unsigned char output[], size_t osize);
 
 unsigned int
-array_convert_str2num (const unsigned char data[], unsigned int size);
+array_convert_str2num (const unsigned char data[], size_t size);
 
 unsigned int
-array_convert_bin2dec (const unsigned char data[], unsigned int size);
+array_convert_bin2dec (const unsigned char data[], size_t size);
 
 unsigned int
-array_convert_bcd2dec (const unsigned char data[], unsigned int size);
+array_convert_bcd2dec (const unsigned char data[], size_t size);
 
 unsigned int
 array_uint_be (const unsigned char data[], unsigned int n);

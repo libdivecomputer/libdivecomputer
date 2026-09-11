@@ -367,28 +367,33 @@ dc_device_dump (dc_device_t *device, dc_buffer_t *buffer)
 
 
 dc_status_t
-device_dump_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size, unsigned int blocksize)
+device_dump_read (dc_device_t *device, unsigned int address, unsigned char data[], size_t size, unsigned int blocksize)
 {
 	if (device == NULL)
 		return DC_STATUS_UNSUPPORTED;
+	if (size > UINT_MAX)
+		return DC_STATUS_INVALIDARGS;
 
 	if (device->vtable->read == NULL)
 		return DC_STATUS_UNSUPPORTED;
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = size;
+	progress.maximum = (unsigned int) size;
 	device_event_emit (device, DC_EVENT_PROGRESS, &progress);
 
-	unsigned int nbytes = 0;
+	size_t nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the packet size.
-		unsigned int len = size - nbytes;
+		size_t len = size - nbytes;
 		if (len > blocksize)
 			len = blocksize;
 
 		// Read the packet.
-		dc_status_t rc = device->vtable->read (device, address + nbytes, data + nbytes, len);
+		if (nbytes > UINT_MAX || len > UINT_MAX || address > UINT_MAX - nbytes)
+			return DC_STATUS_INVALIDARGS;
+
+		dc_status_t rc = device->vtable->read (device, address + (unsigned int) nbytes, data + nbytes, (unsigned int) len);
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 

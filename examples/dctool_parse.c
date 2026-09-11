@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,7 +51,10 @@ parse (dc_buffer_t *buffer, dc_context_t *context, dc_descriptor_t *descriptor, 
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	dc_parser_t *parser = NULL;
 	unsigned char *data = dc_buffer_get_data (buffer);
-	unsigned int size = dc_buffer_get_size (buffer);
+	size_t buffer_size = dc_buffer_get_size (buffer);
+	if (buffer_size > UINT_MAX)
+		return DC_STATUS_INVALIDARGS;
+	unsigned int size = (unsigned int) buffer_size;
 
 	// Create the parser.
 	message ("Creating the parser.\n");
@@ -121,7 +125,8 @@ dctool_parse_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 			filename = optarg;
 			break;
 		case 'd':
-			devtime = strtoul (optarg, NULL, 0);
+			if (!dctool_parse_uint (optarg, &devtime))
+				return EXIT_FAILURE;
 			break;
 		case 's':
 			systime = strtoll (optarg, NULL, 0);

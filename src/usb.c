@@ -295,9 +295,10 @@ dc_usb_iterator_new (dc_iterator_t **out, dc_context_t *context, dc_descriptor_t
 	struct libusb_device **devices = NULL;
 	ssize_t ndevices = libusb_get_device_list (iterator->session->handle, &devices);
 	if (ndevices < 0) {
+		int error = ndevices < INT_MIN ? LIBUSB_ERROR_OTHER : (int) ndevices;
 		ERROR (context, "Failed to enumerate the usb devices (%s).",
-			libusb_error_name (ndevices));
-		status = syserror (ndevices);
+			libusb_error_name (error));
+		status = syserror (error);
 		goto error_session_unref;
 	}
 
@@ -550,8 +551,10 @@ dc_usb_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_usb_t *usb = (dc_usb_t *) abstract;
 	int nbytes = 0;
+	if (size > INT_MAX)
+		return DC_STATUS_INVALIDARGS;
 
-	int rc = libusb_bulk_transfer (usb->handle, usb->endpoint_in, data, size, &nbytes, usb->timeout);
+	int rc = libusb_bulk_transfer (usb->handle, usb->endpoint_in, data, (int) size, &nbytes, usb->timeout);
 	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb read bulk transfer failed (%s).",
 			libusb_error_name (rc));
@@ -574,8 +577,20 @@ dc_usb_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *ac
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_usb_t *usb = (dc_usb_t *) abstract;
 	int nbytes = 0;
+	unsigned char dummy = 0;
+	unsigned char *buffer = &dummy;
 
-	int rc = libusb_bulk_transfer (usb->handle, usb->endpoint_out, (void *) data, size, &nbytes, 0);
+	if (size > INT_MAX)
+		return DC_STATUS_INVALIDARGS;
+
+	if (size > 0) {
+		buffer = (unsigned char *) malloc (size);
+		if (buffer == NULL)
+			return DC_STATUS_NOMEMORY;
+		memcpy (buffer, data, size);
+	}
+
+	int rc = libusb_bulk_transfer (usb->handle, usb->endpoint_out, buffer, (int) size, &nbytes, 0);
 	if (rc != LIBUSB_SUCCESS || nbytes < 0) {
 		ERROR (abstract->context, "Usb write bulk transfer failed (%s).",
 			libusb_error_name (rc));
@@ -586,6 +601,8 @@ dc_usb_write (dc_iostream_t *abstract, const void *data, size_t size, size_t *ac
 	}
 
 out:
+	if (size > 0)
+		free (buffer);
 	if (actual)
 		*actual = nbytes;
 

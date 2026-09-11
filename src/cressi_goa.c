@@ -524,7 +524,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 	HEXDUMP (abstract->context, DC_LOGLEVEL_DEBUG, "Version", id_data, id_size);
 
-	if (id_size < 9) {
+	if (id_size < 9 || id_size > UCHAR_MAX) {
 		ERROR (abstract->context, "Unexpected version length (" DC_PRINTF_SIZE ").", id_size);
 		status = DC_STATUS_DATAFORMAT;
 		goto error_free_id;
@@ -564,7 +564,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
 	vendor.data = id_data;
-	vendor.size = id_size;
+	vendor.size = (unsigned int) id_size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Emit a device info event.
@@ -599,7 +599,7 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 	// Count the number of dives.
 	unsigned int count = 0;
-	unsigned int offset = logbook_size;
+	size_t offset = logbook_size;
 	while (offset >= conf->logbook_len) {
 		// Move to the start of the logbook entry.
 		offset -= conf->logbook_len;
@@ -668,10 +668,10 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 		// are prepended to the dive data, along with a small header containing
 		// their size.
 		const unsigned char header[] = {
-			id_size,
+			(unsigned char) id_size,
 			conf->logbook_len,
 		};
-		unsigned int headersize = sizeof(header) + id_size + conf->logbook_len;
+		size_t headersize = sizeof(header) + id_size + conf->logbook_len;
 		if (!dc_buffer_prepend(dive, logbook_data + offset, conf->logbook_len) ||
 			!dc_buffer_prepend(dive, id_data, id_size) ||
 			!dc_buffer_prepend(dive, header, sizeof(header))) {
@@ -682,8 +682,13 @@ cressi_goa_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, v
 
 		dive_data = dc_buffer_get_data (dive);
 		dive_size = dc_buffer_get_size (dive);
+		if (dive_size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			status = DC_STATUS_DATAFORMAT;
+			goto error_free_dive;
+		}
 
-		if (callback && !callback(dive_data, dive_size, dive_data + headersize + conf->dive_fp_offset, sizeof(device->fingerprint), userdata))
+		if (callback && !callback(dive_data, (unsigned int) dive_size, dive_data + headersize + conf->dive_fp_offset, sizeof(device->fingerprint), userdata))
 			break;
 	}
 

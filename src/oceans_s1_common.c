@@ -22,6 +22,7 @@
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 #include <stddef.h>
+#include <limits.h>
 
 #include "oceans_s1_common.h"
 
@@ -64,5 +65,7 @@ oceans_s1_getline (char **line, size_t *linelen, const unsigned char **data, siz
 	*data += len;
 	*size -= len;
 
-	return len - strip;
+	if (len - strip > INT_MAX)
+		return -1;
+	return (int) (len - strip);
 }

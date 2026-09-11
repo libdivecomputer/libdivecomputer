@@ -230,7 +230,9 @@ suunto_vyper2_device_packet (dc_device_t *abstract, const unsigned char command[
 		// resolution on all platforms. The higher resolution is
 		// pointless anyway, since we already added a fudge factor
 		// above.
-		dc_iostream_sleep (device->iostream, (remaining + 999) / 1000);
+		if (remaining > (dc_usecs_t) UINT_MAX * 1000)
+			return DC_STATUS_INVALIDARGS;
+		dc_iostream_sleep (device->iostream, (unsigned int) ((remaining + 999) / 1000));
 	}
 
 	// Clear RTS to receive the reply.

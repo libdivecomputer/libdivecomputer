@@ -59,7 +59,7 @@ static const dc_device_vtable_t reefnet_sensuspro_device_vtable = {
 };
 
 static dc_status_t
-reefnet_sensuspro_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+reefnet_sensuspro_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 reefnet_sensuspro_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
@@ -346,7 +346,7 @@ reefnet_sensuspro_device_write_interval (dc_device_t *abstract, unsigned char in
 
 
 static dc_status_t
-reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	reefnet_sensuspro_device_t *device = (reefnet_sensuspro_device_t*) abstract;
 
@@ -357,8 +357,8 @@ reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data
 	const unsigned char footer[2] = {0xFF, 0xFF};
 
 	// Search the entire data stream for start markers.
-	unsigned int previous = size;
-	unsigned int current = (size >= 4 ? size - 4 : 0);
+	size_t previous = size;
+	size_t current = (size >= 4 ? size - 4 : 0);
 	while (current > 0) {
 		current--;
 		if (memcmp (data + current, header, sizeof (header)) == 0) {
@@ -366,7 +366,7 @@ reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data
 			// for the corresponding stop marker. The search is
 			// now limited to the start of the previous dive.
 			int found = 0;
-			unsigned int offset = current + 10; // Skip non-sample data.
+			size_t offset = current + 10; // Skip non-sample data.
 			while (offset + 2 <= previous) {
 				if (memcmp (data + offset, footer, sizeof (footer)) == 0) {
 					found = 1;
@@ -384,8 +384,11 @@ reefnet_sensuspro_extract_dives (dc_device_t *abstract, const unsigned char data
 			unsigned int timestamp = array_uint32_le (data + current + 6);
 			if (device && timestamp <= device->timestamp)
 				return DC_STATUS_SUCCESS;
+			size_t dive_size = offset + 2 - current;
+			if (dive_size > UINT_MAX)
+				return DC_STATUS_DATAFORMAT;
 
-			if (callback && !callback (data + current, offset + 2 - current, data + current + 6, 4, userdata))
+			if (callback && !callback (data + current, (unsigned int) dive_size, data + current + 6, 4, userdata))
 				return DC_STATUS_SUCCESS;
 
 			// Prepare for the next dive.

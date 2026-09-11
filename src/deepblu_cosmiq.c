@@ -310,7 +310,7 @@ deepblu_cosmiq_recv_bulk (deepblu_cosmiq_device_t *device, dc_event_progress_t *
 
 		// Update and emit a progress event.
 		if (progress) {
-			progress->current = initial + STEP(nbytes, size);
+			progress->current = initial + (unsigned int) STEP(nbytes, size);
 			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
 	}

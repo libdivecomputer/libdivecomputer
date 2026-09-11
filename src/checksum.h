@@ -22,42 +22,44 @@
 #ifndef CHECKSUM_H
 #define CHECKSUM_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 unsigned char
-checksum_add_uint4 (const unsigned char data[], unsigned int size, unsigned char init);
+checksum_add_uint4 (const unsigned char data[], size_t size, unsigned char init);
 
 unsigned char
-checksum_add_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
+checksum_add_uint8 (const unsigned char data[], size_t size, unsigned char init);
 
 unsigned short
-checksum_add_uint16 (const unsigned char data[], unsigned int size, unsigned short init);
+checksum_add_uint16 (const unsigned char data[], size_t size, unsigned short init);
 
 unsigned char
-checksum_xor_uint8 (const unsigned char data[], unsigned int size, unsigned char init);
+checksum_xor_uint8 (const unsigned char data[], size_t size, unsigned char init);
 
 unsigned char
-checksum_crc8 (const unsigned char data[], unsigned int size, unsigned char init, unsigned char xorout);
+checksum_crc8 (const unsigned char data[], size_t size, unsigned char init, unsigned char xorout);
 
 unsigned short
-checksum_crc16_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
+checksum_crc16_ccitt (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout);
 
 unsigned short
-checksum_crc16r_ccitt (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
+checksum_crc16r_ccitt (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout);
 
 unsigned short
-checksum_crc16_ansi (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
+checksum_crc16_ansi (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout);
 
 unsigned short
-checksum_crc16r_ansi (const unsigned char data[], unsigned int size, unsigned short init, unsigned short xorout);
+checksum_crc16r_ansi (const unsigned char data[], size_t size, unsigned short init, unsigned short xorout);
 
 unsigned int
-checksum_crc32r (const unsigned char data[], unsigned int size);
+checksum_crc32r (const unsigned char data[], size_t size);
 
 unsigned int
-checksum_crc32 (const unsigned char data[], unsigned int size);
+checksum_crc32 (const unsigned char data[], size_t size);
 
 #ifdef __cplusplus
 }

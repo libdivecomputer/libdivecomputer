@@ -59,7 +59,7 @@ static const dc_device_vtable_t shearwater_predator_device_vtable = {
 };
 
 static dc_status_t
-shearwater_predator_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+shearwater_predator_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
@@ -171,7 +171,7 @@ shearwater_predator_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 
 
 static dc_status_t
-shearwater_predator_extract_predator (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+shearwater_predator_extract_predator (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	shearwater_predator_device_t *device = (shearwater_predator_device_t*) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
@@ -280,7 +280,7 @@ shearwater_predator_extract_predator (dc_device_t *abstract, const unsigned char
 
 
 static dc_status_t
-shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	shearwater_predator_device_t *device = (shearwater_predator_device_t*) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
@@ -342,7 +342,7 @@ shearwater_predator_extract_petrel (dc_device_t *abstract, const unsigned char d
 
 
 static dc_status_t
-shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+shearwater_predator_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;

@@ -34,6 +34,9 @@ extern "C" {
 const char *
 dctool_errmsg (dc_status_t status);
 
+int
+dctool_parse_uint (const char *text, unsigned int *value);
+
 dc_family_t
 dctool_family_type (const char *name);
 

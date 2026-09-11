@@ -141,11 +141,11 @@ suunto_eon_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	}
 
 	// Receive the answer.
-	unsigned int nbytes = 0;
+	size_t nbytes = 0;
 	unsigned char answer[SZ_MEMORY + 1] = {0};
 	while (nbytes < sizeof(answer)) {
 		// Set the minimum packet size.
-		unsigned int len = 64;
+		size_t len = 64;
 
 		// Increase the packet size if more data is immediately available.
 		size_t available = 0;

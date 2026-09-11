@@ -65,7 +65,7 @@ dc_status_t
 dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, int errcode);
 
 dc_status_t
-dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *prefix, const unsigned char data[], unsigned int size);
+dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *prefix, const unsigned char data[], size_t size);
 
 #ifdef __cplusplus
 }

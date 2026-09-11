@@ -70,7 +70,7 @@ static const dc_device_vtable_t cressi_leonardo_device_vtable = {
 };
 
 static dc_status_t
-cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 static void
 cressi_leonardo_make_ascii (const unsigned char raw[], unsigned int rsize, unsigned char ascii[], unsigned int asize)
@@ -252,10 +252,10 @@ cressi_leonardo_device_read (dc_device_t *abstract, unsigned int address, unsign
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;
 
-	unsigned int nbytes = 0;
+	size_t nbytes = 0;
 	while (nbytes < size) {
 		// Calculate the packet size.
-		unsigned int len = size - nbytes;
+		size_t len = size - nbytes;
 		if (len > PACKETSIZE)
 			len = PACKETSIZE;
 
@@ -272,7 +272,7 @@ cressi_leonardo_device_read (dc_device_t *abstract, unsigned int address, unsign
 
 		// Send the command and receive the answer.
 		unsigned char answer[2 * (PACKETSIZE + 3)] = {0};
-		rc = cressi_leonardo_transfer (device, command, sizeof (command), answer, 2 * (len + 3));
+		rc = cressi_leonardo_transfer (device, command, sizeof (command), answer, 2 * (unsigned int) (len + 3));
 		if (rc != DC_STATUS_SUCCESS)
 			return rc;
 
@@ -332,7 +332,7 @@ cressi_leonardo_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned int nbytes = 0;
 	while (nbytes < SZ_MEMORY) {
 		// Set the minimum packet size.
-		unsigned int len = 1024;
+		size_t len = 1024;
 
 		// Increase the packet size if more data is immediately available.
 		size_t available = 0;
@@ -410,7 +410,7 @@ cressi_leonardo_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 }
 
 static dc_status_t
-cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+cressi_leonardo_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	cressi_leonardo_device_t *device = (cressi_leonardo_device_t *) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);

@@ -229,7 +229,7 @@ mares_iconhd_packet_fixed (mares_iconhd_device_t *device,
 	unsigned char cmd,
 	const unsigned char data[], unsigned int size,
 	unsigned char answer[], unsigned int asize,
-	unsigned int *actual)
+	size_t *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -314,7 +314,7 @@ mares_iconhd_packet_variable (mares_iconhd_device_t *device,
 	unsigned char cmd,
 	const unsigned char data[], unsigned int size,
 	unsigned char answer[], unsigned int asize,
-	unsigned int *actual)
+	size_t *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -399,7 +399,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 	unsigned char cmd,
 	const unsigned char data[], unsigned int size,
 	unsigned char answer[], unsigned int asize,
-	unsigned int *actual)
+	size_t *actual)
 {
 	dc_transport_t transport = dc_iostream_get_transport (device->iostream);
 
@@ -411,7 +411,7 @@ mares_iconhd_packet (mares_iconhd_device_t *device,
 }
 
 static dc_status_t
-mares_iconhd_transfer (mares_iconhd_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize, unsigned int *actual)
+mares_iconhd_transfer (mares_iconhd_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize, size_t *actual)
 {
 	unsigned int nretries = 0;
 	dc_status_t rc = DC_STATUS_SUCCESS;
@@ -513,7 +513,7 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 		}
 
 		// Transfer the segment packet.
-		unsigned int length = 0;
+		size_t length = 0;
 		unsigned char rsp_segment[1 + 504];
 		status = mares_iconhd_transfer (device, cmd, NULL, 0, rsp_segment, len + 1, &length);
 		if (status != DC_STATUS_SUCCESS) {
@@ -522,7 +522,7 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 		}
 
 		if (length < 1) {
-			ERROR (abstract->context, "Unexpected packet length (%u).", length);
+			ERROR (abstract->context, "Unexpected packet length (" DC_PRINTF_SIZE ").", length);
 			return DC_STATUS_PROTOCOL;
 		}
 
@@ -1143,7 +1143,13 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		}
 
 		const unsigned char *data = dc_buffer_get_data (buffer);
-		if (callback && !callback (data, dc_buffer_get_size (buffer), data + 0x08, device->fingerprint_size, userdata)) {
+		size_t size = dc_buffer_get_size (buffer);
+		if (size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			rc = DC_STATUS_DATAFORMAT;
+			break;
+		}
+		if (callback && !callback (data, (unsigned int) size, data + 0x08, device->fingerprint_size, userdata)) {
 			break;
 		}
 	}

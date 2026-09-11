@@ -57,7 +57,7 @@ static const dc_device_vtable_t suunto_solution_device_vtable = {
 };
 
 static dc_status_t
-suunto_solution_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+suunto_solution_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 suunto_solution_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
@@ -255,7 +255,7 @@ suunto_solution_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 
 static dc_status_t
-suunto_solution_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+suunto_solution_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;

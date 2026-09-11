@@ -429,7 +429,7 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 
 	// Parse the deco model.
 	message ("Parsing the deco model.\n");
-	dc_decomodel_t decomodel = {DC_DECOMODEL_NONE};
+	dc_decomodel_t decomodel = {.type = DC_DECOMODEL_NONE};
 	status = dc_parser_get_field (parser, DC_FIELD_DECOMODEL, 0, &decomodel);
 	if (status != DC_STATUS_SUCCESS && status != DC_STATUS_UNSUPPORTED) {
 		ERROR ("Error parsing the deco model.");

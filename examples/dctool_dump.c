@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -88,7 +89,13 @@ dump (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t transpo
 	// Register the fingerprint data.
 	if (fingerprint) {
 		message ("Registering the fingerprint data.\n");
-		rc = dc_device_set_fingerprint (device, dc_buffer_get_data (fingerprint), dc_buffer_get_size (fingerprint));
+		size_t size = dc_buffer_get_size (fingerprint);
+		if (size > UINT_MAX) {
+			ERROR ("Fingerprint is too large.");
+			rc = DC_STATUS_INVALIDARGS;
+			goto cleanup;
+		}
+		rc = dc_device_set_fingerprint (device, dc_buffer_get_data (fingerprint), (unsigned int) size);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR ("Error registering the fingerprint data.");
 			goto cleanup;

@@ -121,12 +121,12 @@ halcyon_symbios_send (halcyon_symbios_device_t *device, unsigned char cmd, const
 }
 
 static dc_status_t
-halcyon_symbios_recv (halcyon_symbios_device_t *device, unsigned char cmd, unsigned char data[], unsigned int size, unsigned int *actual, unsigned int *errorcode)
+halcyon_symbios_recv (halcyon_symbios_device_t *device, unsigned char cmd, unsigned char data[], unsigned int size, size_t *actual, unsigned int *errorcode)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[2 + MAXPACKET + 1] = {0};
-	unsigned int length = 0;
+	size_t length = 0;
 	unsigned int errcode = 0;
 
 	// Receive the answer.
@@ -210,7 +210,7 @@ error_exit:
 }
 
 static dc_status_t
-halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize, unsigned int *actual, unsigned int *errorcode)
+halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, const unsigned char data[], unsigned int size, unsigned char answer[], unsigned int asize, size_t *actual, unsigned int *errorcode)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -224,7 +224,7 @@ halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, c
 	}
 
 	// Receive the answer.
-	unsigned int length = 0;
+	size_t length = 0;
 	status = halcyon_symbios_recv (device, cmd, answer, asize, &length, &errcode);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to receive the answer.");
@@ -234,7 +234,7 @@ halcyon_symbios_transfer (halcyon_symbios_device_t *device, unsigned char cmd, c
 	if (actual == NULL) {
 		// Verify the length of the packet.
 		if (length != asize) {
-			ERROR (abstract->context, "Unexpected packet length (%u).", length);
+			ERROR (abstract->context, "Unexpected packet length (" DC_PRINTF_SIZE ").", length);
 			status = DC_STATUS_PROTOCOL;
 			goto error_exit;
 		}
@@ -291,7 +291,7 @@ halcyon_symbios_download (halcyon_symbios_device_t *device, dc_event_progress_t 
 	unsigned int nbytes = 0;
 	while (1) {
 		// Receive the data block.
-		unsigned int len = 0;
+		size_t len = 0;
 		unsigned char payload[2 + SZ_BLOCK] = {0};
 		unsigned int nretries = 0;
 		while ((status = halcyon_symbios_recv (device, block, payload, sizeof(payload), &len, NULL)) != DC_STATUS_SUCCESS) {
@@ -317,7 +317,7 @@ halcyon_symbios_download (halcyon_symbios_device_t *device, dc_event_progress_t 
 
 		// Verify the minimum block length.
 		if (len < 2) {
-			ERROR (abstract->context, "Unexpected block length (%u).", len);
+			ERROR (abstract->context, "Unexpected block length (" DC_PRINTF_SIZE ").", len);
 			status = DC_STATUS_PROTOCOL;
 			goto error_exit;
 		}
@@ -346,7 +346,7 @@ halcyon_symbios_download (halcyon_symbios_device_t *device, dc_event_progress_t 
 		if (progress) {
 			// Limit the progress events to the announced length.
 			unsigned int n = nbytes > length ? length : nbytes;
-			progress->current = initial + STEP(n, length);
+			progress->current = initial + (unsigned int) STEP(n, length);
 			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
 
@@ -444,7 +444,7 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 	// Read the device status.
 	unsigned char info[36] = {0};
-	unsigned int info_size = 0;
+	size_t info_size = 0;
 	status = halcyon_symbios_transfer (device, CMD_GET_STATUS, NULL, 0, info, sizeof(info), &info_size, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the device status.");
@@ -453,7 +453,7 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 	// Verify the length of the packet.
 	if (info_size < 20) {
-		ERROR (abstract->context, "Unexpected packet length (%u).", info_size);
+		ERROR (abstract->context, "Unexpected packet length (" DC_PRINTF_SIZE ").", info_size);
 		status = DC_STATUS_PROTOCOL;
 		goto error_exit;
 	}
@@ -463,7 +463,7 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 	// Emit a vendor event.
 	dc_event_vendor_t vendor;
 	vendor.data = info;
-	vendor.size = info_size;
+	vendor.size = (unsigned int) info_size;
 	device_event_emit (abstract, DC_EVENT_VENDOR, &vendor);
 
 	// Emit a device info event.
@@ -515,7 +515,7 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 
 	// Get the number of dives.
 	unsigned int ndives = 0;
-	unsigned int offset = size;
+	size_t offset = size;
 	while (offset >= SZ_LOGBOOK) {
 		offset -= SZ_LOGBOOK;
 
@@ -557,7 +557,13 @@ halcyon_symbios_device_foreach (dc_device_t *abstract, dc_dive_callback_t callba
 			goto error_free;
 		}
 
-		if (callback && !callback (dc_buffer_get_data (dive), dc_buffer_get_size (dive), data + offset + FP_OFFSET, FP_SIZE, userdata)) {
+		size_t dive_size = dc_buffer_get_size (dive);
+		if (dive_size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			status = DC_STATUS_DATAFORMAT;
+			goto error_free;
+		}
+		if (callback && !callback (dc_buffer_get_data (dive), (unsigned int) dive_size, data + offset + FP_OFFSET, FP_SIZE, userdata)) {
 			break;
 		}
 	}

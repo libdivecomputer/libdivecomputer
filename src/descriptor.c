@@ -94,7 +94,7 @@ static const dc_iterator_vtable_t dc_descriptor_iterator_vtable = {
  * actually used to identify individual models, identical values are assigned.
  */
 
-static const dc_descriptor_t g_descriptors[] = {
+static dc_descriptor_t g_descriptors[] = {
 	/* Suunto Solution */
 	{"Suunto", "Solution", DC_FAMILY_SUUNTO_SOLUTION, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Suunto Eon */
@@ -1015,14 +1015,7 @@ dc_descriptor_iterator_next (dc_iterator_t *abstract, void *out)
 	if (iterator->current >= C_ARRAY_SIZE (g_descriptors))
 		return DC_STATUS_DONE;
 
-	/*
-	 * The explicit cast from a const to a non-const pointer is safe here. The
-	 * public interface doesn't support write access, and therefore descriptor
-	 * objects are always read-only. However, the cast allows to return a direct
-	 * reference to the entries in the table, avoiding the overhead of
-	 * allocating (and freeing) memory for a deep copy.
-	 */
-	*item = (dc_descriptor_t *) &g_descriptors[iterator->current++];
+	*item = &g_descriptors[iterator->current++];
 
 	return DC_STATUS_SUCCESS;
 }

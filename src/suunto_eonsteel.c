@@ -135,12 +135,12 @@ static struct directory_entry *alloc_dirent(int type, int len, const char *name)
  * The maximum payload is 62 bytes.
  */
 static dc_status_t
-suunto_eonsteel_receive_usb(suunto_eonsteel_device_t *device, unsigned char data[], unsigned int size, unsigned int *actual)
+suunto_eonsteel_receive_usb(suunto_eonsteel_device_t *device, unsigned char data[], size_t size, size_t *actual)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char buf[PACKET_SIZE];
 	size_t transferred = 0;
-	unsigned int len = 0;
+	size_t len = 0;
 
 	rc = dc_iostream_read(device->iostream, buf, sizeof(buf), &transferred);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -160,7 +160,7 @@ suunto_eonsteel_receive_usb(suunto_eonsteel_device_t *device, unsigned char data
 
 	len = buf[1];
 	if (len + 2 > transferred) {
-		ERROR(device->base.context, "Invalid payload length (%u).", len);
+		ERROR(device->base.context, "Invalid payload length (" DC_PRINTF_SIZE ").", len);
 		return DC_STATUS_PROTOCOL;
 	}
 	if (len > size) {
@@ -179,7 +179,7 @@ suunto_eonsteel_receive_usb(suunto_eonsteel_device_t *device, unsigned char data
 }
 
 static dc_status_t
-suunto_eonsteel_receive_ble(suunto_eonsteel_device_t *device, unsigned char data[], unsigned int size, unsigned int *actual)
+suunto_eonsteel_receive_ble(suunto_eonsteel_device_t *device, unsigned char data[], unsigned int size, size_t *actual)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char buffer[HEADER_SIZE + MAXDATA_SIZE + CRC_SIZE];
@@ -196,7 +196,7 @@ suunto_eonsteel_receive_ble(suunto_eonsteel_device_t *device, unsigned char data
 		return DC_STATUS_PROTOCOL;
 	}
 
-	unsigned int nbytes = transferred - CRC_SIZE;
+	size_t nbytes = transferred - CRC_SIZE;
 
 	unsigned int crc = array_uint32_le(buffer + nbytes);
 	unsigned int ccrc = checksum_crc32r(buffer, nbytes);
@@ -294,11 +294,11 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 	unsigned short cmd,
 	const unsigned char data[], unsigned int size,
 	unsigned char answer[], unsigned int asize,
-	unsigned int *actual)
+	size_t *actual)
 {
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char header[HEADER_SIZE + MAXDATA_SIZE];
-	unsigned int len = 0;
+	size_t len = 0;
 
 	// Send the command.
 	rc = suunto_eonsteel_send(device, cmd, data, size);
@@ -317,7 +317,7 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 
 	// Verify the header length.
 	if (len < HEADER_SIZE) {
-		ERROR(device->base.context, "Invalid packet length (%u).", len);
+		ERROR(device->base.context, "Invalid packet length (" DC_PRINTF_SIZE ").", len);
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -354,9 +354,9 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 	}
 
 	// Verify the initial payload length.
-	unsigned int nbytes = len - HEADER_SIZE;
+	size_t nbytes = len - HEADER_SIZE;
 	if (nbytes > length) {
-		ERROR(device->base.context, "Unexpected number of bytes (received %u, expected %u).", nbytes, length);
+		ERROR(device->base.context, "Unexpected number of bytes (received " DC_PRINTF_SIZE ", expected %u).", nbytes, length);
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -379,7 +379,7 @@ suunto_eonsteel_transfer(suunto_eonsteel_device_t *device,
 
 	// Verify the total payload length.
 	if (nbytes != length) {
-		ERROR(device->base.context, "Unexpected number of bytes (received %u, expected %u).", nbytes, length);
+		ERROR(device->base.context, "Unexpected number of bytes (received " DC_PRINTF_SIZE ", expected %u).", nbytes, length);
 		return DC_STATUS_PROTOCOL;
 	}
 
@@ -403,8 +403,8 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned char result[2560];
 	unsigned char cmdbuf[64];
-	unsigned int size, offset, len;
-	unsigned int n = 0;
+	size_t size, offset, len;
+	size_t n = 0;
 
 	memset(cmdbuf, 0, sizeof(cmdbuf));
 	len = strlen(filename) + 1;
@@ -414,7 +414,7 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 	}
 	memcpy(cmdbuf+4, filename, len);
 	rc = suunto_eonsteel_transfer(eon, CMD_FILE_OPEN,
-		cmdbuf, len + 4, result, sizeof(result), &n);
+		cmdbuf, (unsigned int) (len + 4), result, sizeof(result), &n);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR(eon->base.context, "unable to look up %s", filename);
 		return rc;
@@ -435,9 +435,7 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 	while (size > 0) {
 		unsigned int ask, got, at;
 
-		ask = size;
-		if (ask > 1024)
-			ask = 1024;
+		ask = size > 1024 ? 1024 : (unsigned int) size;
 		array_uint32_le_set(cmdbuf + 0, 1234);	// Not file offset, after all
 		array_uint32_le_set(cmdbuf + 4, ask);	// Size of read
 		rc = suunto_eonsteel_transfer(eon, CMD_FILE_READ,
@@ -454,7 +452,7 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 		// Not file offset, just stays unmodified.
 		at = array_uint32_le(result);
 		if (at != 1234) {
-			ERROR(eon->base.context, "read of %s returned different offset than asked for (%d vs %d)", filename, at, offset);
+	ERROR(eon->base.context, "read of %s returned different offset than asked for (%u vs " DC_PRINTF_SIZE ")", filename, at, offset);
 			return DC_STATUS_PROTOCOL;
 		}
 
@@ -463,12 +461,12 @@ read_file(suunto_eonsteel_device_t *eon, const char *filename, dc_buffer_t *buf)
 		if (!got)
 			break;
 		if (n < 8 + got) {
-			ERROR(eon->base.context, "odd read size reply for offset %d of file %s", offset, filename);
+		ERROR(eon->base.context, "odd read size reply for offset " DC_PRINTF_SIZE " of file %s", offset, filename);
 			return DC_STATUS_PROTOCOL;
 		}
 
 		if (got > size)
-			got = size;
+			got = (unsigned int) size;
 		if (!dc_buffer_append (buf, result + 8, got)) {
 			ERROR (eon->base.context, "Insufficient buffer space available.");
 			return DC_STATUS_NOMEMORY;
@@ -549,7 +547,7 @@ get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 	struct directory_entry *de = NULL;
 	unsigned char cmd[64];
 	unsigned char result[2048];
-	unsigned int n = 0;
+	size_t n = 0;
 	unsigned int cmdlen;
 
 	array_uint32_le_set(cmd, 0);
@@ -582,7 +580,7 @@ get_file_list(suunto_eonsteel_device_t *eon, struct directory_entry **res)
 		last = array_uint32_le(result+4);
 		HEXDUMP(eon->base.context, DC_LOGLEVEL_DEBUG, "dir packet", result, 8);
 
-		de = parse_dirent(eon, nr, result+8, n-8, de);
+	de = parse_dirent(eon, nr, result+8, (unsigned int) (n - 8), de);
 		if (last)
 			break;
 	}
@@ -743,7 +741,7 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 		struct directory_entry *next = de->next;
 		unsigned char buf[4];
 		const unsigned char *data = NULL;
-		unsigned int size = 0;
+		size_t size = 0;
 
 		if (device_is_cancelled(abstract)) {
 			dc_status_set_error(&status, DC_STATUS_CANCELLED);
@@ -789,8 +787,14 @@ suunto_eonsteel_device_foreach(dc_device_t *abstract, dc_dive_callback_t callbac
 
 			data = dc_buffer_get_data(file);
 			size = dc_buffer_get_size(file);
+			if (size > UINT_MAX) {
+				ERROR (abstract->context, "Dive data is too large.");
+				dc_status_set_error(&status, DC_STATUS_DATAFORMAT);
+				skip = 1;
+				break;
+			}
 
-			if (callback && !callback(data, size, data, sizeof(eon->fingerprint), userdata))
+			if (callback && !callback(data, (unsigned int) size, data, sizeof(eon->fingerprint), userdata))
 				skip = 1;
 		}
 		progress.current++;

@@ -513,7 +513,7 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 	unsigned int remaining = layout->rb_profile_end - layout->rb_profile_begin;
 	while ((rc = suunto_vyper_read_dive (abstract, buffer, (ndives == 0), &progress)) == DC_STATUS_SUCCESS) {
 		unsigned char *data = dc_buffer_get_data (buffer);
-		unsigned int size = dc_buffer_get_size (buffer);
+		size_t size = dc_buffer_get_size (buffer);
 
 		if (size > remaining) {
 			ERROR (abstract->context, "Unexpected number of bytes received.");
@@ -531,7 +531,7 @@ suunto_vyper_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 			return DC_STATUS_SUCCESS;
 		}
 
-		if (callback && !callback (data, size, data + layout->fp_offset, sizeof (device->fingerprint), userdata)) {
+		if (callback && !callback (data, (unsigned int) size, data + layout->fp_offset, sizeof (device->fingerprint), userdata)) {
 			dc_buffer_free (buffer);
 			return DC_STATUS_SUCCESS;
 		}

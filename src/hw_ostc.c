@@ -82,7 +82,7 @@ static const dc_device_vtable_t hw_ostc_device_vtable = {
 };
 
 static dc_status_t
-hw_ostc_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+hw_ostc_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 hw_ostc_send (hw_ostc_device_t *device, unsigned char cmd, unsigned int echo)
@@ -246,7 +246,7 @@ hw_ostc_device_dump (dc_device_t *abstract, dc_buffer_t *buffer)
 	unsigned int nbytes = sizeof (header);
 	while (nbytes < size) {
 		// Set the minimum packet size.
-		unsigned int len = 1024;
+		size_t len = 1024;
 
 		// Increase the packet size if more data is immediately available.
 		size_t available = 0;
@@ -595,7 +595,7 @@ hw_ostc_device_screenshot (dc_device_t *abstract, dc_buffer_t *buffer, hw_ostc_f
 
 
 static dc_status_t
-hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	hw_ostc_device_t *device = (hw_ostc_device_t *) abstract;
 
@@ -622,11 +622,14 @@ hw_ostc_extract_dives (dc_device_t *abstract, const unsigned char data[], unsign
 		if (previous) {
 			// Move the pointer to the end of the footer.
 			previous += sizeof (footer);
+			size_t dive_size = previous - current;
+			if (dive_size > UINT_MAX)
+				return DC_STATUS_DATAFORMAT;
 
 			if (device && memcmp (current + 3, device->fingerprint, sizeof (device->fingerprint)) == 0)
 				return DC_STATUS_SUCCESS;
 
-			if (callback && !callback (current, previous - current, current + 3, 5, userdata))
+			if (callback && !callback (current, (unsigned int) dive_size, current + 3, 5, userdata))
 				return DC_STATUS_SUCCESS;
 		}
 

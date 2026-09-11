@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef HAVE_UNISTD_H
@@ -86,7 +87,12 @@ dowrite (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tran
 
 	// Write data to the internal memory.
 	message ("Writing data to the internal memory.\n");
-	rc = dc_device_write (device, address, dc_buffer_get_data (buffer), dc_buffer_get_size (buffer));
+	size_t size = dc_buffer_get_size (buffer);
+	if (size > UINT_MAX) {
+		rc = DC_STATUS_INVALIDARGS;
+		goto cleanup;
+	}
+	rc = dc_device_write (device, address, dc_buffer_get_data (buffer), (unsigned int) size);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR ("Error writing to the internal memory.");
 		goto cleanup;
@@ -136,11 +142,13 @@ dctool_write_run (int argc, char *argv[], dc_context_t *context, dc_descriptor_t
 			transport = dctool_transport_type (optarg);
 			break;
 		case 'a':
-			address = strtoul (optarg, NULL, 0);
+			if (!dctool_parse_uint (optarg, &address))
+				return EXIT_FAILURE;
 			have_address = 1;
 			break;
 		case 'c':
-			count = strtoul (optarg, NULL, 0);
+			if (!dctool_parse_uint (optarg, &count))
+				return EXIT_FAILURE;
 			have_count = 1;
 			break;
 		case 'i':

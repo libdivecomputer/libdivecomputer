@@ -677,8 +677,14 @@ oceans_s1_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback, vo
 
 		unsigned char fingerprint[SZ_FINGERPRINT] = {0};
 		array_uint64_be_set (fingerprint, dive->timestamp);
+		size_t dive_size = dc_buffer_get_size (buffer);
+		if (dive_size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			status = DC_STATUS_DATAFORMAT;
+			goto error_free_list;
+		}
 
-		if (callback && !callback (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), fingerprint, sizeof(fingerprint), userdata))
+		if (callback && !callback (dc_buffer_get_data (buffer), (unsigned int) dive_size, fingerprint, sizeof(fingerprint), userdata))
 			break;
 	}
 

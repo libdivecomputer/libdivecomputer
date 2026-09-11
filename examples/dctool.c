@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -94,11 +95,13 @@ void
 dctool_command_showhelp (const dctool_command_t *command)
 {
 	if (command == NULL) {
-		unsigned int maxlength = 0;
+		int maxlength = 0;
 		for (size_t i = 0; g_commands[i] != NULL; ++i) {
-			unsigned int length = strlen (g_commands[i]->name);
-			if (length > maxlength)
-				maxlength = length;
+			size_t length = strlen (g_commands[i]->name);
+			if (length > INT_MAX)
+				return;
+			if ((int) length > maxlength)
+				maxlength = (int) length;
 		}
 		printf (
 			"A simple command line interface for the libdivecomputer library\n"
@@ -211,7 +214,8 @@ main (int argc, char *argv[])
 			have_family = 1;
 			break;
 		case 'm':
-			model = strtoul (optarg, NULL, 0);
+			if (!dctool_parse_uint (optarg, &model))
+				return EXIT_FAILURE;
 			have_model = 1;
 			break;
 		case 'l':

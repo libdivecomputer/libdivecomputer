@@ -245,7 +245,7 @@ dc_context_syserror (dc_context_t *context, dc_loglevel_t loglevel, const char *
 }
 
 dc_status_t
-dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *prefix, const unsigned char data[], unsigned int size)
+dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *prefix, const unsigned char data[], size_t size)
 {
 #ifdef ENABLE_LOGGING
 	int n;
@@ -261,7 +261,7 @@ dc_context_hexdump (dc_context_t *context, dc_loglevel_t loglevel, const char *f
 	if (context->logfunc == NULL)
 		return DC_STATUS_SUCCESS;
 
-	n = dc_platform_snprintf (context->msg, sizeof (context->msg), "%s: size=%u, data=", prefix, size);
+	n = dc_platform_snprintf (context->msg, sizeof (context->msg), "%s: size=" DC_PRINTF_SIZE ", data=", prefix, size);
 
 	if (n >= 0) {
 		n = l_hexdump (context->msg + n, sizeof (context->msg) - n, data, size);

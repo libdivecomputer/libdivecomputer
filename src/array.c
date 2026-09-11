@@ -24,9 +24,9 @@
 #include "array.h"
 
 void
-array_reverse_bytes (unsigned char data[], unsigned int size)
+array_reverse_bytes (unsigned char data[], size_t size)
 {
-	for (unsigned int i = 0; i < size / 2; ++i) {
+	for (size_t i = 0; i < size / 2; ++i) {
 		unsigned char hlp = data[i];
 		data[i] = data[size - 1 - i];
 		data[size - 1 - i] = hlp;
@@ -35,9 +35,9 @@ array_reverse_bytes (unsigned char data[], unsigned int size)
 
 
 void
-array_reverse_bits (unsigned char data[], unsigned int size)
+array_reverse_bits (unsigned char data[], size_t size)
 {
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		unsigned char j = 0;
 		j  = (data[i] & 0x01) << 7;
 		j += (data[i] & 0x02) << 5;
@@ -52,18 +52,18 @@ array_reverse_bits (unsigned char data[], unsigned int size)
 }
 
 void
-array_reverse_nibbles (unsigned char data[], unsigned int size)
+array_reverse_nibbles (unsigned char data[], size_t size)
 {
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		unsigned char tmp = data[i];
 		data[i] = ((tmp & 0xF0) >> 4) | ((tmp & 0x0F) << 4);
 	}
 }
 
 int
-array_isequal (const unsigned char data[], unsigned int size, unsigned char value)
+array_isequal (const unsigned char data[], size_t size, unsigned char value)
 {
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		if (data[i] != value)
 			return 0;
 	}
@@ -73,8 +73,8 @@ array_isequal (const unsigned char data[], unsigned int size, unsigned char valu
 
 
 const unsigned char *
-array_search_forward (const unsigned char *data, unsigned int size,
-                      const unsigned char *marker, unsigned int msize)
+array_search_forward (const unsigned char *data, size_t size,
+					  const unsigned char *marker, size_t msize)
 {
 	while (size >= msize) {
 		if (memcmp (data, marker, msize) == 0)
@@ -87,8 +87,8 @@ array_search_forward (const unsigned char *data, unsigned int size,
 
 
 const unsigned char *
-array_search_backward (const unsigned char *data, unsigned int size,
-                       const unsigned char *marker, unsigned int msize)
+array_search_backward (const unsigned char *data, size_t size,
+					   const unsigned char *marker, size_t msize)
 {
 	data += size;
 	while (size >= msize) {
@@ -102,7 +102,7 @@ array_search_backward (const unsigned char *data, unsigned int size,
 
 
 int
-array_convert_bin2hex (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
+array_convert_bin2hex (const unsigned char input[], size_t isize, unsigned char output[], size_t osize)
 {
 	if (osize != 2 * isize)
 		return -1;
@@ -111,7 +111,7 @@ array_convert_bin2hex (const unsigned char input[], unsigned int isize, unsigned
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
-	for (unsigned int i = 0; i < isize; ++i) {
+	for (size_t i = 0; i < isize; ++i) {
 		// Set the most-significant nibble.
 		unsigned char msn = (input[i] >> 4) & 0x0F;
 		output[i * 2 + 0] = ascii[msn];
@@ -126,12 +126,12 @@ array_convert_bin2hex (const unsigned char input[], unsigned int isize, unsigned
 
 
 int
-array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize)
+array_convert_hex2bin (const unsigned char input[], size_t isize, unsigned char output[], size_t osize)
 {
 	if (isize != 2 * osize)
 		return -1;
 
-	for (unsigned int i = 0; i < osize; ++i) {
+	for (size_t i = 0; i < osize; ++i) {
 		unsigned char value = 0;
 		for (unsigned int j = 0; j < 2; ++j) {
 			unsigned char number = 0;
@@ -155,10 +155,10 @@ array_convert_hex2bin (const unsigned char input[], unsigned int isize, unsigned
 }
 
 unsigned int
-array_convert_str2num (const unsigned char data[], unsigned int size)
+array_convert_str2num (const unsigned char data[], size_t size)
 {
 	unsigned int value = 0;
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		if (data[i] < '0' || data[i] > '9')
 			break;
 		value *= 10;
@@ -169,10 +169,10 @@ array_convert_str2num (const unsigned char data[], unsigned int size)
 }
 
 unsigned int
-array_convert_bin2dec (const unsigned char data[], unsigned int size)
+array_convert_bin2dec (const unsigned char data[], size_t size)
 {
 	unsigned int value = 0;
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		value *= 100;
 		value += data[i];
 	}
@@ -181,10 +181,10 @@ array_convert_bin2dec (const unsigned char data[], unsigned int size)
 }
 
 unsigned int
-array_convert_bcd2dec (const unsigned char data[], unsigned int size)
+array_convert_bcd2dec (const unsigned char data[], size_t size)
 {
 	unsigned int value = 0;
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		value *= 100;
 		value += bcd2dec(data[i]);
 	}

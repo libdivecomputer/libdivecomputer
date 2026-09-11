@@ -19,6 +19,7 @@
  * MA 02110-1301 USA
  */
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -47,7 +48,7 @@ mktemplate_fingerprint (char *buffer, size_t size, const unsigned char fingerpri
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
-	if (size < 2 * fsize + 1)
+	if (fsize > INT_MAX / 2 || size < 2 * fsize + 1)
 		return -1;
 
 	for (size_t i = 0; i < fsize; ++i) {
@@ -63,7 +64,7 @@ mktemplate_fingerprint (char *buffer, size_t size, const unsigned char fingerpri
 	// Null-terminate the string.
 	buffer[fsize * 2] = 0;
 
-	return fsize * 2;
+	return (int) (fsize * 2);
 }
 
 static int
@@ -83,7 +84,9 @@ mktemplate_datetime (char *buffer, size_t size, dc_parser_t *parser)
 	if (n < 0 || (size_t) n >= size)
 		return -1;
 
-	return n;
+	if (n > INT_MAX)
+		return -1;
+	return (int) n;
 }
 
 static int
@@ -151,7 +154,9 @@ mktemplate (char *buffer, size_t size, const char *format, dc_parser_t *parser, 
 		return -1;
 	buffer[n] = 0;
 
-	return n;
+	if (n > INT_MAX)
+		return -1;
+	return (int) n;
 }
 
 dctool_output_t *

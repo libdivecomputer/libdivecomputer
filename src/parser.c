@@ -255,6 +255,9 @@ dc_parser_new2 (dc_parser_t **out, dc_context_t *context, dc_descriptor_t *descr
 dc_parser_t *
 dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable, const unsigned char data[], size_t size)
 {
+	if (size > UINT_MAX)
+		return NULL;
+
 	dc_parser_t *parser = NULL;
 
 	assert(vtable != NULL);
@@ -282,7 +285,7 @@ dc_parser_allocate (dc_context_t *context, const dc_parser_vtable_t *vtable, con
 
 		// Copy the data.
 		memcpy (parser->data, data, size);
-		parser->size = size;
+		parser->size = (unsigned int) size;
 	} else {
 		parser->data = NULL;
 		parser->size = 0;

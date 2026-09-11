@@ -319,8 +319,8 @@ pelagic_i330r_init_passcode (pelagic_i330r_device_t *device, const char *pincode
 	}
 
 	// Convert to binary number.
-	unsigned int offset = sizeof(passcode) - len;
-	for (unsigned int i = 0; i < len; i++) {
+	size_t offset = sizeof(passcode) - len;
+	for (size_t i = 0; i < len; i++) {
 		unsigned char c = pincode[i];
 		if (c < '0' || c > '9') {
 			ERROR (abstract->context, "Invalid pincode character (%c).", c);

@@ -82,7 +82,7 @@ static const dc_device_vtable_t uwatec_smart_device_vtable = {
 };
 
 static dc_status_t
-uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+uwatec_smart_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 uwatec_smart_irda_send (uwatec_smart_device_t *device, unsigned char cmd, const unsigned char data[], size_t size)
@@ -373,7 +373,7 @@ uwatec_smart_usbhid_receive (uwatec_smart_device_t *device, dc_event_progress_t 
 		 *
 		 * It may be just an oddly implemented sequence number. Whatever.
 		 */
-		unsigned int len = transferred - 1;
+		size_t len = transferred - 1;
 		if (transport == DC_TRANSPORT_USBHID) {
 			if (len > buf[0])
 				len = buf[0];
@@ -708,7 +708,7 @@ uwatec_smart_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 
 
 static dc_status_t
-uwatec_smart_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+uwatec_smart_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	if (abstract && !ISINSTANCE (abstract))
 		return DC_STATUS_INVALIDARGS;
@@ -716,8 +716,8 @@ uwatec_smart_extract_dives (dc_device_t *abstract, const unsigned char data[], u
 	const unsigned char header[4] = {0xa5, 0xa5, 0x5a, 0x5a};
 
 	// Search the data stream for start markers.
-	unsigned int previous = size;
-	unsigned int current = (size >= 4 ? size - 4 : 0);
+	size_t previous = size;
+	size_t current = (size >= 4 ? size - 4 : 0);
 	while (current > 0) {
 		current--;
 		if (memcmp (data + current, header, sizeof (header)) == 0) {

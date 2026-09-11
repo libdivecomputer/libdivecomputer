@@ -65,7 +65,7 @@ static const dc_device_vtable_t uwatec_aladin_device_vtable = {
 };
 
 static dc_status_t
-uwatec_aladin_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+uwatec_aladin_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 uwatec_aladin_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
@@ -261,7 +261,7 @@ uwatec_aladin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 
 
 static dc_status_t
-uwatec_aladin_extract_dives (dc_device_t *abstract, const unsigned char* data, unsigned int size, dc_dive_callback_t callback, void *userdata)
+uwatec_aladin_extract_dives (dc_device_t *abstract, const unsigned char* data, size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	uwatec_aladin_device_t *device = (uwatec_aladin_device_t*) abstract;
 

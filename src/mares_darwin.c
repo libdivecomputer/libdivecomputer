@@ -94,7 +94,7 @@ static const mares_darwin_layout_t mares_darwinair_layout = {
 };
 
 static dc_status_t
-mares_darwin_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+mares_darwin_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 dc_status_t
 mares_darwin_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream, unsigned int model)
@@ -246,7 +246,7 @@ mares_darwin_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback,
 
 
 static dc_status_t
-mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+mares_darwin_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	mares_darwin_device_t *device = (mares_darwin_device_t *) abstract;
 

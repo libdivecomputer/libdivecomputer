@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -134,9 +135,14 @@ event_cb (dc_device_t *device, dc_event_type_t event, const void *data, void *us
 			fingerprint = dctool_file_read (filename);
 
 			// Register the fingerprint data.
-			dc_device_set_fingerprint (device,
-				dc_buffer_get_data (fingerprint),
-				dc_buffer_get_size (fingerprint));
+			size_t size = dc_buffer_get_size (fingerprint);
+			if (size <= UINT_MAX) {
+				dc_device_set_fingerprint (device,
+					dc_buffer_get_data (fingerprint),
+					(unsigned int) size);
+			} else {
+				ERROR ("Cached fingerprint is too large.");
+			}
 
 			// Free the buffer again.
 			dc_buffer_free (fingerprint);
@@ -207,7 +213,13 @@ download (dc_context_t *context, dc_descriptor_t *descriptor, dc_transport_t tra
 	// Register the fingerprint data.
 	if (fingerprint) {
 		message ("Registering the fingerprint data.\n");
-		rc = dc_device_set_fingerprint (device, dc_buffer_get_data (fingerprint), dc_buffer_get_size (fingerprint));
+		size_t size = dc_buffer_get_size (fingerprint);
+		if (size > UINT_MAX) {
+			ERROR ("Fingerprint is too large.");
+			rc = DC_STATUS_INVALIDARGS;
+			goto cleanup;
+		}
+		rc = dc_device_set_fingerprint (device, dc_buffer_get_data (fingerprint), (unsigned int) size);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR ("Error registering the fingerprint data.");
 			goto cleanup;
@@ -314,7 +326,8 @@ dctool_download_run (int argc, char *argv[], dc_context_t *context, dc_descripto
 				units = DCTOOL_UNITS_IMPERIAL;
 			break;
 		case 'l':
-			limit = strtoul (optarg, NULL, 0);
+			if (!dctool_parse_uint (optarg, &limit))
+				return EXIT_FAILURE;
 			break;
 		default:
 			return EXIT_FAILURE;

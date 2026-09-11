@@ -1177,11 +1177,11 @@ hw_ostc3_device_config_reset (dc_device_t *abstract)
 // This is a variant of fletcher16 with a 16 bit sum instead of an 8 bit sum,
 // and modulo 2^16 instead of 2^16-1
 static unsigned int
-hw_ostc3_firmware_checksum (const unsigned char data[], unsigned int size)
+hw_ostc3_firmware_checksum (const unsigned char data[], size_t size)
 {
 	unsigned short low = 0;
 	unsigned short high = 0;
-	for (unsigned int i = 0; i < size; i++) {
+	for (size_t i = 0; i < size; i++) {
 		low  += data[i];
 		high += low;
 	}
@@ -1624,17 +1624,22 @@ hw_ostc3_device_fwupdate4 (dc_device_t *abstract, const char *filename)
 	if (status != DC_STATUS_SUCCESS) {
 		goto error;
 	}
+	if (dc_buffer_get_size (buffer) > UINT_MAX) {
+		ERROR (context, "Firmware file is too large.");
+		status = DC_STATUS_INVALIDARGS;
+		goto error;
+	}
 
 	// Enable progress notifications.
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = dc_buffer_get_size (buffer);
+	progress.maximum = (unsigned int) dc_buffer_get_size (buffer);
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	// Cache the pointer and size.
 	const unsigned char *data = dc_buffer_get_data (buffer);
-	unsigned int size = dc_buffer_get_size (buffer);
+	size_t size = dc_buffer_get_size (buffer);
 
-	unsigned int offset = 0;
+	size_t offset = 0;
 	while (offset + 4 <= size) {
 		// Get the length of the firmware blob.
 		unsigned int length = array_uint32_be(data + offset) + 20;

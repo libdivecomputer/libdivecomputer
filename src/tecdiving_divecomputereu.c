@@ -78,10 +78,10 @@ static const dc_device_vtable_t tecdiving_divecomputereu_device_vtable = {
 };
 
 static unsigned short
-checksum_crc (const unsigned char data[], unsigned int size, unsigned short init)
+checksum_crc (const unsigned char data[], size_t size, unsigned short init)
 {
 	unsigned short crc = init;
-	for (unsigned int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		crc ^= data[i] << 8;
 		if (crc & 0x8000) {
 			crc <<= 1;
@@ -528,7 +528,12 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 
 		// Cache the pointer.
 		unsigned char *data = dc_buffer_get_data(buffer);
-		unsigned int size = dc_buffer_get_size(buffer);
+		size_t size = dc_buffer_get_size(buffer);
+		if (size > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			status = DC_STATUS_DATAFORMAT;
+			goto error_buffer_free;
+		}
 
 		// Verify the logbook entry.
 		if (memcmp (data, logbook + offset, SZ_SUMMARY) != 0) {
@@ -537,7 +542,7 @@ tecdiving_divecomputereu_device_foreach (dc_device_t *abstract, dc_dive_callback
 			goto error_buffer_free;
 		}
 
-		if (callback && !callback (data, size, data, sizeof(device->fingerprint), userdata)) {
+		if (callback && !callback (data, (unsigned int) size, data, sizeof(device->fingerprint), userdata)) {
 			break;
 		}
 	}

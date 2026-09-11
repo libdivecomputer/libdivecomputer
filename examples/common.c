@@ -19,6 +19,9 @@
  * MA 02110-1301 USA
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -55,6 +58,26 @@ typedef struct transport_table_t {
 	const char *name;
 	dc_transport_t type;
 } transport_table_t;
+
+int
+dctool_parse_uint (const char *text, unsigned int *value)
+{
+	if (text == NULL || value == NULL)
+		return 0;
+	while (isspace ((unsigned char) *text))
+		text++;
+	if (*text == '-')
+		return 0;
+
+	char *end = NULL;
+	errno = 0;
+	unsigned long result = strtoul (text, &end, 0);
+	if (errno == ERANGE || end == text || *end != '\0' || result > UINT_MAX)
+		return 0;
+
+	*value = (unsigned int) result;
+	return 1;
+}
 
 static const backend_table_t g_backends[] = {
 	{"solution",    DC_FAMILY_SUUNTO_SOLUTION,     0},
@@ -486,7 +509,10 @@ dctool_irda_open (dc_iostream_t **out, dc_context_t *context, dc_descriptor_t *d
 
 	if (devname) {
 		// Use the address.
-		address = strtoul(devname, NULL, 0);
+		if (!dctool_parse_uint (devname, &address)) {
+			ERROR ("Invalid device address specified.");
+			return DC_STATUS_INVALIDARGS;
+		}
 	} else {
 		// Discover the device address.
 		dc_iterator_t *iterator = NULL;

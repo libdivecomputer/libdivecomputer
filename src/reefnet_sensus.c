@@ -61,7 +61,7 @@ static const dc_device_vtable_t reefnet_sensus_device_vtable = {
 };
 
 static dc_status_t
-reefnet_sensus_extract_dives (dc_device_t *device, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata);
+reefnet_sensus_extract_dives (dc_device_t *device, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata);
 
 static dc_status_t
 reefnet_sensus_cancel (reefnet_sensus_device_t *device)
@@ -357,7 +357,7 @@ reefnet_sensus_device_foreach (dc_device_t *abstract, dc_dive_callback_t callbac
 
 
 static dc_status_t
-reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[], unsigned int size, dc_dive_callback_t callback, void *userdata)
+reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[], size_t size, dc_dive_callback_t callback, void *userdata)
 {
 	reefnet_sensus_device_t *device = (reefnet_sensus_device_t*) abstract;
 	dc_context_t *context = (abstract ? abstract->context : NULL);
@@ -366,8 +366,8 @@ reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[],
 		return DC_STATUS_INVALIDARGS;
 
 	// Search the entire data stream for start markers.
-	unsigned int previous = size;
-	unsigned int current = (size >= 7 ? size - 7 : 0);
+	size_t previous = size;
+	size_t current = (size >= 7 ? size - 7 : 0);
 	while (current > 0) {
 		current--;
 		if (data[current] == 0xFF && data[current + 6] == 0xFE) {
@@ -376,7 +376,7 @@ reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[],
 			// limited to the start of the previous dive.
 			int found = 0;
 			unsigned int nsamples = 0, count = 0;
-			unsigned int offset = current + 7; // Skip non-sample data.
+			size_t offset = current + 7; // Skip non-sample data.
 			while (offset + 1 <= previous) {
 				// Depth (adjusted feet of seawater).
 				unsigned char depth = data[offset++];
@@ -414,8 +414,11 @@ reefnet_sensus_extract_dives (dc_device_t *abstract, const unsigned char data[],
 			unsigned int timestamp = array_uint32_le (data + current + 2);
 			if (device && timestamp <= device->timestamp)
 				return DC_STATUS_SUCCESS;
+			size_t dive_size = offset - current;
+			if (dive_size > UINT_MAX)
+				return DC_STATUS_DATAFORMAT;
 
-			if (callback && !callback (data + current, offset - current, data + current + 2, 4, userdata))
+			if (callback && !callback (data + current, (unsigned int) dive_size, data + current + 2, 4, userdata))
 				return DC_STATUS_SUCCESS;
 
 			// Prepare for the next dive.

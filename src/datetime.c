@@ -120,14 +120,18 @@ dc_datetime_localtime (dc_datetime_t *result,
 		return NULL;
 
 #ifdef HAVE_STRUCT_TM_TM_GMTOFF
-	offset = tm.tm_gmtoff;
+	if (tm.tm_gmtoff < INT_MIN || tm.tm_gmtoff > INT_MAX)
+		return NULL;
+	offset = (int) tm.tm_gmtoff;
 #else
 	struct tm tmp = tm;
 	time_t t_local = dc_timegm (&tmp);
 	if (t_local == (time_t) -1)
 		return NULL;
 
-	offset = t_local - t;
+	if (t_local - t < INT_MIN || t_local - t > INT_MAX)
+		return NULL;
+	offset = (int) (t_local - t);
 #endif
 
 	if (result) {

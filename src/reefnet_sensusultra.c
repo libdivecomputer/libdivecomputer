@@ -573,7 +573,7 @@ reefnet_sensusultra_device_sense (dc_device_t *abstract, unsigned char *data, un
 
 static dc_status_t
 reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
-	const unsigned char data[], unsigned int *premaining, unsigned int *pprevious,
+	const unsigned char data[], size_t *premaining, size_t *pprevious,
 	int *aborted, dc_dive_callback_t callback, void *userdata)
 {
 	const unsigned char header[4] = {0x00, 0x00, 0x00, 0x00};
@@ -606,6 +606,9 @@ reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 		if (previous) {
 			// Move the pointer to the end of the footer.
 			previous += sizeof (footer);
+			size_t dive_size = previous - current;
+			if (dive_size > UINT_MAX)
+				return DC_STATUS_DATAFORMAT;
 
 			// Automatically abort when a dive is older than the provided timestamp.
 			unsigned int timestamp = array_uint32_le (current + 4);
@@ -615,7 +618,7 @@ reefnet_sensusultra_parse (reefnet_sensusultra_device_t *device,
 				return DC_STATUS_SUCCESS;
 			}
 
-			if (callback && !callback (current, previous - current, current + 4, 4, userdata)) {
+			if (callback && !callback (current, (unsigned int) dive_size, current + 4, 4, userdata)) {
 				if (aborted)
 					*aborted = 1;
 				return DC_STATUS_SUCCESS;
@@ -665,8 +668,8 @@ reefnet_sensusultra_device_foreach (dc_device_t *abstract, dc_dive_callback_t ca
 	}
 
 	// Initialize the state for the incremental parser.
-	unsigned int remaining = 0;
-	unsigned int previous = 0;
+	size_t remaining = 0;
+	size_t previous = 0;
 
 	unsigned int nbytes = 0;
 	unsigned int npages = 0;

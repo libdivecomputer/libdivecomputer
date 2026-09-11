@@ -263,7 +263,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		// Cache the buffer pointer and size.
 		unsigned char *data = dc_buffer_get_data (buffer);
-		unsigned int size = dc_buffer_get_size (buffer);
+		size_t size = dc_buffer_get_size (buffer);
 
 		// Process the records in the manifest.
 		unsigned int count = 0, deleted = 0;
@@ -312,9 +312,9 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 	// Cache the buffer pointer and size.
 	unsigned char *data = dc_buffer_get_data (manifests);
-	unsigned int size = dc_buffer_get_size (manifests);
+	size_t size = dc_buffer_get_size (manifests);
 
-	unsigned int offset = 0;
+	size_t offset = 0;
 	while (offset < size) {
 		// skip deleted dives
 		if (array_uint16_be(data + offset) == 0x5A23) {
@@ -339,8 +339,13 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		current += 1;
 
 		unsigned char *buf = dc_buffer_get_data (buffer);
-		unsigned int len = dc_buffer_get_size (buffer);
-		if (callback && !callback (buf, len, buf + 12, sizeof (device->fingerprint), userdata))
+		size_t len = dc_buffer_get_size (buffer);
+		if (len > UINT_MAX) {
+			ERROR (abstract->context, "Dive data is too large.");
+			rc = DC_STATUS_DATAFORMAT;
+			break;
+		}
+		if (callback && !callback (buf, (unsigned int) len, buf + 12, sizeof (device->fingerprint), userdata))
 			break;
 
 		offset += RECORD_SIZE;

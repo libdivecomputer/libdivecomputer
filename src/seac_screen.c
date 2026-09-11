@@ -152,7 +152,7 @@ seac_screen_send (seac_screen_device_t *device, unsigned short cmd, const unsign
 		return DC_STATUS_INVALIDARGS;
 
 	// Setup the data packet
-	unsigned len = size + 6;
+	size_t len = size + 6;
 	unsigned char packet[SZ_MAXCMD + 7] = {
 		START,
 		(len >> 8) & 0xFF,
@@ -242,7 +242,7 @@ seac_screen_receive (seac_screen_device_t *device, unsigned short cmd, unsigned 
 	}
 
 	// Verify the length of the packet.
-	unsigned int expected = (type == ACK ? size : 1) + 7;
+	size_t expected = (type == ACK ? size : 1) + 7;
 	if (length != expected) {
 		ERROR (abstract->context, "Unexpected packet length (%u).", length);
 		return DC_STATUS_PROTOCOL;
