@@ -25,6 +25,8 @@ LOCAL_SRC_FILES := \
 	src/cressi_goa_parser.c \
 	src/cressi_leonardo.c \
 	src/cressi_leonardo_parser.c \
+	src/crest_cr5l.c \
+	src/crest_cr5l_parser.c \
 	src/custom.c \
 	src/datetime.c \
 	src/deepblu_cosmiq.c \
