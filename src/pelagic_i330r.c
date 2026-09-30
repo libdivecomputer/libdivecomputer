@@ -570,9 +570,22 @@ pelagic_i330r_device_read (dc_device_t *abstract, unsigned int address, unsigned
 	array_uint32_le_set(command + 0, address);
 	array_uint32_le_set(command + 4, size);
 
-	status = pelagic_i330r_transfer (device, CMD_READ_FLASH, FLAG_NONE, command, sizeof(command), data, size, RSP_DONE);
-	if (status != DC_STATUS_SUCCESS) {
-		return status;
+	// A flash read is idempotent, so retry protocol errors and timeouts.
+	unsigned int nretries = 0;
+	while ((status = pelagic_i330r_transfer (device, CMD_READ_FLASH, FLAG_NONE, command, sizeof(command), data, size, RSP_DONE)) != DC_STATUS_SUCCESS) {
+		if (status != DC_STATUS_PROTOCOL && status != DC_STATUS_TIMEOUT)
+			return status;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return status;
+
+		WARNING (abstract->context, "Flash read at %08x failed, retrying (%u/%u).", address, nretries, MAXRETRIES);
+
+		// Allow the device to finish sending the abandoned response, then
+		// discard queued packets before resending the command.
+		dc_iostream_sleep (device->iostream, 1000);
+		dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
 	}
 
 	return status;
