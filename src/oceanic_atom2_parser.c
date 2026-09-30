@@ -459,7 +459,7 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 	} else if (parser->model == DSX) {
 		if (mode < DSX_SIDEGAUGE) {
 			o2_offset = parser->logbooksize + 0x89 + mode * 16;
-			he_offset = parser->logbooksize + 0xB9 + mode * 16;
+			he_offset = 0xB9 + mode * 16;
 			ngasmixes = 6;
 		} else {
 			ngasmixes = 0;
