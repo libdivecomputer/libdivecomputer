@@ -34,6 +34,7 @@ extern "C" {
 #define ID_FIRMWARE  0x8011
 #define ID_LOGUPLOAD 0x8021
 #define ID_HARDWARE  0x8050
+#define ID_MODEL     0x8060
 
 #define ID_TIME_LOCAL  0x9030
 #define ID_TIME_UTC    0x9031
@@ -53,6 +54,7 @@ extern "C" {
 #define PERDIX2  11
 #define TERN     12
 #define PEREGRINE_TX 13
+#define PERDIX3  14
 
 #define NSTEPS    10000
 #define STEP(i,n) ((NSTEPS * (i) + (n) / 2) / (n))
@@ -60,10 +62,11 @@ extern "C" {
 typedef struct shearwater_common_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream;
+	unsigned int protocol;
 } shearwater_common_device_t;
 
 dc_status_t
-shearwater_common_setup (shearwater_common_device_t *device, dc_context_t *context, dc_iostream_t *iostream);
+shearwater_common_setup (shearwater_common_device_t *device, dc_context_t *context, dc_iostream_t *iostream, unsigned int model);
 
 dc_status_t
 shearwater_common_transfer (shearwater_common_device_t *device, const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize, unsigned int *actual);
@@ -82,9 +85,6 @@ shearwater_common_timesync_local (shearwater_common_device_t *device, const dc_d
 
 dc_status_t
 shearwater_common_timesync_utc (shearwater_common_device_t *device, const dc_datetime_t *datetime);
-
-unsigned int
-shearwater_common_get_model (shearwater_common_device_t *device, unsigned int hardware);
 
 #ifdef __cplusplus
 }

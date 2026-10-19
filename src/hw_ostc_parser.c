@@ -142,9 +142,6 @@ typedef struct hw_ostc_parser_t {
 	unsigned int initial_setpoint;
 	unsigned int initial_cns;
 	hw_ostc_gasmix_t gasmix[NGASMIXES];
-	unsigned int have_location;
-	float latitude;
-	float longitude;
 } hw_ostc_parser_t;
 
 static dc_status_t hw_ostc_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -435,9 +432,6 @@ hw_ostc_parser_create_internal (dc_parser_t **out, dc_context_t *context, const 
 		parser->gasmix[i].active = 0;
 		parser->gasmix[i].diluent = 0;
 	}
-	parser->have_location = 0;
-	parser->latitude = 0.0;
-	parser->longitude = 0.0;
 
 	*out = (dc_parser_t *) parser;
 
@@ -541,7 +535,6 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
-	dc_location_t *location = (dc_location_t *) value;
 
 	unsigned int salinity = data[layout->salinity];
 	if (version == 0x23 || version == 0x24)
@@ -708,13 +701,6 @@ hw_ostc_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned 
 				return DC_STATUS_UNSUPPORTED;
 			}
 			decomodel->conservatism = 0;
-			break;
-		case DC_FIELD_LOCATION:
-			if (!parser->have_location)
-				return DC_STATUS_UNSUPPORTED;
-			location->latitude  = parser->latitude;
-			location->longitude = parser->longitude;
-			location->altitude  = 0.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -1075,13 +1061,10 @@ hw_ostc_parser_internal_foreach (hw_ostc_parser_t *parser, dc_sample_callback_t 
 
 				if (latitude != OSTC4_GNSS_DUMMY_LATITUDE ||
 					longitude != OSTC4_GNSS_DUMMY_LONGITUDE) {
-					if (!parser->have_location) {
-						parser->latitude  = latitude;
-						parser->longitude = longitude;
-						parser->have_location = 1;
-					} else {
-						WARNING (abstract->context, "Multiple GNSS locations present.");
-					}
+					sample.location.latitude  = latitude;
+					sample.location.longitude = longitude;
+					sample.location.altitude  = 0.0;
+					if (callback) callback (DC_SAMPLE_LOCATION, &sample, userdata);
 				}
 
 				offset += 8;

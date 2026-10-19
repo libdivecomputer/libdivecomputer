@@ -62,7 +62,7 @@ AM_CONDITIONAL([ENABLE_DOC], [test "x$enable_doc" = "xyes"])
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_CC_C99
+m4_version_prereq([2.70], [], [AC_PROG_CC_C99])
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
 AC_CHECK_PROGS([MANDOC], [mandoc])
 

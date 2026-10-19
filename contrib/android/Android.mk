@@ -42,7 +42,6 @@ LOCAL_SRC_FILES := \
 	src/halcyon_symbios.c \
 	src/halcyon_symbios_parser.c \
 	src/hdlc.c \
-	src/hw_frog.c \
 	src/hw_ostc3.c \
 	src/hw_ostc.c \
 	src/hw_ostc_parser.c \

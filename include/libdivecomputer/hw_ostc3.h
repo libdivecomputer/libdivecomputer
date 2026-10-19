@@ -33,6 +33,9 @@ extern "C" {
 #define HW_OSTC3_DISPLAY_SIZE    16
 #define HW_OSTC3_CUSTOMTEXT_SIZE 60
 
+#define HW_FROG_DISPLAY_SIZE     15
+#define HW_FROG_CUSTOMTEXT_SIZE  13
+
 dc_status_t
 hw_ostc3_device_version (dc_device_t *device, unsigned char data[], unsigned int size);
 

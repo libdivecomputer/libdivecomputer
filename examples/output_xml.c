@@ -179,6 +179,17 @@ sample_cb (dc_sample_type_t type, const dc_sample_value_t *value, void *userdata
 	case DC_SAMPLE_GASMIX:
 		fprintf (sampledata->ostream, "   <gasmix>%u</gasmix>\n", value->gasmix);
 		break;
+	case DC_SAMPLE_LOCATION:
+		fprintf (sampledata->ostream,
+			"   <location>\n"
+			"      <latitude>%.6f</latitude>\n"
+			"      <longitude>%.6f</longitude>\n"
+			"      <altitude>%.3f</altitude>\n"
+			"   </location>\n",
+			value->location.latitude,
+			value->location.longitude,
+			value->location.altitude);
+		break;
 	default:
 		break;
 	}
@@ -486,9 +497,9 @@ dctool_xml_output_write (dctool_output_t *abstract, dc_parser_t *parser, const u
 	if (status != DC_STATUS_UNSUPPORTED) {
 		fprintf (output->ostream,
 			"<location>\n"
-			"   <latitude>%.6f<latitude>\n"
+			"   <latitude>%.6f</latitude>\n"
 			"   <longitude>%.6f</longitude>\n"
-			"   <altitude>%.2f<altitude>\n"
+			"   <altitude>%.2f</altitude>\n"
 			"</location>\n",
 			location.latitude,
 			location.longitude,

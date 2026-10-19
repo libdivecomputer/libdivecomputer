@@ -476,6 +476,12 @@ divesystem_idive_device_foreach (dc_device_t *abstract, dc_dive_callback_t callb
 		}
 	}
 
+	DEBUG (abstract->context, "Device: firmware=%u.%u.%u/%u",
+		(devinfo.firmware / 10000000),
+		(devinfo.firmware / 100000) % 100,
+		(devinfo.firmware / 1000) % 100,
+		devinfo.firmware % 1000);
+
 	unsigned char cmd_range[] = {commands->range.cmd, 0x8D};
 	rc = divesystem_idive_transfer (device, cmd_range, sizeof(cmd_range), packet, commands->range.size, &errcode);
 	if (rc != DC_STATUS_SUCCESS) {
@@ -649,6 +655,10 @@ divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *da
 	// Adjust the epoch.
 	timestamp -= EPOCH;
 
+	// UTC offset.
+	int tz_offset = datetime->timezone != DC_TIMEZONE_NONE ?
+		datetime->timezone : 0;
+
 	// Find the timezone index.
 	size_t tz_idx = C_ARRAY_SIZE(tz_array);
 	for (size_t i = 0; i < C_ARRAY_SIZE(tz_array); i += 2) {
@@ -659,7 +669,7 @@ divesystem_idive_device_timesync (dc_device_t *abstract, const dc_datetime_t *da
 			timezone += tz_array[i + 1] * 60;
 		}
 
-		if (timezone == datetime->timezone) {
+		if (timezone == tz_offset) {
 			tz_idx = i;
 			break;
 		}

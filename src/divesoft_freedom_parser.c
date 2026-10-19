@@ -252,9 +252,6 @@ typedef struct divesoft_freedom_parser_t {
 	unsigned int seawater;
 	unsigned int calibration[NSENSORS];
 	unsigned int calibrated;
-	unsigned int have_location;
-	int latitude;
-	int longitude;
 } divesoft_freedom_parser_t;
 
 static dc_status_t divesoft_freedom_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -396,10 +393,6 @@ divesoft_freedom_cache (divesoft_freedom_parser_t *parser)
 	unsigned int calibrated = 0;
 
 	unsigned int gasmixid_previous = UNDEFINED;
-
-	unsigned int have_location = 0;
-	int latitude = 0;
-	int longitude = 0;
 
 	// Parse the dive profile.
 	unsigned int offset = headersize;
@@ -550,14 +543,6 @@ divesoft_freedom_cache (divesoft_freedom_parser_t *parser)
 					}
 					tank[idx].endpressure = pressure;
 				}
-			} else if (id == MEASURE_ID_GPS) {
-				if (!have_location) {
-					latitude  = (signed int) array_uint32_le (data + offset + 4);
-					longitude = (signed int) array_uint32_le (data + offset + 8);
-					have_location = 1;
-				} else {
-					WARNING (abstract->context, "Multiple GPS locations present.");
-				}
 			}
 		}
 
@@ -650,9 +635,6 @@ divesoft_freedom_cache (divesoft_freedom_parser_t *parser)
 		parser->calibration[i] = calibration[i];
 	}
 	parser->calibrated = calibrated;
-	parser->have_location = have_location;
-	parser->latitude = latitude;
-	parser->longitude = longitude;
 
 	return DC_STATUS_SUCCESS;
 }
@@ -707,9 +689,6 @@ divesoft_freedom_parser_create (dc_parser_t **out, dc_context_t *context, const 
 		parser->calibration[i] = 0;
 	}
 	parser->calibrated = 0;
-	parser->have_location = 0;
-	parser->latitude = 0;
-	parser->longitude = 0;
 
 	*out = (dc_parser_t *) parser;
 
@@ -766,7 +745,6 @@ divesoft_freedom_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
-	dc_location_t *location = (dc_location_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -861,13 +839,6 @@ divesoft_freedom_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 				decomodel->params.gf.low = parser->gf_lo;
 				decomodel->params.gf.high = parser->gf_hi;
 			}
-			break;
-		case DC_FIELD_LOCATION:
-			if (!parser->have_location)
-				return DC_STATUS_UNSUPPORTED;
-			location->latitude  = parser->latitude  / 1000000.0;
-			location->longitude = parser->longitude / 1000000.0;
-			location->altitude  = 0.0;
 			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
@@ -1061,6 +1032,13 @@ divesoft_freedom_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 					sample.ppo2.value = value / 100.0 * parser->calibration[i] / BAR;
 					if (callback) callback(DC_SAMPLE_PPO2, &sample, userdata);
 				}
+			} else if (id == MEASURE_ID_GPS) {
+				int latitude  = (signed int) array_uint32_le (data + offset + 4);
+				int longitude = (signed int) array_uint32_le (data + offset + 8);
+				sample.location.latitude  = latitude  / 1000000.0;
+				sample.location.longitude = longitude / 1000000.0;
+				sample.location.altitude  = 0.0;
+				if (callback) callback (DC_SAMPLE_LOCATION, &sample, userdata);
 			}
 		} else if (type == LREC_STATE) {
 			// Tissue saturation record.

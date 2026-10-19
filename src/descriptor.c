@@ -319,6 +319,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Mares", "Sirius",            DC_FAMILY_MARES_ICONHD , 0x2F, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Quad Ci",           DC_FAMILY_MARES_ICONHD , 0x31, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Quad 2",            DC_FAMILY_MARES_ICONHD , 0x32, DC_TRANSPORT_BLE, dc_filter_mares},
+	{"Mares", "Sirius L",          DC_FAMILY_MARES_ICONHD , 0x33, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Puck 4",            DC_FAMILY_MARES_ICONHD , 0x35, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Puck Lite",         DC_FAMILY_MARES_ICONHD , 0x35, DC_TRANSPORT_BLE, dc_filter_mares},
 	{"Mares", "Puck Pro EZ",       DC_FAMILY_MARES_ICONHD , 0x35, DC_TRANSPORT_BLE, dc_filter_mares},
@@ -331,8 +332,8 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Heinrichs Weikamp", "Frog",     DC_FAMILY_HW_FROG, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC 2",     DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC 2 TR",  DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
-	{"Heinrichs Weikamp", "OSTC 3",     DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL, NULL},
-	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL, NULL},
+	{"Heinrichs Weikamp", "OSTC 3",     DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
+	{"Heinrichs Weikamp", "OSTC cR",    DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC Plus",  DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC Sport", DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLUETOOTH | DC_TRANSPORT_BLE, dc_filter_hw},
 	{"Heinrichs Weikamp", "OSTC Nano",  DC_FAMILY_HW_OSTC3, 0, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_hw},
@@ -353,6 +354,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Cressi", "Leonardo 2.0", DC_FAMILY_CRESSI_GOA, 3, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Donatello",    DC_FAMILY_CRESSI_GOA, 4, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Michelangelo", DC_FAMILY_CRESSI_GOA, 5, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
+	{"Cressi", "Raffaello",    DC_FAMILY_CRESSI_GOA, 6, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Neon",     DC_FAMILY_CRESSI_GOA, 9, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	{"Cressi", "Nepto",    DC_FAMILY_CRESSI_GOA, 10, DC_TRANSPORT_SERIAL | DC_TRANSPORT_BLE, dc_filter_cressi},
 	/* Zeagle N2iTiON3 */
@@ -379,6 +381,7 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Shearwater", "Tern",      DC_FAMILY_SHEARWATER_PETREL, 12, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	{"Shearwater", "Tern TX",   DC_FAMILY_SHEARWATER_PETREL, 12, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	{"Shearwater", "Peregrine TX", DC_FAMILY_SHEARWATER_PETREL, 13, DC_TRANSPORT_BLE, dc_filter_shearwater},
+	{"Shearwater", "Perdix 3",  DC_FAMILY_SHEARWATER_PETREL, 14, DC_TRANSPORT_BLE, dc_filter_shearwater},
 	/* Dive Rite NiTek Q */
 	{"Dive Rite", "NiTek Q",   DC_FAMILY_DIVERITE_NITEKQ, 0, DC_TRANSPORT_SERIAL, NULL},
 	/* Citizen Hyper Aqualand */
@@ -742,6 +745,7 @@ dc_filter_shearwater (const dc_descriptor_t *descriptor, dc_transport_t transpor
 		"NERD 2",
 		"Perdix",
 		"Perdix 2",
+		"Perdix 3",
 		"Teric",
 		"Peregrine",
 		"Peregrine TX",
@@ -776,6 +780,7 @@ dc_filter_mares (const dc_descriptor_t *descriptor, dc_transport_t transport, co
 		"Mares bluelink pro",
 		"Mares Genius",
 		"Sirius",
+		"Sirius L",
 		"Quad Ci",
 		"Quad2",
 		"Puck4",
@@ -935,6 +940,7 @@ dc_filter_cressi (const dc_descriptor_t *descriptor, dc_transport_t transport, c
 		3,  // Leonardo 2.0
 		4,  // Donatello
 		5,  // Michelangelo
+		6,  // Raffaello
 		9,  // Neon
 		10, // Nepto
 	};

@@ -524,6 +524,7 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -532,6 +533,10 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				parser->model == F11A || parser->model == F11B ||
 				parser->model == MUNDIAL2 || parser->model == MUNDIAL3)
 				*((unsigned int *) value) = bcd2dec (data[2]) + bcd2dec (data[3]) * 60;
+			else if (parser->model == DSX)
+				*((unsigned int *) value) = array_uint16_le(data + parser->footer + 8);
+			else if (parser->model == I770R)
+				*((unsigned int *) value) = (array_uint16_le(data + parser->footer) & 0x7FFF) * 60;
 			else
 				*((unsigned int *) value) = parser->divetime;
 			break;
@@ -552,6 +557,24 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 				return DC_STATUS_UNSUPPORTED;
 			}
 			break;
+		case DC_FIELD_TEMPERATURE_MINIMUM:
+			if (parser->model == DSX) {
+				unsigned int temperature = array_uint16_le (data + parser->footer + 16);
+				*((double *) value) = ((temperature / 10.0) - 32.0) * (5.0 / 9.0);
+			} else if (parser->model == I770R) {
+				*((double *) value) = (data[parser->footer + 6] - 32.0) * (5.0 / 9.0);
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
+			break;
+		case DC_FIELD_TEMPERATURE_MAXIMUM:
+			if (parser->model == DSX) {
+				unsigned int temperature = array_uint16_le (data + parser->footer + 18);
+				*((double *) value) = ((temperature / 10.0) - 32.0) * (5.0 / 9.0);
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
+			break;
 		case DC_FIELD_GASMIX_COUNT:
 			*((unsigned int *) value) = parser->ngasmixes;
 			break;
@@ -563,14 +586,14 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			break;
 		case DC_FIELD_SALINITY:
 			if (parser->model == A300CS || parser->model == VTX ||
-				parser->model == I750TC) {
+				parser->model == I750TC || parser->model == I770R) {
 				if (data[0x18] & 0x80) {
 					water->type = DC_WATER_FRESH;
 				} else {
 					water->type = DC_WATER_SALT;
 				}
 				water->density = 0.0;
-			} else if (parser->model == I330R || parser->model == I330R_C || parser->model == DSX) {
+			} else if (parser->model == I330R || parser->model == I330R_C) {
 				unsigned int settings = array_uint32_le (data + parser->logbooksize + 12);
 				if (settings & 0x10000) {
 					water->type = DC_WATER_FRESH;
@@ -578,6 +601,16 @@ oceanic_atom2_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 					water->type = DC_WATER_SALT;
 				}
 				water->density = 0.0;
+			} else {
+				return DC_STATUS_UNSUPPORTED;
+			}
+			break;
+		case DC_FIELD_DECOMODEL:
+			if (parser->model == DSX) {
+				decomodel->type = DC_DECOMODEL_BUHLMANN;
+				decomodel->conservatism = 0;
+				decomodel->params.gf.low = data[parser->logbooksize + 0x70];
+				decomodel->params.gf.high = data[parser->logbooksize + 0x71];
 			} else {
 				return DC_STATUS_UNSUPPORTED;
 			}
@@ -1075,7 +1108,11 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 					sample.deco.depth = 0.0;
 				}
 				sample.deco.time = decotime * 60;
-				sample.deco.tts = 0;
+				if (parser->model == DSX) {
+					sample.deco.tts = data[offset + 19] * 60;
+				} else {
+					sample.deco.tts = 0;
+				}
 				if (callback) callback (DC_SAMPLE_DECO, &sample, userdata);
 			}
 
@@ -1108,6 +1145,16 @@ oceanic_atom2_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callback_
 				sample.ppo2.sensor = DC_SENSOR_NONE;
 				sample.ppo2.value = data[offset + 9] / 100.0;
 				if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
+			} else if (parser->model == DSX) {
+				sample.ppo2.sensor = DC_SENSOR_NONE;
+				sample.ppo2.value = array_uint16_le (data + offset + 12) / 100.0;
+				if (callback) callback (DC_SAMPLE_PPO2, &sample, userdata);
+			}
+
+			// CNS
+			if (parser->model == DSX) {
+				sample.cns = data[offset + 16] / 100.0;
+				if (callback) callback (DC_SAMPLE_CNS, &sample, userdata);
 			}
 
 			// Bookmarks

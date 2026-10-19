@@ -81,7 +81,7 @@ shearwater_predator_device_open (dc_device_t **out, dc_context_t *context, dc_io
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
 
 	// Setup the device.
-	status = shearwater_common_setup (&device->base, context, iostream);
+	status = shearwater_common_setup (&device->base, context, iostream, PREDATOR);
 	if (status != DC_STATUS_SUCCESS) {
 		goto error_free;
 	}

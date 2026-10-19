@@ -58,8 +58,11 @@
 #define IX3M2_ZHL16C   2
 #define IX3M2_VPM      3
 
-#define REC_SAMPLE 0
 #define REC_INFO   1
+
+#define TANK_VALID        0x8000
+#define TANK_RFCHANNEL    0x001F
+#define TANK_PRESSURE_MSB 0x0020
 
 typedef struct divesystem_idive_parser_t divesystem_idive_parser_t;
 
@@ -90,10 +93,6 @@ struct divesystem_idive_parser_t {
 	unsigned int algorithm;
 	unsigned int gf_low;
 	unsigned int gf_high;
-	unsigned int have_location;
-	int latitude;
-	int longitude;
-	int altitude;
 };
 
 static dc_status_t divesystem_idive_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -153,10 +152,6 @@ divesystem_idive_parser_create (dc_parser_t **out, dc_context_t *context, const 
 	parser->algorithm = INVALID;
 	parser->gf_low = INVALID;
 	parser->gf_high = INVALID;
-	parser->have_location = 0;
-	parser->latitude = 0;
-	parser->longitude = 0;
-	parser->altitude = 0;
 
 	*out = (dc_parser_t*) parser;
 
@@ -283,7 +278,6 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_salinity_t *water = (dc_salinity_t *) value;
 	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
-	dc_location_t *location = (dc_location_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -389,13 +383,6 @@ divesystem_idive_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, 
 				}
 			}
 			break;
-		case DC_FIELD_LOCATION:
-			if (!parser->have_location)
-				return DC_STATUS_UNSUPPORTED;
-			location->latitude  = parser->latitude  / 10000000.0;
-			location->longitude = parser->longitude / 10000000.0;
-			location->altitude  = parser->altitude  / 1000.0;
-			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
@@ -453,6 +440,12 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		firmware = array_uint32_le(data + 0x2E);
 	}
 
+	DEBUG (abstract->context, "Device: firmware=%u.%u.%u/%u",
+		(firmware / 10000000),
+		(firmware / 100000) % 100,
+		(firmware / 1000) % 100,
+		firmware % 1000);
+
 	unsigned int have_location = 0;
 	int altitude = 0, longitude = 0, latitude = 0;
 
@@ -463,18 +456,12 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 		// Get the record type.
 		unsigned int type = ISIX3M(parser->model) ?
 			array_uint16_le (data + offset + 52) :
-			REC_SAMPLE;
-		if (type != REC_SAMPLE) {
-			if (type == REC_INFO) {
-				if (!have_location) {
-					altitude  = (signed int) array_uint32_le (data + offset + 40);
-					longitude = (signed int) array_uint32_le (data + offset + 44);
-					latitude  = (signed int) array_uint32_le (data + offset + 48);
-					have_location = 1;
-				} else {
-					WARNING (abstract->context, "Multiple GPS locations present.");
-				}
-			}
+			0;
+		if (type == REC_INFO) {
+			altitude  = (signed int) array_uint32_le (data + offset + 40);
+			longitude = (signed int) array_uint32_le (data + offset + 44);
+			latitude  = (signed int) array_uint32_le (data + offset + 48);
+			have_location = 1;
 
 			// Skip non-sample records.
 			offset += samplesize;
@@ -600,6 +587,14 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			unsigned int id = data[offset + 47] & 0x0F;
 			unsigned int flags = data[offset + 47] & 0xF0;
 			unsigned int pressure = data[offset + 49];
+			unsigned int DC_ATTR_UNUSED rfchannel = 0;
+
+			if (type & TANK_VALID) {
+				rfchannel = type & TANK_RFCHANNEL;
+				if (type & TANK_PRESSURE_MSB) {
+					pressure |= 0x100;
+				}
+			}
 
 			if (flags & 0x20) {
 				// 300 bar transmitter.
@@ -660,6 +655,15 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 			}
 		}
 
+		// GPS location
+		if (have_location) {
+			sample.location.latitude  = latitude  / 10000000.0;
+			sample.location.longitude = longitude / 10000000.0;
+			sample.location.altitude  = altitude  / 1000.0;
+			if (callback) callback (DC_SAMPLE_LOCATION, &sample, userdata);
+			have_location = 0;
+		}
+
 		offset += samplesize;
 	}
 
@@ -678,10 +682,6 @@ divesystem_idive_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callba
 	parser->algorithm = algorithm;
 	parser->gf_low = gf_low;
 	parser->gf_high = gf_high;
-	parser->have_location = have_location;
-	parser->latitude = latitude;
-	parser->longitude = longitude;
-	parser->altitude = altitude;
 	parser->cached = 1;
 
 	return DC_STATUS_SUCCESS;

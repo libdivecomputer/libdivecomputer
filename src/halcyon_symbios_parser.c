@@ -107,8 +107,6 @@ typedef struct halcyon_symbios_parser_t {
 	halcyon_symbios_tank_t tank[NTANKS];
 	unsigned int gf_lo;
 	unsigned int gf_hi;
-	unsigned int have_location;
-	int latitude, longitude;
 } halcyon_symbios_parser_t;
 
 static dc_status_t halcyon_symbios_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
@@ -153,9 +151,6 @@ halcyon_symbios_parser_create (dc_parser_t **out, dc_context_t *context, const u
 	parser->atmospheric = UNDEFINED;
 	parser->gf_lo = UNDEFINED;
 	parser->gf_hi = UNDEFINED;
-	parser->have_location = 0;
-	parser->latitude = 0;
-	parser->longitude = 0;
 	parser->ngasmixes = 0;
 	parser->ntanks = 0;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
@@ -230,7 +225,6 @@ halcyon_symbios_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
 	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
-	dc_location_t *location = (dc_location_t *) value;
 
 	if (value) {
 		switch (type) {
@@ -293,13 +287,6 @@ halcyon_symbios_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, u
 			decomodel->params.gf.low = parser->gf_lo;
 			decomodel->params.gf.high = parser->gf_hi;
 			break;
-		case DC_FIELD_LOCATION:
-			if (!parser->have_location)
-				return DC_STATUS_UNSUPPORTED;
-			location->latitude  = parser->latitude  / 1000000.0;
-			location->longitude = parser->longitude / 1000000.0;
-			location->altitude  = 0.0;
-			break;
 		default:
 			return DC_STATUS_UNSUPPORTED;
 		}
@@ -342,14 +329,13 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 	unsigned int logversion = 0;
 	unsigned int time_start = UNDEFINED, time_end = UNDEFINED;
+	unsigned int surftime = 0;
 	int timezone = 0;
 	unsigned int maxdepth = 0;
 	unsigned int divemode = UNDEFINED;
 	unsigned int atmospheric = UNDEFINED;
 	unsigned int gf_lo = UNDEFINED;
 	unsigned int gf_hi = UNDEFINED;
-	unsigned int have_location = 0;
-	int latitude = 0, longitude = 0;
 	unsigned int ngasmixes = 0;
 	unsigned int ntanks = 0;
 	halcyon_symbios_gasmix_t gasmix[NGASMIXES] = {0};
@@ -429,14 +415,15 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			atmospheric = array_uint16_le(data + offset + 16);
 			unsigned int DC_ATTR_UNUSED number = array_uint16_le(data + offset + 18);
 			unsigned int DC_ATTR_UNUSED battery = array_uint16_le(data + offset + 20);
+			surftime = array_uint16_le(data + offset + 22) * 60;
 			time_start = array_uint32_le(data + offset + 24);
 			unsigned int serial = array_uint32_le(data + offset + 28);
-			DEBUG (abstract->context, "Device: model=%u, hw=%u.%u, fw=%u.%u.%u, deco=%u.%u, serial=%u",
+			DEBUG (abstract->context, "Device: model=%u, serial=%u, firmware=%u.%u.%u, hw=%u.%u, deco=%u.%u",
 				model,
-				hw_major, hw_minor,
+				serial,
 				fw_major, fw_minor, fw_bugfix,
-				deco_major, deco_minor,
-				serial);
+				hw_major, hw_minor,
+				deco_major, deco_minor);
 		} else if (type == ID_GAS_SWITCH) {
 			unsigned int id = UNDEFINED;
 			unsigned int o2 = data[offset + 2];
@@ -512,7 +499,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 				// Add a new tank if necessary.
 				if (idx >= ntanks) {
-					if (ngasmixes >= NTANKS) {
+					if (ntanks >= NTANKS) {
 						ERROR (abstract->context, "Maximum number of tanks reached.");
 						return DC_STATUS_NOMEMORY;
 					}
@@ -539,13 +526,12 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 				unsigned int DC_ATTR_UNUSED he = array_uint16_le (data + offset + 36 + i * 2);
 			}
 		} else if (type == ID_GPS) {
-			if (!have_location) {
-				longitude = (signed int) array_uint32_le (data + offset + 4);
-				latitude  = (signed int) array_uint32_le (data + offset + 8);
-				have_location = 1;
-			} else {
-				WARNING (abstract->context, "Multiple GPS locations present.");
-			}
+			int longitude = (signed int) array_uint32_le (data + offset + 4);
+			int latitude  = (signed int) array_uint32_le (data + offset + 8);
+			sample.location.latitude  = latitude  / 1000000.0;
+			sample.location.longitude = longitude / 1000000.0;
+			sample.location.altitude  = 0.0;
+			if (callback) callback (DC_SAMPLE_LOCATION, &sample, userdata);
 		} else if (type == ID_PO2_BOARD) {
 			unsigned int DC_ATTR_UNUSED serial = array_uint16_le (data + offset + 6);
 			for (unsigned int i = 0; i < 3; ++i) {
@@ -616,7 +602,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 				// Add a new tank if necessary.
 				if (idx >= ntanks) {
-					if (ngasmixes >= NTANKS) {
+					if (ntanks >= NTANKS) {
 						ERROR (abstract->context, "Maximum number of tanks reached.");
 						return DC_STATUS_NOMEMORY;
 					}
@@ -638,7 +624,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 			sample.pressure.value = pressure / 10.0;
 			if (callback) callback(DC_SAMPLE_PRESSURE, &sample, userdata);
 		} else if (type == ID_COMPASS) {
-			unsigned int heading = array_uint16_le (data + offset + 4);
+			unsigned int heading = array_uint16_le (data + offset + 2);
 			sample.bearing = heading;
 			if (callback) callback(DC_SAMPLE_BEARING, &sample, userdata);
 		} else if (type == ID_TRIM) {
@@ -697,7 +683,7 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 
 				// Add a new tank if necessary.
 				if (idx >= ntanks) {
-					if (ngasmixes >= NTANKS) {
+					if (ntanks >= NTANKS) {
 						ERROR (abstract->context, "Maximum number of tanks reached.");
 						return DC_STATUS_NOMEMORY;
 					}
@@ -740,6 +726,11 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	parser->timezone = timezone;
 	if (time_start != UNDEFINED && time_end != UNDEFINED) {
 		parser->divetime = time_end - time_start;
+		if (parser->divetime >= surftime) {
+			parser->divetime -= surftime;
+		} else {
+			parser->divetime = 0;
+		}
 	} else {
 		parser->divetime = time;
 	}
@@ -748,9 +739,6 @@ halcyon_symbios_parser_samples_foreach (dc_parser_t *abstract, dc_sample_callbac
 	parser->atmospheric = atmospheric;
 	parser->gf_lo = gf_lo;
 	parser->gf_hi = gf_hi;
-	parser->have_location = have_location;
-	parser->latitude = latitude;
-	parser->longitude = longitude;
 	parser->ngasmixes = ngasmixes;
 	parser->ntanks = ntanks;
 	for (unsigned int i = 0; i < NGASMIXES; ++i) {
