@@ -113,8 +113,6 @@
 #define HEATSHRINK_LOOKAHEAD_SZ2 5
 #define HEATSHRINK_INPUT_BUFFER_SIZE 256
 
-static const unsigned char SBEM_MAGIC[8] = {'S','B','E','M','0','1','0','3'};
-
 typedef struct suunto_nautic_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream; // HDLC-framed
@@ -857,17 +855,13 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 
 // Download one dive: the decompressed /Data stream with the /Summary
 // appended. The listed size is the compressed /Data plus the /Summary data
-// bytes, exactly, and a mismatch fails the download.
-// `unreadable` is set when the transfer matched the listing but holds no dive
-// (an empty or aborted logbook entry), so downloading it again cannot help.
+// bytes, exactly, and a mismatch fails the download. Checking the content is
+// left to the parser.
 static dc_status_t
-suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigned int listed,
-	dc_buffer_t *buffer, int *unreadable)
+suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigned int listed, dc_buffer_t *buffer)
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t status = DC_STATUS_SUCCESS;
-
-	*unreadable = 0;
 
 	char data_path[64], summary_path[64];
 	snprintf (data_path, sizeof (data_path), "/Logbook/byId/%u/Data", id);
@@ -906,15 +900,6 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 		dc_buffer_get_data (compressed), dc_buffer_get_size (compressed), buffer);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to decompress dive %u.", id);
-		*unreadable = status == DC_STATUS_DATAFORMAT;
-		goto error_free;
-	}
-
-	if (dc_buffer_get_size (buffer) < sizeof (SBEM_MAGIC) ||
-		memcmp (dc_buffer_get_data (buffer), SBEM_MAGIC, sizeof (SBEM_MAGIC)) != 0) {
-		ERROR (abstract->context, "Unexpected magic in dive %u.", id);
-		status = DC_STATUS_DATAFORMAT;
-		*unreadable = 1;
 		goto error_free;
 	}
 
@@ -1095,14 +1080,7 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 			break;
 		}
 
-		int unreadable = 0;
-		status = suunto_nautic_download (device, id, listed, buffer, &unreadable);
-		if (status != DC_STATUS_SUCCESS && unreadable) {
-			// An empty or aborted entry: listed, but without a dive.
-			WARNING (abstract->context, "Skipping dive %u without any data.", id);
-			status = DC_STATUS_SUCCESS;
-			continue;
-		}
+		status = suunto_nautic_download (device, id, listed, buffer);
 		if (status != DC_STATUS_SUCCESS) {
 			// Stop here: the fingerprint of a newer dive would mark this one
 			// as downloaded.
