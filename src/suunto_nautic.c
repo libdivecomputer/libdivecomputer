@@ -179,7 +179,9 @@ suunto_nautic_device_set_fingerprint (dc_device_t *abstract, const unsigned char
 static unsigned int
 suunto_nautic_seqnum (suunto_nautic_device_t *device)
 {
-	// Zero is the sequence number of the stream notifications.
+	// Zero is Whiteboard's invalid request id (ID_INVALID_REQUEST). The watch
+	// uses it for the packets that don't answer a request: the hello, its
+	// reply and the stream notifications.
 	device->seqnum = (device->seqnum + 1) & 0xFFFF;
 	if (device->seqnum == 0)
 		device->seqnum = 1;
