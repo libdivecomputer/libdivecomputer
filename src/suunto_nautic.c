@@ -20,7 +20,6 @@
  */
 
 #include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
 
 #include "suunto_nautic.h"
@@ -982,7 +981,8 @@ suunto_nautic_is_serial (const char *tok, size_t len)
 //
 // The serial is the first 12-character uppercase hex string, and the firmware
 // the first "N.N.N" string, which follows the serial. The MAC addresses after
-// it are also 12 hex characters. The serial is reported as its low 32 bits.
+// it are also 12 hex characters. The serial is reported as the low 32 bits of
+// its value (0xC3003306 for 2604C3003306).
 static dc_status_t
 suunto_nautic_devinfo (suunto_nautic_device_t *device)
 {
@@ -1018,10 +1018,11 @@ suunto_nautic_devinfo (suunto_nautic_device_t *device)
 		if (!devinfo.firmware && suunto_nautic_parse_version (token, length, &a, &b, &c)) {
 			devinfo.firmware = (a << 16) | (b << 8) | c;
 		} else if (!devinfo.firmware && !devinfo.serial && suunto_nautic_is_serial (token, length)) {
-			char serial[13];
-			memcpy (serial, token, 12);
-			serial[12] = 0;
-			devinfo.serial = (unsigned int) strtoul (serial, NULL, 16);
+			// The value doesn't fit in 32 bits, so only its last 8 digits
+			// are converted.
+			unsigned char serial[4] = {0};
+			array_convert_hex2bin (data + start + 4, 8, serial, sizeof (serial));
+			devinfo.serial = array_uint32_be (serial);
 		}
 		start = i + 1;
 	}
