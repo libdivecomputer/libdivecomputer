@@ -106,12 +106,6 @@
 #define ENTRY_START    0
 #define ENTRY_LENGTH   16
 
-// How many times to issue a dive's stream when it fails with a protocol error
-// (e.g. status 423 (Locked), or a lost chunk) or stops before its end marker,
-// and to download a dive whose size doesn't match the listing.
-#define STREAM_ATTEMPTS   3
-#define DOWNLOAD_ATTEMPTS 2
-
 #define TIMEOUT_DEFAULT 5000
 #define TIMEOUT_STREAM  4000 // the gap between two chunks reaches about 2s
 
@@ -542,10 +536,8 @@ done:
 
 // Download a streamed resource (the dive profile): GET, SUBSCRIBE, the
 // notifications up to the end marker, UNSUBSCRIBE and RELEASE. Returns the
-// still compressed stream. Returns DC_STATUS_PROTOCOL on a protocol error,
-// e.g. when the watch refuses the stream (status 423 while the previous
-// stream's handle is still bound) or a chunk is missing, and
-// DC_STATUS_TIMEOUT when the stream stops before its end marker.
+// still compressed stream, or an error when the watch refuses the stream, a
+// chunk is missing or the stream stops before its end marker.
 static dc_status_t
 suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffer_t *buffer)
 {
@@ -866,7 +858,7 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 
 // Download one dive: the decompressed /Data stream with the /Summary
 // appended. The listed size is the compressed /Data plus the /Summary data
-// bytes, exactly. A mismatch is retried once and then fails the download.
+// bytes, exactly, and a mismatch fails the download.
 // `unreadable` is set when the transfer matched the listing but holds no dive
 // (an empty or aborted logbook entry), so downloading it again cannot help.
 static dc_status_t
@@ -875,7 +867,6 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 {
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t status = DC_STATUS_SUCCESS;
-	int incomplete = 0;
 
 	*unreadable = 0;
 
@@ -891,40 +882,23 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 		goto error_free;
 	}
 
-	for (unsigned int attempt = 0; attempt < DOWNLOAD_ATTEMPTS; attempt++) {
-		for (unsigned int i = 0; i < STREAM_ATTEMPTS; i++) {
-			if (i > 0) {
-				WARNING (abstract->context, "Retrying the stream of dive %u.", id);
-				dc_iostream_sleep (device->iostream, 1500 * i);
-			}
-			status = suunto_nautic_stream (device, data_path, compressed);
-			if (status != DC_STATUS_PROTOCOL && status != DC_STATUS_TIMEOUT)
-				break;
-		}
-		if (status != DC_STATUS_SUCCESS)
-			goto error_free;
-
-		status = suunto_nautic_fetch_pages (device, summary_path, summary);
-		if (status != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to fetch the summary of dive %u.", id);
-			goto error_free;
-		}
-
-		if (listed == 0)
-			break;
-
-		size_t data_size = dc_buffer_get_size (compressed);
-		size_t summary_size = dc_buffer_get_size (summary);
-		incomplete = data_size + summary_size != listed;
-		if (!incomplete)
-			break;
-
-		WARNING (abstract->context, "Incomplete download of dive %u (" DC_PRINTF_SIZE " + " DC_PRINTF_SIZE " bytes, listed %u).",
-			id, data_size, summary_size, listed);
+	status = suunto_nautic_stream (device, data_path, compressed);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to download the profile of dive %u.", id);
+		goto error_free;
 	}
 
-	if (incomplete) {
-		ERROR (abstract->context, "Failed to download dive %u completely.", id);
+	status = suunto_nautic_fetch_pages (device, summary_path, summary);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to fetch the summary of dive %u.", id);
+		goto error_free;
+	}
+
+	size_t data_size = dc_buffer_get_size (compressed);
+	size_t summary_size = dc_buffer_get_size (summary);
+	if (listed && data_size + summary_size != listed) {
+		ERROR (abstract->context, "Unexpected size of dive %u (" DC_PRINTF_SIZE " + " DC_PRINTF_SIZE " bytes, listed %u).",
+			id, data_size, summary_size, listed);
 		status = DC_STATUS_PROTOCOL;
 		goto error_free;
 	}
