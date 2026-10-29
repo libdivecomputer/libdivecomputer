@@ -474,9 +474,11 @@ suunto_nautic_get_handle (suunto_nautic_device_t *device, const char *path, unsi
 	return status;
 }
 
-// Decompress a Heatshrink (LZSS) stream, with the parameters above.
+// Decompress a Heatshrink (LZSS) stream, with the parameters above. The
+// input isn't const, because heatshrink_decoder_sink() doesn't take a const
+// buffer.
 static dc_status_t
-suunto_nautic_heatshrink_decompress (dc_context_t *context, const unsigned char *input, size_t input_size, dc_buffer_t *output)
+suunto_nautic_heatshrink_decompress (dc_context_t *context, unsigned char *input, size_t input_size, dc_buffer_t *output)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	unsigned char outbuf[HEATSHRINK_INPUT_BUFFER_SIZE];
@@ -492,7 +494,7 @@ suunto_nautic_heatshrink_decompress (dc_context_t *context, const unsigned char 
 	size_t sunk_total = 0;
 	while (sunk_total < input_size) {
 		size_t sunk = 0;
-		HSD_sink_res sres = heatshrink_decoder_sink (hsd, (uint8_t *) input + sunk_total, input_size - sunk_total, &sunk);
+		HSD_sink_res sres = heatshrink_decoder_sink (hsd, input + sunk_total, input_size - sunk_total, &sunk);
 		if (sres < 0) {
 			ERROR (context, "Heatshrink sink error (%d).", sres);
 			status = DC_STATUS_DATAFORMAT;
