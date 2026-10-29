@@ -67,9 +67,10 @@
 // which isn't released, and an unknown path with FF FF FF. A few static
 // paths, /Info among them, answer with F1 instead; those are released like a
 // slot, and the watch answers that with 200. The slot is the first byte on
-// the wire.
+// the wire, the resource the other two.
 #define HANDLE_ISSTATIC(handle)  (((handle) & 0xFF) == 0xF0)
 #define HANDLE_ISINVALID(handle) ((handle) == 0xFFFFFF)
+#define HANDLE_RESOURCE(handle)  ((handle) >> 8)
 
 // Request parameters are COUNT(1), then TYPE(2) VALUE for each parameter. The
 // /Summary page offset is an int32, the /Logbook/Entries StartAfterId (the id
@@ -79,10 +80,11 @@
 
 // Stream notification payload:
 // HANDLE(3) CLIENT(3) UNKNOWN(4) OFFSET(4) LENGTH(2) UNKNOWN(6) DATA(LENGTH) 00
-// OFFSET is the position of the chunk in the stream. The last chunk has a
-// zero length, at an offset equal to the total size, and is sent twice. The
-// 00 after the data ends every notification the watch sends, not only those
-// of the stream.
+// HANDLE is the static handle of the resource (F0 24 0E for /Data), not the
+// slot the GET returned. OFFSET is the position of the chunk in the stream.
+// The last chunk has a zero length, at an offset equal to the total size, and
+// is sent twice. The 00 after the data ends every notification the watch
+// sends, not only those of the stream.
 #define CHUNK_OFFSET 10
 #define CHUNK_LENGTH 14
 #define CHUNK_DATA   22
@@ -584,6 +586,13 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to receive the stream for %s.", path);
 			break;
+		}
+
+		// The values of another app's subscriptions (the Suunto app holds
+		// several) arrive as notifications too, for another resource.
+		if (chunk_len >= 3 && HANDLE_RESOURCE (array_uint24_le (chunk)) != HANDLE_RESOURCE (handle)) {
+			WARNING (abstract->context, "Skipping a notification for another resource (%06x).", array_uint24_le (chunk));
+			continue;
 		}
 
 		if (chunk_len < CHUNK_DATA) {
