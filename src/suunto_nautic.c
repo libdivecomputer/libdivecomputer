@@ -417,7 +417,7 @@ suunto_nautic_release (suunto_nautic_device_t *device, unsigned int handle)
 	return status;
 }
 
-// Resolve a path to a handle. The GET reply is HANDLE(3) FLAGS(3) STATUS(2).
+// Resolve a path to a handle. The GET reply is HANDLE(3) CLIENT(3) STATUS(2).
 static dc_status_t
 suunto_nautic_get_handle (suunto_nautic_device_t *device, const char *path, unsigned int *handle)
 {
