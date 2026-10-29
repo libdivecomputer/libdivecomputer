@@ -237,12 +237,6 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 			return status;
 		}
 
-		if (length == 0) {
-			// Two flags in a row, e.g. after the tail of a packet that was
-			// cut off when an earlier link dropped.
-			continue;
-		}
-
 		if (length < RPC_OVERHEAD) {
 			ERROR (device->base.context, "Unexpected packet size (" DC_PRINTF_SIZE ").", length);
 			return DC_STATUS_PROTOCOL;
