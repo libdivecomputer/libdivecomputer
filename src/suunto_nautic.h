@@ -41,6 +41,9 @@
  *     compressed dive in unacknowledged notifications (0x01), each with
  *     its offset in the stream, and ends with a zero length chunk at the
  *     total size, sent twice. Then UNSUBSCRIBE and RELEASE.
+ *   - A lost chunk isn't sent again. After the UNSUBSCRIBE, the same handle
+ *     serves the rest in pages, like /Summary, from the offset of the
+ *     first byte missing.
  *   - The stream is Heatshrink-compressed (LZSS variant, see
  *     src/heatshrink/; window_sz2 = 7, lookahead_sz2 = 5). The decoded
  *     stream is an SBEM0103 container.
