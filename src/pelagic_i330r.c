@@ -66,6 +66,10 @@
 
 #define MAXRETRIES 3
 
+// How long to wait for further packets of an aborted answer before
+// considering the link quiet (see pelagic_i330r_drain).
+#define DRAIN_TIMEOUT 300
+
 typedef struct pelagic_i330r_device_t {
 	oceanic_common_device_t base;
 	dc_iostream_t *iostream;
@@ -560,6 +564,34 @@ error_free:
 	return status;
 }
 
+/*
+ * Discard the remainder of an answer that was abandoned halfway (e.g. after a
+ * packet failed its checksum). The device keeps streaming the complete answer
+ * no matter what the host does with it, and the protocol carries no sequence
+ * number, so a retried command would otherwise consume the stale packets of
+ * the previous answer. Read until the last packet of the answer arrives or the
+ * link goes quiet, then purge whatever is still queued.
+ */
+static void
+pelagic_i330r_drain (pelagic_i330r_device_t *device, unsigned int maxpackets)
+{
+	unsigned char packet[MAXPACKET + 5] = {0};
+
+	for (unsigned int i = 0; i < maxpackets; i++) {
+		if (dc_iostream_poll (device->iostream, DRAIN_TIMEOUT) != DC_STATUS_SUCCESS)
+			break;
+
+		size_t transferred = 0;
+		if (dc_iostream_read (device->iostream, packet, sizeof(packet), &transferred) != DC_STATUS_SUCCESS)
+			break;
+
+		if (transferred >= 5 && packet[0] == STARTBYTE && (packet[1] & FLAG_LAST) == FLAG_LAST)
+			break;
+	}
+
+	dc_iostream_purge (device->iostream, DC_DIRECTION_INPUT);
+}
+
 static dc_status_t
 pelagic_i330r_device_read (dc_device_t *abstract, unsigned int address, unsigned char data[], unsigned int size)
 {
@@ -570,9 +602,32 @@ pelagic_i330r_device_read (dc_device_t *abstract, unsigned int address, unsigned
 	array_uint32_le_set(command + 0, address);
 	array_uint32_le_set(command + 4, size);
 
-	status = pelagic_i330r_transfer (device, CMD_READ_FLASH, FLAG_NONE, command, sizeof(command), data, size, RSP_DONE);
-	if (status != DC_STATUS_SUCCESS) {
-		return status;
+	// A flash read is idempotent, so a corrupted packet is retried a few times
+	// instead of failing the whole download. Only protocol errors qualify: by
+	// then part of the answer has been consumed, so what is left of it can
+	// never pass for a complete answer to the resent command. A timeout is not
+	// retried on purpose - the answer may still arrive in full after the resend
+	// and would then be taken for the answer to the *next* read, silently
+	// shifting every read that follows.
+	unsigned int nretries = 0;
+	while ((status = pelagic_i330r_transfer (device, CMD_READ_FLASH, FLAG_NONE, command, sizeof(command), data, size, RSP_DONE)) != DC_STATUS_SUCCESS) {
+		if (status != DC_STATUS_PROTOCOL)
+			return status;
+
+		// Abort if the maximum number of retries is reached.
+		if (nretries++ >= MAXRETRIES)
+			return status;
+
+		if (device_is_cancelled (abstract))
+			return DC_STATUS_CANCELLED;
+
+		WARNING (abstract->context, "Flash read at %08x failed, retrying (%u/%u).", address, nretries, MAXRETRIES);
+
+		// Skip the rest of the abandoned answer before resending the command.
+		// The packet limit is only a safety net (the smallest ATT MTU yields
+		// 15 payload bytes per packet); the quiet timeout is what normally
+		// ends the drain.
+		pelagic_i330r_drain (device, size / 8 + 2);
 	}
 
 	return status;
