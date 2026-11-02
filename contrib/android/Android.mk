@@ -42,6 +42,7 @@ LOCAL_SRC_FILES := \
 	src/halcyon_symbios.c \
 	src/halcyon_symbios_parser.c \
 	src/hdlc.c \
+	src/heatshrink/heatshrink_decoder.c \
 	src/hw_ostc3.c \
 	src/hw_ostc.c \
 	src/hw_ostc_parser.c \
@@ -102,6 +103,8 @@ LOCAL_SRC_FILES := \
 	src/suunto_eon_parser.c \
 	src/suunto_eonsteel.c \
 	src/suunto_eonsteel_parser.c \
+	src/suunto_nautic.c \
+	src/suunto_nautic_parser.c \
 	src/suunto_solution.c \
 	src/suunto_solution_parser.c \
 	src/suunto_vyper2.c \

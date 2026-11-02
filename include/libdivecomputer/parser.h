@@ -66,6 +66,7 @@ typedef enum dc_field_type_t {
 	DC_FIELD_DIVEMODE,
 	DC_FIELD_DECOMODEL,
 	DC_FIELD_LOCATION,
+	DC_FIELD_PPO2_MAX,
 } dc_field_type_t;
 
 typedef enum parser_sample_event_t {
@@ -112,7 +113,8 @@ typedef enum parser_sample_vendor_t {
 	SAMPLE_VENDOR_UWATEC_SMART,
 	SAMPLE_VENDOR_OCEANIC_VTPRO,
 	SAMPLE_VENDOR_OCEANIC_VEO250,
-	SAMPLE_VENDOR_OCEANIC_ATOM2
+	SAMPLE_VENDOR_OCEANIC_ATOM2,
+	SAMPLE_VENDOR_SUUNTO_NAUTIC
 } parser_sample_vendor_t;
 
 typedef enum dc_water_t {

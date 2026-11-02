@@ -49,6 +49,7 @@ typedef int (*dc_filter_t) (const dc_descriptor_t *descriptor, dc_transport_t tr
 
 static int dc_filter_uwatec (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 static int dc_filter_suunto (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
+static int dc_filter_suunto_nautic (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 static int dc_filter_shearwater (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 static int dc_filter_hw (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
 static int dc_filter_tecdiving (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata);
@@ -134,6 +135,9 @@ static const dc_descriptor_t g_descriptors[] = {
 	{"Suunto", "EON Core",        DC_FAMILY_SUUNTO_EONSTEEL, 1, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},
 	{"Suunto", "D5",              DC_FAMILY_SUUNTO_EONSTEEL, 2, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},
 	{"Suunto", "EON Steel Black", DC_FAMILY_SUUNTO_EONSTEEL, 3, DC_TRANSPORT_USBHID | DC_TRANSPORT_BLE, dc_filter_suunto},
+	/* Suunto Nautic */
+	{"Suunto", "Nautic", DC_FAMILY_SUUNTO_NAUTIC, 0, DC_TRANSPORT_BLE, dc_filter_suunto_nautic},
+	{"Suunto", "Ocean",  DC_FAMILY_SUUNTO_NAUTIC, 1, DC_TRANSPORT_BLE, dc_filter_suunto_nautic},
 	/* Uwatec Aladin */
 	{"Uwatec", "Aladin Air Twin",     DC_FAMILY_UWATEC_ALADIN, 0x1C, DC_TRANSPORT_SERIAL, NULL},
 	{"Uwatec", "Aladin Sport Plus",   DC_FAMILY_UWATEC_ALADIN, 0x3E, DC_TRANSPORT_SERIAL, NULL},
@@ -713,6 +717,21 @@ dc_filter_suunto (const dc_descriptor_t *descriptor, dc_transport_t transport, c
 	if (transport == DC_TRANSPORT_USBHID) {
 		return DC_FILTER_INTERNAL (userdata, usbhid, 0, dc_match_usbhid);
 	} else if (transport == DC_TRANSPORT_BLE) {
+		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
+	}
+
+	return 1;
+}
+
+static int
+dc_filter_suunto_nautic (const dc_descriptor_t *descriptor, dc_transport_t transport, const void *userdata)
+{
+	static const char * const bluetooth[] = {
+		"Suunto Nautic",
+		"Suunto Ocean",
+	};
+
+	if (transport == DC_TRANSPORT_BLE) {
 		return DC_FILTER_INTERNAL (userdata, bluetooth, 0, dc_match_prefix);
 	}
 
