@@ -111,6 +111,8 @@
 #define NITROX    2
 #define FREEDIVE  3
 
+#define ERR_UNAVAILABLE 0x08000020
+
 typedef struct mares_iconhd_layout_t {
 	unsigned int memsize;
 	unsigned int rb_profile_begin;
@@ -434,7 +436,7 @@ mares_iconhd_transfer (mares_iconhd_device_t *device, unsigned char cmd, const u
 }
 
 static dc_status_t
-mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *progress, dc_buffer_t *buffer, unsigned int index, unsigned int subindex)
+mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *progress, dc_buffer_t *buffer, unsigned int index, unsigned int subindex, unsigned int *errorcode)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_device_t *abstract = (dc_device_t *) device;
@@ -442,6 +444,7 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 	const unsigned int maxpacket = (transport == DC_TRANSPORT_BLE) ?
 		(device->ble == VARIABLE ? MAXPACKET - 3 : 124) :
 		504;
+	unsigned int errcode = 0;
 
 	// Update and emit a progress event.
 	unsigned int initial = 0;
@@ -462,13 +465,14 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 	status = mares_iconhd_transfer (device, CMD_OBJ_INIT, cmd_init, sizeof (cmd_init), rsp_init, sizeof (rsp_init), NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to transfer the init packet.");
-		return status;
+		goto error;
 	}
 
 	// Verify the packet header.
 	if (memcmp (cmd_init + 1, rsp_init + 1, 3) != 0) {
 		ERROR (abstract->context, "Unexpected packet header.");
-		return DC_STATUS_PROTOCOL;
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	}
 
 	unsigned int nbytes = 0, size = 0;
@@ -485,13 +489,20 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 		// Append the payload to the output buffer.
 		if (!dc_buffer_append (buffer, rsp_init + 4, sizeof(rsp_init) - 4)) {
 			ERROR (abstract->context, "Insufficient buffer space available.");
-			return DC_STATUS_NOMEMORY;
+			status = DC_STATUS_NOMEMORY;
+			goto error;
 		}
 
 		nbytes += sizeof(rsp_init) - 4;
+	} else if (rsp_init[0] == 0x80) {
+		errcode = array_uint32_le (rsp_init + 4);
+		ERROR (abstract->context, "Received NAK packet with error code 0x%08x.", errcode);
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	} else {
 		ERROR (abstract->context, "Unexpected packet type (%02x).", rsp_init[0]);
-		return DC_STATUS_PROTOCOL;
+		status = DC_STATUS_PROTOCOL;
+		goto error;
 	}
 
 	// Update and emit a progress event.
@@ -518,12 +529,13 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 		status = mares_iconhd_transfer (device, cmd, NULL, 0, rsp_segment, len + 1, &length);
 		if (status != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to transfer the segment packet.");
-			return status;
+			goto error;
 		}
 
 		if (length < 1) {
 			ERROR (abstract->context, "Unexpected packet length (%u).", length);
-			return DC_STATUS_PROTOCOL;
+			status = DC_STATUS_PROTOCOL;
+			goto error;
 		}
 
 		length--;
@@ -531,13 +543,15 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 		// Verify the packet header.
 		if ((rsp_segment[0] & 0xF0) >> 4 != toggle) {
 			ERROR (abstract->context, "Unexpected packet header (%02x).", rsp_segment[0]);
-			return DC_STATUS_PROTOCOL;
+			status = DC_STATUS_PROTOCOL;
+			goto error;
 		}
 
 		// Append the payload to the output buffer.
 		if (!dc_buffer_append (buffer, rsp_segment + 1, length)) {
 			ERROR (abstract->context, "Insufficient buffer space available.");
-			return DC_STATUS_NOMEMORY;
+			status = DC_STATUS_NOMEMORY;
+			goto error;
 		}
 
 		nbytes += length;
@@ -548,6 +562,11 @@ mares_iconhd_read_object(mares_iconhd_device_t *device, dc_event_progress_t *pro
 			progress->current = initial + STEP (nbytes, size);
 			device_event_emit (abstract, DC_EVENT_PROGRESS, progress);
 		}
+	}
+
+error:
+	if (errorcode) {
+		*errorcode = errcode;
 	}
 
 	return status;
@@ -1044,7 +1063,7 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 	}
 
 	// Read the model number.
-	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_MODEL);
+	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_MODEL, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the model number.");
 		dc_buffer_free (buffer);
@@ -1066,7 +1085,7 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 	dc_buffer_clear (buffer);
 
 	// Read the serial number.
-	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_SERIAL);
+	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_DEVICE, OBJ_DEVICE_SERIAL, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the serial number.");
 		dc_buffer_free (buffer);
@@ -1095,7 +1114,7 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 	dc_buffer_clear (buffer);
 
 	// Read the number of dives.
-	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_LOGBOOK, OBJ_LOGBOOK_COUNT);
+	rc = mares_iconhd_read_object (device, NULL, buffer, OBJ_LOGBOOK, OBJ_LOGBOOK_COUNT, NULL);
 	if (rc != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the number of dives.");
 		dc_buffer_free (buffer);
@@ -1123,7 +1142,7 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		dc_buffer_clear (buffer);
 
 		// Read the dive header.
-		rc = mares_iconhd_read_object (device, &progress, buffer, OBJ_DIVE + i, OBJ_DIVE_HEADER);
+		rc = mares_iconhd_read_object (device, &progress, buffer, OBJ_DIVE + i, OBJ_DIVE_HEADER, NULL);
 		if (rc != DC_STATUS_SUCCESS) {
 			ERROR (abstract->context, "Failed to read the dive header.");
 			break;
@@ -1136,10 +1155,22 @@ mares_iconhd_device_foreach_object (dc_device_t *abstract, dc_dive_callback_t ca
 		}
 
 		// Read the dive data.
-		rc = mares_iconhd_read_object (device, &progress, buffer, OBJ_DIVE + i, OBJ_DIVE_DATA);
+		unsigned int errcode = 0;
+		rc = mares_iconhd_read_object (device, &progress, buffer, OBJ_DIVE + i, OBJ_DIVE_DATA, &errcode);
 		if (rc != DC_STATUS_SUCCESS) {
-			ERROR (abstract->context, "Failed to read the dive data.");
-			break;
+			if (errcode == ERR_UNAVAILABLE) {
+				WARNING (abstract->context, "Dive data not available!");
+
+				// Update and emit a progress event.
+				progress.current = (1 + (i + 1) * 2) * NSTEPS;
+				device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+				// Continue with the dive header only.
+				rc = DC_STATUS_SUCCESS;
+			} else {
+				ERROR (abstract->context, "Failed to read the dive data.");
+				break;
+			}
 		}
 
 		const unsigned char *data = dc_buffer_get_data (buffer);
