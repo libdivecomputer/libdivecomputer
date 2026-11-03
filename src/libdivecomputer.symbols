@@ -108,6 +108,7 @@ dc_device_foreach
 dc_device_get_type
 dc_device_read
 dc_device_set_cancel
+dc_device_set_dive_filter
 dc_device_set_events
 dc_device_set_fingerprint
 dc_device_timesync

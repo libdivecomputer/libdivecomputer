@@ -96,6 +96,9 @@ dc_device_allocate (dc_context_t *context, const dc_device_vtable_t *vtable)
 	device->cancel_callback = NULL;
 	device->cancel_userdata = NULL;
 
+	device->dive_filter = NULL;
+	device->dive_filter_userdata = NULL;
+
 	memset (&device->devinfo, 0, sizeof (device->devinfo));
 	memset (&device->clock, 0, sizeof (device->clock));
 
@@ -319,6 +322,23 @@ dc_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsi
 	HEXDUMP (device->context, DC_LOGLEVEL_INFO, "Fingerprint", data, size);
 
 	return device->vtable->set_fingerprint (device, data, size);
+}
+
+
+dc_status_t
+dc_device_set_dive_filter (dc_device_t *device, dc_dive_filter_t filter, void *userdata)
+{
+	if (device == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	// Only the Shearwater Petrel protocol backend honours the filter.
+	if (device->vtable->type != DC_FAMILY_SHEARWATER_PETREL)
+		return DC_STATUS_UNSUPPORTED;
+
+	device->dive_filter = filter;
+	device->dive_filter_userdata = userdata;
+
+	return DC_STATUS_SUCCESS;
 }
 
 

@@ -51,6 +51,9 @@ struct dc_device_t {
 	// Cancellation support.
 	dc_cancel_callback_t cancel_callback;
 	void *cancel_userdata;
+	// Dive selection (fork extension).
+	dc_dive_filter_t dive_filter;
+	void *dive_filter_userdata;
 	// Cached events for the parsers.
 	dc_event_devinfo_t devinfo;
 	dc_event_clock_t clock;

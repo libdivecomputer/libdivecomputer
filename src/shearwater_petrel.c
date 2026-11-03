@@ -292,8 +292,11 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		current += 1;
 		maximum -= RECORD_COUNT - count - deleted;
 
-		// Append the manifest records to the main buffer.
-		if (!dc_buffer_append (manifests, data, count * RECORD_SIZE)) {
+		// Append the manifest records to the main buffer. The processed
+		// range includes the deleted records, which are skipped again when
+		// the dives are downloaded. Appending only count records would
+		// drop the last valid records of a page containing deleted ones.
+		if (!dc_buffer_append (manifests, data, offset)) {
 			ERROR (abstract->context, "Insufficient buffer space available.");
 			dc_buffer_free (buffer);
 			dc_buffer_free (manifests);
@@ -321,6 +324,25 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			offset += RECORD_SIZE;
 			continue;
 		}
+
+		// Let the application select the dive before downloading it. The
+		// manifest record carries the same four bytes that the fingerprint
+		// cursor compares, and that the dive callback reports.
+		if (abstract->dive_filter) {
+			dc_dive_entry_t entry;
+			memset (&entry, 0, sizeof (entry));
+			entry.fingerprint = data + offset + 4;
+			entry.fsize = sizeof (device->fingerprint);
+			entry.fields = 0;
+			if (!abstract->dive_filter (&entry, abstract->dive_filter_userdata)) {
+				// Skip the dive without any device I/O, and remove its
+				// step from the progress maximum.
+				maximum -= 1;
+				offset += RECORD_SIZE;
+				continue;
+			}
+		}
+
 		// Get the address of the dive.
 		unsigned int address = array_uint32_be (data + offset + 20);
 

@@ -70,6 +70,29 @@ typedef void (*dc_event_callback_t) (dc_device_t *device, dc_event_type_t event,
 
 typedef int (*dc_dive_callback_t) (const unsigned char *data, unsigned int size, const unsigned char *fingerprint, unsigned int fsize, void *userdata);
 
+/*
+ * Dive selection (fork extension, not part of upstream libdivecomputer).
+ *
+ * A backend that honours the dive filter calls it once for every dive it
+ * is about to download, before transferring the dive data. The entry
+ * fingerprint has the same value and size as the fingerprint passed to
+ * the dive callback for that dive. The fields bitmask tells which of the
+ * optional fields are valid. The filter returns nonzero to download the
+ * dive, or zero to skip it without transferring the dive data.
+ */
+typedef enum dc_dive_entry_field_t {
+	DC_DIVE_ENTRY_DATETIME = (1 << 0)
+} dc_dive_entry_field_t;
+
+typedef struct dc_dive_entry_t {
+	const unsigned char *fingerprint;
+	unsigned int fsize;
+	unsigned int fields;
+	dc_datetime_t datetime;
+} dc_dive_entry_t;
+
+typedef int (*dc_dive_filter_t) (const dc_dive_entry_t *entry, void *userdata);
+
 dc_status_t
 dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descriptor, dc_iostream_t *iostream);
 
@@ -84,6 +107,14 @@ dc_device_set_events (dc_device_t *device, unsigned int events, dc_event_callbac
 
 dc_status_t
 dc_device_set_fingerprint (dc_device_t *device, const unsigned char data[], unsigned int size);
+
+/*
+ * Install (or clear, with a NULL filter) the dive filter used by
+ * dc_device_foreach. Returns DC_STATUS_UNSUPPORTED for device families
+ * that do not honour a dive filter.
+ */
+dc_status_t
+dc_device_set_dive_filter (dc_device_t *device, dc_dive_filter_t filter, void *userdata);
 
 dc_status_t
 dc_device_read (dc_device_t *device, unsigned int address, unsigned char data[], unsigned int size);
