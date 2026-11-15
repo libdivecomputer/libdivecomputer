@@ -56,8 +56,8 @@
 #define MAX_PATH     240
 
 // HTTP-like status codes carried in the replies.
-#define STATUS_OK       200
-#define STATUS_CONTINUE 100 // more pages follow
+#define ERR_OK       200
+#define ERR_CONTINUE 100 // more pages follow
 
 // A GET of a per-id path (/Logbook/byId/<id>/...) binds the id to one of the
 // resource's handle slots, [00|10] 24 <resource>, until a RELEASE frees it. A
@@ -400,7 +400,7 @@ suunto_nautic_release (suunto_nautic_device_t *device, unsigned int handle)
 	}
 
 	unsigned int errcode = array_uint16_le (reply + REPLY_STATUS);
-	if (errcode != STATUS_OK) {
+	if (errcode != ERR_OK) {
 		ERROR (device->base.context, "Failed to release handle %06x (status %u).", handle, errcode);
 		return DC_STATUS_PROTOCOL;
 	}
@@ -450,7 +450,7 @@ suunto_nautic_get_handle (suunto_nautic_device_t *device, const char *path, unsi
 
 	unsigned int value = array_uint24_le (reply);
 	unsigned int errcode = array_uint16_le (reply + REPLY_STATUS);
-	if (errcode != STATUS_OK) {
+	if (errcode != ERR_OK) {
 		ERROR (device->base.context, "Failed to resolve %s (status %u).", path, errcode);
 		return DC_STATUS_PROTOCOL;
 	}
@@ -557,7 +557,7 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 	}
 
 	unsigned int result = array_uint16_le (reply + REPLY_STATUS);
-	if (result != STATUS_OK) {
+	if (result != ERR_OK) {
 		ERROR (abstract->context, "The watch refused the stream for %s (status %u).", path, result);
 		status = DC_STATUS_PROTOCOL;
 		goto error_release;
@@ -627,7 +627,7 @@ error_unsubscribe:
 		dc_status_set_error (&status, rc);
 	} else {
 		unsigned int errcode = array_uint16_le (reply + REPLY_STATUS);
-		if (errcode != STATUS_OK) {
+		if (errcode != ERR_OK) {
 			ERROR (abstract->context, "Failed to unsubscribe from %s (status %u).", path, errcode);
 			dc_status_set_error (&status, DC_STATUS_PROTOCOL);
 		}
@@ -675,7 +675,7 @@ suunto_nautic_fetch_pages (suunto_nautic_device_t *device, const char *path, dc_
 		}
 
 		unsigned int result = array_uint16_le (reply + REPLY_STATUS);
-		if (result != STATUS_OK && result != STATUS_CONTINUE) {
+		if (result != ERR_OK && result != ERR_CONTINUE) {
 			ERROR (abstract->context, "Failed to fetch %s (status %u).", path, result);
 			status = DC_STATUS_PROTOCOL;
 			break;
@@ -701,7 +701,7 @@ suunto_nautic_fetch_pages (suunto_nautic_device_t *device, const char *path, dc_
 		}
 		offset += length;
 
-		if (result == STATUS_OK)
+		if (result == ERR_OK)
 			break;
 
 		// The offset didn't advance, so the next request would be the same
@@ -742,7 +742,7 @@ suunto_nautic_fetch (suunto_nautic_device_t *device, const char *path, dc_buffer
 	}
 
 	unsigned int result = array_uint16_le (reply + REPLY_STATUS);
-	if (result != STATUS_OK) {
+	if (result != ERR_OK) {
 		ERROR (abstract->context, "Failed to fetch %s (status %u).", path, result);
 		status = DC_STATUS_PROTOCOL;
 		goto error_release;
@@ -800,7 +800,7 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 		}
 
 		unsigned int result = array_uint16_le (reply + REPLY_STATUS);
-		if (result != STATUS_OK && result != STATUS_CONTINUE) {
+		if (result != ERR_OK && result != ERR_CONTINUE) {
 			ERROR (abstract->context, "Failed to fetch %s (status %u).", path, result);
 			status = DC_STATUS_PROTOCOL;
 			break;
@@ -831,7 +831,7 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 		if (count)
 			last = array_uint32_le (data + ENTRIES_HEADER + (count - 1) * ENTRY_SIZE + ENTRY_START);
 
-		if (result == STATUS_OK)
+		if (result == ERR_OK)
 			break;
 
 		// The id didn't advance, so the next request would be the same one
