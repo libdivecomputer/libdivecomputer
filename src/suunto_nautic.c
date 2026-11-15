@@ -814,17 +814,11 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 		return status;
 
 	// The first page is requested without the StartAfterId, which is
-	// optional, as the Suunto app does.
-	unsigned int last = 0;
-	for (unsigned int page = 0; ; page++) {
-		unsigned char params[7] = {0x00, PARAM_UINT32, 0x00};
-		size_t nparams = 1;
-		if (page > 0) {
-			params[0] = 0x01;
-			array_uint32_le_set (params + 3, last);
-			nparams = sizeof (params);
-		}
-
+	// optional, as the Suunto app does. Per the Movesense logbook API, a
+	// StartAfterId that isn't the id of an entry, such as 0, gets a 404.
+	unsigned char params[7] = {0x00, PARAM_UINT32, 0x00};
+	size_t nparams = 1;
+	while (1) {
 		unsigned char data[MAX_PAYLOAD] = {0};
 		size_t size = 0;
 		unsigned int errcode = 0;
@@ -854,20 +848,19 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 			break;
 		}
 
-		unsigned int previous = last;
-		if (count)
-			last = array_uint32_le (data + ENTRIES_HEADER + (count - 1) * ENTRY_SIZE + ENTRY_START);
-
 		if (errcode == ERR_OK)
 			break;
 
-		// The id didn't advance, so the next request would be the same one
-		// again.
-		if (last == previous) {
-			ERROR (abstract->context, "No new entries with more pages pending.");
+		if (count == 0) {
+			ERROR (abstract->context, "No entries with more pages pending.");
 			status = DC_STATUS_PROTOCOL;
 			break;
 		}
+
+		// The next page starts after the last id received.
+		params[0] = 0x01;
+		memcpy (params + 3, data + ENTRIES_HEADER + (count - 1) * ENTRY_SIZE + ENTRY_START, 4);
+		nparams = sizeof (params);
 	}
 
 	dc_status_t rc = suunto_nautic_release (device, handle);
