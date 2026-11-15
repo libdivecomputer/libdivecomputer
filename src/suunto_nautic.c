@@ -444,10 +444,15 @@ suunto_nautic_get_handle (suunto_nautic_device_t *device, const char *path, unsi
 		return DC_STATUS_PROTOCOL;
 	}
 
+	if (memcmp (reply + 3, request, 3) != 0) {
+		ERROR (device->base.context, "Unexpected reply client id (%02x %02x %02x).", reply[3], reply[4], reply[5]);
+		return DC_STATUS_PROTOCOL;
+	}
+
 	unsigned int value = array_uint24_le (reply);
 	unsigned int errcode = array_uint16_le (reply + 6);
 	if (errcode != ERR_OK) {
-		ERROR (device->base.context, "Failed to resolve %s (status %u).", path, errcode);
+		ERROR (device->base.context, "Failed to resolve %s (error code %u).", path, errcode);
 		return DC_STATUS_PROTOCOL;
 	}
 
