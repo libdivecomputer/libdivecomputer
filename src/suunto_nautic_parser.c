@@ -258,27 +258,6 @@ static const dc_parser_vtable_t suunto_nautic_parser_vtable = {
 	NULL, /* destroy */
 };
 
-dc_status_t
-suunto_nautic_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
-{
-	suunto_nautic_parser_t *parser = NULL;
-
-	if (out == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	parser = (suunto_nautic_parser_t *) dc_parser_allocate (context, &suunto_nautic_parser_vtable, data, size);
-	if (parser == NULL) {
-		ERROR (context, "Failed to allocate memory.");
-		return DC_STATUS_NOMEMORY;
-	}
-
-	parser->cached = 0;
-
-	*out = (dc_parser_t *) parser;
-
-	return DC_STATUS_SUCCESS;
-}
-
 // Walk the chunks of an SBEM container, and pass each one to the callback.
 // The container starts with an 8-byte header (SBEM0103), and every chunk is
 // ID LENGTH DATA(LENGTH). The id is one byte, or 0xFF and the id as a uint16;
@@ -1009,6 +988,27 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 		parser->divetime = s.time_ms;
 
 	parser->cached = 1;
+
+	return DC_STATUS_SUCCESS;
+}
+
+dc_status_t
+suunto_nautic_parser_create (dc_parser_t **out, dc_context_t *context, const unsigned char data[], size_t size)
+{
+	suunto_nautic_parser_t *parser = NULL;
+
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	parser = (suunto_nautic_parser_t *) dc_parser_allocate (context, &suunto_nautic_parser_vtable, data, size);
+	if (parser == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	parser->cached = 0;
+
+	*out = (dc_parser_t *) parser;
 
 	return DC_STATUS_SUCCESS;
 }
