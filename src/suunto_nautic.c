@@ -107,6 +107,8 @@
 #define ENTRY_START    0
 #define ENTRY_LENGTH   16
 
+#define NSTEPS 1000
+
 #define TIMEOUT_DEFAULT 5000
 #define TIMEOUT_STREAM  4000 // the gap between two chunks reaches about 2s
 
@@ -1086,15 +1088,11 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 	suunto_nautic_device_t *device = (suunto_nautic_device_t *) abstract;
 
 	dc_event_progress_t progress = EVENT_PROGRESS_INITIALIZER;
-	progress.maximum = 2;
 	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	status = suunto_nautic_devinfo (device);
 	if (status != DC_STATUS_SUCCESS)
 		return status;
-
-	progress.current = 1;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
 	dc_buffer_t *entries = dc_buffer_new (0);
 	dc_buffer_t *buffer = dc_buffer_new (0);
@@ -1113,24 +1111,32 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 	const unsigned char *records = dc_buffer_get_data (entries);
 	unsigned int count = dc_buffer_get_size (entries) / ENTRY_SIZE;
 
-	progress.maximum = (count + 1) * 2;
-	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
-
-	// The entries are oldest first, so process them in reverse order.
+	// The entries are oldest first, and the dives are downloaded newest
+	// first, up to the one that matches the fingerprint. Count those.
+	unsigned int ndives = 0;
 	for (unsigned int i = count; i > 0; i--) {
 		const unsigned char *record = records + (i - 1) * ENTRY_SIZE;
+		if (memcmp (record + ENTRY_START, device->fingerprint, sizeof (device->fingerprint)) == 0)
+			break;
+		ndives++;
+	}
+
+	progress.current = 1 * NSTEPS;
+	progress.maximum = (ndives + 1) * NSTEPS;
+	device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
+
+	for (unsigned int i = 0; i < ndives; i++) {
+		const unsigned char *record = records + (count - 1 - i) * ENTRY_SIZE;
 		unsigned int id = array_uint32_le (record + ENTRY_START);
 		unsigned int listed = array_uint32_le (record + ENTRY_LENGTH);
 
-		unsigned char fingerprint[4];
-		array_uint32_le_set (fingerprint, id);
-
-		// The dives are newest first, so everything from here on was
-		// downloaded before.
-		if (memcmp (fingerprint, device->fingerprint, sizeof (fingerprint)) == 0)
-			break;
-
 		dc_buffer_clear (buffer);
+		if (!dc_buffer_reserve (buffer, listed)) {
+			ERROR (abstract->context, "Failed to allocate memory.");
+			status = DC_STATUS_NOMEMORY;
+			break;
+		}
+
 		status = suunto_nautic_download (device, id, listed, buffer);
 		if (status != DC_STATUS_SUCCESS) {
 			// Stop here: the fingerprint of a newer dive would mark this one
@@ -1139,10 +1145,11 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 			break;
 		}
 
-		progress.current += 2;
+		progress.current = (i + 2) * NSTEPS;
 		device_event_emit (abstract, DC_EVENT_PROGRESS, &progress);
 
-		if (callback && !callback (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), fingerprint, sizeof (fingerprint), userdata))
+		// The fingerprint is the id, as it is stored in the record.
+		if (callback && !callback (dc_buffer_get_data (buffer), dc_buffer_get_size (buffer), record + ENTRY_START, sizeof (device->fingerprint), userdata))
 			break;
 	}
 
