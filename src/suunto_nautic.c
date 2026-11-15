@@ -53,6 +53,7 @@
 #define RPC_START    0xA5
 #define MAX_PAYLOAD  512
 #define MAX_PATH     240
+#define MAX_PARAMS   7
 
 // HTTP-like status codes carried in the replies.
 #define ERR_OK       200
@@ -279,9 +280,9 @@ suunto_nautic_transfer (suunto_nautic_device_t *device, unsigned char opcode, un
 	unsigned int handle, const unsigned char params[], size_t nparams, unsigned char data[], size_t size, size_t *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
-	unsigned char request[6 + 7] = {0};
+	unsigned char request[6 + MAX_PARAMS] = {0};
 
-	if (nparams > sizeof(request) - 6)
+	if (nparams > MAX_PARAMS)
 		return DC_STATUS_INVALIDARGS;
 
 	array_uint24_le_set (request, handle);
