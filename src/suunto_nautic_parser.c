@@ -498,11 +498,11 @@ suunto_nautic_emit_vendor (dc_sample_callback_t callback, void *userdata,
 {
 	dc_sample_value_t sample = {0};
 	sample.time = (unsigned int) time_ms;
-	callback (DC_SAMPLE_TIME, &sample, userdata);
+	if (callback) callback (DC_SAMPLE_TIME, &sample, userdata);
 	sample.vendor.type = SAMPLE_VENDOR_SUUNTO_NAUTIC;
 	sample.vendor.size = size;
 	sample.vendor.data = rec;
-	callback (DC_SAMPLE_VENDOR, &sample, userdata);
+	if (callback) callback (DC_SAMPLE_VENDOR, &sample, userdata);
 }
 
 static dc_status_t
@@ -542,13 +542,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 				parser->temperature_maximum = temperature;
 		}
 
-		if (s->callback) {
-			dc_sample_value_t sample = {0};
-			sample.time = (unsigned int) s->sample_ms;
-			s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-			sample.temperature = temperature;
-			s->callback (DC_SAMPLE_TEMPERATURE, &sample, s->userdata);
-		}
+		dc_sample_value_t sample = {0};
+		sample.time = (unsigned int) s->sample_ms;
+		if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+		sample.temperature = temperature;
+		if (s->callback) s->callback (DC_SAMPLE_TEMPERATURE, &sample, s->userdata);
 	} else if (id == CHUNK_EXTENDED_STATUS) {
 		if (size < 42) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
@@ -565,13 +563,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			s->depth_count++;
 		}
 
-		if (s->callback) {
-			dc_sample_value_t sample = {0};
-			sample.time = (unsigned int) s->sample_ms;
-			s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-			sample.depth = depth;
-			s->callback (DC_SAMPLE_DEPTH, &sample, s->userdata);
-		}
+		dc_sample_value_t sample = {0};
+		sample.time = (unsigned int) s->sample_ms;
+		if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+		sample.depth = depth;
+		if (s->callback) s->callback (DC_SAMPLE_DEPTH, &sample, s->userdata);
 
 		// Cylinders array: up to 8 elements of 18 bytes, starting at
 		// offset 42 (idx:1, ?:1, pressure:4 LE Pa, pressure2:4 LE Pa, ...).
@@ -603,14 +599,13 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 				// AI, or not enough data yet). This is the app's
 				// Cylinders[].GasTime; exposed as RBT minutes, the same way
 				// suunto_eonsteel does.
-				if (i == 0 && s->callback) {
+				if (i == 0) {
 					unsigned int gastime = array_uint32_le (data + base + 10);
 					if (gastime != 0xFFFFFFFF && gastime != 0) {
-						dc_sample_value_t sample = {0};
 						sample.time = (unsigned int) s->sample_ms;
-						s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+						if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
 						sample.rbt = gastime / 60;
-						s->callback (DC_SAMPLE_RBT, &sample, s->userdata);
+						if (s->callback) s->callback (DC_SAMPLE_RBT, &sample, s->userdata);
 					}
 				}
 
@@ -651,14 +646,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 					// for the first minutes, then jumps to the real ~200 bar).
 					if (bar > parser->tank[t].beginpressure)
 						parser->tank[t].beginpressure = bar;
-					if (s->callback) {
-						dc_sample_value_t sample = {0};
-						sample.time = (unsigned int) s->sample_ms;
-						s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-						sample.pressure.tank = t;
-						sample.pressure.value = bar;
-						s->callback (DC_SAMPLE_PRESSURE, &sample, s->userdata);
-					}
+					sample.time = (unsigned int) s->sample_ms;
+					if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+					sample.pressure.tank = t;
+					sample.pressure.value = bar;
+					if (s->callback) s->callback (DC_SAMPLE_PRESSURE, &sample, s->userdata);
 				}
 			}
 		}
@@ -666,33 +658,31 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// Deco/safety fields. Offsets validated 244/244 against the app's
 		// export: TTS uint16 @22 (s), NDL int16 @30 (s), Ceiling float32 @38
 		// (m). Ceiling/NDL/TTS use the standard DC_SAMPLE_DECO channel.
-		if (s->callback) {
-			unsigned int tts = array_uint16_le (data + 22);
-			int ndl = (int16_t) array_uint16_le (data + 30);
-			double ceiling = array_float_le (data + 38);
+		unsigned int tts = array_uint16_le (data + 22);
+		int ndl = (int16_t) array_uint16_le (data + 30);
+		double ceiling = array_float_le (data + 38);
 
-			dc_sample_value_t t = {0};
-			t.time = (unsigned int) s->sample_ms;
-			s->callback (DC_SAMPLE_TIME, &t, s->userdata);
+		dc_sample_value_t t = {0};
+		t.time = (unsigned int) s->sample_ms;
+		if (s->callback) s->callback (DC_SAMPLE_TIME, &t, s->userdata);
 
-			dc_sample_value_t deco = {0};
-			if (ceiling > 0.0) {
-				deco.deco.type = DC_DECO_DECOSTOP;
-				deco.deco.depth = ceiling;
-				deco.deco.tts = tts;
-			} else {
-				deco.deco.type = DC_DECO_NDL;
-				deco.deco.time = ndl > 0 ? (unsigned int) ndl : 0;
-				deco.deco.tts = tts;
-			}
-			s->callback (DC_SAMPLE_DECO, &deco, s->userdata);
+		dc_sample_value_t deco = {0};
+		if (ceiling > 0.0) {
+			deco.deco.type = DC_DECO_DECOSTOP;
+			deco.deco.depth = ceiling;
+			deco.deco.tts = tts;
+		} else {
+			deco.deco.type = DC_DECO_NDL;
+			deco.deco.time = ndl > 0 ? (unsigned int) ndl : 0;
+			deco.deco.tts = tts;
 		}
+		if (s->callback) s->callback (DC_SAMPLE_DECO, &deco, s->userdata);
 
 		// Real-time gradient factors -> vendor kind 5 (no standard channel).
 		// gf99 @186 and surface @190 sit past the cylinder array; the
 		// leading-tissue GF @78 is inside that span, so it's only reliable
 		// while the upper tank slots are unused (as on this reference dive).
-		if (s->callback && size >= 192) {
+		if (size >= 192) {
 			int gf99    = (int16_t) array_uint16_le (data + 186);
 			int gf_surf = (int16_t) array_uint16_le (data + 190);
 			int gf_lead = (int16_t) array_uint16_le (data + 78);
@@ -732,15 +722,13 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			parser->location.altitude = 0.0;
 		}
 
-		if (s->callback) {
-			dc_sample_value_t sample = {0};
-			sample.time = (unsigned int) s->sample_ms;
-			s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-			sample.location.latitude = lat_raw / 1.0e7;
-			sample.location.longitude = lon_raw / 1.0e7;
-			sample.location.altitude = 0.0;
-			s->callback (DC_SAMPLE_LOCATION, &sample, s->userdata);
-		}
+		dc_sample_value_t sample = {0};
+		sample.time = (unsigned int) s->sample_ms;
+		if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+		sample.location.latitude = lat_raw / 1.0e7;
+		sample.location.longitude = lon_raw / 1.0e7;
+		sample.location.altitude = 0.0;
+		if (s->callback) s->callback (DC_SAMPLE_LOCATION, &sample, s->userdata);
 	} else if (id == CHUNK_DIVE_STATE) {
 		if (size < 3) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
@@ -774,16 +762,16 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// information -- the Suunto app itself shows only the begins --
 		// and emitting both makes downstream apps draw a duplicate
 		// marker where the condition cleared.
-		if (s->callback && data[3]) {
+		if (data[3]) {
 			unsigned int mapped = suunto_nautic_map_event (id, data[2]);
 			if (mapped != SAMPLE_EVENT_NONE) {
 				dc_sample_value_t sample = {0};
 				sample.time = (unsigned int) s->sample_ms;
-				s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+				if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
 				sample.event.type = mapped;
 				sample.event.flags = SAMPLE_FLAGS_BEGIN;
 				sample.event.value = (id << 8) | data[2];
-				s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
+				if (s->callback) s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 			}
 		}
 	} else if (id == CHUNK_OOAM) {
@@ -796,17 +784,15 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// / Gauge dive). No Active byte. Emitted as a begin-edge event; the
 		// native (subgroup, type) is passed in event.value = (chunk_id<<8|type)
 		// for the precise Suunto label, same convention as the other events.
-		if (s->callback) {
-			unsigned int mapped = suunto_nautic_map_event (id, data[2]);
-			if (mapped != SAMPLE_EVENT_NONE) {
-				dc_sample_value_t sample = {0};
-				sample.time = (unsigned int) s->sample_ms;
-				s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-				sample.event.type = mapped;
-				sample.event.flags = SAMPLE_FLAGS_BEGIN;
-				sample.event.value = (id << 8) | data[2];
-				s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
-			}
+		unsigned int mapped = suunto_nautic_map_event (id, data[2]);
+		if (mapped != SAMPLE_EVENT_NONE) {
+			dc_sample_value_t sample = {0};
+			sample.time = (unsigned int) s->sample_ms;
+			if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+			sample.event.type = mapped;
+			sample.event.flags = SAMPLE_FLAGS_BEGIN;
+			sample.event.value = (id << 8) | data[2];
+			if (s->callback) s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 		}
 	} else if (id == CHUNK_GAS_SWITCH) {
 		if (size < 4) {
@@ -816,18 +802,18 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// [timeDelta:2][gasnumber:int16 LE] -- 0-based, and equal to the
 		// cylinder slot / gas-mix index.
 		int gasnum = (int16_t) array_uint16_le (data + 2);
-		if (gasnum >= 0 && s->callback) {
+		if (gasnum >= 0) {
 			dc_sample_value_t sample = {0};
 			sample.time = (unsigned int) s->sample_ms;
-			s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+			if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
 			// Modern channel: the active gas-mix index.
 			sample.gasmix = (unsigned int) gasnum;
-			s->callback (DC_SAMPLE_GASMIX, &sample, s->userdata);
+			if (s->callback) s->callback (DC_SAMPLE_GASMIX, &sample, s->userdata);
 			// Legacy channel, for consumers that only read events.
 			sample.event.type = SAMPLE_EVENT_GASCHANGE;
 			sample.event.flags = SAMPLE_FLAGS_BEGIN;
 			sample.event.value = (unsigned int) gasnum;
-			s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
+			if (s->callback) s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 		}
 	} else if (id == CHUNK_HEARTRATE) {
 		if (size < 3) {
@@ -839,12 +825,12 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// the chunk never appears there). Byte-exact against the app
 		// export's per-sample HR on a real Ocean dive (66-113 bpm).
 		unsigned int hr = data[2];
-		if (hr && s->callback) {
+		if (hr) {
 			dc_sample_value_t sample = {0};
 			sample.time = (unsigned int) s->sample_ms;
-			s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+			if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
 			sample.heartbeat = hr;
-			s->callback (DC_SAMPLE_HEARTBEAT, &sample, s->userdata);
+			if (s->callback) s->callback (DC_SAMPLE_HEARTBEAT, &sample, s->userdata);
 		}
 	} else if (id == CHUNK_BATTERY) {
 		if (size < 7) {
@@ -854,17 +840,15 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// Battery telemetry -> DC_SAMPLE_VENDOR kind 1.
 		// (Current at data+2 is int16 but its scale isn't confirmed,
 		// so it's left out for now.)
-		if (s->callback) {
-			unsigned int voltage_mv = array_uint16_le (data + 4);
-			unsigned int charge_permille = data[6] * 10; // % -> permille
-			unsigned char rec[5];
-			rec[0] = VENDOR_KIND_BATTERY;
-			rec[1] = voltage_mv & 0xFF;
-			rec[2] = (voltage_mv >> 8) & 0xFF;
-			rec[3] = charge_permille & 0xFF;
-			rec[4] = (charge_permille >> 8) & 0xFF;
-			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
-		}
+		unsigned int voltage_mv = array_uint16_le (data + 4);
+		unsigned int charge_permille = data[6] * 10; // % -> permille
+		unsigned char rec[5];
+		rec[0] = VENDOR_KIND_BATTERY;
+		rec[1] = voltage_mv & 0xFF;
+		rec[2] = (voltage_mv >> 8) & 0xFF;
+		rec[3] = charge_permille & 0xFF;
+		rec[4] = (charge_permille >> 8) & 0xFF;
+		suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 	} else if (id == CHUNK_GPS_ACCURACY) {
 		if (size < 4) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
@@ -876,14 +860,12 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		s->evpe += (int8_t) data[3];
 		if (s->ehpe < 0) s->ehpe = 0;
 		if (s->evpe < 0) s->evpe = 0;
-		if (s->callback) {
-			unsigned int e = (unsigned int) s->ehpe, v = (unsigned int) s->evpe;
-			unsigned char rec[5];
-			rec[0] = VENDOR_KIND_GPS_ACCURACY;
-			rec[1] = e & 0xFF; rec[2] = (e >> 8) & 0xFF;
-			rec[3] = v & 0xFF; rec[4] = (v >> 8) & 0xFF;
-			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
-		}
+		unsigned int e = (unsigned int) s->ehpe, v = (unsigned int) s->evpe;
+		unsigned char rec[5];
+		rec[0] = VENDOR_KIND_GPS_ACCURACY;
+		rec[1] = e & 0xFF; rec[2] = (e >> 8) & 0xFF;
+		rec[3] = v & 0xFF; rec[4] = (v >> 8) & 0xFF;
+		suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 	} else if (id == CHUNK_IMU_ALT || id == CHUNK_IMU || id == CHUNK_DIVEROUTE_FEATURES) {
 		// The ids of these two move with the firmware: the IMU is 0x22 on
 		// the 141-byte watches and 0x23 on the 195-byte ones, the
@@ -893,22 +875,18 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			// High-rate IMU: 9x int16 (accel/gyro/mag X,Y,Z) at offset 6,
 			// already little-endian -> DC_SAMPLE_VENDOR kind 3, passed
 			// through verbatim.
-			if (s->callback) {
-				unsigned char rec[1 + 18];
-				rec[0] = VENDOR_KIND_IMU;
-				memcpy (rec + 1, data + 6, 18);
-				suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
-			}
+			unsigned char rec[1 + 18];
+			rec[0] = VENDOR_KIND_IMU;
+			memcpy (rec + 1, data + 6, 18);
+			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 		} else if (size == 16) {
 			// DiveRouteFeatures: 5x uint16 at offset 6 -> DC_SAMPLE_VENDOR
 			// kind 4. NOT the dive route (which the watch does not store);
 			// semantics TBD.
-			if (s->callback) {
-				unsigned char rec[1 + 10];
-				rec[0] = VENDOR_KIND_DIVEROUTE_FEATURES;
-				memcpy (rec + 1, data + 6, 10);
-				suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
-			}
+			unsigned char rec[1 + 10];
+			rec[0] = VENDOR_KIND_DIVEROUTE_FEATURES;
+			memcpy (rec + 1, data + 6, 10);
+			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 		} else {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
