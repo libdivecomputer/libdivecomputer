@@ -1029,6 +1029,13 @@ suunto_nautic_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 		goto error_close;
 	}
 
+	// The reply has the layout of the hello, and the same protocol versions.
+	if (hello_len != sizeof (hello) || hello[0] != 0x09 || hello[1] != 0x09) {
+		ERROR (context, "Unexpected hello reply.");
+		status = DC_STATUS_PROTOCOL;
+		goto error_close;
+	}
+
 	*out = (dc_device_t *) device;
 
 	return DC_STATUS_SUCCESS;
