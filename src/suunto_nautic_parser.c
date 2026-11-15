@@ -104,7 +104,7 @@
 #define DIVE_STATE_RECOVERING 2
 
 #define MAX_TANKS 8
-#define MAX_GASMIXES 4
+#define MAX_GASMIXES 8
 
 // The /Summary SBEM section starts with the dive header, with the settings
 // the dive was made with, which the profile (/Data) doesn't carry. The
@@ -116,12 +116,11 @@
 #define HEADER_WATER_TYPE  48 // uint8 enum: 0 fresh, 1 EN13319, 2 salt
 // GF low is at +39 and GF high at +37. This ordering yields valid low <= high
 // on two devices (Nautic 35/75, Nautic S 40/85); the reverse gives low > high.
-// Gas/cylinder records: an array starting at HEADER_GAS, one 45-byte
-// record per configured gas. The record index equals the cylinder slot
-// (GasNumber), so tank i uses gas i. Within a record: O2% at +1, He% at +3,
-// the configured PO2 max (float32 LE, bar) at +5, and cylinder water capacity
-// (float32 LE, m^3) at +9. Confirmed on real single- and dual-gas dives; a
-// lone-gas dive stops at the first implausible slot.
+// Gas records: an array at HEADER_GAS, one 45-byte record for each gas of
+// the layout. The record index equals the cylinder slot (GasNumber), so tank
+// i uses gas i. Within a record: O2% at +1, He% at +3, the configured PO2 max
+// (float32 LE, bar) at +5, and cylinder water capacity (float32 LE, m^3) at
+// +9. The records of the unused gases are zero, after the used ones.
 #define HEADER_GAS        185
 #define HEADER_GAS_SIZE   45
 #define GAS_O2            1  // uint16 LE, %
@@ -341,9 +340,7 @@ suunto_nautic_sbem_parse (dc_context_t *context, const unsigned char data[], uns
 
 // Decode gradient factors, water type, gas mixes and per-gas cylinder size
 // from the dive header, the first chunk of the /Summary; the other chunks
-// aren't decoded. Gases are validated by plausibility (O2 in 1..100, He in
-// 0..100-O2) and counted until the first implausible slot, since unused
-// slots hold unrelated bytes.
+// aren't decoded.
 static dc_status_t
 suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsigned char data[], unsigned int size, void *userdata)
 {
@@ -365,7 +362,7 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	if (size < HEADER_GAS + MAX_GASMIXES * HEADER_GAS_SIZE) {
+	if (size < HEADER_GAS + parser->layout->ngases * HEADER_GAS_SIZE) {
 		ERROR (context, "Unexpected dive header size (%u).", size);
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -380,12 +377,18 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 		parser->have_watertype = 1;
 	}
 
-	for (unsigned int i = 0; i < MAX_GASMIXES; i++) {
+	for (unsigned int i = 0; i < parser->layout->ngases; i++) {
 		const unsigned char *gas = data + HEADER_GAS + i * HEADER_GAS_SIZE;
 		unsigned int o2 = array_uint16_le (gas + GAS_O2);
 		unsigned int he = array_uint16_le (gas + GAS_HE);
-		if (o2 < 1 || o2 > 100 || he > 100 || o2 + he > 100)
-			break; // unused/implausible slot -- stop
+		if (o2 == 0 && he == 0)
+			continue;
+		// The gas index is the record index, so a gas can't follow an
+		// unused record.
+		if (i != parser->ngasmixes || o2 == 0 || o2 > 100 || he > 100 - o2) {
+			ERROR (context, "Unexpected gas mix %u (%u %u).", i, o2, he);
+			return DC_STATUS_DATAFORMAT;
+		}
 		unsigned int g = parser->ngasmixes;
 		parser->gasmix[g].oxygen = o2;
 		parser->gasmix[g].helium = he;
