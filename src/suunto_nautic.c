@@ -51,7 +51,6 @@
 
 // Packet: 0xA5 OPCODE LENGTH(2) SEQNUM(2) PAYLOAD(LENGTH) CRC32(4)
 #define RPC_START    0xA5
-#define RPC_OVERHEAD 10
 #define MAX_PAYLOAD  512
 #define MAX_PATH     240
 
@@ -184,7 +183,7 @@ static dc_status_t
 suunto_nautic_send (suunto_nautic_device_t *device, unsigned char opcode, unsigned int seqnum, const unsigned char data[], size_t size)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
-	unsigned char packet[RPC_OVERHEAD + MAX_PAYLOAD] = {0};
+	unsigned char packet[6 + MAX_PAYLOAD + 4] = {0};
 
 	if (size > MAX_PAYLOAD)
 		return DC_STATUS_INVALIDARGS;
@@ -199,7 +198,7 @@ suunto_nautic_send (suunto_nautic_device_t *device, unsigned char opcode, unsign
 	unsigned int crc = checksum_crc32r (packet, 6 + size);
 	array_uint32_le_set (packet + 6 + size, crc);
 
-	status = dc_iostream_write (device->iostream, packet, RPC_OVERHEAD + size, NULL);
+	status = dc_iostream_write (device->iostream, packet, 6 + size + 4, NULL);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (device->base.context, "Failed to send the packet.");
 		return status;
@@ -217,7 +216,7 @@ static dc_status_t
 suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsigned int seqnum, unsigned char data[], size_t size, size_t *actual)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
-	unsigned char packet[RPC_OVERHEAD + MAX_PAYLOAD] = {0};
+	unsigned char packet[6 + MAX_PAYLOAD + 4] = {0};
 	size_t length = 0;
 
 	if (size > MAX_PAYLOAD)
@@ -230,7 +229,7 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 			return status;
 		}
 
-		if (length < RPC_OVERHEAD) {
+		if (length < 10) {
 			ERROR (device->base.context, "Unexpected packet size (" DC_PRINTF_SIZE ").", length);
 			return DC_STATUS_PROTOCOL;
 		}
@@ -248,8 +247,8 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 		}
 
 		unsigned int rsp_length = array_uint16_le (packet + 2);
-		if (rsp_length != length - RPC_OVERHEAD) {
-			ERROR (device->base.context, "Unexpected packet payload length (%u " DC_PRINTF_SIZE ").", rsp_length, length - RPC_OVERHEAD);
+		if (rsp_length != length - 10) {
+			ERROR (device->base.context, "Unexpected packet payload length (%u " DC_PRINTF_SIZE ").", rsp_length, length - 10);
 			return DC_STATUS_PROTOCOL;
 		}
 
