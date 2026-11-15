@@ -40,11 +40,10 @@
  * skipped, so extending the decoder is additive.
  *
  * Sample time is delta-encoded: every chunk except the timeline base
- * (0x01) begins with a signed int16 LE millisecond delta. The dive start
- * time (dc_parser_get_datetime()) is reconstructed from the only absolute
- * clock in the stream: each GPS fix (chunk 0x0B) carries an absolute UTC
- * in milliseconds, so start = gps_utc - gps_relative_time. A dive with no
- * surface GPS fix has no absolute clock, so datetime is unsupported for it.
+ * (0x01) begins with a signed int16 LE millisecond delta. The timeline base
+ * is the first chunk, and holds the local time of the dive start, which is
+ * what dc_parser_get_datetime() returns, with the UTC offset of the watch as
+ * the time zone.
  */
 
 #include <string.h>
@@ -55,7 +54,7 @@
 #include "parser-private.h"
 #include "array.h"
 
-#define CHUNK_TIMELINE_BASE   0x01
+#define CHUNK_TIMELINE_BASE   0x01 // [localtime:7 ms LE][utcoffset:int8, quarter hours]
 #define CHUNK_ACTIVITY        0x08 // [timeDelta:2][sportId:1][customModeId: ascii]
 // Suunto sport ids seen on the Nautic/Ocean, from the app's ActivityType:
 // 51 = scuba, 61 = free diving, 62 = mermaiding. Only the last two are apnea.
@@ -181,7 +180,8 @@ typedef struct suunto_nautic_parser_t {
 	unsigned int have_atmospheric;
 	double atmospheric; // Pa
 	unsigned int have_datetime;
-	dc_ticks_t datetime; // dive start, UNIX seconds
+	dc_ticks_t datetime; // dive start, local time, ms
+	int timezone;        // UTC offset, quarter hours
 	unsigned int have_sport;
 	unsigned int sport; // the CHUNK_ACTIVITY sport id
 	// From the /Summary SBEM section in front of the profile.
@@ -210,13 +210,13 @@ typedef struct suunto_nautic_profile_t {
 	//
 	// time_ms is the raw running sum; deltas are always added to it. sample_ms
 	// is the monotonic (never-decreasing) view of that sum, and is what every
-	// emitted sample time and the dive-start datetime are derived from. They
-	// differ only across a GPS / GPS-accuracy chunk: those carry a delta on
-	// their own back-dated sub-chain that rewinds the sum a few hundred ms,
-	// after which the next chunk's delta (measured from the rewound point)
-	// walks it forward again. The raw sum stays correct for span arithmetic,
-	// but a sample emitted at the rewound value goes backwards in the profile
-	// and blows up the downstream depth interpolation (submersion-libdc#1).
+	// emitted sample time is derived from. They differ only across a GPS /
+	// GPS-accuracy chunk: those carry a delta on their own back-dated
+	// sub-chain that rewinds the sum a few hundred ms, after which the next
+	// chunk's delta (measured from the rewound point) walks it forward again.
+	// The raw sum stays correct for span arithmetic, but a sample emitted at
+	// the rewound value goes backwards in the profile and blows up the
+	// downstream depth interpolation (submersion-libdc#1).
 	int time_ms;
 	int sample_ms;
 	// Dive phase, from CHUNK_DIVE_STATE. Dive time is the TOTAL time spent in
@@ -508,7 +508,17 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 	if (s->time_ms > s->sample_ms)
 		s->sample_ms = s->time_ms;
 
-	if (id == CHUNK_PROFILE_1HZ) {
+	if (id == CHUNK_TIMELINE_BASE) {
+		if (size < 8) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
+		if (!parser->have_datetime) {
+			parser->datetime = (dc_ticks_t) (array_uint64_le (data) & 0x00FFFFFFFFFFFFFFULL);
+			parser->timezone = (signed char) data[7];
+			parser->have_datetime = 1;
+		}
+	} else if (id == CHUNK_PROFILE_1HZ) {
 		if (size < 18) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
@@ -666,22 +676,10 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// Payload: [timeDelta:2][UTC:8 ms LE][lat:4][lon:4]. UTC is an
-		// absolute UNIX time in milliseconds; subtracting this sample's
-		// relative time (s->sample_ms, the monotonic clock -- a GPS fix can
-		// land inside a GPS-chunk rewind window, and the raw sum there is
-		// off by the excursion) yields the stream-start epoch, i.e. the
-		// dive start (== the logbook id, confirmed to the second). This is
-		// the only absolute clock in the stream, so the first GPS fix sets
-		// the dive datetime.
-		unsigned long long utc_ms = array_uint64_le (data + 2);
+		// Payload: [timeDelta:2][UTC:8 ms LE][lat:4][lon:4]. The first fix
+		// is the location of the dive.
 		int lat_raw = (signed int) array_uint32_le (data + 10);
 		int lon_raw = (signed int) array_uint32_le (data + 14);
-
-		if (!parser->have_datetime && utc_ms > (unsigned long long) s->sample_ms) {
-			parser->have_datetime = 1;
-			parser->datetime = (dc_ticks_t) ((utc_ms - (unsigned long long) s->sample_ms) / 1000);
-		}
 
 		if (!parser->have_location) {
 			parser->have_location = 1;
@@ -927,6 +925,7 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	parser->atmospheric = 0.0;
 	parser->have_datetime = 0;
 	parser->datetime = 0;
+	parser->timezone = 0;
 	parser->have_sport = 0;
 	parser->sport = 0;
 	parser->ngasmixes = 0;
@@ -1016,14 +1015,14 @@ suunto_nautic_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetim
 			return status;
 	}
 
-	// The dive start is derived from the first GPS fix's absolute UTC. A dive
-	// without a surface GPS fix has no absolute clock in the stream; the caller
-	// falls back to the logbook id (which is that same timestamp).
 	if (!parser->have_datetime)
 		return DC_STATUS_UNSUPPORTED;
 
-	if (datetime && !dc_datetime_gmtime (datetime, parser->datetime))
-		return DC_STATUS_DATAFORMAT;
+	if (datetime) {
+		if (!dc_datetime_gmtime (datetime, parser->datetime / 1000))
+			return DC_STATUS_DATAFORMAT;
+		datetime->timezone = parser->timezone * 900;
+	}
 
 	return DC_STATUS_SUCCESS;
 }

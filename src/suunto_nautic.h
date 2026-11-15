@@ -69,12 +69,12 @@
  *     newest first, stopping at the first id matching the fingerprint.
  *
  * Datetime:
- *   - The stream carries no wall-clock timestamp except in GPS fixes
- *     (chunk 0x0B), which hold an absolute UTC in milliseconds, so
- *     dc_parser_get_datetime() derives start = gps_utc - gps_rel_time.
- *     A dive with no surface GPS fix has no absolute clock in the
- *     stream; datetime is unsupported for it. The LogId (the dive id) is
- *     itself that timestamp and can serve as a fallback.
+ *   - The profile starts with the timeline base (chunk 0x01): the local
+ *     time of the dive start in milliseconds, in its low 7 bytes, and the
+ *     UTC offset of the watch in quarter hours, as an int8, in its top
+ *     byte. dc_parser_get_datetime() returns that local time, with the
+ *     offset as the time zone. The local time minus the offset is about
+ *     a second after the dive id, at most.
  */
 
 #ifndef SUUNTO_NAUTIC_H
