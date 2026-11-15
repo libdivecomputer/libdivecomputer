@@ -105,6 +105,7 @@
 #define ENTRIES_RECORDS 4
 #define ENTRY_SIZE     24
 #define ENTRY_START    0
+#define ENTRY_HASSIZE  8
 #define ENTRY_LENGTH   16
 
 #define NSTEPS 1000
@@ -956,7 +957,7 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 	}
 
 	size_t data_size = dc_buffer_get_size (compressed);
-	if (listed && data_size + summary_size != listed) {
+	if (data_size + summary_size != listed) {
 		ERROR (abstract->context, "Unexpected size of dive %u (" DC_PRINTF_SIZE " + " DC_PRINTF_SIZE " bytes, listed %u).",
 			id, data_size, summary_size, listed);
 		status = DC_STATUS_PROTOCOL;
@@ -1129,6 +1130,14 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 		const unsigned char *record = records + (count - 1 - i) * ENTRY_SIZE;
 		unsigned int id = array_uint32_le (record + ENTRY_START);
 		unsigned int listed = array_uint32_le (record + ENTRY_LENGTH);
+
+		// The size is optional in the API, but no watch has been seen to list
+		// an entry without one, or with one that needs more than 32 bits.
+		if (record[ENTRY_HASSIZE] != 1 || array_uint32_le (record + ENTRY_LENGTH + 4) != 0) {
+			ERROR (abstract->context, "Unexpected size of dive %u.", id);
+			status = DC_STATUS_DATAFORMAT;
+			break;
+		}
 
 		dc_buffer_clear (buffer);
 		if (!dc_buffer_reserve (buffer, listed)) {
