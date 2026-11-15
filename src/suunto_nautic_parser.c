@@ -468,10 +468,9 @@ suunto_nautic_map_event (unsigned int chunk_id, unsigned int type)
 		}
 	case CHUNK_EVENT_NOTIFY: // status notifications
 		switch (type) {
-		case 11:        return SAMPLE_EVENT_GASCHANGE;           // Gas Switch
 		case 28: case 29:return SAMPLE_EVENT_AIRTIME;           // User Tank Pressure / Gas Time
 		case 32:        return SAMPLE_EVENT_DIVETIME;            // Dive Time
-		default:        return SAMPLE_EVENT_NONE;                // 21 Setpoint, 41 Stop done, 42 User Ndl,
+		default:        return SAMPLE_EVENT_NONE;                // 11 Gas Switch, 21 Setpoint, 41 Stop done, 42 User Ndl,
 		                                                        // 60/61 Bearing, 62/63 Stopwatch, ...
 		}
 	case CHUNK_OOAM: // dive-end reason
@@ -789,14 +788,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		dc_sample_value_t sample = {0};
 		sample.time = (unsigned int) s->sample_ms;
 		if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-		// Modern channel: the active gas-mix index.
 		sample.gasmix = gasnum;
 		if (s->callback) s->callback (DC_SAMPLE_GASMIX, &sample, s->userdata);
-		// Legacy channel, for consumers that only read events.
-		sample.event.type = SAMPLE_EVENT_GASCHANGE;
-		sample.event.flags = SAMPLE_FLAGS_BEGIN;
-		sample.event.value = gasnum;
-		if (s->callback) s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 	} else if (id == CHUNK_HEARTRATE) {
 		if (size < 3) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
