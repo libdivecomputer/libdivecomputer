@@ -49,7 +49,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
 
 #include "suunto_nautic.h"
 #include "context-private.h"
@@ -504,7 +503,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		s->time_ms += (int16_t) array_uint16_le (data);
+		s->time_ms += (signed short) array_uint16_le (data);
 	}
 	if (s->time_ms > s->sample_ms)
 		s->sample_ms = s->time_ms;
@@ -631,7 +630,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// export: TTS uint16 @22 (s), NDL int16 @30 (s), Ceiling float32 @38
 		// (m). Ceiling/NDL/TTS use the standard DC_SAMPLE_DECO channel.
 		unsigned int tts = array_uint16_le (data + 22);
-		int ndl = (int16_t) array_uint16_le (data + 30);
+		int ndl = (signed short) array_uint16_le (data + 30);
 		double ceiling = array_float_le (data + 38);
 
 		dc_sample_value_t t = {0};
@@ -676,8 +675,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// the only absolute clock in the stream, so the first GPS fix sets
 		// the dive datetime.
 		unsigned long long utc_ms = array_uint64_le (data + 2);
-		int lat_raw = (int) array_uint32_le (data + 10);
-		int lon_raw = (int) array_uint32_le (data + 14);
+		int lat_raw = (signed int) array_uint32_le (data + 10);
+		int lon_raw = (signed int) array_uint32_le (data + 14);
 
 		if (!parser->have_datetime && utc_ms > (unsigned long long) s->sample_ms) {
 			parser->have_datetime = 1;
@@ -769,7 +768,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		}
 		// [timeDelta:2][gasnumber:int16 LE] -- 0-based, and equal to the
 		// cylinder slot / gas-mix index.
-		int gasnum = (int16_t) array_uint16_le (data + 2);
+		int gasnum = (signed short) array_uint16_le (data + 2);
 		if (gasnum >= 0) {
 			dc_sample_value_t sample = {0};
 			sample.time = (unsigned int) s->sample_ms;
@@ -824,8 +823,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		}
 		// EHPE/EVPE are int8 deltas accumulated from zero -> DC_SAMPLE_VENDOR
 		// kind 2, absolute metres.
-		s->ehpe += (int8_t) data[2];
-		s->evpe += (int8_t) data[3];
+		s->ehpe += (signed char) data[2];
+		s->evpe += (signed char) data[3];
 		if (s->ehpe < 0) s->ehpe = 0;
 		if (s->evpe < 0) s->evpe = 0;
 		unsigned int e = (unsigned int) s->ehpe, v = (unsigned int) s->evpe;
