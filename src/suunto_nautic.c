@@ -254,9 +254,14 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 		}
 
 		unsigned int rsp_opcode = packet[1];
+		if (rsp_opcode != opcode) {
+			WARNING (device->base.context, "Skipping a packet with an unexpected opcode (%02x %02x).", rsp_opcode, opcode);
+			continue;
+		}
+
 		unsigned int rsp_seqnum = array_uint16_le (packet + 4);
-		if (rsp_opcode != opcode || rsp_seqnum != seqnum) {
-			WARNING (device->base.context, "Skipping an unexpected packet (%02x %u).", rsp_opcode, rsp_seqnum);
+		if (rsp_seqnum != seqnum) {
+			WARNING (device->base.context, "Skipping a packet with an unexpected sequence number (%u %u).", rsp_seqnum, seqnum);
 			continue;
 		}
 
