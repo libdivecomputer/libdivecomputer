@@ -108,6 +108,19 @@
 #define ENTRY_HASSIZE  8
 #define ENTRY_LENGTH   16
 
+// /Info is a Whiteboard struct, TYPE(2) SIZE(2) PADDING(2) STRUCT, and the
+// struct starts with the offsets of eight NUL-terminated strings, as uint32
+// counted from the start of the struct: the manufacturer, the product, the
+// codename, a hardware id, the serial, a PCBA id, the firmware and the
+// hardware version, e.g. Suunto, Nautic, Vaasa, T, 2604C3003306, ..., 2.55.46.
+// The type is 02 2F on the Nautic, the Nautic S and the Ocean. The serial is
+// 12 hex digits, and is reported as the value of its last 8 (0xC3003306 for
+// 2604C3003306).
+#define INFO_TYPE     0x2F02
+#define INFO_STRUCT   6
+#define INFO_SERIAL   4
+#define INFO_FIRMWARE 6
+
 #define NSTEPS 1000
 
 #define TIMEOUT_DEFAULT 5000
@@ -976,56 +989,25 @@ error_free:
 	return status;
 }
 
-// True for a token that is exactly "<digits>.<digits>.<digits>", each part
-// < 256; on success fills a/b/c.
-static int
-suunto_nautic_parse_version (const char *tok, size_t len, unsigned int *a, unsigned int *b, unsigned int *c)
+// Return the string at the given index of the /Info strings, or NULL when its
+// offset is outside the data or it isn't NUL-terminated there.
+static const char *
+suunto_nautic_info_string (const unsigned char data[], size_t size, unsigned int index)
 {
-	unsigned int part[3] = {0}, idx = 0, digits = 0;
-	for (size_t i = 0; i < len; i++) {
-		char ch = tok[i];
-		if (ch >= '0' && ch <= '9') {
-			part[idx] = part[idx] * 10 + (unsigned int) (ch - '0');
-			if (part[idx] > 255 || ++digits > 3)
-				return 0;
-		} else if (ch == '.') {
-			if (digits == 0 || ++idx > 2)
-				return 0;
-			digits = 0;
-		} else {
-			return 0;
-		}
-	}
-	if (idx != 2 || digits == 0)
-		return 0;
-	*a = part[0]; *b = part[1]; *c = part[2];
-	return 1;
+	if (INFO_STRUCT + (index + 1) * 4 > size)
+		return NULL;
+
+	unsigned int offset = array_uint32_le (data + INFO_STRUCT + index * 4);
+	if (offset >= size - INFO_STRUCT)
+		return NULL;
+
+	const unsigned char *string = data + INFO_STRUCT + offset;
+	if (memchr (string, 0, size - INFO_STRUCT - offset) == NULL)
+		return NULL;
+
+	return (const char *) string;
 }
 
-// True for a token that is exactly 12 chars, all [0-9A-F] -- the watch serial
-// form, e.g. "2604C3003306".
-static int
-suunto_nautic_is_serial (const char *tok, size_t len)
-{
-	if (len != 12)
-		return 0;
-	for (size_t i = 0; i < len; i++) {
-		char ch = tok[i];
-		if (!((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F')))
-			return 0;
-	}
-	return 1;
-}
-
-// /Info is a run of NUL-terminated strings mixed with binary fields:
-//
-//   Suunto\0 Nautic\0 Vaasa\0 T\0 2604C3003306\0 ... 2.55.46\0 ...
-//     BLE Mac Address\0 <mac>\0 WiFi Mac Address\0 <mac>\0
-//
-// The serial is the first 12-character uppercase hex string, and the firmware
-// the first "N.N.N" string, which follows the serial. The MAC addresses after
-// it are also 12 hex characters. The serial is reported as the low 32 bits of
-// its value (0xC3003306 for 2604C3003306).
 static dc_status_t
 suunto_nautic_devinfo (suunto_nautic_device_t *device)
 {
@@ -1041,44 +1023,44 @@ suunto_nautic_devinfo (suunto_nautic_device_t *device)
 	status = suunto_nautic_fetch (device, "/Info", info);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to read the device info.");
-		dc_buffer_free (info);
-		return status;
+		goto error_free;
 	}
 
 	const unsigned char *data = dc_buffer_get_data (info);
 	size_t size = dc_buffer_get_size (info);
 
+	if (size < INFO_STRUCT || array_uint16_le (data) != INFO_TYPE) {
+		ERROR (abstract->context, "Unexpected device info type.");
+		status = DC_STATUS_DATAFORMAT;
+		goto error_free;
+	}
+
+	const char *serial = suunto_nautic_info_string (data, size, INFO_SERIAL);
+	unsigned char number[4] = {0};
+	if (serial == NULL || strlen (serial) != 12 ||
+		array_convert_hex2bin ((const unsigned char *) serial + 4, 8, number, sizeof (number)) != 0) {
+		ERROR (abstract->context, "Unexpected serial in the device info.");
+		status = DC_STATUS_DATAFORMAT;
+		goto error_free;
+	}
+
+	const char *firmware = suunto_nautic_info_string (data, size, INFO_FIRMWARE);
+	unsigned int major = 0, minor = 0, patch = 0;
+	if (firmware == NULL || sscanf (firmware, "%u.%u.%u", &major, &minor, &patch) != 3) {
+		ERROR (abstract->context, "Unexpected firmware in the device info.");
+		status = DC_STATUS_DATAFORMAT;
+		goto error_free;
+	}
+
 	dc_event_devinfo_t devinfo;
 	memset (&devinfo, 0, sizeof (devinfo));
-
-	size_t start = 0;
-	for (size_t i = 0; i < size; i++) {
-		if (data[i] != 0)
-			continue;
-		const char *token = (const char *) (data + start);
-		size_t length = i - start;
-		unsigned int a, b, c;
-		if (!devinfo.firmware && suunto_nautic_parse_version (token, length, &a, &b, &c)) {
-			devinfo.firmware = (a << 16) | (b << 8) | c;
-		} else if (!devinfo.firmware && !devinfo.serial && suunto_nautic_is_serial (token, length)) {
-			// The value doesn't fit in 32 bits, so only its last 8 digits
-			// are converted.
-			unsigned char serial[4] = {0};
-			array_convert_hex2bin (data + start + 4, 8, serial, sizeof (serial));
-			devinfo.serial = array_uint32_be (serial);
-		}
-		start = i + 1;
-	}
-
-	dc_buffer_free (info);
-
-	if (devinfo.firmware == 0 || devinfo.serial == 0) {
-		ERROR (abstract->context, "Failed to find the firmware and serial in the device info.");
-		return DC_STATUS_DATAFORMAT;
-	}
+	devinfo.firmware = (major << 16) | (minor << 8) | patch;
+	devinfo.serial = array_uint32_be (number);
 
 	device_event_emit (abstract, DC_EVENT_DEVINFO, &devinfo);
 
+error_free:
+	dc_buffer_free (info);
 	return status;
 }
 
