@@ -781,20 +781,22 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		}
 		// [timeDelta:2][gasnumber:int16 LE] -- 0-based, and equal to the
 		// cylinder slot / gas-mix index.
-		int gasnum = (signed short) array_uint16_le (data + 2);
-		if (gasnum >= 0) {
-			dc_sample_value_t sample = {0};
-			sample.time = (unsigned int) s->sample_ms;
-			if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-			// Modern channel: the active gas-mix index.
-			sample.gasmix = (unsigned int) gasnum;
-			if (s->callback) s->callback (DC_SAMPLE_GASMIX, &sample, s->userdata);
-			// Legacy channel, for consumers that only read events.
-			sample.event.type = SAMPLE_EVENT_GASCHANGE;
-			sample.event.flags = SAMPLE_FLAGS_BEGIN;
-			sample.event.value = (unsigned int) gasnum;
-			if (s->callback) s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
+		unsigned int gasnum = array_uint16_le (data + 2);
+		if (gasnum >= parser->ngasmixes) {
+			ERROR (context, "Invalid gas mix index (%u).", gasnum);
+			return DC_STATUS_DATAFORMAT;
 		}
+		dc_sample_value_t sample = {0};
+		sample.time = (unsigned int) s->sample_ms;
+		if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+		// Modern channel: the active gas-mix index.
+		sample.gasmix = gasnum;
+		if (s->callback) s->callback (DC_SAMPLE_GASMIX, &sample, s->userdata);
+		// Legacy channel, for consumers that only read events.
+		sample.event.type = SAMPLE_EVENT_GASCHANGE;
+		sample.event.flags = SAMPLE_FLAGS_BEGIN;
+		sample.event.value = gasnum;
+		if (s->callback) s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 	} else if (id == CHUNK_HEARTRATE) {
 		if (size < 3) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
