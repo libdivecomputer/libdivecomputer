@@ -69,8 +69,8 @@
 // High-rate IMU: [timeDelta:2][algoTS:uint32][accel/gyro/mag X,Y,Z:int16], a
 // 24-byte payload. The chunk id is FIRMWARE-DEPENDENT: 0x23 on the 195-byte
 // extended-status watches (Nautic), 0x22 on the 141-byte ones (Nautic S /
-// Ocean). Both are matched by (id in {0x22,0x23} AND payload >= 24); see the
-// IMU handler. Keying on the id alone silently dropped IMU on 141-byte watches.
+// Ocean), where 0x23 is the DiveRouteFeatures; the size tells them apart
+// (see the IMU handler).
 #define CHUNK_IMU             0x23
 #define CHUNK_IMU_ALT         0x22
 // DiveRouteFeatures: 5x uint16 (16-byte payload), id 0x24 on 195-byte watches
@@ -360,7 +360,7 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 		return DC_STATUS_SUCCESS;
 
 	if (id != SUMMARY_HEADER && id != SUMMARY_HEADER_ALT) {
-		ERROR (context, "Unexpected dive header id (%u).", id);
+		ERROR (context, "Unexpected dive header id (%02x).", id);
 		return DC_STATUS_DATAFORMAT;
 	}
 
@@ -513,12 +513,21 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 
 	// Advance the clock by this chunk's leading ms delta (all groups
 	// except the timeline base carry one).
-	if (id != CHUNK_TIMELINE_BASE && size >= 2)
+	if (id != CHUNK_TIMELINE_BASE) {
+		if (size < 2) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		s->time_ms += (int16_t) array_uint16_le (data);
+	}
 	if (s->time_ms > s->sample_ms)
 		s->sample_ms = s->time_ms;
 
-	if (id == CHUNK_PROFILE_1HZ && size >= 18) {
+	if (id == CHUNK_PROFILE_1HZ) {
+		if (size < 18) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		double temperature = array_uint16_le (data + 16) / 100.0 - 273.15;
 
 		if (!parser->have_temperature) {
@@ -541,24 +550,27 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			s->callback (DC_SAMPLE_TEMPERATURE, &sample, s->userdata);
 		}
 	} else if (id == CHUNK_EXTENDED_STATUS) {
-		if (size >= 6) {
-			double depth = array_float_le (data + 2);
+		if (size < 42) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 
-			if (depth > parser->maxdepth)
-				parser->maxdepth = depth;
-			// Average only over the Diving phase (matches the app).
-			if (s->dive_state == DIVE_STATE_DIVING) {
-				s->depth_sum += depth;
-				s->depth_count++;
-			}
+		double depth = array_float_le (data + 2);
 
-			if (s->callback) {
-				dc_sample_value_t sample = {0};
-				sample.time = (unsigned int) s->sample_ms;
-				s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-				sample.depth = depth;
-				s->callback (DC_SAMPLE_DEPTH, &sample, s->userdata);
-			}
+		if (depth > parser->maxdepth)
+			parser->maxdepth = depth;
+		// Average only over the Diving phase (matches the app).
+		if (s->dive_state == DIVE_STATE_DIVING) {
+			s->depth_sum += depth;
+			s->depth_count++;
+		}
+
+		if (s->callback) {
+			dc_sample_value_t sample = {0};
+			sample.time = (unsigned int) s->sample_ms;
+			s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+			sample.depth = depth;
+			s->callback (DC_SAMPLE_DEPTH, &sample, s->userdata);
 		}
 
 		// Cylinders array: up to 8 elements of 18 bytes, starting at
@@ -654,7 +666,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// Deco/safety fields. Offsets validated 244/244 against the app's
 		// export: TTS uint16 @22 (s), NDL int16 @30 (s), Ceiling float32 @38
 		// (m). Ceiling/NDL/TTS use the standard DC_SAMPLE_DECO channel.
-		if (s->callback && size >= 42) {
+		if (s->callback) {
 			unsigned int tts = array_uint16_le (data + 22);
 			int ndl = (int16_t) array_uint16_le (data + 30);
 			double ceiling = array_float_le (data + 38);
@@ -691,7 +703,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			rec[5] = gf_lead & 0xFF; rec[6] = (gf_lead >> 8) & 0xFF;
 			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 		}
-	} else if (id == CHUNK_GPS && size >= 18) {
+	} else if (id == CHUNK_GPS) {
+		if (size < 18) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// Payload: [timeDelta:2][UTC:8 ms LE][lat:4][lon:4]. UTC is an
 		// absolute UNIX time in milliseconds; subtracting this sample's
 		// relative time (s->sample_ms, the monotonic clock -- a GPS fix can
@@ -725,7 +741,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			sample.location.altitude = 0.0;
 			s->callback (DC_SAMPLE_LOCATION, &sample, s->userdata);
 		}
-	} else if (id == CHUNK_DIVE_STATE && size >= 3) {
+	} else if (id == CHUNK_DIVE_STATE) {
+		if (size < 3) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		unsigned int new_state = data[2];
 		if (new_state == DIVE_STATE_DIVING && s->dive_state != DIVE_STATE_DIVING) {
 			s->diving_start_ms = s->time_ms;
@@ -735,8 +755,12 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			s->diving_start_ms = -1;
 		}
 		s->dive_state = new_state;
-	} else if ((id == CHUNK_EVENT_ALARM || id == CHUNK_EVENT_WARNING ||
-			id == CHUNK_EVENT_NOTIFY || id == CHUNK_EVENT_STATE) && size >= 4) {
+	} else if (id == CHUNK_EVENT_ALARM || id == CHUNK_EVENT_WARNING ||
+			id == CHUNK_EVENT_NOTIFY || id == CHUNK_EVENT_STATE) {
+		if (size < 4) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// [timeDelta:2][Type:1][Active:1]; Active 1=begin, 0=end.
 		// The libdivecomputer event vocabulary can't express Suunto's full
 		// set (e.g. "Safety Stop Ahead" vs "At Safety Stop" both map to
@@ -762,7 +786,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 				s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 			}
 		}
-	} else if (id == CHUNK_OOAM && size >= 3) {
+	} else if (id == CHUNK_OOAM) {
+		if (size < 3) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// [timeDelta:2][Type:1]; one-shot dive-end reason (Ooam.Type: Out of
 		// battery / Ceiling broken / SW crash / Max depth / Algorithm changed
 		// / Gauge dive). No Active byte. Emitted as a begin-edge event; the
@@ -780,7 +808,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 				s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 			}
 		}
-	} else if (id == CHUNK_GAS_SWITCH && size >= 4) {
+	} else if (id == CHUNK_GAS_SWITCH) {
+		if (size < 4) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// [timeDelta:2][gasnumber:int16 LE] -- 0-based, and equal to the
 		// cylinder slot / gas-mix index.
 		int gasnum = (int16_t) array_uint16_le (data + 2);
@@ -797,7 +829,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			sample.event.value = (unsigned int) gasnum;
 			s->callback (DC_SAMPLE_EVENT, &sample, s->userdata);
 		}
-	} else if (id == CHUNK_HEARTRATE && size >= 3) {
+	} else if (id == CHUNK_HEARTRATE) {
+		if (size < 3) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// [timeDelta:2][hr:uint8 bpm]. Optical wrist HR, present only on
 		// the Suunto Ocean (the Nautic / Nautic S have no HR sensor, so
 		// the chunk never appears there). Byte-exact against the app
@@ -810,7 +846,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			sample.heartbeat = hr;
 			s->callback (DC_SAMPLE_HEARTBEAT, &sample, s->userdata);
 		}
-	} else if (id == CHUNK_BATTERY && size >= 7) {
+	} else if (id == CHUNK_BATTERY) {
+		if (size < 7) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// Battery telemetry -> DC_SAMPLE_VENDOR kind 1.
 		// (Current at data+2 is int16 but its scale isn't confirmed,
 		// so it's left out for now.)
@@ -825,7 +865,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			rec[4] = (charge_permille >> 8) & 0xFF;
 			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 		}
-	} else if (id == CHUNK_GPS_ACCURACY && size >= 4) {
+	} else if (id == CHUNK_GPS_ACCURACY) {
+		if (size < 4) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// EHPE/EVPE are int8 deltas accumulated from zero -> DC_SAMPLE_VENDOR
 		// kind 2, absolute metres.
 		s->ehpe += (int8_t) data[2];
@@ -840,32 +884,40 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			rec[3] = v & 0xFF; rec[4] = (v >> 8) & 0xFF;
 			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 		}
-	} else if ((id == CHUNK_IMU || id == CHUNK_IMU_ALT) && size >= 24) {
-		// High-rate IMU: 9x int16 (accel/gyro/mag X,Y,Z) at offset 6, already
-		// little-endian -> DC_SAMPLE_VENDOR kind 3, passed through verbatim.
-		// Matched by shape (payload >= 24) across both id variants (0x23 on
-		// 195-byte watches, 0x22 on 141-byte ones) so IMU decodes on all
-		// firmware, not just the id-0x23 devices.
-		if (s->callback) {
-			unsigned char rec[1 + 18];
-			rec[0] = VENDOR_KIND_IMU;
-			memcpy (rec + 1, data + 6, 18);
-			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
+	} else if (id == CHUNK_IMU_ALT || id == CHUNK_IMU || id == CHUNK_DIVEROUTE_FEATURES) {
+		// The ids of these two move with the firmware: the IMU is 0x22 on
+		// the 141-byte watches and 0x23 on the 195-byte ones, the
+		// DiveRouteFeatures 0x23 and 0x24. Their sizes, 24 and 16 bytes,
+		// tell them apart.
+		if (size == 24) {
+			// High-rate IMU: 9x int16 (accel/gyro/mag X,Y,Z) at offset 6,
+			// already little-endian -> DC_SAMPLE_VENDOR kind 3, passed
+			// through verbatim.
+			if (s->callback) {
+				unsigned char rec[1 + 18];
+				rec[0] = VENDOR_KIND_IMU;
+				memcpy (rec + 1, data + 6, 18);
+				suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
+			}
+		} else if (size == 16) {
+			// DiveRouteFeatures: 5x uint16 at offset 6 -> DC_SAMPLE_VENDOR
+			// kind 4. NOT the dive route (which the watch does not store);
+			// semantics TBD.
+			if (s->callback) {
+				unsigned char rec[1 + 10];
+				rec[0] = VENDOR_KIND_DIVEROUTE_FEATURES;
+				memcpy (rec + 1, data + 6, 10);
+				suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
+			}
+		} else {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
 		}
-	} else if ((id == CHUNK_DIVEROUTE_FEATURES || id == CHUNK_IMU) &&
-			size >= 10 && size <= 16) {
-		// DiveRouteFeatures: 5x uint16 at offset 6 -> DC_SAMPLE_VENDOR kind 4.
-		// Id is 0x24 on 195-byte watches and 0x23 (small, payload 16) on
-		// 141-byte ones; the payload bound (<= 16) excludes the 141-byte
-		// 0x24 summary record so it is no longer misread as this channel.
-		// NOT the dive route (which the watch does not store); semantics TBD.
-		if (s->callback) {
-			unsigned char rec[1 + 10];
-			rec[0] = VENDOR_KIND_DIVEROUTE_FEATURES;
-			memcpy (rec + 1, data + 6, 10);
-			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
+	} else if (id == CHUNK_SURFACE_PRESSURE) {
+		if (size < 6) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
 		}
-	} else if (id == CHUNK_SURFACE_PRESSURE && size >= 6) {
 		// 3 Float32 values at offset 2/6/10 (SurfacePressure,
 		// MaxSurfacePressure, MinSurfacePressure), Pa -- offset
 		// 2, not 0: like chunk 0x16's Depth field, there are 2
@@ -874,7 +926,11 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// SurfacePressure (offset 2) is used; last one logged wins.
 		parser->have_atmospheric = 1;
 		parser->atmospheric = array_float_le (data + 2) / 100000.0;
-	} else if (id == CHUNK_ACTIVITY && size >= 3) {
+	} else if (id == CHUNK_ACTIVITY) {
+		if (size < 3) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
 		// [timeDelta:2][sportId:1][customModeId: ascii]. The sport id
 		// is the app's ActivityType; 61/62 are the apnea sports, every
 		// other diving id is open circuit.
