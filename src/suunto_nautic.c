@@ -90,14 +90,17 @@
 #define PAGE_HEADER 11
 #define PAGE_LENGTH 3
 
-// A /Logbook/Entries page is HEADER(18) RECORD(24) x COUNT, with the number
-// of records in the page as a uint16 at offset 6 of the header. A record is
-// ID(4) MODIFIED(4) UNKNOWN(8) SIZE(8): the id is the dive's start time, and
-// the size is the compressed /Data plus the /Summary data bytes. An empty
-// page has a 14-byte header, without the 4 padding bytes before the records.
-#define ENTRIES_HEADER 18
-#define ENTRIES_EMPTY  14
-#define ENTRIES_COUNT  6
+// A /Logbook/Entries page is a Whiteboard struct, TYPE(2) SIZE(2) PADDING(2)
+// STRUCT, and the struct is an array, COUNT(2) PADDING(2) OFFSET(4), with the
+// records at OFFSET from the start of the struct: 12 on a page with records,
+// 8 on a page without. A record is ID(4) MODIFIED(4) 01 PADDING(7) SIZE(8),
+// the LogEntry of the Movesense logbook API, in which the size is optional
+// and the 01 marks it as present. The id is the dive's start time, and the
+// size is the compressed /Data plus the /Summary data bytes, which fits in
+// its low 4 bytes.
+#define ENTRIES_STRUCT  6
+#define ENTRIES_COUNT   0
+#define ENTRIES_RECORDS 4
 #define ENTRY_SIZE     24
 #define ENTRY_START    0
 #define ENTRY_LENGTH   16
@@ -829,20 +832,24 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 			break;
 		}
 
-		if (size < ENTRIES_EMPTY) {
+		if (size < ENTRIES_STRUCT + 8) {
 			ERROR (abstract->context, "Unexpected entries size (" DC_PRINTF_SIZE ").", size);
 			status = DC_STATUS_PROTOCOL;
 			break;
 		}
 
-		unsigned int count = array_uint16_le (data + ENTRIES_COUNT);
-		if (count && ENTRIES_HEADER + count * ENTRY_SIZE > size) {
-			ERROR (abstract->context, "Unexpected number of entries (%u " DC_PRINTF_SIZE ").", count, size);
+		// The page holds exactly the records, after the array header.
+		unsigned int count = array_uint16_le (data + ENTRIES_STRUCT + ENTRIES_COUNT);
+		unsigned int start = array_uint32_le (data + ENTRIES_STRUCT + ENTRIES_RECORDS);
+		if (start < 8 || start > size - ENTRIES_STRUCT ||
+			size - ENTRIES_STRUCT - start != count * ENTRY_SIZE) {
+			ERROR (abstract->context, "Unexpected number of entries (%u %u " DC_PRINTF_SIZE ").", count, start, size);
 			status = DC_STATUS_PROTOCOL;
 			break;
 		}
 
-		if (!dc_buffer_append (entries, data + ENTRIES_HEADER, count * ENTRY_SIZE)) {
+		const unsigned char *records = data + ENTRIES_STRUCT + start;
+		if (!dc_buffer_append (entries, records, count * ENTRY_SIZE)) {
 			ERROR (abstract->context, "Failed to allocate memory.");
 			status = DC_STATUS_NOMEMORY;
 			break;
@@ -859,7 +866,7 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 
 		// The next page starts after the last id received.
 		params[0] = 0x01;
-		memcpy (params + 3, data + ENTRIES_HEADER + (count - 1) * ENTRY_SIZE + ENTRY_START, 4);
+		memcpy (params + 3, records + (count - 1) * ENTRY_SIZE + ENTRY_START, 4);
 		nparams = sizeof (params);
 	}
 
