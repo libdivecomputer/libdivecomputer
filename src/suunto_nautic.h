@@ -50,9 +50,9 @@
  *     front of the profile, with its size: SUMMARY_SIZE(4) SUMMARY PROFILE.
  *
  * SBEM0103 container:
- *   - A numeric Type-Length-Value stream: [id: 1 byte][length: 1 byte]
- *     [value: length bytes]; length == 255 means an extended 4-byte LE
- *     length follows before the value. Unknown chunk IDs are skipped.
+ *   - An 8-byte header (SBEM0103), then chunks ID LENGTH DATA(LENGTH). The
+ *     id is one byte, or 0xFF and a uint16 LE id; the length is one byte,
+ *     or 0xFF and a uint32 LE length. Unknown chunk IDs are skipped.
  *   - Decoded chunks (suunto_nautic_parser.c): 0x12 (1Hz absolute
  *     pressure / temperature), 0x16 (depth, cylinder pressures, NDL,
  *     time-to-surface), 0x0B (GPS), 0x17 (surface pressure ->
@@ -75,14 +75,6 @@
  *     A dive with no surface GPS fix has no absolute clock in the
  *     stream; datetime is unsupported for it. The LogId (the dive id) is
  *     itself that timestamp and can serve as a fallback.
- *
- * Resynchronisation:
- *   - Heatshrink decompression can leave localized artifacts (runs of a
- *     repeated byte) that a naive TLV walk would misread as a chunk
- *     header and desync on. suunto_nautic_sbem_next() validates every
- *     fixed-length chunk id (0x08=6, 0x0B=20, 0x0E=6, 0x14=7, 0x16=195,
- *     0x17=14 bytes) against its expected length and, on a mismatch,
- *     rescans forward one byte at a time instead of trusting the header.
  */
 
 #ifndef SUUNTO_NAUTIC_H

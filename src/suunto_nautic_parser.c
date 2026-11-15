@@ -20,25 +20,24 @@
  */
 
 /*
- * Parses the SBEM0103 TLV stream produced by
- * suunto_nautic_device_download() after MDS-chunk extraction and
- * Heatshrink decompression (see suunto_nautic.c/.h). The format is:
+ * Parses the dives stored by suunto_nautic_device_foreach(): the /Summary
+ * and the decompressed /Data, both SBEM containers (see suunto_nautic.h).
+ * A container is an 8-byte header (SBEM0103) and a series of chunks:
  *
- *   [chunk id: 1 byte][length: 1 byte][value: length bytes]
- *   length == 255 means an extended 4-byte little-endian length follows
- *   immediately, before the value.
+ *   ID LENGTH DATA(LENGTH)
+ *
+ * The id is one byte, or 0xFF and the id as a uint16 LE; the length is one
+ * byte, or 0xFF and the length as a uint32 LE.
  *
  * Decoded chunks: 0x12 (1Hz absolute pressure / temperature), 0x16
  * (depth, cylinder pressures, gas time remaining, NDL, time-to-surface),
  * 0x17 (surface pressure), 0x0B (GPS), 0x0F (heart rate, Ocean only),
  * 0x08 (activity -> dive mode), plus the dynamically-assigned dive-event
- * subgroups. Chunks 0x0E (satellite
- * info) and 0x14 (battery) have fixed lengths that are used for resync
- * (see suunto_nautic_sbem_fixed_length) but map to no dc_field/dc_sample
- * and are not otherwise decoded. Chunks 0x23/0x24 are raw accelerometer /
- * gyroscope dumps for client-side dead reckoning, emitted through
- * DC_SAMPLE_VENDOR. Unknown chunk ids are skipped, so extending the
- * decoder is additive.
+ * subgroups. Chunks 0x0E (satellite info) and 0x14 (battery) map to no
+ * dc_field/dc_sample, and are emitted through DC_SAMPLE_VENDOR. Chunks
+ * 0x23/0x24 are raw accelerometer / gyroscope dumps for client-side dead
+ * reckoning, emitted through DC_SAMPLE_VENDOR. Unknown chunk ids are
+ * skipped, so extending the decoder is additive.
  *
  * Sample time is delta-encoded: every chunk except the timeline base
  * (0x01) begins with a signed int16 LE millisecond delta. The dive start
@@ -56,8 +55,6 @@
 #include "context-private.h"
 #include "parser-private.h"
 #include "array.h"
-
-#define SBEM_MAGIC_SIZE 8
 
 #define CHUNK_TIMELINE_BASE   0x01
 #define CHUNK_ACTIVITY        0x08 // [timeDelta:2][sportId:1][customModeId: ascii]
@@ -179,12 +176,6 @@ typedef struct suunto_nautic_parser_t {
 	dc_salinity_t salinity;
 } suunto_nautic_parser_t;
 
-typedef struct sbem_chunk_t {
-	unsigned int id;
-	const unsigned char *data;
-	unsigned int size;
-} sbem_chunk_t;
-
 typedef dc_status_t (*suunto_nautic_sbem_callback_t) (dc_context_t *context, unsigned int id, const unsigned char data[], unsigned int size, void *userdata);
 
 // The state of the walk over the profile, besides the fields it fills in.
@@ -270,90 +261,76 @@ suunto_nautic_parser_create (dc_parser_t **out, dc_context_t *context, const uns
 	return DC_STATUS_SUCCESS;
 }
 
-// Chunk IDs whose payload length is fixed and has been confirmed
-// against real captured data. Heatshrink decompression can leave
-// localized artifacts in the stream (e.g. runs of a single repeated
-// byte), which a strict linear TLV walk would otherwise misread as a
-// chunk header -- permanently desyncing every chunk after it. Any
-// candidate header naming one of these IDs is only accepted if its
-// length byte matches; otherwise it is a "ghost chunk" and the parser
-// resynchronizes by scanning forward one byte at a time.
-static int
-suunto_nautic_sbem_fixed_length (unsigned int id)
-{
-	switch (id) {
-	case CHUNK_ACTIVITY:         return 6;
-	case CHUNK_GPS:              return 20;
-	case CHUNK_GPS_ACCURACY:     return 6;
-	case CHUNK_BATTERY:          return 7;
-	case CHUNK_SURFACE_PRESSURE: return 14;
-	default:                     return -1; // unknown or variable length
-	}
-}
-
-// Advance to the next TLV chunk starting at *offset. Returns 0 (and
-// leaves *offset unchanged) once the buffer is exhausted.
-static int
-suunto_nautic_sbem_next (const unsigned char data[], unsigned int size, unsigned int *offset, sbem_chunk_t *chunk)
-{
-	unsigned int pos = *offset;
-
-	while (pos + 2 <= size) {
-		unsigned int id = data[pos];
-		unsigned int length = data[pos + 1];
-		unsigned int header = 2;
-
-		if (length == 255) {
-			if (pos + 6 > size) {
-				pos++;
-				continue;
-			}
-			length = array_uint32_le (data + pos + 2);
-			header = 6;
-		}
-
-		int fixed = suunto_nautic_sbem_fixed_length (id);
-		if (fixed >= 0 && (unsigned int) fixed != length) {
-			// Ghost chunk: a real chunk with this id never has
-			// this length. Resynchronize.
-			pos++;
-			continue;
-		}
-
-		if (pos + header + length > size) {
-			pos++;
-			continue;
-		}
-
-		chunk->id = id;
-		chunk->data = data + pos + header;
-		chunk->size = length;
-
-		*offset = pos + header + length;
-
-		return 1;
-	}
-
-	return 0;
-}
-
-// Walk the chunks of the profile, and pass each one to the callback.
+// Walk the chunks of an SBEM container, and pass each one to the callback.
+// The container starts with an 8-byte header (SBEM0103), and every chunk is
+// ID LENGTH DATA(LENGTH). The id is one byte, or 0xFF and the id as a uint16;
+// the length is one byte, or 0xFF and the length as a uint32.
 static dc_status_t
 suunto_nautic_sbem_parse (dc_context_t *context, const unsigned char data[], unsigned int size, suunto_nautic_sbem_callback_t callback, void *userdata)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
+	unsigned int offset = 0;
 
-	if (size < SBEM_MAGIC_SIZE || memcmp (data, "SBEM0103", SBEM_MAGIC_SIZE) != 0) {
-		ERROR (context, "Unexpected magic in the SBEM stream.");
+	if (offset + 8 > size) {
+		ERROR (context, "Buffer overflow detected (%08x).", offset);
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	unsigned int offset = SBEM_MAGIC_SIZE;
-	sbem_chunk_t chunk;
-	while (suunto_nautic_sbem_next (data, size, &offset, &chunk)) {
-		status = callback (context, chunk.id, chunk.data, chunk.size, userdata);
+	if (memcmp (data, "SBEM", 4) != 0) {
+		ERROR (context, "Unexpected SBEM header.");
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	offset += 8;
+
+	while (offset < size) {
+		unsigned int header = 0;
+
+		// Read the chunk id.
+		if (offset + header + 1 > size) {
+			ERROR (context, "Buffer overflow detected (%08x).", offset);
+			return DC_STATUS_DATAFORMAT;
+		}
+		unsigned int id = data[offset + header];
+		header++;
+		if (id == 0xFF) {
+			if (offset + header + 2 > size) {
+				ERROR (context, "Buffer overflow detected (%08x).", offset);
+				return DC_STATUS_DATAFORMAT;
+			}
+			id = array_uint16_le (data + offset + header);
+			header += 2;
+		}
+
+		// Read the chunk length.
+		if (offset + header + 1 > size) {
+			ERROR (context, "Buffer overflow detected (%08x).", offset);
+			return DC_STATUS_DATAFORMAT;
+		}
+		unsigned int length = data[offset + header];
+		header++;
+		if (length == 0xFF) {
+			if (offset + header + 4 > size) {
+				ERROR (context, "Buffer overflow detected (%08x).", offset);
+				return DC_STATUS_DATAFORMAT;
+			}
+			length = array_uint32_le (data + offset + header);
+			header += 4;
+		}
+
+		// Check the chunk length. The checks above guarantee offset + header
+		// <= size, and comparing the remainder can't overflow, unlike
+		// offset + header + length with a 32-bit length.
+		if (length > size - offset - header) {
+			ERROR (context, "Buffer overflow detected (%08x).", offset);
+			return DC_STATUS_DATAFORMAT;
+		}
+
+		status = callback (context, id, data + offset + header, length, userdata);
 		if (status != DC_STATUS_SUCCESS)
 			return status;
+
+		offset += header + length;
 	}
 
 	return status;
