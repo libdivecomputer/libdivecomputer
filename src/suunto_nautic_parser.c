@@ -954,10 +954,13 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	memset (&summary_state, 0, sizeof (summary_state));
 	summary_state.parser = parser;
 
-	if (summary_size) {
-		status = suunto_nautic_sbem_parse (abstract->context, summary, summary_size, suunto_nautic_parser_summary, &summary_state);
-		if (status != DC_STATUS_SUCCESS)
-			return status;
+	status = suunto_nautic_sbem_parse (abstract->context, summary, summary_size, suunto_nautic_parser_summary, &summary_state);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	if (summary_state.nchunks == 0) {
+		ERROR (abstract->context, "Unexpected summary without a dive header.");
+		return DC_STATUS_DATAFORMAT;
 	}
 
 	suunto_nautic_profile_t s;
