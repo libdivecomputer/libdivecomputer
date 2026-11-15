@@ -120,8 +120,8 @@
 
 // Field offsets within the /Summary SBEM0103 section (relative to its
 // "SBEM0103" signature), confirmed against real hardware. The dive profile
-// (/Data) carries samples but not these; the driver appends the /Summary
-// SBEM after the profile so this parser can expose them the standard way.
+// (/Data) carries samples but not these; the driver stores the /Summary
+// SBEM in front of the profile so this parser can expose them the standard way.
 // GF low is at 0x35 and GF high at 0x33 (uint16 LE, %). This ordering yields
 // valid low <= high on two devices (Nautic 35/75, Nautic S 40/85); the reverse
 // gives low > high.
@@ -167,7 +167,7 @@ typedef struct suunto_nautic_parser_t {
 	unsigned int have_datetime;
 	dc_ticks_t datetime; // dive start, UNIX seconds
 	dc_divemode_t divemode; // from the CHUNK_ACTIVITY sport id; OC unless apnea
-	// From the /Summary SBEM section appended after the profile, if present.
+	// From the /Summary SBEM section in front of the profile.
 	unsigned int ngasmixes;
 	dc_gasmix_t gasmix[MAX_GASMIXES];
 	double gasvolume[MAX_GASMIXES]; // cylinder water capacity, litres (0 = unknown)
@@ -287,22 +287,6 @@ suunto_nautic_sbem_next (const unsigned char data[], unsigned int size, unsigned
 	}
 
 	return 0;
-}
-
-// The driver appends the (uncompressed) /Summary SBEM after the profile,
-// so the combined buffer holds two "SBEM0103" sections. Return the offset
-// of the second one (the /Summary), or `size` when there's only the
-// profile. Bounds the profile chunk walk and locates the /Summary fields.
-static size_t
-suunto_nautic_find_summary (const unsigned char *data, size_t size)
-{
-	if (size < SBEM_MAGIC_SIZE)
-		return size;
-	for (size_t i = SBEM_MAGIC_SIZE; i + SBEM_MAGIC_SIZE <= size; i++) {
-		if (memcmp (data + i, "SBEM0103", SBEM_MAGIC_SIZE) == 0)
-			return i;
-	}
-	return size;
 }
 
 // Parse gradient factors, gas mixes and per-gas cylinder size from the
@@ -461,15 +445,28 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 {
 	suunto_nautic_parser_t *parser = (suunto_nautic_parser_t *) abstract;
 
-	if (abstract->size < SBEM_MAGIC_SIZE || memcmp (abstract->data, "SBEM0103", SBEM_MAGIC_SIZE) != 0) {
-		ERROR (abstract->context, "Unexpected magic in the SBEM stream.");
+	// The dive is SUMMARY_SIZE(4) SUMMARY PROFILE, see the driver: the
+	// /Summary section (gradient factors, gas mixes), parsed separately
+	// below, and the profile (/Data), walked here.
+	if (abstract->size < 4) {
+		ERROR (abstract->context, "Unexpected dive size (%u).", abstract->size);
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	// The profile (/Data) is the first SBEM section; an optional /Summary
-	// section (gradient factors, gas mix) is appended after it. Walk only
-	// the profile here; parse /Summary separately below.
-	size_t profile_size = suunto_nautic_find_summary (abstract->data, abstract->size);
+	unsigned int summary_size = array_uint32_le (abstract->data);
+	if (summary_size > abstract->size - 4) {
+		ERROR (abstract->context, "Unexpected summary size (%u %u).", summary_size, abstract->size);
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	const unsigned char *summary = abstract->data + 4;
+	const unsigned char *profile = abstract->data + 4 + summary_size;
+	unsigned int profile_size = abstract->size - 4 - summary_size;
+
+	if (profile_size < SBEM_MAGIC_SIZE || memcmp (profile, "SBEM0103", SBEM_MAGIC_SIZE) != 0) {
+		ERROR (abstract->context, "Unexpected magic in the SBEM stream.");
+		return DC_STATUS_DATAFORMAT;
+	}
 
 	unsigned int offset = SBEM_MAGIC_SIZE;
 	// Time is delta-encoded: every chunk (except the timeline base 0x01)
@@ -544,7 +541,7 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	int ehpe = 0, evpe = 0;
 
 	sbem_chunk_t chunk;
-	while (suunto_nautic_sbem_next (abstract->data, (unsigned int) profile_size, &offset, &chunk)) {
+	while (suunto_nautic_sbem_next (profile, profile_size, &offset, &chunk)) {
 		// Advance the clock by this chunk's leading ms delta (all groups
 		// except the timeline base carry one).
 		if (chunk.id != CHUNK_TIMELINE_BASE && chunk.size >= 2)
@@ -945,7 +942,7 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	parser->have_datetime = have_datetime;
 	parser->divemode = divemode;
 
-	// Gradient factors, gas mixes and per-gas cylinder size from the appended
+	// Gradient factors, gas mixes and per-gas cylinder size from the
 	// /Summary section.
 	parser->ngasmixes = 0;
 	parser->have_decomodel = 0;
@@ -956,10 +953,8 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	memset (parser->gasmix, 0, sizeof (parser->gasmix));
 	memset (parser->gasvolume, 0, sizeof (parser->gasvolume));
 	memset (&parser->decomodel, 0, sizeof (parser->decomodel));
-	if (profile_size < abstract->size) {
-		suunto_nautic_parse_summary (parser, abstract->data + profile_size,
-			abstract->size - profile_size);
-	}
+	if (summary_size)
+		suunto_nautic_parse_summary (parser, summary, summary_size);
 
 	parser->cached = 1;
 

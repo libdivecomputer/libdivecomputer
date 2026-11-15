@@ -905,10 +905,13 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 	return status;
 }
 
-// Download one dive: the decompressed /Data stream with the /Summary
-// appended. The listed size is the compressed /Data plus the /Summary data
-// bytes, exactly, and a mismatch fails the download. Checking the content is
-// left to the parser.
+// Download one dive as SUMMARY_SIZE(4) SUMMARY PROFILE: the /Summary, with
+// the fields that are not in the profile (gradient factors, gas mixes), like
+// a dive header, and then the decompressed /Data stream. Both are SBEM0103
+// containers, which don't store their own size, hence the size in front.
+// The listed size is the compressed /Data plus the /Summary data bytes,
+// exactly, and a mismatch fails the download. Checking the content is left
+// to the parser.
 static dc_status_t
 suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigned int listed, dc_buffer_t *buffer)
 {
@@ -920,12 +923,29 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 	snprintf (summary_path, sizeof (summary_path), "/Logbook/byId/%u/Summary", id);
 
 	dc_buffer_t *compressed = dc_buffer_new (listed);
-	dc_buffer_t *summary = dc_buffer_new (0);
-	if (compressed == NULL || summary == NULL) {
+	if (compressed == NULL) {
+		ERROR (abstract->context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// The size is filled in once the /Summary is complete.
+	unsigned char header[4] = {0};
+	if (!dc_buffer_append (buffer, header, sizeof (header))) {
 		ERROR (abstract->context, "Failed to allocate memory.");
 		status = DC_STATUS_NOMEMORY;
 		goto error_free;
 	}
+
+	// The /Summary goes first: it is much smaller than the /Data, so an
+	// error there doesn't come after the long download of the profile.
+	status = suunto_nautic_fetch_pages (device, summary_path, buffer);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (abstract->context, "Failed to fetch the summary of dive %u.", id);
+		goto error_free;
+	}
+
+	size_t summary_size = dc_buffer_get_size (buffer) - sizeof (header);
+	array_uint32_le_set (dc_buffer_get_data (buffer), summary_size);
 
 	status = suunto_nautic_stream (device, data_path, compressed);
 	if (status != DC_STATUS_SUCCESS) {
@@ -933,14 +953,7 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 		goto error_free;
 	}
 
-	status = suunto_nautic_fetch_pages (device, summary_path, summary);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to fetch the summary of dive %u.", id);
-		goto error_free;
-	}
-
 	size_t data_size = dc_buffer_get_size (compressed);
-	size_t summary_size = dc_buffer_get_size (summary);
 	if (listed && data_size + summary_size != listed) {
 		ERROR (abstract->context, "Unexpected size of dive %u (" DC_PRINTF_SIZE " + " DC_PRINTF_SIZE " bytes, listed %u).",
 			id, data_size, summary_size, listed);
@@ -955,15 +968,7 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 		goto error_free;
 	}
 
-	// The /Summary goes after the profile, so the parser can read the fields
-	// that are not in the profile (gradient factors, gas mixes).
-	if (!dc_buffer_append (buffer, dc_buffer_get_data (summary), dc_buffer_get_size (summary))) {
-		ERROR (abstract->context, "Failed to allocate memory.");
-		status = DC_STATUS_NOMEMORY;
-	}
-
 error_free:
-	dc_buffer_free (summary);
 	dc_buffer_free (compressed);
 	return status;
 }

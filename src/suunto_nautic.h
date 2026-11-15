@@ -46,7 +46,8 @@
  *     stream is an SBEM0103 container.
  *   - GET /Logbook/byId/<id>/Summary, FETCH page by page: an uncompressed
  *     SBEM0103 container with the fields that are not in the profile
- *     (gradient factors, gas mixes). It is appended to the profile.
+ *     (gradient factors, gas mixes). It is downloaded first, and stored in
+ *     front of the profile, with its size: SUMMARY_SIZE(4) SUMMARY PROFILE.
  *
  * SBEM0103 container:
  *   - A numeric Type-Length-Value stream: [id: 1 byte][length: 1 byte]
