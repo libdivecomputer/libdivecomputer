@@ -267,7 +267,7 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 
 		if (rsp_length > size) {
 			ERROR (device->base.context, "Unexpected packet payload length (%u " DC_PRINTF_SIZE ").", rsp_length, size);
-			return DC_STATUS_PROTOCOL;
+			return DC_STATUS_NOMEMORY;
 		}
 
 		memcpy (data, packet + 6, rsp_length);
