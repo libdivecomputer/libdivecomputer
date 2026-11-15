@@ -863,6 +863,7 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 	// StartAfterId that isn't the id of an entry, such as 0, gets a 404.
 	unsigned char params[7] = {0x00, PARAM_UINT32, 0x00};
 	size_t nparams = 1;
+	unsigned int nentries = 0, last = 0;
 	while (1) {
 		unsigned char data[MAX_PAYLOAD] = {0};
 		size_t size = 0;
@@ -890,7 +891,23 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 			break;
 		}
 
+		// The ids rise, which the fingerprint relies on, and which also
+		// ends a list whose pages don't move on.
 		const unsigned char *records = data + ENTRIES_STRUCT + start;
+		for (unsigned int i = 0; i < count; i++) {
+			unsigned int id = array_uint32_le (records + i * ENTRY_SIZE + ENTRY_START);
+			if (nentries && id <= last) {
+				ERROR (abstract->context, "Unexpected entry order (%u %u).", id, last);
+				status = DC_STATUS_PROTOCOL;
+				break;
+			}
+			last = id;
+			nentries++;
+		}
+
+		if (status != DC_STATUS_SUCCESS)
+			break;
+
 		if (!dc_buffer_append (entries, records, count * ENTRY_SIZE)) {
 			ERROR (abstract->context, "Failed to allocate memory.");
 			status = DC_STATUS_NOMEMORY;
