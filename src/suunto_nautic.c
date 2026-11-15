@@ -520,9 +520,9 @@ suunto_nautic_get_handle (suunto_nautic_device_t *device, const char *path, unsi
 	return status;
 }
 
-// Decompress a Heatshrink (LZSS) stream, with the parameters above. The
-// input isn't const, because heatshrink_decoder_sink() doesn't take a const
-// buffer.
+// Decompress a Heatshrink (LZSS) stream, with the parameters above, and
+// append the result to the output buffer. The input isn't const, because
+// heatshrink_decoder_sink() doesn't take a const buffer.
 static dc_status_t
 suunto_nautic_heatshrink_decompress (dc_context_t *context, unsigned char *input, size_t input_size, dc_buffer_t *output)
 {
@@ -534,8 +534,6 @@ suunto_nautic_heatshrink_decompress (dc_context_t *context, unsigned char *input
 		ERROR (context, "Failed to allocate the heatshrink decoder.");
 		return DC_STATUS_NOMEMORY;
 	}
-
-	dc_buffer_clear (output);
 
 	size_t sunk_total = 0;
 	while (sunk_total < input_size) {
@@ -600,6 +598,7 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_status_t rc = DC_STATUS_SUCCESS;
+	unsigned int received = 0;
 
 	unsigned int handle = 0;
 	status = suunto_nautic_get_handle (device, path, &handle);
@@ -630,7 +629,6 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 
 	// The watch streams the whole resource without acknowledgements, up to
 	// the end marker. Nothing is sent meanwhile, so check for a cancel here.
-	dc_buffer_clear (buffer);
 	while (1) {
 		if (device_is_cancelled (abstract)) {
 			status = DC_STATUS_CANCELLED;
@@ -659,9 +657,8 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 			break;
 		}
 
-		size_t received = dc_buffer_get_size (buffer);
 		if (offset != received) {
-			ERROR (abstract->context, "Unexpected chunk offset (%u " DC_PRINTF_SIZE ").", offset, received);
+			ERROR (abstract->context, "Unexpected chunk offset (%u %u).", offset, received);
 			status = DC_STATUS_PROTOCOL;
 			break;
 		}
@@ -674,6 +671,7 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 			status = DC_STATUS_NOMEMORY;
 			break;
 		}
+		received += length;
 	}
 
 error_unsubscribe:
@@ -712,7 +710,6 @@ suunto_nautic_fetch_pages (suunto_nautic_device_t *device, const char *path, dc_
 	if (status != DC_STATUS_SUCCESS)
 		return status;
 
-	dc_buffer_clear (buffer);
 	unsigned int offset = 0;
 	while (1) {
 		unsigned char params[7] = {0x01, PARAM_INT32, 0x00};
@@ -795,7 +792,6 @@ suunto_nautic_fetch (suunto_nautic_device_t *device, const char *path, dc_buffer
 		goto error_release;
 	}
 
-	dc_buffer_clear (buffer);
 	if (!dc_buffer_append (buffer, reply, reply_len)) {
 		ERROR (abstract->context, "Failed to allocate memory.");
 		status = DC_STATUS_NOMEMORY;
@@ -817,8 +813,6 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 	dc_device_t *abstract = (dc_device_t *) device;
 	dc_status_t status = DC_STATUS_SUCCESS;
 	const char *path = "/Logbook/Entries";
-
-	dc_buffer_clear (entries);
 
 	unsigned int handle = 0;
 	status = suunto_nautic_get_handle (device, path, &handle);
@@ -886,9 +880,6 @@ suunto_nautic_list (suunto_nautic_device_t *device, dc_buffer_t *entries)
 	if (rc != DC_STATUS_SUCCESS)
 		dc_status_set_error (&status, rc);
 
-	if (status != DC_STATUS_SUCCESS)
-		dc_buffer_clear (entries);
-
 	return status;
 }
 
@@ -950,8 +941,6 @@ suunto_nautic_download (suunto_nautic_device_t *device, unsigned int id, unsigne
 	}
 
 error_free:
-	if (status != DC_STATUS_SUCCESS)
-		dc_buffer_clear (buffer);
 	dc_buffer_free (summary);
 	dc_buffer_free (compressed);
 	return status;
@@ -1114,6 +1103,7 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 		if (memcmp (fingerprint, device->fingerprint, sizeof (fingerprint)) == 0)
 			break;
 
+		dc_buffer_clear (buffer);
 		status = suunto_nautic_download (device, id, listed, buffer);
 		if (status != DC_STATUS_SUCCESS) {
 			// Stop here: the fingerprint of a newer dive would mark this one
