@@ -80,7 +80,9 @@
 // Stream notification payload:
 // HANDLE(3) CLIENT(3) UNKNOWN(4) OFFSET(4) LENGTH(2) UNKNOWN(6) DATA(LENGTH) 00
 // OFFSET is the position of the chunk in the stream. The last chunk has a
-// zero length, at an offset equal to the total size, and is sent twice.
+// zero length, at an offset equal to the total size, and is sent twice. The
+// 00 after the data ends every notification the watch sends, not only those
+// of the stream.
 #define CHUNK_OFFSET 10
 #define CHUNK_LENGTH 14
 #define CHUNK_DATA   22
@@ -654,7 +656,7 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 
 		unsigned int offset = array_uint32_le (chunk + CHUNK_OFFSET);
 		unsigned int length = array_uint16_le (chunk + CHUNK_LENGTH);
-		if (CHUNK_DATA + length > chunk_len) {
+		if (chunk_len != CHUNK_DATA + length + 1 || chunk[CHUNK_DATA + length] != 0) {
 			ERROR (abstract->context, "Unexpected chunk length (%u " DC_PRINTF_SIZE ").", length, chunk_len);
 			status = DC_STATUS_PROTOCOL;
 			break;
