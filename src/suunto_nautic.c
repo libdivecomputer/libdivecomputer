@@ -169,22 +169,6 @@ static const unsigned char suunto_nautic_hello[] = {
 
 static const unsigned char suunto_nautic_noparams[] = {0x00};
 
-static dc_status_t
-suunto_nautic_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
-{
-	suunto_nautic_device_t *device = (suunto_nautic_device_t *) abstract;
-
-	if (size && size != sizeof (device->fingerprint))
-		return DC_STATUS_INVALIDARGS;
-
-	if (size)
-		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
-	else
-		memset (device->fingerprint, 0, sizeof (device->fingerprint));
-
-	return DC_STATUS_SUCCESS;
-}
-
 static unsigned int
 suunto_nautic_seqnum (suunto_nautic_device_t *device)
 {
@@ -395,74 +379,6 @@ error_exit:
 	if (errorcode)
 		*errorcode = errcode;
 	return status;
-}
-
-dc_status_t
-suunto_nautic_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
-{
-	dc_status_t status = DC_STATUS_SUCCESS;
-	suunto_nautic_device_t *device = NULL;
-
-	if (out == NULL)
-		return DC_STATUS_INVALIDARGS;
-
-	device = (suunto_nautic_device_t *) dc_device_allocate (context, &suunto_nautic_device_vtable);
-	if (device == NULL) {
-		ERROR (context, "Failed to allocate memory.");
-		return DC_STATUS_NOMEMORY;
-	}
-
-	// Start at a different sequence number on every connection, so our
-	// requests are unlikely to share a number with those of another app on
-	// the same link, whose replies we also receive.
-	device->seqnum = ((unsigned int) dc_datetime_now () * 2654435761u) & 0xFFFF;
-	memset (device->fingerprint, 0, sizeof (device->fingerprint));
-
-	status = dc_hdlc_open (&device->iostream, context, iostream, 244, 244);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to open the HDLC layer.");
-		goto error_free;
-	}
-
-	status = dc_iostream_set_timeout (device->iostream, TIMEOUT_DEFAULT);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to set the timeout.");
-		goto error_close;
-	}
-
-	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
-
-	status = suunto_nautic_send (device, RPC_OP_HELLO, 0, suunto_nautic_hello, sizeof (suunto_nautic_hello));
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to send the hello.");
-		goto error_close;
-	}
-
-	unsigned char hello[sizeof (suunto_nautic_hello)] = {0};
-	size_t hello_len = 0;
-	status = suunto_nautic_recv (device, RPC_OP_HELLO_REPLY, 0, hello, sizeof (hello), &hello_len);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (context, "Failed to receive the hello.");
-		goto error_close;
-	}
-
-	*out = (dc_device_t *) device;
-
-	return DC_STATUS_SUCCESS;
-
-error_close:
-	dc_iostream_close (device->iostream);
-error_free:
-	dc_device_deallocate ((dc_device_t *) device);
-	return status;
-}
-
-static dc_status_t
-suunto_nautic_device_close (dc_device_t *abstract)
-{
-	suunto_nautic_device_t *device = (suunto_nautic_device_t *) abstract;
-
-	return dc_iostream_close (device->iostream);
 }
 
 // Release a handle bound by a GET, so the next GET of the same resource binds
@@ -1062,6 +978,90 @@ suunto_nautic_devinfo (suunto_nautic_device_t *device)
 error_free:
 	dc_buffer_free (info);
 	return status;
+}
+
+dc_status_t
+suunto_nautic_device_open (dc_device_t **out, dc_context_t *context, dc_iostream_t *iostream)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	suunto_nautic_device_t *device = NULL;
+
+	if (out == NULL)
+		return DC_STATUS_INVALIDARGS;
+
+	device = (suunto_nautic_device_t *) dc_device_allocate (context, &suunto_nautic_device_vtable);
+	if (device == NULL) {
+		ERROR (context, "Failed to allocate memory.");
+		return DC_STATUS_NOMEMORY;
+	}
+
+	// Start at a different sequence number on every connection, so our
+	// requests are unlikely to share a number with those of another app on
+	// the same link, whose replies we also receive.
+	device->seqnum = ((unsigned int) dc_datetime_now () * 2654435761u) & 0xFFFF;
+	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	status = dc_hdlc_open (&device->iostream, context, iostream, 244, 244);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to open the HDLC layer.");
+		goto error_free;
+	}
+
+	status = dc_iostream_set_timeout (device->iostream, TIMEOUT_DEFAULT);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to set the timeout.");
+		goto error_close;
+	}
+
+	dc_iostream_purge (device->iostream, DC_DIRECTION_ALL);
+
+	status = suunto_nautic_send (device, RPC_OP_HELLO, 0, suunto_nautic_hello, sizeof (suunto_nautic_hello));
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to send the hello.");
+		goto error_close;
+	}
+
+	unsigned char hello[sizeof (suunto_nautic_hello)] = {0};
+	size_t hello_len = 0;
+	status = suunto_nautic_recv (device, RPC_OP_HELLO_REPLY, 0, hello, sizeof (hello), &hello_len);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to receive the hello.");
+		goto error_close;
+	}
+
+	*out = (dc_device_t *) device;
+
+	return DC_STATUS_SUCCESS;
+
+error_close:
+	dc_iostream_close (device->iostream);
+error_free:
+	dc_device_deallocate ((dc_device_t *) device);
+	return status;
+}
+
+static dc_status_t
+suunto_nautic_device_close (dc_device_t *abstract)
+{
+	suunto_nautic_device_t *device = (suunto_nautic_device_t *) abstract;
+
+	return dc_iostream_close (device->iostream);
+}
+
+static dc_status_t
+suunto_nautic_device_set_fingerprint (dc_device_t *abstract, const unsigned char data[], unsigned int size)
+{
+	suunto_nautic_device_t *device = (suunto_nautic_device_t *) abstract;
+
+	if (size && size != sizeof (device->fingerprint))
+		return DC_STATUS_INVALIDARGS;
+
+	if (size)
+		memcpy (device->fingerprint, data, sizeof (device->fingerprint));
+	else
+		memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	return DC_STATUS_SUCCESS;
 }
 
 static dc_status_t
