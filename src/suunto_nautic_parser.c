@@ -46,7 +46,6 @@
  */
 
 #include <string.h>
-#include <stdlib.h>
 #include <limits.h>
 
 #include "suunto_nautic.h"
@@ -94,14 +93,12 @@
 #define CHUNK_EVENT_NOTIFY    0x1A
 #define CHUNK_EVENT_STATE     0x1B
 #define CHUNK_DIVE_STATE      0x1C // [timeDelta:2][state:1]; 0=Idling,1=Diving,2=Recovering
-#define CHUNK_DIVE_STATUS     0x1E // [timeDelta:2][active:1]; the DiveActive flag
 #define CHUNK_OOAM            0x1D // [timeDelta:2][type:1]; one-shot dive-end reason (Ooam.Type)
 #define CHUNK_GAS_SWITCH      0x1F // [timeDelta:2][gasnumber:int16 LE]
 
 // DiveState values (CHUNK_DIVE_STATE payload).
 #define DIVE_STATE_IDLING     0
 #define DIVE_STATE_DIVING     1
-#define DIVE_STATE_RECOVERING 2
 
 #define MAX_TANKS 8
 #define MAX_GASMIXES 8
@@ -203,43 +200,24 @@ typedef struct suunto_nautic_profile_t {
 	suunto_nautic_parser_t *parser;
 	dc_sample_callback_t callback;
 	void *userdata;
-	// Time is delta-encoded: every chunk (except the timeline base 0x01)
-	// begins with a signed int16 LE millisecond delta at payload[0:2]. The
-	// running sum is the absolute sample time -- there is no per-sample
-	// absolute timestamp and no fixed sample rate.
-	//
-	// time_ms is the raw running sum; deltas are always added to it. sample_ms
-	// is the monotonic (never-decreasing) view of that sum, and is what every
-	// emitted sample time is derived from. They differ only across a GPS /
-	// GPS-accuracy chunk: those carry a delta on their own back-dated
-	// sub-chain that rewinds the sum a few hundred ms, after which the next
-	// chunk's delta (measured from the rewound point) walks it forward again.
-	// The raw sum stays correct for span arithmetic, but a sample emitted at
-	// the rewound value goes backwards in the profile and blows up the
-	// downstream depth interpolation (submersion-libdc#1).
+	// The sum of the time deltas, and the sample time, which never goes
+	// back: the GPS chunks rewind the sum by a few hundred ms.
 	long long time_ms;
 	long long sample_ms;
 	long long emitted_ms; // the time of the last sample, or -1
-	// Dive phase, from CHUNK_DIVE_STATE. Dive time is the TOTAL time spent in
-	// the Diving state (sum of every Diving span), which matches the app's
-	// DiveTimeMax on multi-level dives that briefly surface mid-dive -- taking
-	// only the longest single span undercounts those. A spurious ~0 s startup
-	// blip contributes nothing. Average depth is taken over Diving samples only;
-	// counting from the first raw sample would include the pre-dive/surface
-	// phase and skew both low.
+	// The dive time is the total time in the Diving state, as in the app,
+	// and the average depth is taken over that time only.
 	unsigned int dive_state;
 	long long diving_start_ms;
 	long long total_dive_ms;
-	// Each cylinder slot has two pressure fields: Pressure (+2, the main
-	// transmitter) and Pressure2 (+6, a sidemount second transmitter). Map
-	// each (slot, field) with data to a compacted tank index. Pressure2 is
-	// gated: a real second transmitter produces a continuous non-zero
-	// curve, whereas a slot with no second transmitter emits a single
-	// spurious Pressure2 sample then zeros -- so only accept Pressure2 once
-	// it has read non-zero at least twice (p2_first holds the first value).
+	// The tank of each pressure field of each cylinder, Pressure and
+	// Pressure2 (a second transmitter), or -1. A cylinder without a second
+	// transmitter can report a single non-zero Pressure2, so Pressure2 only
+	// makes a tank from its second non-zero value, and p2_first holds the
+	// first one.
 	int tankmap[MAX_TANKS * 2];
 	int p2_first[MAX_TANKS];
-	// GPS horizontal/vertical position error, int8-delta-accumulated (chunk 0x0E).
+	// The GPS position errors, summed from the deltas in chunk 0x0E.
 	int ehpe, evpe;
 } suunto_nautic_profile_t;
 
@@ -413,26 +391,13 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 	return DC_STATUS_SUCCESS;
 }
 
-// Map a Suunto dive-event to the closest dc_sample_event_t. The sub-group
-// is the chunk id (0x18 Alarm / 0x19 Warning / 0x1A Notify / 0x1B State /
-// 0x1D Ooam) and Type indexes that sub-group's enum -- the full tables are
-// in the watch's descriptor library (see the Suunto Nautic protocol notes,
-// sec. 9.4), and every documented Type is handled here rather than only
-// the ones seen in a capture, so this holds for dives we have no export
-// for. Suunto's vocabulary is far wider than libdivecomputer's, so many
-// map to SAMPLE_EVENT_NONE (not emitted); the deco/gas state they mirror
-// is already on DC_SAMPLE_DECO / DC_SAMPLE_GASMIX, and event.value carries
-// the raw (sub-group<<8 | type) for a consumer that wants the exact label.
-//
-// The sub-group decides the fallback for an undocumented future Type:
-//   - Alarm  -> SAMPLE_EVENT_VIOLATION. Suunto "Alarms" are the hard
-//     red-alert class (deco/ceiling broken, PO2, depth, ...); a new one we
-//     don't recognise is still serious, so surface it rather than hide it.
-//   - Warning / Notify / State -> SAMPLE_EVENT_NONE. These are advisories
-//     and status transitions; fabricating an alarm for an unknown one is
-//     worse than dropping it (this is what made an ordinary no-deco dive
-//     show a "deco violation": Warning "NoDecoTime" and State "Ndl
-//     exceeded" fell through to VIOLATION / CEILING).
+// Map a dive event to the closest dc_sample_event_t. The chunk id is the
+// event group (0x18 Alarm, 0x19 Warning, 0x1A Notify, 0x1B State, 0x1D
+// Ooam), and the type indexes the enum of that group, as listed in the
+// descriptors the watch serves with each dive. Many types have no
+// equivalent and map to SAMPLE_EVENT_NONE, which isn't emitted. An unknown
+// alarm is a SAMPLE_EVENT_VIOLATION, because the alarms are the serious
+// ones, and any other unknown type is SAMPLE_EVENT_NONE.
 static unsigned int
 suunto_nautic_map_event (unsigned int chunk_id, unsigned int type)
 {
@@ -602,11 +567,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			if (data[base] != i)
 				break;
 
-			// Gas time remaining: uint32 LE seconds at record +10, for
-			// the primary cylinder. 0xFFFFFFFF means not computed (no
-			// AI, or not enough data yet). This is the app's
-			// Cylinders[].GasTime; exposed as RBT minutes, the same way
-			// suunto_eonsteel does.
+			// The gas time of the first cylinder, a uint32 in seconds at
+			// +10, as the RBT, like suunto_eonsteel. 0xFFFFFFFF means none.
 			if (i == 0) {
 				unsigned int gastime = array_uint32_le (data + base + 10);
 				if (gastime != 0xFFFFFFFF && gastime != 0) {
@@ -622,8 +584,6 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 					continue;
 				unsigned int key = i * 2 + field;
 				if (field == 1 && s->tankmap[key] < 0) {
-					// Defer creating a Pressure2 tank until its second non-zero
-					// reading, so a lone spurious sample doesn't become a phantom.
 					if (s->p2_first[i] < 0) {
 						s->p2_first[i] = (int) pressure_pa;
 						continue;
@@ -634,22 +594,15 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 						continue;
 					s->tankmap[key] = (int) parser->ntanks;
 					parser->tank[parser->ntanks].used = 1;
-					// Cylinder slot index == GasNumber, so this tank
-					// breathes gas i (linked to gasmix[i] below).
 					parser->tank[parser->ntanks].gasmix = i;
-					// Seed begin from the first observed reading (the deferred
-					// one for Pressure2); refined to the max below.
 					parser->tank[parser->ntanks].beginpressure = (field == 1 && s->p2_first[i] >= 0)
 						? (unsigned int) s->p2_first[i] : pressure_pa;
 					parser->ntanks++;
 				}
 				unsigned int t = (unsigned int) s->tankmap[key];
 				parser->tank[t].endpressure = pressure_pa;
-				// Begin pressure = the highest reading seen: a cylinder only
-				// loses pressure during a dive, so the max is the true start.
-				// This ignores an initial dropout where a transmitter that
-				// hasn't paired yet reports a spurious low value (e.g. ~9 bar
-				// for the first minutes, then jumps to the real ~200 bar).
+				// The begin pressure is the highest, because a transmitter
+				// that isn't paired yet reports a low value at first.
 				if (pressure_pa > parser->tank[t].beginpressure)
 					parser->tank[t].beginpressure = pressure_pa;
 				suunto_nautic_emit_time (s);
@@ -659,9 +612,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			}
 		}
 
-		// Deco/safety fields. Offsets validated 244/244 against the app's
-		// export: TTS uint16 @22 (s), NDL int16 @30 (s), Ceiling float32 @38
-		// (m). Ceiling/NDL/TTS use the standard DC_SAMPLE_DECO channel.
+		// Deco fields, the same in both layouts: TTS uint16 at 22 (s), NDL
+		// int16 at 30 (s) and the ceiling float32 at 38 (m).
 		unsigned int tts = array_uint16_le (data + 22);
 		int ndl = (signed short) array_uint16_le (data + 30);
 		double ceiling = array_float_le (data + 38);
@@ -734,19 +686,9 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// [timeDelta:2][Type:1][Active:1]; Active 1=begin, 0=end.
-		// The libdivecomputer event vocabulary can't express Suunto's full
-		// set (e.g. "Safety Stop Ahead" vs "At Safety Stop" both map to
-		// SAFETYSTOP), so alongside the mapped type we pass the native
-		// (subgroup, type) through event.value as (chunk_id << 8 | type).
-		// Consumers that want the exact Suunto label decode it from there;
-		// standard consumers use event.type as usual. (Gas switch keeps
-		// event.value as the gas number, per libdivecomputer convention.)
-		// Emit the begin edge only (Active=1). Suunto toggles these as
-		// begin/end state pairs, but the end carries no diving-relevant
-		// information -- the Suunto app itself shows only the begins --
-		// and emitting both makes downstream apps draw a duplicate
-		// marker where the condition cleared.
+		// [timeDelta:2][Type:1][Active:1]. Only the begin (Active 1) is
+		// emitted, as in the Suunto app, and the value is the group and
+		// the type, (chunk_id << 8 | type), for the exact event.
 		if (data[3]) {
 			unsigned int mapped = suunto_nautic_map_event (id, data[2]);
 			if (mapped != SAMPLE_EVENT_NONE) {
@@ -763,11 +705,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// [timeDelta:2][Type:1]; one-shot dive-end reason (Ooam.Type: Out of
-		// battery / Ceiling broken / SW crash / Max depth / Algorithm changed
-		// / Gauge dive). No Active byte. Emitted as a begin-edge event; the
-		// native (subgroup, type) is passed in event.value = (chunk_id<<8|type)
-		// for the precise Suunto label, same convention as the other events.
+		// [timeDelta:2][Type:1], the reason a dive ended, without an Active
+		// byte. The value is the same as for the other events.
 		unsigned int mapped = suunto_nautic_map_event (id, data[2]);
 		if (mapped != SAMPLE_EVENT_NONE) {
 			dc_sample_value_t sample = {0};
@@ -798,10 +737,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// [timeDelta:2][hr:uint8 bpm]. Optical wrist HR, present only on
-		// the Suunto Ocean (the Nautic / Nautic S have no HR sensor, so
-		// the chunk never appears there). Byte-exact against the app
-		// export's per-sample HR on a real Ocean dive (66-113 bpm).
+		// [timeDelta:2][hr:uint8 bpm], only on the Ocean.
 		unsigned int hr = data[2];
 		if (hr) {
 			dc_sample_value_t sample = {0};
@@ -814,9 +750,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// Battery telemetry -> DC_SAMPLE_VENDOR kind 1.
-		// (Current at data+2 is int16 but its scale isn't confirmed,
-		// so it's left out for now.)
+		// The current at 2, an int16, is left out: its scale is unknown.
 		unsigned int voltage_mv = array_uint16_le (data + 4);
 		unsigned int charge_permille = data[6] * 10; // % -> permille
 		unsigned char rec[5];
@@ -831,8 +765,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// EHPE/EVPE are int8 deltas accumulated from zero -> DC_SAMPLE_VENDOR
-		// kind 2, absolute metres.
+		// The EHPE and EVPE are int8 deltas, summed into metres.
 		s->ehpe += (signed char) data[2];
 		s->evpe += (signed char) data[3];
 		if (s->ehpe < 0) s->ehpe = 0;
@@ -848,9 +781,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// High-rate IMU: 9x int16 (accel/gyro/mag X,Y,Z) at offset 6,
-		// already little-endian -> DC_SAMPLE_VENDOR kind 3, passed
-		// through verbatim.
+		// The accelerometer, gyroscope and magnetometer X, Y, Z, 9x int16
+		// at offset 6, passed on as they are.
 		unsigned char rec[1 + 18];
 		rec[0] = VENDOR_KIND_IMU;
 		memcpy (rec + 1, data + 6, 18);
@@ -872,12 +804,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		// 3 Float32 values at offset 2/6/10 (SurfacePressure,
-		// MaxSurfacePressure, MinSurfacePressure), Pa -- offset
-		// 2, not 0: like chunk 0x16's Depth field, there are 2
-		// leading bytes before the data starts. DC_FIELD_ATMOSPHERIC
-		// is a single ambient-pressure reading in bar, so only
-		// SurfacePressure (offset 2) is used; last one logged wins.
+		// The surface pressure and its maximum and minimum, as float32 in
+		// Pa, after the time delta. The last surface pressure is used.
 		parser->have_atmospheric = 1;
 		parser->atmospheric = array_float_le (data + 2);
 	} else if (id == CHUNK_ACTIVITY) {
