@@ -731,8 +731,10 @@ suunto_nautic_fetch_pages (suunto_nautic_device_t *device, const char *path, dc_
 			break;
 		}
 
+		// An empty page wouldn't advance the offset, so the next request
+		// would be the same one again. Only the last page may be empty.
 		unsigned int length = array_uint16_le (page + PAGE_LENGTH);
-		if (PAGE_HEADER + length > page_len) {
+		if ((length == 0 && errcode != ERR_OK) || PAGE_HEADER + length != page_len) {
 			ERROR (abstract->context, "Unexpected page length (%u " DC_PRINTF_SIZE ").", length, page_len);
 			status = DC_STATUS_PROTOCOL;
 			break;
@@ -747,14 +749,6 @@ suunto_nautic_fetch_pages (suunto_nautic_device_t *device, const char *path, dc_
 
 		if (errcode == ERR_OK)
 			break;
-
-		// The offset didn't advance, so the next request would be the same
-		// one again.
-		if (length == 0) {
-			ERROR (abstract->context, "Empty page with more pages pending.");
-			status = DC_STATUS_PROTOCOL;
-			break;
-		}
 	}
 
 	dc_status_t rc = suunto_nautic_release (device, handle);
