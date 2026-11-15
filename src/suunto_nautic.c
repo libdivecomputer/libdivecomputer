@@ -220,8 +220,8 @@ suunto_nautic_send (suunto_nautic_device_t *device, unsigned char opcode, unsign
 // Receive the packet with the given opcode and sequence number. The watch
 // serves every app connected to it over the same link, so the replies to
 // another app's requests can arrive in between. Those are recognized by their
-// sequence number and skipped, and so are the notifications of a stream that
-// has ended, such as its repeated end marker.
+// sequence number and skipped, and so are the notifications that are still
+// on their way after a stream was stopped before its end.
 static dc_status_t
 suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsigned int seqnum, unsigned char data[], size_t size, size_t *actual)
 {
@@ -604,6 +604,7 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 	dc_status_t status = DC_STATUS_SUCCESS;
 	dc_status_t rc = DC_STATUS_SUCCESS;
 	unsigned int received = 0;
+	unsigned int end = 0;
 
 	unsigned int handle = 0;
 	status = suunto_nautic_get_handle (device, path, &handle);
@@ -675,14 +676,26 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 			break;
 		}
 
+		// The end marker, a chunk without data at the total size, is sent
+		// twice, and nothing follows it.
+		if (end) {
+			if (offset != received || length != 0) {
+				ERROR (abstract->context, "Unexpected chunk after the end marker (%u %u).", offset, length);
+				status = DC_STATUS_PROTOCOL;
+			}
+			break;
+		}
+
 		if (offset != received) {
 			ERROR (abstract->context, "Unexpected chunk offset (%u %u).", offset, received);
 			status = DC_STATUS_PROTOCOL;
 			break;
 		}
 
-		if (length == 0)
-			break;
+		if (length == 0) {
+			end = 1;
+			continue;
+		}
 
 		if (!dc_buffer_append (buffer, chunk + CHUNK_DATA, length)) {
 			ERROR (abstract->context, "Failed to allocate memory.");

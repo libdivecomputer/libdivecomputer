@@ -40,7 +40,7 @@
  *   - GET /Logbook/byId/<id>/Data, SUBSCRIBE: the watch streams the
  *     compressed dive in unacknowledged notifications (0x01), each with
  *     its offset in the stream, and ends with a zero length chunk at the
- *     total size. Then UNSUBSCRIBE and RELEASE.
+ *     total size, sent twice. Then UNSUBSCRIBE and RELEASE.
  *   - The stream is Heatshrink-compressed (LZSS variant, see
  *     src/heatshrink/; window_sz2 = 7, lookahead_sz2 = 5). The decoded
  *     stream is an SBEM0103 container.
