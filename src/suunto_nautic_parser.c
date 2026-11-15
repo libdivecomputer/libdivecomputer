@@ -88,12 +88,18 @@
 #define VENDOR_KIND_GPS_ACCURACY 2 // [ehpe_m:u16][evpe_m:u16]
 #define VENDOR_KIND_IMU          3 // [ax,ay,az,gx,gy,gz,mx,my,mz:int16]
 #define VENDOR_KIND_DIVEROUTE_FEATURES 4 // [f0,f1,f2,f3,f4:uint16] DiveRouteFeatures (algo inputs; not the X/Y/Z track)
-#define VENDOR_KIND_GF           5 // [gf99:int16][gf_surface:int16][gf_leading:int16] (%)
+#define VENDOR_KIND_GF           5 // [gf99:int16][gf_surface:int16] (%)
 #define CHUNK_PROFILE_1HZ     0x12
-#define CHUNK_EXTENDED_STATUS 0x16 // VARIABLE length (195 on Ocean/Nautic, 141
-                                   // on Nautic S and other firmware); fields are
-                                   // read by offset, each guarded by chunk.size.
-                                   // Deliberately not in the fixed-length table.
+#define CHUNK_EXTENDED_STATUS 0x16
+// The extended status has one of two layouts, which differ only in the
+// number of cylinder records: 141 bytes with 5 cylinders on the Nautic S and
+// the Ocean, 195 bytes with 8 on the Nautic. The cylinders start at 42, and
+// are followed by the real-time GF99 and surface GF (int32, %) and one more
+// byte, of unknown meaning.
+#define STATUS_SIZE_5     141
+#define STATUS_SIZE_8     195
+#define STATUS_CYLINDERS  42
+#define CYLINDER_SIZE     18
 #define CHUNK_SURFACE_PRESSURE 0x17
 // Dive-event groups: the chunk id IS the event subgroup, each record is
 // [timeDelta:2 LE][Type:1][Active:1] (Active 1=begin/onset, 0=end/cleared).
@@ -528,7 +534,12 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		sample.temperature = temperature / 100.0 - 273.15;
 		if (s->callback) s->callback (DC_SAMPLE_TEMPERATURE, &sample, s->userdata);
 	} else if (id == CHUNK_EXTENDED_STATUS) {
-		if (size < 42) {
+		unsigned int ncylinders = 0;
+		if (size == STATUS_SIZE_5) {
+			ncylinders = 5;
+		} else if (size == STATUS_SIZE_8) {
+			ncylinders = 8;
+		} else {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -549,88 +560,70 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		sample.depth = depth;
 		if (s->callback) s->callback (DC_SAMPLE_DEPTH, &sample, s->userdata);
 
-		// Cylinders array: up to 8 elements of 18 bytes, starting at
-		// offset 42 (idx:1, ?:1, pressure:4 LE Pa, pressure2:4 LE Pa, ...).
-		// Read each tank only if its record fits: the shorter Nautic S
-		// extended-status (141 B) holds fewer tank slots than the 195 B
-		// Ocean/Nautic one, but tank 0's pressure is at the same offset 44
-		// on both. Requiring the full 8-slot array (186 B) would drop all
-		// tank pressure on the shorter Nautic S chunk.
-		{
-			// Read every cylinder slot whose FULL 18-byte record fits in
-			// this chunk: the 195 B chunk holds all 8, the shorter 141 B
-			// chunk (Nautic S and some Ocean firmware) holds slots 0-4.
-			// Requiring the whole record (base + 18) rather than just the
-			// pressure field excludes the partial slot past the end, whose
-			// bytes would otherwise occasionally look like a phantom tank.
-			// Each real record starts with its own index byte, so stop at
-			// the first slot whose leading byte isn't its index. Slots 0-4
-			// carry idx 0-4 on the 141 B chunk; tank 0 pressure is at offset
-			// 44 on both layouts.
-			for (unsigned int i = 0; i < MAX_TANKS; i++) {
-				unsigned int base = 42 + i * 18;
-				if (base + 18 > size)
-					break; // full tank record doesn't fit this chunk
-				if (data[base] != i)
-					break; // not a real tank slot
+		// A cylinder record is GASNUMBER(1) ?(1) PRESSURE(4) PRESSURE2(4)
+		// GASTIME(4) ..., with the pressures in Pa. The gas number of every
+		// record is its index, so stop at the first one that isn't.
+		for (unsigned int i = 0; i < ncylinders; i++) {
+			unsigned int base = STATUS_CYLINDERS + i * CYLINDER_SIZE;
+			if (data[base] != i)
+				break;
 
-				// Gas time remaining: uint32 LE seconds at record +10, for
-				// the primary cylinder. 0xFFFFFFFF means not computed (no
-				// AI, or not enough data yet). This is the app's
-				// Cylinders[].GasTime; exposed as RBT minutes, the same way
-				// suunto_eonsteel does.
-				if (i == 0) {
-					unsigned int gastime = array_uint32_le (data + base + 10);
-					if (gastime != 0xFFFFFFFF && gastime != 0) {
-						sample.time = (unsigned int) s->sample_ms;
-						if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-						sample.rbt = gastime / 60;
-						if (s->callback) s->callback (DC_SAMPLE_RBT, &sample, s->userdata);
-					}
-				}
-
-				for (unsigned int field = 0; field < 2; field++) {
-					unsigned int pressure_pa = array_uint32_le (data + base + 2 + field * 4);
-					if (pressure_pa == 0)
-						continue;
-					unsigned int key = i * 2 + field;
-					if (field == 1 && s->tankmap[key] < 0) {
-						// Defer creating a Pressure2 tank until its second non-zero
-						// reading, so a lone spurious sample doesn't become a phantom.
-						if (s->p2_first[i] < 0) {
-							s->p2_first[i] = (int) pressure_pa;
-							continue;
-						}
-					}
-					if (s->tankmap[key] < 0) {
-						if (parser->ntanks >= MAX_TANKS)
-							continue;
-						s->tankmap[key] = (int) parser->ntanks;
-						parser->tank[parser->ntanks].used = 1;
-						// Cylinder slot index == GasNumber, so this tank
-						// breathes gas i (linked to gasmix[i] below).
-						parser->tank[parser->ntanks].gasmix = i;
-						// Seed begin from the first observed reading (the deferred
-						// one for Pressure2); refined to the max below.
-						parser->tank[parser->ntanks].beginpressure = (field == 1 && s->p2_first[i] >= 0)
-							? (unsigned int) s->p2_first[i] : pressure_pa;
-						parser->ntanks++;
-					}
-					unsigned int t = (unsigned int) s->tankmap[key];
-					parser->tank[t].endpressure = pressure_pa;
-					// Begin pressure = the highest reading seen: a cylinder only
-					// loses pressure during a dive, so the max is the true start.
-					// This ignores an initial dropout where a transmitter that
-					// hasn't paired yet reports a spurious low value (e.g. ~9 bar
-					// for the first minutes, then jumps to the real ~200 bar).
-					if (pressure_pa > parser->tank[t].beginpressure)
-						parser->tank[t].beginpressure = pressure_pa;
+			// Gas time remaining: uint32 LE seconds at record +10, for
+			// the primary cylinder. 0xFFFFFFFF means not computed (no
+			// AI, or not enough data yet). This is the app's
+			// Cylinders[].GasTime; exposed as RBT minutes, the same way
+			// suunto_eonsteel does.
+			if (i == 0) {
+				unsigned int gastime = array_uint32_le (data + base + 10);
+				if (gastime != 0xFFFFFFFF && gastime != 0) {
 					sample.time = (unsigned int) s->sample_ms;
 					if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-					sample.pressure.tank = t;
-					sample.pressure.value = pressure_pa / 100000.0;
-					if (s->callback) s->callback (DC_SAMPLE_PRESSURE, &sample, s->userdata);
+					sample.rbt = gastime / 60;
+					if (s->callback) s->callback (DC_SAMPLE_RBT, &sample, s->userdata);
 				}
+			}
+
+			for (unsigned int field = 0; field < 2; field++) {
+				unsigned int pressure_pa = array_uint32_le (data + base + 2 + field * 4);
+				if (pressure_pa == 0)
+					continue;
+				unsigned int key = i * 2 + field;
+				if (field == 1 && s->tankmap[key] < 0) {
+					// Defer creating a Pressure2 tank until its second non-zero
+					// reading, so a lone spurious sample doesn't become a phantom.
+					if (s->p2_first[i] < 0) {
+						s->p2_first[i] = (int) pressure_pa;
+						continue;
+					}
+				}
+				if (s->tankmap[key] < 0) {
+					if (parser->ntanks >= MAX_TANKS)
+						continue;
+					s->tankmap[key] = (int) parser->ntanks;
+					parser->tank[parser->ntanks].used = 1;
+					// Cylinder slot index == GasNumber, so this tank
+					// breathes gas i (linked to gasmix[i] below).
+					parser->tank[parser->ntanks].gasmix = i;
+					// Seed begin from the first observed reading (the deferred
+					// one for Pressure2); refined to the max below.
+					parser->tank[parser->ntanks].beginpressure = (field == 1 && s->p2_first[i] >= 0)
+						? (unsigned int) s->p2_first[i] : pressure_pa;
+					parser->ntanks++;
+				}
+				unsigned int t = (unsigned int) s->tankmap[key];
+				parser->tank[t].endpressure = pressure_pa;
+				// Begin pressure = the highest reading seen: a cylinder only
+				// loses pressure during a dive, so the max is the true start.
+				// This ignores an initial dropout where a transmitter that
+				// hasn't paired yet reports a spurious low value (e.g. ~9 bar
+				// for the first minutes, then jumps to the real ~200 bar).
+				if (pressure_pa > parser->tank[t].beginpressure)
+					parser->tank[t].beginpressure = pressure_pa;
+				sample.time = (unsigned int) s->sample_ms;
+				if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
+				sample.pressure.tank = t;
+				sample.pressure.value = pressure_pa / 100000.0;
+				if (s->callback) s->callback (DC_SAMPLE_PRESSURE, &sample, s->userdata);
 			}
 		}
 
@@ -657,21 +650,18 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		}
 		if (s->callback) s->callback (DC_SAMPLE_DECO, &deco, s->userdata);
 
-		// Real-time gradient factors -> vendor kind 5 (no standard channel).
-		// gf99 @186 and surface @190 sit past the cylinder array; the
-		// leading-tissue GF @78 is inside that span, so it's only reliable
-		// while the upper tank slots are unused (as on this reference dive).
-		if (size >= 192) {
-			int gf99    = (int16_t) array_uint16_le (data + 186);
-			int gf_surf = (int16_t) array_uint16_le (data + 190);
-			int gf_lead = (int16_t) array_uint16_le (data + 78);
-			unsigned char rec[7];
-			rec[0] = VENDOR_KIND_GF;
-			rec[1] = gf99 & 0xFF;    rec[2] = (gf99 >> 8) & 0xFF;
-			rec[3] = gf_surf & 0xFF; rec[4] = (gf_surf >> 8) & 0xFF;
-			rec[5] = gf_lead & 0xFF; rec[6] = (gf_lead >> 8) & 0xFF;
-			suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
-		}
+		// The real-time gradient factors, after the cylinders, have no
+		// standard sample, so they are a vendor record (kind 5).
+		unsigned int gf = STATUS_CYLINDERS + ncylinders * CYLINDER_SIZE;
+		int gf99 = (signed int) array_uint32_le (data + gf);
+		int gf_surface = (signed int) array_uint32_le (data + gf + 4);
+		unsigned char rec[5];
+		rec[0] = VENDOR_KIND_GF;
+		rec[1] = gf99 & 0xFF;
+		rec[2] = (gf99 >> 8) & 0xFF;
+		rec[3] = gf_surface & 0xFF;
+		rec[4] = (gf_surface >> 8) & 0xFF;
+		suunto_nautic_emit_vendor (s->callback, s->userdata, s->sample_ms, rec, sizeof (rec));
 	} else if (id == CHUNK_GPS) {
 		if (size < 18) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
