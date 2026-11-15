@@ -181,7 +181,14 @@ static dc_status_t
 suunto_nautic_send (suunto_nautic_device_t *device, unsigned char opcode, unsigned int seqnum, const unsigned char data[], size_t size)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
 	unsigned char packet[6 + MAX_PAYLOAD + 4] = {0};
+
+	// The UNSUBSCRIBE and RELEASE still go out after a cancel, so the watch
+	// doesn't keep streaming or keep the handle bound.
+	if (opcode != RPC_OP_UNSUBSCRIBE && opcode != RPC_OP_RELEASE &&
+		device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
 
 	if (size > MAX_PAYLOAD)
 		return DC_STATUS_INVALIDARGS;
@@ -622,7 +629,7 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 	}
 
 	// The watch streams the whole resource without acknowledgements, up to
-	// the end marker.
+	// the end marker. Nothing is sent meanwhile, so check for a cancel here.
 	dc_buffer_clear (buffer);
 	while (1) {
 		if (device_is_cancelled (abstract)) {
@@ -1106,11 +1113,6 @@ suunto_nautic_device_foreach (dc_device_t *abstract, dc_dive_callback_t callback
 		// downloaded before.
 		if (memcmp (fingerprint, device->fingerprint, sizeof (fingerprint)) == 0)
 			break;
-
-		if (device_is_cancelled (abstract)) {
-			status = DC_STATUS_CANCELLED;
-			break;
-		}
 
 		status = suunto_nautic_download (device, id, listed, buffer);
 		if (status != DC_STATUS_SUCCESS) {
