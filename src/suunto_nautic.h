@@ -53,14 +53,15 @@
  *   - An 8-byte header (SBEM0103), then chunks ID LENGTH DATA(LENGTH). The
  *     id is one byte, or 0xFF and a uint16 LE id; the length is one byte,
  *     or 0xFF and a uint32 LE length. Unknown chunk IDs are skipped.
- *   - Decoded chunks (suunto_nautic_parser.c): 0x12 (1Hz absolute
- *     pressure / temperature), 0x16 (depth, cylinder pressures, NDL,
- *     time-to-surface), 0x0B (GPS), 0x17 (surface pressure ->
- *     DC_FIELD_ATMOSPHERIC), plus dive events and high-rate IMU.
+ *   - Decoded chunks (suunto_nautic_parser.c): 0x01 (timeline base),
+ *     0x12 (1Hz absolute pressure / temperature), 0x16 (depth, cylinder
+ *     pressures, NDL, time-to-surface), 0x0B (GPS), 0x17 (surface
+ *     pressure -> DC_FIELD_ATMOSPHERIC), plus dive events and high-rate
+ *     IMU. The ids from 0x20 up aren't fixed, see the parser.
  *   - Series libdivecomputer has no sample type for (battery, GPS
- *     accuracy, 9-axis IMU, dive-route features) are emitted through
- *     DC_SAMPLE_VENDOR tagged SAMPLE_VENDOR_SUUNTO_NAUTIC, each record
- *     led by a VENDOR_KIND_* byte.
+ *     accuracy, 9-axis IMU, dive-route features, gradient factors) are
+ *     emitted through DC_SAMPLE_VENDOR tagged SAMPLE_VENDOR_SUUNTO_NAUTIC,
+ *     each record led by a VENDOR_KIND_* byte.
  *
  * Enumeration:
  *   - /Logbook/Entries lists the dives, oldest first and in pages. Each

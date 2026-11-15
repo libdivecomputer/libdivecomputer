@@ -29,15 +29,14 @@
  * The id is one byte, or 0xFF and the id as a uint16 LE; the length is one
  * byte, or 0xFF and the length as a uint32 LE.
  *
- * Decoded chunks: 0x12 (1Hz absolute pressure / temperature), 0x16
- * (depth, cylinder pressures, gas time remaining, NDL, time-to-surface),
- * 0x17 (surface pressure), 0x0B (GPS), 0x0F (heart rate, Ocean only),
- * 0x08 (activity -> dive mode), plus the dynamically-assigned dive-event
- * subgroups. Chunks 0x0E (satellite info) and 0x14 (battery) map to no
- * dc_field/dc_sample, and are emitted through DC_SAMPLE_VENDOR. Chunks
- * 0x23/0x24 are raw accelerometer / gyroscope dumps for client-side dead
- * reckoning, emitted through DC_SAMPLE_VENDOR. Unknown chunk ids are
- * skipped, so extending the decoder is additive.
+ * Decoded chunks: 0x01 (timeline base), 0x12 (1Hz absolute pressure /
+ * temperature), 0x16 (depth, cylinder pressures, gas time remaining, NDL,
+ * time-to-surface, gradient factors), 0x17 (surface pressure), 0x0B (GPS),
+ * 0x0F (heart rate, Ocean only), 0x08 (activity -> dive mode), plus the
+ * dive-event groups. The GPS accuracy (0x0E), the battery (0x14), the raw
+ * IMU and the dive route features (see suunto_nautic_layout_t) map to no
+ * dc_field or dc_sample, and are emitted through DC_SAMPLE_VENDOR. Unknown
+ * chunk ids are skipped, so extending the decoder is additive.
  *
  * Sample time is delta-encoded: every chunk except the timeline base
  * (0x01) begins with a signed int16 LE millisecond delta. The timeline base
@@ -65,19 +64,9 @@
 #define CHUNK_GPS_ACCURACY    0x0E // [timeDelta:2][dEHPE:int8][dEVPE:int8][?:2]
 #define CHUNK_HEARTRATE       0x0F // [timeDelta:2][hr:uint8 bpm] -- Ocean wrist HR only
 #define CHUNK_BATTERY         0x14 // [timeDelta:2][current:int16][voltage:uint16 mV][charge:uint8 %]
-// High-rate IMU: [timeDelta:2][algoTS:uint32][accel/gyro/mag X,Y,Z:int16], a
-// 24-byte payload. The chunk id is FIRMWARE-DEPENDENT: 0x23 on the 195-byte
-// extended-status watches (Nautic), 0x22 on the 141-byte ones (Nautic S /
-// Ocean), where 0x23 is the DiveRouteFeatures; the size tells them apart
-// (see the IMU handler).
-#define CHUNK_IMU             0x23
-#define CHUNK_IMU_ALT         0x22
-// DiveRouteFeatures: 5x uint16 (16-byte payload), id 0x24 on 195-byte watches
-// and 0x23 (small) on 141-byte ones. These are input features to the app's
-// dive-route tracking algorithm, not the resulting X/Y/Z track (which the
-// device doesn't store; the app dead-reckons it from the raw IMU above). The
-// meaning of the individual features is unknown; they are carried through.
-#define CHUNK_DIVEROUTE_FEATURES 0x24
+// The chunks from 0x20 up are in suunto_nautic_layout_t.
+#define IMU_SIZE              24 // [timeDelta:2][algoTS:uint32][accel/gyro/mag X,Y,Z:int16]
+#define FEATURES_SIZE         16 // [timeDelta:2][?:4][f0..f4:uint16]
 
 // libdivecomputer has no dedicated battery/GPS-accuracy/IMU sample types, so
 // these are delivered through the generic DC_SAMPLE_VENDOR channel tagged
@@ -90,15 +79,12 @@
 #define VENDOR_KIND_GF           5 // [gf99:int16][gf_surface:int16] (%)
 #define CHUNK_PROFILE_1HZ     0x12
 #define CHUNK_EXTENDED_STATUS 0x16
-// The extended status has one of two layouts, which differ only in the
-// number of cylinder records: 141 bytes with 5 cylinders on the Nautic S and
-// the Ocean, 195 bytes with 8 on the Nautic. The cylinders start at 42, and
-// are followed by the real-time GF99 and surface GF (int32, %) and one more
-// byte, of unknown meaning.
-#define STATUS_SIZE_5     141
-#define STATUS_SIZE_8     195
+// The extended status holds the cylinder records at 42, as many as the layout
+// has gases, then the real-time GF99 and surface GF (int32, %) and one byte
+// of unknown meaning: 141 bytes with 5 cylinders, 195 with 8.
 #define STATUS_CYLINDERS  42
 #define CYLINDER_SIZE     18
+#define STATUS_SIZE(n)    (STATUS_CYLINDERS + (n) * CYLINDER_SIZE + 9)
 #define CHUNK_SURFACE_PRESSURE 0x17
 // Dive-event groups: the chunk id IS the event subgroup, each record is
 // [timeDelta:2 LE][Type:1][Active:1] (Active 1=begin/onset, 0=end/cleared).
@@ -123,12 +109,8 @@
 // The /Summary SBEM section starts with the dive header, with the settings
 // the dive was made with, which the profile (/Data) doesn't carry. The
 // driver stores the /Summary in front of the profile so this parser can
-// expose them the standard way. Like the ids from 0x22 up in the profile,
-// the id of the header moves with the firmware: 0x20 on the Nautic S and
-// Ocean, 0x21 on the Nautic, so it is recognized as the first chunk. Its
-// layout is the same on both, as far as decoded:
-#define SUMMARY_HEADER     0x20
-#define SUMMARY_HEADER_ALT 0x21
+// expose them the standard way. Its id depends on the layout, and the fields
+// decoded so far are at the same place in both:
 #define HEADER_GF_HIGH     37 // uint16 LE, %
 #define HEADER_GF_LOW      39 // uint16 LE, %
 #define HEADER_WATER_TYPE  48 // uint8 enum: 0 fresh, 1 EN13319, 2 salt
@@ -146,6 +128,23 @@
 #define GAS_HE            3  // uint16 LE, %
 #define GAS_PO2MAX        5  // float32 LE, bar
 #define GAS_VOLUME        9  // float32 LE, m^3
+
+// The ids from 0x20 up aren't fixed: the descriptors the watch serves with
+// each dive assign them. Two sets have been seen, in which each of those ids
+// differs by one, in the /Summary and in the profile alike: on the Nautic S
+// and the Ocean (firmware 2.51 to 2.54), and on the Nautic (2.55.46). The id
+// of the dive header, the first chunk of the /Summary, tells them apart.
+typedef struct suunto_nautic_layout_t {
+	unsigned int header;   // the dive header
+	unsigned int ngases;   // its gas records, and the cylinders in 0x16
+	unsigned int imu;      // the raw IMU, IMU_SIZE bytes
+	unsigned int features; // the dive route features, FEATURES_SIZE bytes
+} suunto_nautic_layout_t;
+
+static const suunto_nautic_layout_t suunto_nautic_layouts[] = {
+	{0x20, 5, 0x22, 0x23},
+	{0x21, 8, 0x23, 0x24},
+};
 
 // The values are kept in the units of the device, and converted when they
 // are returned.
@@ -165,6 +164,7 @@ typedef struct suunto_nautic_gasmix_t {
 typedef struct suunto_nautic_parser_t {
 	dc_parser_t base;
 	unsigned int cached;
+	const suunto_nautic_layout_t *layout;
 	long long divetime;    // ms
 	double maxdepth;       // m
 	double depth_sum;      // m, over the Diving samples
@@ -353,7 +353,14 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 	if (s->nchunks++ != 0)
 		return DC_STATUS_SUCCESS;
 
-	if (id != SUMMARY_HEADER && id != SUMMARY_HEADER_ALT) {
+	for (unsigned int i = 0; i < C_ARRAY_SIZE (suunto_nautic_layouts); i++) {
+		if (suunto_nautic_layouts[i].header == id) {
+			parser->layout = suunto_nautic_layouts + i;
+			break;
+		}
+	}
+
+	if (parser->layout == NULL) {
 		ERROR (context, "Unexpected dive header id (%02x).", id);
 		return DC_STATUS_DATAFORMAT;
 	}
@@ -496,6 +503,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 {
 	suunto_nautic_profile_t *s = (suunto_nautic_profile_t *) userdata;
 	suunto_nautic_parser_t *parser = s->parser;
+	const suunto_nautic_layout_t *layout = parser->layout;
 
 	// Advance the clock by this chunk's leading ms delta (all groups
 	// except the timeline base carry one).
@@ -551,12 +559,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		sample.temperature = temperature / 100.0 - 273.15;
 		if (s->callback) s->callback (DC_SAMPLE_TEMPERATURE, &sample, s->userdata);
 	} else if (id == CHUNK_EXTENDED_STATUS) {
-		unsigned int ncylinders = 0;
-		if (size == STATUS_SIZE_5) {
-			ncylinders = 5;
-		} else if (size == STATUS_SIZE_8) {
-			ncylinders = 8;
-		} else {
+		unsigned int ncylinders = layout->ngases;
+		if (size != STATUS_SIZE (ncylinders)) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
@@ -839,31 +843,30 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		rec[1] = e & 0xFF; rec[2] = (e >> 8) & 0xFF;
 		rec[3] = v & 0xFF; rec[4] = (v >> 8) & 0xFF;
 		suunto_nautic_emit_vendor (s->callback, s->userdata, (unsigned int) s->sample_ms, rec, sizeof (rec));
-	} else if (id == CHUNK_IMU_ALT || id == CHUNK_IMU || id == CHUNK_DIVEROUTE_FEATURES) {
-		// The ids of these two move with the firmware: the IMU is 0x22 on
-		// the 141-byte watches and 0x23 on the 195-byte ones, the
-		// DiveRouteFeatures 0x23 and 0x24. Their sizes, 24 and 16 bytes,
-		// tell them apart.
-		if (size == 24) {
-			// High-rate IMU: 9x int16 (accel/gyro/mag X,Y,Z) at offset 6,
-			// already little-endian -> DC_SAMPLE_VENDOR kind 3, passed
-			// through verbatim.
-			unsigned char rec[1 + 18];
-			rec[0] = VENDOR_KIND_IMU;
-			memcpy (rec + 1, data + 6, 18);
-			suunto_nautic_emit_vendor (s->callback, s->userdata, (unsigned int) s->sample_ms, rec, sizeof (rec));
-		} else if (size == 16) {
-			// DiveRouteFeatures: 5x uint16 at offset 6 -> DC_SAMPLE_VENDOR
-			// kind 4. NOT the dive route (which the watch does not store);
-			// semantics TBD.
-			unsigned char rec[1 + 10];
-			rec[0] = VENDOR_KIND_DIVEROUTE_FEATURES;
-			memcpy (rec + 1, data + 6, 10);
-			suunto_nautic_emit_vendor (s->callback, s->userdata, (unsigned int) s->sample_ms, rec, sizeof (rec));
-		} else {
+	} else if (id == layout->imu) {
+		if (size != IMU_SIZE) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
+		// High-rate IMU: 9x int16 (accel/gyro/mag X,Y,Z) at offset 6,
+		// already little-endian -> DC_SAMPLE_VENDOR kind 3, passed
+		// through verbatim.
+		unsigned char rec[1 + 18];
+		rec[0] = VENDOR_KIND_IMU;
+		memcpy (rec + 1, data + 6, 18);
+		suunto_nautic_emit_vendor (s->callback, s->userdata, (unsigned int) s->sample_ms, rec, sizeof (rec));
+	} else if (id == layout->features) {
+		if (size != FEATURES_SIZE) {
+			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
+			return DC_STATUS_DATAFORMAT;
+		}
+		// Dive route features: 5x uint16 at offset 6 -> DC_SAMPLE_VENDOR
+		// kind 4. These are inputs to the dive route tracking of the app,
+		// not the route itself, and their meaning is unknown.
+		unsigned char rec[1 + 10];
+		rec[0] = VENDOR_KIND_DIVEROUTE_FEATURES;
+		memcpy (rec + 1, data + 6, 10);
+		suunto_nautic_emit_vendor (s->callback, s->userdata, (unsigned int) s->sample_ms, rec, sizeof (rec));
 	} else if (id == CHUNK_SURFACE_PRESSURE) {
 		if (size < 6) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
@@ -916,6 +919,7 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	unsigned int profile_size = abstract->size - 4 - summary_size;
 
 	parser->cached = 0;
+	parser->layout = NULL;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
 	parser->depth_sum = 0.0;
