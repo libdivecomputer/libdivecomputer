@@ -115,28 +115,32 @@
 #define MAX_TANKS 8
 #define MAX_GASMIXES 4
 
-// Field offsets within the /Summary SBEM0103 section (relative to its
-// "SBEM0103" signature), confirmed against real hardware. The dive profile
-// (/Data) carries samples but not these; the driver stores the /Summary
-// SBEM in front of the profile so this parser can expose them the standard way.
-// GF low is at 0x35 and GF high at 0x33 (uint16 LE, %). This ordering yields
-// valid low <= high on two devices (Nautic 35/75, Nautic S 40/85); the reverse
-// gives low > high.
-#define SUMMARY_GF_LOW   0x35 // uint16 LE, %
-#define SUMMARY_GF_HIGH  0x33 // uint16 LE, %
-#define SUMMARY_WATER_TYPE 0x3E // uint8 enum: 0 fresh, 1 EN13319, 2 salt
-// Gas/cylinder records: an array starting at SUMMARY_GAS_BASE, one 45-byte
+// The /Summary SBEM section starts with the dive header, with the settings
+// the dive was made with, which the profile (/Data) doesn't carry. The
+// driver stores the /Summary in front of the profile so this parser can
+// expose them the standard way. Like the ids from 0x22 up in the profile,
+// the id of the header moves with the firmware: 0x20 on the Nautic S and
+// Ocean, 0x21 on the Nautic, so it is recognized as the first chunk. Its
+// layout is the same on both, as far as decoded:
+#define SUMMARY_HEADER     0x20
+#define SUMMARY_HEADER_ALT 0x21
+#define HEADER_GF_HIGH     37 // uint16 LE, %
+#define HEADER_GF_LOW      39 // uint16 LE, %
+#define HEADER_WATER_TYPE  48 // uint8 enum: 0 fresh, 1 EN13319, 2 salt
+// GF low is at +39 and GF high at +37. This ordering yields valid low <= high
+// on two devices (Nautic 35/75, Nautic S 40/85); the reverse gives low > high.
+// Gas/cylinder records: an array starting at HEADER_GAS, one 45-byte
 // record per configured gas. The record index equals the cylinder slot
 // (GasNumber), so tank i uses gas i. Within a record: O2% at +1, He% at +2,
 // the configured PO2 max (float32 LE, bar) at +5, and cylinder water capacity
 // (float32 LE, m^3) at +9. Confirmed on real single- and dual-gas dives; a
 // lone-gas dive stops at the first implausible slot.
-#define SUMMARY_GAS_BASE   0xC7
-#define SUMMARY_GAS_STRIDE 45
-#define SUMMARY_GAS_O2     1  // uint8, %
-#define SUMMARY_GAS_HE     2  // uint8, %
-#define SUMMARY_GAS_PO2MAX 5  // float32 LE, bar
-#define SUMMARY_GAS_VOLUME 9  // float32 LE, m^3
+#define HEADER_GAS        185
+#define HEADER_GAS_SIZE   45
+#define GAS_O2            1  // uint8, %
+#define GAS_HE            2  // uint8, %
+#define GAS_PO2MAX        5  // float32 LE, bar
+#define GAS_VOLUME        9  // float32 LE, m^3
 
 typedef struct suunto_nautic_tank_t {
 	unsigned int used;
@@ -223,6 +227,11 @@ typedef struct suunto_nautic_profile_t {
 	// GPS horizontal/vertical position error, int8-delta-accumulated (chunk 0x0E).
 	int ehpe, evpe;
 } suunto_nautic_profile_t;
+
+typedef struct suunto_nautic_summary_t {
+	suunto_nautic_parser_t *parser;
+	unsigned int nchunks;
+} suunto_nautic_summary_t;
 
 static dc_status_t suunto_nautic_parser_get_datetime (dc_parser_t *abstract, dc_datetime_t *datetime);
 static dc_status_t suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, unsigned int flags, void *value);
@@ -336,41 +345,50 @@ suunto_nautic_sbem_parse (dc_context_t *context, const unsigned char data[], uns
 	return status;
 }
 
-// Parse gradient factors, gas mixes and per-gas cylinder size from the
-// /Summary section, whose "SBEM0103" signature is at `sbem` (length `size`).
-// Offsets are relative to that signature (confirmed on real hardware). Gases
-// are validated by plausibility (O2 in 1..100, He in 0..100-O2) and counted
-// until the first implausible slot, since unused slots hold unrelated bytes.
-static void
-suunto_nautic_parse_summary (suunto_nautic_parser_t *parser, const unsigned char *sbem, size_t size)
+// Decode gradient factors, water type, gas mixes and per-gas cylinder size
+// from the dive header, the first chunk of the /Summary; the other chunks
+// aren't decoded. Gases are validated by plausibility (O2 in 1..100, He in
+// 0..100-O2) and counted until the first implausible slot, since unused
+// slots hold unrelated bytes.
+static dc_status_t
+suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsigned char data[], unsigned int size, void *userdata)
 {
-	if (size >= SUMMARY_GF_LOW + 2) { // GF_LOW (0x35) is the higher of the two offsets
-		unsigned int low = array_uint16_le (sbem + SUMMARY_GF_LOW);
-		unsigned int high = array_uint16_le (sbem + SUMMARY_GF_HIGH);
-		parser->decomodel.type = DC_DECOMODEL_BUHLMANN;
-		parser->decomodel.conservatism = 0;
-		parser->decomodel.params.gf.low = low;
-		parser->decomodel.params.gf.high = high;
-		parser->have_decomodel = 1;
+	suunto_nautic_summary_t *s = (suunto_nautic_summary_t *) userdata;
+	suunto_nautic_parser_t *parser = s->parser;
+
+	if (s->nchunks++ != 0)
+		return DC_STATUS_SUCCESS;
+
+	if (id != SUMMARY_HEADER && id != SUMMARY_HEADER_ALT) {
+		ERROR (context, "Unexpected dive header id (%u).", id);
+		return DC_STATUS_DATAFORMAT;
 	}
 
-	// Water type at +0x3E (uint8): 0 fresh, 1 EN13319, 2 salt.
-	if (size > SUMMARY_WATER_TYPE) {
-		unsigned int wt = sbem[SUMMARY_WATER_TYPE];
-		if (wt <= 2) {
-			static const double density[] = {1000.0, 1020.0, 1030.0};
-			parser->salinity.type = wt ? DC_WATER_SALT : DC_WATER_FRESH;
-			parser->salinity.density = density[wt];
-			parser->have_salinity = 1;
-		}
+	if (size < HEADER_GAS + MAX_GASMIXES * HEADER_GAS_SIZE) {
+		ERROR (context, "Unexpected dive header size (%u).", size);
+		return DC_STATUS_DATAFORMAT;
+	}
+
+	unsigned int low = array_uint16_le (data + HEADER_GF_LOW);
+	unsigned int high = array_uint16_le (data + HEADER_GF_HIGH);
+	parser->decomodel.type = DC_DECOMODEL_BUHLMANN;
+	parser->decomodel.conservatism = 0;
+	parser->decomodel.params.gf.low = low;
+	parser->decomodel.params.gf.high = high;
+	parser->have_decomodel = 1;
+
+	unsigned int wt = data[HEADER_WATER_TYPE];
+	if (wt <= 2) {
+		static const double density[] = {1000.0, 1020.0, 1030.0};
+		parser->salinity.type = wt ? DC_WATER_SALT : DC_WATER_FRESH;
+		parser->salinity.density = density[wt];
+		parser->have_salinity = 1;
 	}
 
 	for (unsigned int i = 0; i < MAX_GASMIXES; i++) {
-		size_t base = SUMMARY_GAS_BASE + (size_t) i * SUMMARY_GAS_STRIDE;
-		if (base + SUMMARY_GAS_O2 >= size)
-			break;
-		unsigned int o2 = sbem[base + SUMMARY_GAS_O2];
-		unsigned int he = sbem[base + SUMMARY_GAS_HE];
+		const unsigned char *gas = data + HEADER_GAS + i * HEADER_GAS_SIZE;
+		unsigned int o2 = gas[GAS_O2];
+		unsigned int he = gas[GAS_HE];
 		if (o2 < 1 || o2 > 100 || he > 100 || o2 + he > 100)
 			break; // unused/implausible slot -- stop
 		unsigned int g = parser->ngasmixes;
@@ -378,17 +396,15 @@ suunto_nautic_parse_summary (suunto_nautic_parser_t *parser, const unsigned char
 		parser->gasmix[g].helium = he / 100.0;
 		parser->gasmix[g].nitrogen = 1.0 - (o2 + he) / 100.0;
 		parser->gasmix[g].usage = DC_USAGE_NONE;
-		// Per-gas cylinder water capacity (float32 m^3) -> litres, when the
-		// record's volume field is present and physically sane.
-		if (base + SUMMARY_GAS_VOLUME + 4 <= size) {
-			double vol_m3 = array_float_le (sbem + base + SUMMARY_GAS_VOLUME);
-			if (vol_m3 > 0.0 && vol_m3 < 1.0)
-				parser->gasvolume[g] = vol_m3 * 1000.0;
-		}
+		// Per-gas cylinder water capacity (float32 m^3) -> litres, when it is
+		// physically sane.
+		double vol_m3 = array_float_le (gas + GAS_VOLUME);
+		if (vol_m3 > 0.0 && vol_m3 < 1.0)
+			parser->gasvolume[g] = vol_m3 * 1000.0;
 		// The configured PO2 max (float32 bar) is a single watch setting held
 		// in the first gas record. Record it once, when physically sane.
-		if (g == 0 && base + SUMMARY_GAS_PO2MAX + 4 <= size) {
-			double ppo2 = array_float_le (sbem + base + SUMMARY_GAS_PO2MAX);
+		if (g == 0) {
+			double ppo2 = array_float_le (gas + GAS_PO2MAX);
 			if (ppo2 >= 0.5 && ppo2 <= 3.0) {
 				parser->ppo2max = ppo2;
 				parser->have_ppo2max = 1;
@@ -396,6 +412,8 @@ suunto_nautic_parse_summary (suunto_nautic_parser_t *parser, const unsigned char
 		}
 		parser->ngasmixes++;
 	}
+
+	return DC_STATUS_SUCCESS;
 }
 
 // Map a Suunto dive-event to the closest dc_sample_event_t. The sub-group
@@ -877,8 +895,7 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	suunto_nautic_parser_t *parser = (suunto_nautic_parser_t *) abstract;
 
 	// The dive is SUMMARY_SIZE(4) SUMMARY PROFILE, see the driver: the
-	// /Summary section (gradient factors, gas mixes), parsed separately
-	// below, and the profile (/Data), walked here.
+	// /Summary section (gradient factors, gas mixes) and the profile (/Data).
 	if (abstract->size < 4) {
 		ERROR (abstract->context, "Unexpected dive size (%u).", abstract->size);
 		return DC_STATUS_DATAFORMAT;
@@ -915,6 +932,25 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	// activity chunk at all OC is the right default -- far better than the
 	// dc_divemode_t zero value (freedive) a missing field leaves behind.
 	parser->divemode = DC_DIVEMODE_OC;
+	parser->ngasmixes = 0;
+	memset (parser->gasmix, 0, sizeof (parser->gasmix));
+	memset (parser->gasvolume, 0, sizeof (parser->gasvolume));
+	parser->have_decomodel = 0;
+	memset (&parser->decomodel, 0, sizeof (parser->decomodel));
+	parser->have_ppo2max = 0;
+	parser->ppo2max = 0.0;
+	parser->have_salinity = 0;
+	memset (&parser->salinity, 0, sizeof (parser->salinity));
+
+	suunto_nautic_summary_t summary_state;
+	memset (&summary_state, 0, sizeof (summary_state));
+	summary_state.parser = parser;
+
+	if (summary_size) {
+		status = suunto_nautic_sbem_parse (abstract->context, summary, summary_size, suunto_nautic_parser_summary, &summary_state);
+		if (status != DC_STATUS_SUCCESS)
+			return status;
+	}
 
 	suunto_nautic_profile_t s;
 	memset (&s, 0, sizeof (s));
@@ -943,20 +979,6 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	else
 		parser->divetime = (unsigned int) ((s.time_ms + 500) / 1000);
 	parser->avgdepth = s.depth_count ? s.depth_sum / s.depth_count : 0.0;
-
-	// Gradient factors, gas mixes and per-gas cylinder size from the
-	// /Summary section.
-	parser->ngasmixes = 0;
-	parser->have_decomodel = 0;
-	parser->have_ppo2max = 0;
-	parser->ppo2max = 0.0;
-	parser->have_salinity = 0;
-	memset (&parser->salinity, 0, sizeof (parser->salinity));
-	memset (parser->gasmix, 0, sizeof (parser->gasmix));
-	memset (parser->gasvolume, 0, sizeof (parser->gasvolume));
-	memset (&parser->decomodel, 0, sizeof (parser->decomodel));
-	if (summary_size)
-		suunto_nautic_parse_summary (parser, summary, summary_size);
 
 	parser->cached = 1;
 
