@@ -660,6 +660,19 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, dc_buffe
 			break;
 		}
 
+		// A read error on the watch is reported as a chunk at offset
+		// 0xFFFFFFFF, with an int16 error code as its data.
+		if (offset == 0xFFFFFFFF) {
+			if (length != 2) {
+				ERROR (abstract->context, "Unexpected read error length (%u).", length);
+				status = DC_STATUS_PROTOCOL;
+				break;
+			}
+			ERROR (abstract->context, "Failed to read %s on the watch (%d).", path, (signed short) array_uint16_le (chunk + CHUNK_DATA));
+			status = DC_STATUS_PROTOCOL;
+			break;
+		}
+
 		if (offset != received) {
 			ERROR (abstract->context, "Unexpected chunk offset (%u %u).", offset, received);
 			status = DC_STATUS_PROTOCOL;
