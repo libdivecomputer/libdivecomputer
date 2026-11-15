@@ -142,42 +142,53 @@
 #define GAS_PO2MAX        5  // float32 LE, bar
 #define GAS_VOLUME        9  // float32 LE, m^3
 
+// The values are kept in the units of the device, and converted when they
+// are returned.
 typedef struct suunto_nautic_tank_t {
 	unsigned int used;
-	double beginpressure; // bar
-	double endpressure;   // bar
+	unsigned int beginpressure; // Pa
+	unsigned int endpressure;   // Pa
 	unsigned int gasmix;  // gas index (== cylinder slot / GasNumber)
 } suunto_nautic_tank_t;
+
+typedef struct suunto_nautic_gasmix_t {
+	unsigned int oxygen; // %
+	unsigned int helium; // %
+	double volume;       // cylinder water capacity, m^3 (0 = unknown)
+} suunto_nautic_gasmix_t;
 
 typedef struct suunto_nautic_parser_t {
 	dc_parser_t base;
 	unsigned int cached;
-	unsigned int divetime; // seconds
-	double maxdepth;       // meters
-	double avgdepth;       // meters
+	int divetime;          // ms
+	double maxdepth;       // m
+	double depth_sum;      // m, over the Diving samples
+	unsigned int depth_count;
 	unsigned int have_temperature;
-	double temperature_surface; // first (surface) reading
-	double temperature_minimum;
-	double temperature_maximum;
+	unsigned int temperature_surface; // 0.01 K, the first (surface) reading
+	unsigned int temperature_minimum;
+	unsigned int temperature_maximum;
 	unsigned int ntanks;
 	suunto_nautic_tank_t tank[MAX_TANKS];
 	unsigned int have_location;
-	dc_location_t location;
+	int latitude;  // 1e-7 degrees
+	int longitude; // 1e-7 degrees
 	unsigned int have_atmospheric;
-	double atmospheric; // bar
+	double atmospheric; // Pa
 	unsigned int have_datetime;
 	dc_ticks_t datetime; // dive start, UNIX seconds
-	dc_divemode_t divemode; // from the CHUNK_ACTIVITY sport id; OC unless apnea
+	unsigned int have_sport;
+	unsigned int sport; // the CHUNK_ACTIVITY sport id
 	// From the /Summary SBEM section in front of the profile.
 	unsigned int ngasmixes;
-	dc_gasmix_t gasmix[MAX_GASMIXES];
-	double gasvolume[MAX_GASMIXES]; // cylinder water capacity, litres (0 = unknown)
-	unsigned int have_decomodel;
-	dc_decomodel_t decomodel;
+	suunto_nautic_gasmix_t gasmix[MAX_GASMIXES];
+	unsigned int have_gf;
+	unsigned int gf_low;  // %
+	unsigned int gf_high; // %
 	unsigned int have_ppo2max;
 	double ppo2max; // bar, configured oxygen partial-pressure limit
-	unsigned int have_salinity;
-	dc_salinity_t salinity;
+	unsigned int have_watertype;
+	unsigned int watertype; // 0 fresh, 1 EN13319, 2 salt
 } suunto_nautic_parser_t;
 
 typedef dc_status_t (*suunto_nautic_sbem_callback_t) (dc_context_t *context, unsigned int id, const unsigned char data[], unsigned int size, void *userdata);
@@ -213,8 +224,6 @@ typedef struct suunto_nautic_profile_t {
 	unsigned int dive_state;
 	int diving_start_ms;
 	int total_dive_ms;
-	double depth_sum;
-	unsigned int depth_count;
 	// Each cylinder slot has two pressure fields: Pressure (+2, the main
 	// transmitter) and Pressure2 (+6, a sidemount second transmitter). Map
 	// each (slot, field) with data to a compacted tank index. Pressure2 is
@@ -369,20 +378,14 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 		return DC_STATUS_DATAFORMAT;
 	}
 
-	unsigned int low = array_uint16_le (data + HEADER_GF_LOW);
-	unsigned int high = array_uint16_le (data + HEADER_GF_HIGH);
-	parser->decomodel.type = DC_DECOMODEL_BUHLMANN;
-	parser->decomodel.conservatism = 0;
-	parser->decomodel.params.gf.low = low;
-	parser->decomodel.params.gf.high = high;
-	parser->have_decomodel = 1;
+	parser->gf_low = array_uint16_le (data + HEADER_GF_LOW);
+	parser->gf_high = array_uint16_le (data + HEADER_GF_HIGH);
+	parser->have_gf = 1;
 
-	unsigned int wt = data[HEADER_WATER_TYPE];
-	if (wt <= 2) {
-		static const double density[] = {1000.0, 1020.0, 1030.0};
-		parser->salinity.type = wt ? DC_WATER_SALT : DC_WATER_FRESH;
-		parser->salinity.density = density[wt];
-		parser->have_salinity = 1;
+	unsigned int watertype = data[HEADER_WATER_TYPE];
+	if (watertype <= 2) {
+		parser->watertype = watertype;
+		parser->have_watertype = 1;
 	}
 
 	for (unsigned int i = 0; i < MAX_GASMIXES; i++) {
@@ -392,15 +395,13 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 		if (o2 < 1 || o2 > 100 || he > 100 || o2 + he > 100)
 			break; // unused/implausible slot -- stop
 		unsigned int g = parser->ngasmixes;
-		parser->gasmix[g].oxygen = o2 / 100.0;
-		parser->gasmix[g].helium = he / 100.0;
-		parser->gasmix[g].nitrogen = 1.0 - (o2 + he) / 100.0;
-		parser->gasmix[g].usage = DC_USAGE_NONE;
-		// Per-gas cylinder water capacity (float32 m^3) -> litres, when it is
+		parser->gasmix[g].oxygen = o2;
+		parser->gasmix[g].helium = he;
+		// Per-gas cylinder water capacity (float32 m^3), when it is
 		// physically sane.
-		double vol_m3 = array_float_le (gas + GAS_VOLUME);
-		if (vol_m3 > 0.0 && vol_m3 < 1.0)
-			parser->gasvolume[g] = vol_m3 * 1000.0;
+		double volume = array_float_le (gas + GAS_VOLUME);
+		if (volume > 0.0 && volume < 1.0)
+			parser->gasmix[g].volume = volume;
 		// The configured PO2 max (float32 bar) is a single watch setting held
 		// in the first gas record. Record it once, when physically sane.
 		if (g == 0) {
@@ -528,7 +529,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
 			return DC_STATUS_DATAFORMAT;
 		}
-		double temperature = array_uint16_le (data + 16) / 100.0 - 273.15;
+		unsigned int temperature = array_uint16_le (data + 16);
 
 		if (!parser->have_temperature) {
 			// The first reading is taken at/near the surface at dive start.
@@ -545,7 +546,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		dc_sample_value_t sample = {0};
 		sample.time = (unsigned int) s->sample_ms;
 		if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
-		sample.temperature = temperature;
+		sample.temperature = temperature / 100.0 - 273.15;
 		if (s->callback) s->callback (DC_SAMPLE_TEMPERATURE, &sample, s->userdata);
 	} else if (id == CHUNK_EXTENDED_STATUS) {
 		if (size < 42) {
@@ -559,8 +560,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 			parser->maxdepth = depth;
 		// Average only over the Diving phase (matches the app).
 		if (s->dive_state == DIVE_STATE_DIVING) {
-			s->depth_sum += depth;
-			s->depth_count++;
+			parser->depth_sum += depth;
+			parser->depth_count++;
 		}
 
 		dc_sample_value_t sample = {0};
@@ -622,7 +623,6 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 							continue;
 						}
 					}
-					double bar = pressure_pa / 100000.0;
 					if (s->tankmap[key] < 0) {
 						if (parser->ntanks >= MAX_TANKS)
 							continue;
@@ -634,22 +634,22 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 						// Seed begin from the first observed reading (the deferred
 						// one for Pressure2); refined to the max below.
 						parser->tank[parser->ntanks].beginpressure = (field == 1 && s->p2_first[i] >= 0)
-							? s->p2_first[i] / 100000.0 : bar;
+							? (unsigned int) s->p2_first[i] : pressure_pa;
 						parser->ntanks++;
 					}
 					unsigned int t = (unsigned int) s->tankmap[key];
-					parser->tank[t].endpressure = bar;
+					parser->tank[t].endpressure = pressure_pa;
 					// Begin pressure = the highest reading seen: a cylinder only
 					// loses pressure during a dive, so the max is the true start.
 					// This ignores an initial dropout where a transmitter that
 					// hasn't paired yet reports a spurious low value (e.g. ~9 bar
 					// for the first minutes, then jumps to the real ~200 bar).
-					if (bar > parser->tank[t].beginpressure)
-						parser->tank[t].beginpressure = bar;
+					if (pressure_pa > parser->tank[t].beginpressure)
+						parser->tank[t].beginpressure = pressure_pa;
 					sample.time = (unsigned int) s->sample_ms;
 					if (s->callback) s->callback (DC_SAMPLE_TIME, &sample, s->userdata);
 					sample.pressure.tank = t;
-					sample.pressure.value = bar;
+					sample.pressure.value = pressure_pa / 100000.0;
 					if (s->callback) s->callback (DC_SAMPLE_PRESSURE, &sample, s->userdata);
 				}
 			}
@@ -717,9 +717,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 
 		if (!parser->have_location) {
 			parser->have_location = 1;
-			parser->location.latitude = lat_raw / 1.0e7;
-			parser->location.longitude = lon_raw / 1.0e7;
-			parser->location.altitude = 0.0;
+			parser->latitude = lat_raw;
+			parser->longitude = lon_raw;
 		}
 
 		dc_sample_value_t sample = {0};
@@ -903,7 +902,7 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// is a single ambient-pressure reading in bar, so only
 		// SurfacePressure (offset 2) is used; last one logged wins.
 		parser->have_atmospheric = 1;
-		parser->atmospheric = array_float_le (data + 2) / 100000.0;
+		parser->atmospheric = array_float_le (data + 2);
 	} else if (id == CHUNK_ACTIVITY) {
 		if (size < 3) {
 			ERROR (context, "Unexpected chunk size (%02x %u).", id, size);
@@ -912,11 +911,8 @@ suunto_nautic_parser_profile (dc_context_t *context, unsigned int id, const unsi
 		// [timeDelta:2][sportId:1][customModeId: ascii]. The sport id
 		// is the app's ActivityType; 61/62 are the apnea sports, every
 		// other diving id is open circuit.
-		unsigned int sport = data[2];
-		if (sport == SPORT_ID_FREEDIVE || sport == SPORT_ID_MERMAIDING)
-			parser->divemode = DC_DIVEMODE_FREEDIVE;
-		else
-			parser->divemode = DC_DIVEMODE_OC;
+		parser->sport = data[2];
+		parser->have_sport = 1;
 	}
 
 	return DC_STATUS_SUCCESS;
@@ -948,33 +944,32 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	parser->cached = 0;
 	parser->divetime = 0;
 	parser->maxdepth = 0.0;
-	parser->avgdepth = 0.0;
+	parser->depth_sum = 0.0;
+	parser->depth_count = 0;
 	parser->have_temperature = 0;
-	parser->temperature_surface = 0.0;
-	parser->temperature_minimum = 0.0;
-	parser->temperature_maximum = 0.0;
+	parser->temperature_surface = 0;
+	parser->temperature_minimum = 0;
+	parser->temperature_maximum = 0;
 	parser->ntanks = 0;
 	memset (parser->tank, 0, sizeof (parser->tank));
 	parser->have_location = 0;
-	memset (&parser->location, 0, sizeof (parser->location));
+	parser->latitude = 0;
+	parser->longitude = 0;
 	parser->have_atmospheric = 0;
 	parser->atmospheric = 0.0;
 	parser->have_datetime = 0;
 	parser->datetime = 0;
-	// Open circuit unless a CHUNK_ACTIVITY sport id says the dive was apnea.
-	// The Nautic/Ocean are recreational OC computers (no CCR/SCR), and with no
-	// activity chunk at all OC is the right default -- far better than the
-	// dc_divemode_t zero value (freedive) a missing field leaves behind.
-	parser->divemode = DC_DIVEMODE_OC;
+	parser->have_sport = 0;
+	parser->sport = 0;
 	parser->ngasmixes = 0;
 	memset (parser->gasmix, 0, sizeof (parser->gasmix));
-	memset (parser->gasvolume, 0, sizeof (parser->gasvolume));
-	parser->have_decomodel = 0;
-	memset (&parser->decomodel, 0, sizeof (parser->decomodel));
+	parser->have_gf = 0;
+	parser->gf_low = 0;
+	parser->gf_high = 0;
 	parser->have_ppo2max = 0;
 	parser->ppo2max = 0.0;
-	parser->have_salinity = 0;
-	memset (&parser->salinity, 0, sizeof (parser->salinity));
+	parser->have_watertype = 0;
+	parser->watertype = 0;
 
 	suunto_nautic_summary_t summary_state;
 	memset (&summary_state, 0, sizeof (summary_state));
@@ -1006,13 +1001,12 @@ suunto_nautic_parser_parse (dc_parser_t *abstract, dc_sample_callback_t callback
 	if (s.dive_state == DIVE_STATE_DIVING && s.diving_start_ms >= 0)
 		s.total_dive_ms += s.time_ms - s.diving_start_ms;
 
-	// Dive time = total time in the Diving state (seconds). Fall back to the
-	// full elapsed time if no DiveState markers were seen.
+	// Dive time = total time in the Diving state. Fall back to the full
+	// elapsed time if no DiveState markers were seen.
 	if (s.total_dive_ms > 0)
-		parser->divetime = (unsigned int) ((s.total_dive_ms + 500) / 1000);
+		parser->divetime = s.total_dive_ms;
 	else
-		parser->divetime = (unsigned int) ((s.time_ms + 500) / 1000);
-	parser->avgdepth = s.depth_count ? s.depth_sum / s.depth_count : 0.0;
+		parser->divetime = s.time_ms;
 
 	parser->cached = 1;
 
@@ -1057,32 +1051,38 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	if (value == NULL)
 		return DC_STATUS_SUCCESS;
 
+	dc_gasmix_t *gasmix = (dc_gasmix_t *) value;
 	dc_tank_t *tank = (dc_tank_t *) value;
+	dc_location_t *location = (dc_location_t *) value;
+	dc_decomodel_t *decomodel = (dc_decomodel_t *) value;
+	dc_salinity_t *water = (dc_salinity_t *) value;
+	// Fresh, EN13319 and salt water.
+	static const double density[] = {1000.0, 1020.0, 1030.0};
 
 	switch (type) {
 	case DC_FIELD_DIVETIME:
-		*((unsigned int *) value) = parser->divetime;
+		*((unsigned int *) value) = (unsigned int) ((parser->divetime + 500) / 1000);
 		break;
 	case DC_FIELD_MAXDEPTH:
 		*((double *) value) = parser->maxdepth;
 		break;
 	case DC_FIELD_AVGDEPTH:
-		*((double *) value) = parser->avgdepth;
+		*((double *) value) = parser->depth_count ? parser->depth_sum / parser->depth_count : 0.0;
 		break;
 	case DC_FIELD_TEMPERATURE_SURFACE:
 		if (!parser->have_temperature)
 			return DC_STATUS_UNSUPPORTED;
-		*((double *) value) = parser->temperature_surface;
+		*((double *) value) = parser->temperature_surface / 100.0 - 273.15;
 		break;
 	case DC_FIELD_TEMPERATURE_MINIMUM:
 		if (!parser->have_temperature)
 			return DC_STATUS_UNSUPPORTED;
-		*((double *) value) = parser->temperature_minimum;
+		*((double *) value) = parser->temperature_minimum / 100.0 - 273.15;
 		break;
 	case DC_FIELD_TEMPERATURE_MAXIMUM:
 		if (!parser->have_temperature)
 			return DC_STATUS_UNSUPPORTED;
-		*((double *) value) = parser->temperature_maximum;
+		*((double *) value) = parser->temperature_maximum / 100.0 - 273.15;
 		break;
 	case DC_FIELD_TANK_COUNT:
 		*((unsigned int *) value) = parser->ntanks;
@@ -1093,8 +1093,8 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		tank->type = DC_TANKVOLUME_NONE;
 		tank->volume = 0.0;
 		tank->workpressure = 0.0;
-		tank->beginpressure = parser->tank[flags].beginpressure;
-		tank->endpressure = parser->tank[flags].endpressure;
+		tank->beginpressure = parser->tank[flags].beginpressure / 100000.0;
+		tank->endpressure = parser->tank[flags].endpressure / 100000.0;
 		tank->gasmix = DC_GASMIX_UNKNOWN;
 		tank->usage = DC_USAGE_NONE;
 		// Link the tank to its gas (slot index) and expose the per-gas
@@ -1103,9 +1103,9 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 			unsigned int gi = parser->tank[flags].gasmix;
 			if (gi < parser->ngasmixes) {
 				tank->gasmix = gi;
-				if (parser->gasvolume[gi] > 0.0) {
+				if (parser->gasmix[gi].volume > 0.0) {
 					tank->type = DC_TANKVOLUME_METRIC;
-					tank->volume = parser->gasvolume[gi];
+					tank->volume = parser->gasmix[gi].volume * 1000.0;
 				}
 			}
 		}
@@ -1113,12 +1113,14 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	case DC_FIELD_LOCATION:
 		if (!parser->have_location)
 			return DC_STATUS_UNSUPPORTED;
-		*((dc_location_t *) value) = parser->location;
+		location->latitude = parser->latitude / 1.0e7;
+		location->longitude = parser->longitude / 1.0e7;
+		location->altitude = 0.0;
 		break;
 	case DC_FIELD_ATMOSPHERIC:
 		if (!parser->have_atmospheric)
 			return DC_STATUS_UNSUPPORTED;
-		*((double *) value) = parser->atmospheric;
+		*((double *) value) = parser->atmospheric / 100000.0;
 		break;
 	case DC_FIELD_GASMIX_COUNT:
 		*((unsigned int *) value) = parser->ngasmixes;
@@ -1126,12 +1128,18 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 	case DC_FIELD_GASMIX:
 		if (flags >= parser->ngasmixes)
 			return DC_STATUS_INVALIDARGS;
-		*((dc_gasmix_t *) value) = parser->gasmix[flags];
+		gasmix->oxygen = parser->gasmix[flags].oxygen / 100.0;
+		gasmix->helium = parser->gasmix[flags].helium / 100.0;
+		gasmix->nitrogen = 1.0 - (parser->gasmix[flags].oxygen + parser->gasmix[flags].helium) / 100.0;
+		gasmix->usage = DC_USAGE_NONE;
 		break;
 	case DC_FIELD_DECOMODEL:
-		if (!parser->have_decomodel)
+		if (!parser->have_gf)
 			return DC_STATUS_UNSUPPORTED;
-		*((dc_decomodel_t *) value) = parser->decomodel;
+		decomodel->type = DC_DECOMODEL_BUHLMANN;
+		decomodel->conservatism = 0;
+		decomodel->params.gf.low = parser->gf_low;
+		decomodel->params.gf.high = parser->gf_high;
 		break;
 	case DC_FIELD_PPO2_MAX:
 		if (!parser->have_ppo2max)
@@ -1139,12 +1147,19 @@ suunto_nautic_parser_get_field (dc_parser_t *abstract, dc_field_type_t type, uns
 		*((double *) value) = parser->ppo2max;
 		break;
 	case DC_FIELD_SALINITY:
-		if (!parser->have_salinity)
+		if (!parser->have_watertype)
 			return DC_STATUS_UNSUPPORTED;
-		*((dc_salinity_t *) value) = parser->salinity;
+		water->type = parser->watertype ? DC_WATER_SALT : DC_WATER_FRESH;
+		water->density = density[parser->watertype];
 		break;
 	case DC_FIELD_DIVEMODE:
-		*((dc_divemode_t *) value) = parser->divemode;
+		// Open circuit unless the sport id says the dive was apnea. The
+		// Nautic/Ocean are recreational OC computers (no CCR/SCR), and with
+		// no activity chunk at all OC is the right default.
+		if (parser->have_sport && (parser->sport == SPORT_ID_FREEDIVE || parser->sport == SPORT_ID_MERMAIDING))
+			*((dc_divemode_t *) value) = DC_DIVEMODE_FREEDIVE;
+		else
+			*((dc_divemode_t *) value) = DC_DIVEMODE_OC;
 		break;
 	default:
 		return DC_STATUS_UNSUPPORTED;
