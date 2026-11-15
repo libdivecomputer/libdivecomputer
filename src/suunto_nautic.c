@@ -63,11 +63,13 @@
 // resource's handle slots, [00|10] 24 <resource>, until a RELEASE frees it. A
 // second GET while the 00 slot is still bound, e.g. by another app on the
 // link, gets the 10 slot; the handle the GET returns is always the one used.
-// Static paths answer with an F0 handle and an unknown path with FF FF FF;
-// neither is released. The slot is the first byte on the wire.
-#define HANDLE_SLOT(handle) ((handle) & 0xFF)
-#define SLOT_STATIC  0xF0
-#define SLOT_UNKNOWN 0xFF
+// Static paths answer with an F0 handle, e.g. F0 24 00 for /Logbook/Entries,
+// which isn't released, and an unknown path with FF FF FF. A few static
+// paths, /Info among them, answer with F1 instead; those are released like a
+// slot, and the watch answers that with 200. The slot is the first byte on
+// the wire.
+#define HANDLE_ISSTATIC(handle)  (((handle) & 0xFF) == 0xF0)
+#define HANDLE_ISINVALID(handle) ((handle) == 0xFFFFFF)
 
 // Request parameters are COUNT(1), then TYPE(2) VALUE for each parameter. The
 // /Summary page offset is an int32, the /Logbook/Entries StartAfterId (the id
@@ -393,7 +395,7 @@ suunto_nautic_release (suunto_nautic_device_t *device, unsigned int handle)
 {
 	dc_status_t status = DC_STATUS_SUCCESS;
 
-	if (HANDLE_SLOT (handle) == SLOT_STATIC || HANDLE_SLOT (handle) == SLOT_UNKNOWN)
+	if (HANDLE_ISSTATIC (handle) || HANDLE_ISINVALID (handle))
 		return status;
 
 	unsigned char reply[REPLY_CONTENT] = {0};
