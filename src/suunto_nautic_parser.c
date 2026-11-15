@@ -131,14 +131,14 @@
 // on two devices (Nautic 35/75, Nautic S 40/85); the reverse gives low > high.
 // Gas/cylinder records: an array starting at HEADER_GAS, one 45-byte
 // record per configured gas. The record index equals the cylinder slot
-// (GasNumber), so tank i uses gas i. Within a record: O2% at +1, He% at +2,
+// (GasNumber), so tank i uses gas i. Within a record: O2% at +1, He% at +3,
 // the configured PO2 max (float32 LE, bar) at +5, and cylinder water capacity
 // (float32 LE, m^3) at +9. Confirmed on real single- and dual-gas dives; a
 // lone-gas dive stops at the first implausible slot.
 #define HEADER_GAS        185
 #define HEADER_GAS_SIZE   45
-#define GAS_O2            1  // uint8, %
-#define GAS_HE            2  // uint8, %
+#define GAS_O2            1  // uint16 LE, %
+#define GAS_HE            3  // uint16 LE, %
 #define GAS_PO2MAX        5  // float32 LE, bar
 #define GAS_VOLUME        9  // float32 LE, m^3
 
@@ -387,8 +387,8 @@ suunto_nautic_parser_summary (dc_context_t *context, unsigned int id, const unsi
 
 	for (unsigned int i = 0; i < MAX_GASMIXES; i++) {
 		const unsigned char *gas = data + HEADER_GAS + i * HEADER_GAS_SIZE;
-		unsigned int o2 = gas[GAS_O2];
-		unsigned int he = gas[GAS_HE];
+		unsigned int o2 = array_uint16_le (gas + GAS_O2);
+		unsigned int he = array_uint16_le (gas + GAS_HE);
 		if (o2 < 1 || o2 > 100 || he > 100 || o2 + he > 100)
 			break; // unused/implausible slot -- stop
 		unsigned int g = parser->ngasmixes;
