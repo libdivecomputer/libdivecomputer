@@ -274,6 +274,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 			if (header == 0x5A23) {
 				// this is a deleted dive; keep looking
 				offset += RECORD_SIZE;
+				count++;
 				deleted++;
 				continue;
 			}
@@ -290,7 +291,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 
 		// Update the progress state.
 		current += 1;
-		maximum -= RECORD_COUNT - count - deleted;
+		maximum -= RECORD_COUNT - count + deleted;
 
 		// Append the manifest records to the main buffer.
 		if (!dc_buffer_append (manifests, data, count * RECORD_SIZE)) {
@@ -301,7 +302,7 @@ shearwater_petrel_device_foreach (dc_device_t *abstract, dc_dive_callback_t call
 		}
 
 		// Stop downloading manifest if there are no more records.
-		if (count + deleted != RECORD_COUNT)
+		if (count != RECORD_COUNT)
 			break;
 	}
 
