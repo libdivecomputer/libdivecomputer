@@ -446,7 +446,7 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 		o2_offset = 0x30;
 		ngasmixes = 4;
 		o2_step = 2;
-	} else if (parser->model == I470TC) {
+	} else if (parser->model == I470TC || parser->model == GEOAIR) {
 		o2_offset = 0x28;
 		ngasmixes = 3;
 		o2_step = 2;
