@@ -477,9 +477,8 @@ oceanic_atom2_parser_cache (oceanic_atom2_parser_t *parser)
 	for (unsigned int i = 0; i < ngasmixes; ++i) {
 		if (data[o2_offset + i * o2_step]) {
 			parser->oxygen[i] = data[o2_offset + i * o2_step];
-			// The i330R uses 20 as "Air" and 21 as 21% Nitrox
-			if ((parser->model == I330R || parser->model == I330R_C) &&
-				parser->oxygen[i] == 20) {
+			// Some models use 20 as "Air" and 21 as 21% Nitrox
+			if (parser->oxygen[i] == 20 && !he_offset) {
 				parser->oxygen[i] = 21;
 			}
 		} else {
