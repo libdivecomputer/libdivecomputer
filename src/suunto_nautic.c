@@ -29,6 +29,7 @@
 #include "checksum.h"
 #include "array.h"
 #include "hdlc.h"
+#include "timer.h"
 #include "heatshrink/heatshrink_decoder.h"
 
 #include <libdivecomputer/datetime.h>
@@ -129,6 +130,7 @@
 
 #define TIMEOUT_DEFAULT 5000
 #define TIMEOUT_STREAM  4000 // the gap between two chunks reaches about 2s
+#define TIMEOUT_SKIP    (3 * TIMEOUT_DEFAULT) // a reply takes up to about 1s, see suunto_nautic_skip
 
 // Heatshrink (LZSS) parameters used by the Nautic/Ocean's MDS stream.
 #define HEATSHRINK_WINDOW_SZ2    7
@@ -138,7 +140,9 @@
 typedef struct suunto_nautic_device_t {
 	dc_device_t base;
 	dc_iostream_t *iostream; // HDLC-framed
+	dc_timer_t *timer;
 	unsigned int seqnum;
+	unsigned int stream; // the handle of the stream being received, 0 for none
 	// The dive id (a UNIX timestamp) of the most recently downloaded dive,
 	// little-endian. All-zero means no fingerprint.
 	unsigned char fingerprint[4];
@@ -230,6 +234,31 @@ suunto_nautic_send (suunto_nautic_device_t *device, unsigned char opcode, unsign
 	return status;
 }
 
+// Another app's packets can keep coming while ours never does, so skipping
+// them ends after TIMEOUT_SKIP without one of ours. A cancel ends only a wait
+// for a notification, so it never loses a request's handle or subscription.
+static dc_status_t
+suunto_nautic_skip (suunto_nautic_device_t *device, unsigned char opcode, dc_usecs_t begin)
+{
+	dc_status_t status = DC_STATUS_SUCCESS;
+	dc_device_t *abstract = (dc_device_t *) device;
+
+	if (opcode == RPC_OP_NOTIFICATION && device_is_cancelled (abstract))
+		return DC_STATUS_CANCELLED;
+
+	dc_usecs_t now = 0;
+	status = dc_timer_now (device->timer, &now);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
+
+	if (now - begin >= (dc_usecs_t) TIMEOUT_SKIP * 1000) {
+		ERROR (abstract->context, "Only other packets for %d ms while waiting for %02x.", TIMEOUT_SKIP, opcode);
+		return DC_STATUS_TIMEOUT;
+	}
+
+	return status;
+}
+
 // Receive the packet with the given opcode and sequence number. The watch
 // serves every app connected to it over the same link, so the replies to
 // another app's requests can arrive in between. Those are recognized by their
@@ -244,6 +273,11 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 
 	if (size > MAX_PAYLOAD)
 		return DC_STATUS_INVALIDARGS;
+
+	dc_usecs_t begin = 0;
+	status = dc_timer_now (device->timer, &begin);
+	if (status != DC_STATUS_SUCCESS)
+		return status;
 
 	while (1) {
 		status = dc_iostream_read (device->iostream, packet, sizeof(packet), &length);
@@ -278,12 +312,23 @@ suunto_nautic_recv (suunto_nautic_device_t *device, unsigned char opcode, unsign
 		unsigned int rsp_opcode = packet[1];
 		if (rsp_opcode != opcode) {
 			WARNING (device->base.context, "Skipping a packet with an unexpected opcode (%02x %02x).", rsp_opcode, opcode);
+			// The rest of a stopped stream of ours shows the watch is still busy with us.
+			if (rsp_opcode == RPC_OP_NOTIFICATION && device->stream && rsp_length >= 3 &&
+				HANDLE_RESOURCE (array_uint24_le (packet + 6)) == HANDLE_RESOURCE (device->stream))
+				status = dc_timer_now (device->timer, &begin);
+			else
+				status = suunto_nautic_skip (device, opcode, begin);
+			if (status != DC_STATUS_SUCCESS)
+				return status;
 			continue;
 		}
 
 		unsigned int rsp_seqnum = array_uint16_le (packet + 4);
 		if (rsp_seqnum != seqnum) {
 			WARNING (device->base.context, "Skipping a packet with an unexpected sequence number (%u %u).", rsp_seqnum, seqnum);
+			status = suunto_nautic_skip (device, opcode, begin);
+			if (status != DC_STATUS_SUCCESS)
+				return status;
 			continue;
 		}
 
@@ -636,11 +681,14 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, suunto_n
 	unsigned int received = 0;
 	unsigned int missing = 0;
 	unsigned int end = 0;
+	dc_usecs_t last = 0; // the last notification for the stream
 
 	unsigned int handle = 0;
 	status = suunto_nautic_get_handle (device, path, &handle);
 	if (status != DC_STATUS_SUCCESS)
 		return status;
+
+	device->stream = handle;
 
 	// The SUBSCRIBE and UNSUBSCRIBE replies carry two more bytes, 00 00.
 	unsigned char reply[2] = {0};
@@ -649,6 +697,9 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, suunto_n
 		handle, suunto_nautic_noparams, sizeof (suunto_nautic_noparams), reply, sizeof (reply), NULL, &errcode);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (abstract->context, "Failed to subscribe to %s.", path);
+		// Without its reply, the watch may have subscribed all the same.
+		if (status == DC_STATUS_TIMEOUT)
+			goto error_unsubscribe;
 		goto error_release;
 	}
 
@@ -663,6 +714,10 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, suunto_n
 		ERROR (abstract->context, "Failed to set the timeout.");
 		goto error_unsubscribe;
 	}
+
+	status = dc_timer_now (device->timer, &last);
+	if (status != DC_STATUS_SUCCESS)
+		goto error_unsubscribe;
 
 	// The watch streams the whole resource without acknowledgements, up to
 	// the end marker. Nothing is sent meanwhile, so check for a cancel here.
@@ -684,8 +739,15 @@ suunto_nautic_stream (suunto_nautic_device_t *device, const char *path, suunto_n
 		// several) arrive as notifications too, for another resource.
 		if (chunk_len >= 3 && HANDLE_RESOURCE (array_uint24_le (chunk)) != HANDLE_RESOURCE (handle)) {
 			WARNING (abstract->context, "Skipping a notification for another resource (%06x).", array_uint24_le (chunk));
+			status = suunto_nautic_skip (device, RPC_OP_NOTIFICATION, last);
+			if (status != DC_STATUS_SUCCESS)
+				break;
 			continue;
 		}
+
+		status = dc_timer_now (device->timer, &last);
+		if (status != DC_STATUS_SUCCESS)
+			break;
 
 		if (chunk_len < CHUNK_DATA) {
 			ERROR (abstract->context, "Unexpected chunk size (" DC_PRINTF_SIZE ").", chunk_len);
@@ -780,6 +842,7 @@ error_release:
 	rc = suunto_nautic_release (device, handle);
 	if (rc != DC_STATUS_SUCCESS)
 		dc_status_set_error (&status, rc);
+	device->stream = 0;
 	return status;
 }
 
@@ -1104,12 +1167,19 @@ suunto_nautic_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 	// requests are unlikely to share a number with those of another app on
 	// the same link, whose replies we also receive.
 	device->seqnum = ((unsigned int) dc_datetime_now () * 2654435761u) & 0xFFFF;
+	device->stream = 0;
 	memset (device->fingerprint, 0, sizeof (device->fingerprint));
+
+	status = dc_timer_new (&device->timer);
+	if (status != DC_STATUS_SUCCESS) {
+		ERROR (context, "Failed to create a high resolution timer.");
+		goto error_free;
+	}
 
 	status = dc_hdlc_open (&device->iostream, context, iostream, 244, 244);
 	if (status != DC_STATUS_SUCCESS) {
 		ERROR (context, "Failed to open the HDLC layer.");
-		goto error_free;
+		goto error_timer_free;
 	}
 
 	status = dc_iostream_set_timeout (device->iostream, TIMEOUT_DEFAULT);
@@ -1147,6 +1217,8 @@ suunto_nautic_device_open (dc_device_t **out, dc_context_t *context, dc_iostream
 
 error_close:
 	dc_iostream_close (device->iostream);
+error_timer_free:
+	dc_timer_free (device->timer);
 error_free:
 	dc_device_deallocate ((dc_device_t *) device);
 	return status;
@@ -1157,7 +1229,11 @@ suunto_nautic_device_close (dc_device_t *abstract)
 {
 	suunto_nautic_device_t *device = (suunto_nautic_device_t *) abstract;
 
-	return dc_iostream_close (device->iostream);
+	dc_status_t status = dc_iostream_close (device->iostream);
+
+	dc_timer_free (device->timer);
+
+	return status;
 }
 
 static dc_status_t
