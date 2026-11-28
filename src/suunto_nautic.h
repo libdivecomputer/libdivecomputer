@@ -1,0 +1,106 @@
+/*
+ * libdivecomputer
+ *
+ * Copyright (C) 2026 Jef Driesen
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301 USA
+ */
+
+/*
+ * Suunto Nautic / Ocean ("Vaasa" generation) BLE dive computers.
+ *
+ * Transport and framing:
+ *   - BLE, with HDLC framing (flag 0x7E, escape 0x7D / XOR 0x20; no
+ *     separate checksum at this layer).
+ *   - Every packet is 0xA5, opcode, length(u16 LE), seqnum(u16 LE),
+ *     payload(length), crc32(u32 LE), where crc32 is the reflected CRC-32
+ *     (checksum_crc32r) of every preceding byte. A reply echoes the
+ *     request's sequence number. The watch serves every app connected to
+ *     it over the same link, so replies to another app's requests are
+ *     recognized by their sequence number and skipped, as are leftover
+ *     notifications of a stream that has ended.
+ *   - A GET (0x0A) resolves a path to a handle; the other requests (FETCH
+ *     0x0D, SUBSCRIBE 0x10, UNSUBSCRIBE 0x11, RELEASE 0x0B) address that
+ *     handle. A per-dive handle stays bound until it is released.
+ *
+ * Dive download:
+ *   - GET /Logbook/byId/<id>/Data, SUBSCRIBE: the watch streams the
+ *     compressed dive in unacknowledged notifications (0x01), each with
+ *     its offset in the stream, and ends with a zero length chunk at the
+ *     total size, sent twice. Then UNSUBSCRIBE and RELEASE.
+ *   - A lost chunk isn't sent again. After the UNSUBSCRIBE, the same handle
+ *     serves the rest in pages, like /Summary, from the offset of the
+ *     first byte missing.
+ *   - The stream is Heatshrink-compressed (LZSS variant, see
+ *     src/heatshrink/; window_sz2 = 7, lookahead_sz2 = 5). The decoded
+ *     stream is an SBEM0103 container.
+ *   - GET /Logbook/byId/<id>/Summary, FETCH page by page: an uncompressed
+ *     SBEM0103 container with the fields that are not in the profile
+ *     (gradient factors, gas mixes). It is downloaded first, and stored in
+ *     front of the profile, with its size: SUMMARY_SIZE(4) SUMMARY PROFILE.
+ *
+ * SBEM0103 container:
+ *   - An 8-byte header (SBEM0103), then chunks ID LENGTH DATA(LENGTH). The
+ *     id is one byte, or 0xFF and a uint16 LE id; the length is one byte,
+ *     or 0xFF and a uint32 LE length. Unknown chunk IDs are skipped.
+ *   - Decoded chunks (suunto_nautic_parser.c): 0x01 (timeline base),
+ *     0x12 (1Hz absolute pressure / temperature), 0x16 (depth, cylinder
+ *     pressures, NDL, time-to-surface), 0x0B (GPS), 0x17 (surface
+ *     pressure -> DC_FIELD_ATMOSPHERIC), plus dive events and high-rate
+ *     IMU. The ids from 0x20 up aren't fixed, see the parser.
+ *   - Series libdivecomputer has no sample type for (battery, GPS
+ *     accuracy, 9-axis IMU, dive-route features, gradient factors) are
+ *     emitted through DC_SAMPLE_VENDOR tagged SAMPLE_VENDOR_SUUNTO_NAUTIC,
+ *     each record led by a VENDOR_KIND_* byte.
+ *
+ * Enumeration:
+ *   - /Logbook/Entries lists the dives, oldest first and in pages. Each
+ *     record holds the dive id (its start time, a UNIX timestamp) and its
+ *     size, which is checked against the download. Dives are downloaded
+ *     newest first, stopping at the first id matching the fingerprint.
+ *
+ * Datetime:
+ *   - The profile starts with the timeline base (chunk 0x01): the local
+ *     time of the dive start in milliseconds, in its low 7 bytes, and the
+ *     UTC offset of the watch in quarter hours, as an int8, in its top
+ *     byte. dc_parser_get_datetime() returns that local time, with the
+ *     offset as the time zone. The local time minus the offset is about
+ *     a second after the dive id, at most.
+ */
+
+#ifndef SUUNTO_NAUTIC_H
+#define SUUNTO_NAUTIC_H
+
+#include <libdivecomputer/context.h>
+#include <libdivecomputer/iostream.h>
+#include <libdivecomputer/device.h>
+#include <libdivecomputer/parser.h>
+#include <libdivecomputer/buffer.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+dc_status_t
+suunto_nautic_device_open (dc_device_t **device, dc_context_t *context, dc_iostream_t *iostream);
+
+dc_status_t
+suunto_nautic_parser_create (dc_parser_t **parser, dc_context_t *context, const unsigned char data[], size_t size);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* SUUNTO_NAUTIC_H */

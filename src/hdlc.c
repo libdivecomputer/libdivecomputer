@@ -233,7 +233,10 @@ dc_hdlc_read (dc_iostream_t *abstract, void *data, size_t size, size_t *actual)
 					goto out;
 				}
 
-				if (initialized) {
+				// Empty frames are discarded. Two flags in a row are the
+				// closing flag of one frame and the opening flag of the next,
+				// e.g. when the read started inside a frame.
+				if (initialized && nbytes) {
 					goto out;
 				}
 

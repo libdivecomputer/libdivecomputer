@@ -66,6 +66,7 @@
 #include "oceans_s1.h"
 #include "divesoft_freedom.h"
 #include "halcyon_symbios.h"
+#include "suunto_nautic.h"
 
 #include "device-private.h"
 #include "context-private.h"
@@ -135,6 +136,9 @@ dc_device_open (dc_device_t **out, dc_context_t *context, dc_descriptor_t *descr
 		break;
 	case DC_FAMILY_SUUNTO_EONSTEEL:
 		rc = suunto_eonsteel_device_open (&device, context, iostream, dc_descriptor_get_model (descriptor));
+		break;
+	case DC_FAMILY_SUUNTO_NAUTIC:
+		rc = suunto_nautic_device_open (&device, context, iostream);
 		break;
 	case DC_FAMILY_UWATEC_ALADIN:
 		rc = uwatec_aladin_device_open (&device, context, iostream);

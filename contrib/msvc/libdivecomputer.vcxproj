@@ -210,6 +210,7 @@
     <ClCompile Include="..\..\src\halcyon_symbios.c" />
     <ClCompile Include="..\..\src\halcyon_symbios_parser.c" />
     <ClCompile Include="..\..\src\hdlc.c" />
+    <ClCompile Include="..\..\src\heatshrink\heatshrink_decoder.c" />
     <ClCompile Include="..\..\src\hw_ostc.c" />
     <ClCompile Include="..\..\src\hw_ostc3.c" />
     <ClCompile Include="..\..\src\hw_ostc_parser.c" />
@@ -270,6 +271,8 @@
     <ClCompile Include="..\..\src\suunto_eonsteel.c" />
     <ClCompile Include="..\..\src\suunto_eonsteel_parser.c" />
     <ClCompile Include="..\..\src\suunto_eon_parser.c" />
+    <ClCompile Include="..\..\src\suunto_nautic.c" />
+    <ClCompile Include="..\..\src\suunto_nautic_parser.c" />
     <ClCompile Include="..\..\src\suunto_solution.c" />
     <ClCompile Include="..\..\src\suunto_solution_parser.c" />
     <ClCompile Include="..\..\src\suunto_vyper.c" />
